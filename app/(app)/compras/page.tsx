@@ -1,0 +1,130 @@
+import Link from "next/link";
+import { Truck, Plus, FileText } from "lucide-react";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { compras, proveedores, empresas } from "@/lib/db/schema";
+import { requireSession } from "@/lib/actions/session-helpers";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { DataTable, type Columna } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { formatearMoneda, formatearFecha } from "@/lib/utils";
+
+type Fila = {
+  id: string;
+  numeroFactura: string | null;
+  fecha: string;
+  proveedor: string;
+  total: string;
+  esCredito: boolean;
+  estado: string;
+};
+
+export default async function ComprasPage() {
+  const user = await requireSession();
+  const [empresa] = await db
+    .select({ pais: empresas.pais })
+    .from(empresas)
+    .where(eq(empresas.id, user.empresaId))
+    .limit(1);
+
+  const filas: Fila[] = await db
+    .select({
+      id: compras.id,
+      numeroFactura: compras.numeroFactura,
+      fecha: compras.fecha,
+      proveedor: proveedores.razonSocial,
+      total: compras.total,
+      esCredito: compras.esCredito,
+      estado: compras.estado,
+    })
+    .from(compras)
+    .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
+    .where(eq(compras.empresaId, user.empresaId))
+    .orderBy(desc(compras.fecha))
+    .limit(200);
+
+  const columnas: Columna<Fila>[] = [
+    {
+      key: "fecha",
+      header: "Fecha",
+      cell: (r) => formatearFecha(r.fecha, empresa?.pais ?? "NI"),
+      width: "120px",
+    },
+    {
+      key: "factura",
+      header: "Factura",
+      cell: (r) => r.numeroFactura ?? "—",
+    },
+    {
+      key: "proveedor",
+      header: "Proveedor",
+      cell: (r) => <span className="font-medium">{r.proveedor}</span>,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      cell: (r) => formatearMoneda(parseFloat(r.total), empresa?.pais ?? "NI"),
+    },
+    {
+      key: "tipo",
+      header: "Tipo",
+      cell: (r) =>
+        r.esCredito ? (
+          <Badge variant="warning">Crédito</Badge>
+        ) : (
+          <Badge variant="neutral">Contado</Badge>
+        ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      cell: (r) =>
+        r.estado === "anulada" ? (
+          <Badge variant="error">Anulada</Badge>
+        ) : (
+          <Badge variant="success">{r.estado}</Badge>
+        ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Compras"
+        subtitle={`${filas.length} compras registradas`}
+        actions={
+          <div className="flex gap-2">
+            <Link href="/compras/proveedores" className="atria-btn atria-btn-secondary atria-btn-sm">
+              <Truck size={14} /> Proveedores
+            </Link>
+            <Link href="/compras/nueva" className="atria-btn atria-btn-primary atria-btn-sm">
+              <Plus size={14} /> Nueva compra
+            </Link>
+          </div>
+        }
+      />
+      <DataTable
+        data={filas}
+        columns={columnas}
+        rowKey={(r) => r.id}
+        empty={
+          <EmptyState
+            icon={FileText}
+            titulo="Aún no hay compras"
+            descripcion="Registra tu primera compra para alimentar inventario y CxP."
+            accion={
+              <Link href="/compras/nueva">
+                <Button size="sm">
+                  <Plus size={14} /> Registrar primera compra
+                </Button>
+              </Link>
+            }
+          />
+        }
+      />
+    </div>
+  );
+}

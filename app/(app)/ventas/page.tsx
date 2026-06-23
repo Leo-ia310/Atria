@@ -1,0 +1,147 @@
+import Link from "next/link";
+import { Receipt, ShoppingCart } from "lucide-react";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { ventas, clientes, empresas } from "@/lib/db/schema";
+import { requireSession } from "@/lib/actions/session-helpers";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { DataTable, type Columna } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
+
+type Fila = {
+  id: string;
+  numero: string;
+  fecha: Date;
+  cliente: string | null;
+  total: string;
+  esCredito: boolean;
+  estado: string;
+};
+
+export default async function VentasPage() {
+  const user = await requireSession();
+  const [empresa] = await db
+    .select({ pais: empresas.pais })
+    .from(empresas)
+    .where(eq(empresas.id, user.empresaId))
+    .limit(1);
+
+  const filas: Fila[] = await db
+    .select({
+      id: ventas.id,
+      numero: ventas.numero,
+      fecha: ventas.fecha,
+      cliente: clientes.nombre,
+      total: ventas.total,
+      esCredito: ventas.esCredito,
+      estado: ventas.estado,
+    })
+    .from(ventas)
+    .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
+    .where(eq(ventas.empresaId, user.empresaId))
+    .orderBy(desc(ventas.fecha))
+    .limit(200);
+
+  const columnas: Columna<Fila>[] = [
+    {
+      key: "numero",
+      header: "N° Venta",
+      cell: (r) => <span className="font-mono text-[12px]">{r.numero}</span>,
+      width: "140px",
+    },
+    {
+      key: "fecha",
+      header: "Fecha y hora",
+      cell: (r) => formatearFechaHora(r.fecha),
+      width: "180px",
+    },
+    {
+      key: "cliente",
+      header: "Cliente",
+      cell: (r) =>
+        r.cliente ?? (
+          <span className="italic text-[color:var(--color-text-muted)]">Consumidor final</span>
+        ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      cell: (r) => (
+        <span className="font-semibold">
+          {formatearMoneda(parseFloat(r.total), empresa?.pais ?? "NI")}
+        </span>
+      ),
+    },
+    {
+      key: "tipo",
+      header: "Tipo",
+      cell: (r) =>
+        r.esCredito ? (
+          <Badge variant="warning">Crédito</Badge>
+        ) : (
+          <Badge variant="neutral">Contado</Badge>
+        ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      cell: (r) =>
+        r.estado === "anulada" ? (
+          <Badge variant="error">Anulada</Badge>
+        ) : (
+          <Badge variant="success">Completada</Badge>
+        ),
+    },
+    {
+      key: "accion",
+      header: "",
+      align: "right",
+      cell: (r) => (
+        <Link
+          href={`/ventas/${r.id}`}
+          className="text-[color:var(--color-secondary)] hover:underline"
+        >
+          Ver →
+        </Link>
+      ),
+      width: "80px",
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Ventas"
+        subtitle={`${filas.length} ventas registradas`}
+        actions={
+          <Link href="/pos" className="atria-btn atria-btn-primary atria-btn-sm">
+            <ShoppingCart size={14} /> Abrir POS
+          </Link>
+        }
+      />
+      <DataTable
+        data={filas}
+        columns={columnas}
+        rowKey={(r) => r.id}
+        empty={
+          <EmptyState
+            icon={Receipt}
+            titulo="Aún no hay ventas"
+            descripcion="Abre el POS y haz tu primera venta para empezar a registrar."
+            accion={
+              <Link href="/pos">
+                <Button size="sm">
+                  <ShoppingCart size={14} /> Ir al POS
+                </Button>
+              </Link>
+            }
+          />
+        }
+      />
+    </div>
+  );
+}
