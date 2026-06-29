@@ -9,7 +9,7 @@ export type NavigationItem = {
 
 export const primaryNavigation: NavigationItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/app" },
-  { key: "pos", label: "POS", href: "/app/pos", permission: "pos:view" },
+  { key: "pos", label: "POS", href: "/pos", permission: "pos:view" },
   { key: "ventas", label: "Ventas", href: "/app/ventas", permission: "sales:view" },
   {
     key: "clientes",
