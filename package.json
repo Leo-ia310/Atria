@@ -1,0 +1,29 @@
+{
+  "name": "atria-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atria ERP/POS SaaS multi-tenant platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -c auto \"npm run dev --workspace @atria/api\" \"npm run dev --workspace @atria/web\"",
+    "dev:web": "npm run dev --workspace @atria/web",
+    "dev:api": "npm run start:dev --workspace @atria/api",
+    "build": "npm run build --workspace @atria/contracts && npm run build --workspace @atria/api && npm run build --workspace @atria/web",
+    "lint": "npm run lint --workspace @atria/contracts && npm run lint --workspace @atria/api && npm run lint --workspace @atria/web",
+    "db:generate": "npm run prisma:generate --workspace @atria/api",
+    "db:migrate": "npm run prisma:migrate --workspace @atria/api",
+    "db:seed": "npm run prisma:seed --workspace @atria/api",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down -v"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

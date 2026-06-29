@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: atria-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-atria}
+      POSTGRES_USER: ${POSTGRES_USER:-atria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atria}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atria} -d ${POSTGRES_DB:-atria}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: atria-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+    container_name: atria-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./apps/api/.env.example
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atria}:${POSTGRES_PASSWORD:-atria}@postgres:5432/${POSTGRES_DB:-atria}?schema=public
+      REDIS_URL: redis://redis:6379
+      APP_URL: http://localhost:${WEB_PORT:-3000}
+      API_URL: http://localhost:${API_PORT:-4000}
+      COOKIE_DOMAIN: localhost
+      SECURE_COOKIES: "false"
+    ports:
+      - "${API_PORT:-4000}:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+    container_name: atria-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    env_file:
+      - ./apps/web/.env.example
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-4000}/api/v1
+      INTERNAL_API_URL: http://api:4000/api/v1
+      NEXT_PUBLIC_APP_NAME: Atria
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: atria-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres-data:
+  redis-data:

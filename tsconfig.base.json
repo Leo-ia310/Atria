@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@atria/contracts": [
+        "packages/contracts/src"
+      ],
+      "@atria/contracts/*": [
+        "packages/contracts/src/*"
+      ]
+    }
+  }
+}
