@@ -119,10 +119,25 @@ export const extractTenantSlug = (request: Request): string | null => {
     return null;
   }
 
-  const [subdomain] = host.split('.');
-  if (!subdomain || ['localhost', '127', 'www'].includes(subdomain)) {
+  // host puede venir como "acero-norte.atria.app", "localhost:4000",
+  // "127.0.0.1:4000" o un IPv6. Quitamos puerto y validamos.
+  const hostname = host.split(':')[0]?.toLowerCase() ?? '';
+  if (!hostname) return null;
+
+  // Si solo hay un segmento (sin punto) o el primero es reservado, no hay tenant.
+  const parts = hostname.split('.');
+  const [subdomain, ...rest] = parts;
+  if (
+    parts.length < 2 ||
+    !subdomain ||
+    ['localhost', '127', 'www', '0', '10', '172', '192'].includes(subdomain)
+  ) {
+    return null;
+  }
+  // Excluir IPs (ej. 127.0.0.1)
+  if (/^\d+$/.test(subdomain) && rest.every((s) => /^\d+$/.test(s))) {
     return null;
   }
 
-  return subdomain.toLowerCase();
+  return subdomain;
 };

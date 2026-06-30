@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { JwtUser } from '@/auth/auth.types';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
-import { CreateJournalEntryDto } from './dto/accounting.dto';
+import { CreateJournalEntryDto, JournalEntriesQueryDto } from './dto/accounting.dto';
 
 const currency = (value: number) => new Prisma.Decimal(value);
 const toNumber = (value: unknown): number => Number(value ?? 0);
@@ -52,13 +52,45 @@ export class AccountingService {
     });
   }
 
-  async entries(user: JwtUser) {
-    return this.prisma.journalEntry.findMany({
-      where: { organizationId: user.organizationId },
-      include: { lines: { include: { account: true } } },
-      orderBy: { entryDate: 'desc' },
-      take: 40,
-    });
+  async entries(user: JwtUser, query: JournalEntriesQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 25, 100);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.JournalEntryWhereInput = {
+      organizationId: user.organizationId,
+      ...(query.sourceType && { sourceType: query.sourceType }),
+      ...(query.status && { status: query.status as never }),
+      ...(query.from || query.to
+        ? {
+            entryDate: {
+              ...(query.from && { gte: new Date(query.from) }),
+              ...(query.to && { lte: new Date(query.to) }),
+            },
+          }
+        : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { number: { contains: query.search, mode: 'insensitive' } },
+              { memo: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.journalEntry.findMany({
+        where,
+        include: { lines: { include: { account: true } } },
+        orderBy: { entryDate: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.journalEntry.count({ where }),
+    ]);
+
+    return { data, meta: { page, pageSize, total } };
   }
 
   async createEntry(user: JwtUser, dto: CreateJournalEntryDto) {

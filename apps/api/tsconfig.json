@@ -20,10 +20,10 @@
         "src/*"
       ],
       "@atria/contracts": [
-        "../../packages/contracts/src"
+        "../../packages/contracts/dist"
       ],
       "@atria/contracts/*": [
-        "../../packages/contracts/src/*"
+        "../../packages/contracts/dist/*"
       ]
     },
     "incremental": true,

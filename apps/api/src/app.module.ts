@@ -27,6 +27,7 @@ import { InventoryModule } from '@/inventory/inventory.module';
 import { MailerModule } from '@/mailer/mailer.module';
 import { OnboardingModule } from '@/onboarding/onboarding.module';
 import { PosModule } from '@/pos/pos.module';
+import { PurchasesModule } from '@/purchases/purchases.module';
 import { RealtimeModule } from '@/realtime/realtime.module';
 import { ReportsModule } from '@/reports/reports.module';
 import { SalesModule } from '@/sales/sales.module';
@@ -52,7 +53,7 @@ import { UploadsModule } from '@/uploads/uploads.module';
     LoggerModule,
     PrismaModule,
     RedisModule,
-    QueueModule,
+    QueueModule.register(),
     AuditModule,
     MailerModule,
     AuthModule,
@@ -62,6 +63,7 @@ import { UploadsModule } from '@/uploads/uploads.module';
     BranchesModule,
     InventoryModule,
     PosModule,
+    PurchasesModule,
     SalesModule,
     AccountingModule,
     EmployeesModule,

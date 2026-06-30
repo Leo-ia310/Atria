@@ -56,10 +56,14 @@ export class RegisterDto {
     | 'MEDICAL_SUPPLY'
     | 'OTHER';
 
-  @ApiProperty()
+  /**
+   * Opcional. Si no viene, el servidor lo genera a partir del companyName
+   * con sufijo numérico si colisiona.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  tenantSlug!: string;
+  tenantSlug?: string;
 
   @ApiProperty()
   @IsEmail()
@@ -111,10 +115,15 @@ export class LoginDto {
   @MinLength(10)
   password!: string;
 
-  @ApiProperty()
+  /**
+   * Opcional. Sólo necesario si el usuario pertenece a varios tenants y quiere
+   * abrir una organización específica. Si se omite, el servidor selecciona
+   * la membresía activa más reciente del usuario.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  tenantSlug!: string;
+  tenantSlug?: string;
 }
 
 export class ForgotPasswordDto {

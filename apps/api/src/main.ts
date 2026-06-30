@@ -90,16 +90,56 @@ async function bootstrapEnabledApi() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Atria API')
-    .setDescription('API multi-tenant para ERP, POS e inventario.')
+    .setDescription(
+      `API multi-tenant para ERP, POS e inventario.\n\n` +
+        `**Cómo probar desde Swagger UI:**\n` +
+        `1. Llama \`POST /auth/login\` con email + password.\n` +
+        `2. Las cookies (atria_access, atria_refresh, atria_csrf) se setean en el navegador automáticamente.\n` +
+        `3. Para mutaciones (POST/PUT/PATCH/DELETE) tienes que pasar el CSRF: clic en **Authorize** arriba a la derecha y pega el valor de \`csrfToken\` que devolvió el login en el campo \`x-atria-csrf\`.\n` +
+        `4. Las cookies se envían automáticamente (\`withCredentials: true\`).`,
+    )
     .setVersion('1.0.0')
-    .addCookieAuth('atria_access')
+    .addCookieAuth('atria_access', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'atria_access',
+      description: 'JWT de acceso. Se setea automáticamente al hacer login.',
+    })
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-atria-csrf',
+        description:
+          'Token CSRF. Copialo del campo `csrfToken` que devuelve `/auth/login`. Obligatorio en POST/PUT/PATCH/DELETE.',
+      },
+      'csrf',
+    )
+    .addTag('Autenticación', 'Registro, login, refresh, logout')
+    .addTag('Dashboard', 'KPIs y resumen operativo')
+    .addTag('Onboarding', 'Wizard inicial post-registro')
+    .addTag('Sucursales')
+    .addTag('Inventario')
+    .addTag('POS', 'Catálogo y checkout')
+    .addTag('Ventas')
+    .addTag('Compras')
+    .addTag('Contabilidad')
+    .addTag('Empleados')
+    .addTag('Reportes')
+    .addTag('Configuración')
+    .addTag('Billing', 'Suscripción SaaS')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
+      withCredentials: true,
+      tryItOutEnabled: true,
+      displayRequestDuration: true,
+      filter: true,
     },
+    customSiteTitle: 'Atria API · Swagger',
   });
 
   const port = Number(process.env.PORT ?? 4000);

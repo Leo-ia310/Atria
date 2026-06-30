@@ -57,14 +57,17 @@ export class AuthService {
     request: RequestWithAuth,
     response: Response,
   ) {
-    const tenantSlug = dto.tenantSlug.trim().toLowerCase();
+    const tenantSlug = dto.tenantSlug
+      ? dto.tenantSlug.trim().toLowerCase()
+      : await this.generateUniqueSlug(dto.companyName);
 
-    const existingOrganization = await this.prisma.organization.findUnique({
-      where: { slug: tenantSlug },
-    });
-
-    if (existingOrganization) {
-      throw new BadRequestException('El subdominio solicitado ya está en uso.');
+    if (dto.tenantSlug) {
+      const existingOrganization = await this.prisma.organization.findUnique({
+        where: { slug: tenantSlug },
+      });
+      if (existingOrganization) {
+        throw new BadRequestException('El identificador solicitado ya está en uso.');
+      }
     }
 
     const existingUser = await this.prisma.user.findUnique({
@@ -186,56 +189,69 @@ export class AuthService {
       session: {
         id: session.sessionId,
         expiresAt: session.expiresAt,
+        csrfToken: session.csrfToken,
       },
     };
   }
 
   async login(dto: LoginDto, request: RequestWithAuth, response: Response) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { slug: dto.tenantSlug.trim().toLowerCase() },
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email.toLowerCase(), deletedAt: null },
     });
 
-    if (!organization) {
-      throw new UnauthorizedException('No encontramos ese espacio de trabajo.');
-    }
-
-    const membership = await this.prisma.membership.findFirst({
-      where: {
-        organizationId: organization.id,
-        status: MembershipStatus.ACTIVE,
-        user: {
-          email: dto.email.toLowerCase(),
-          deletedAt: null,
-        },
-      },
-      include: {
-        role: true,
-        user: true,
-      },
-    });
-
-    if (!membership?.user) {
+    if (!user) {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
 
-    const isPasswordValid = await argon2.verify(
-      membership.user.passwordHash,
-      dto.password,
-    );
+    const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
 
+    const memberships = await this.prisma.membership.findMany({
+      where: {
+        userId: user.id,
+        status: MembershipStatus.ACTIVE,
+        deletedAt: null,
+      },
+      include: {
+        role: true,
+        organization: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (memberships.length === 0) {
+      throw new UnauthorizedException(
+        'Tu cuenta no tiene ninguna empresa activa.',
+      );
+    }
+
+    // Si el cliente pidió explícitamente un tenant slug, validar acceso;
+    // si no, abrir la membresía más reciente.
+    const requestedSlug = dto.tenantSlug?.trim().toLowerCase();
+    const membership = requestedSlug
+      ? memberships.find((m) => m.organization.slug === requestedSlug)
+      : memberships[0];
+
+    if (!membership) {
+      throw new UnauthorizedException(
+        'No perteneces a la empresa solicitada.',
+      );
+    }
+
+    const organization = membership.organization;
+
     await this.prisma.user.update({
-      where: { id: membership.user.id },
+      where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
     const session = await this.issueSession({
       organizationId: organization.id,
       tenantSlug: organization.slug,
-      userId: membership.user.id,
-      email: membership.user.email,
+      userId: user.id,
+      email: user.email,
       membershipId: membership.id,
       roleKey: membership.role.key,
       permissions: membership.role.permissions,
@@ -247,7 +263,7 @@ export class AuthService {
 
     await this.auditService.log({
       organizationId: organization.id,
-      actorId: membership.user.id,
+      actorId: user.id,
       module: 'auth',
       action: 'login',
       entityType: 'device_session',
@@ -258,15 +274,20 @@ export class AuthService {
 
     return {
       user: {
-        id: membership.user.id,
-        email: membership.user.email,
-        firstName: membership.user.firstName,
-        lastName: membership.user.lastName,
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
       },
       organization: {
         id: organization.id,
         slug: organization.slug,
         displayName: organization.displayName,
+      },
+      session: {
+        id: session.sessionId,
+        expiresAt: session.expiresAt,
+        csrfToken: session.csrfToken,
       },
     };
   }
@@ -677,5 +698,31 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async generateUniqueSlug(companyName: string): Promise<string> {
+    const base = companyName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40);
+    const root = base || 'tenant';
+    let candidate = root;
+    let n = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const exists = await this.prisma.organization.findUnique({
+        where: { slug: candidate },
+      });
+      if (!exists) return candidate;
+      n += 1;
+      candidate = `${root}-${n}`;
+      if (n > 999) {
+        // Fallback: añadimos randomness corta para evitar bucle infinito.
+        candidate = `${root}-${randomBytes(3).toString('hex')}`;
+      }
+    }
   }
 }

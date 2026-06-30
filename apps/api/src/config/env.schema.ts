@@ -11,7 +11,14 @@ export const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1),
+  DIRECT_URL: z.string().optional(),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().optional(),
   REDIS_URL: z.string().min(1),
+  QUEUES_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.string().default('15m'),
@@ -26,6 +33,8 @@ export const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().email().default('no-reply@atria.local'),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().email().optional(),
   UPLOAD_MAX_BYTES: z.coerce.number().default(10 * 1024 * 1024),
   REPORT_EXPORT_PATH: z.string().default('./exports'),
 });

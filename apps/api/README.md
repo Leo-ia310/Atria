@@ -1,98 +1,196 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# @atria/api
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API NestJS 11 multi-tenant que potencia Atria — el SaaS de ERP/POS/inventario/contabilidad para Latinoamérica.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> Esta es la capa de dominio + datos. El frontend Next.js vive en [`../web`](../web). Los contratos compartidos en [`../../packages/contracts`](../../packages/contracts).
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **NestJS 11** (Express adapter)
+- **Prisma 6** + **PostgreSQL 16**
+- **JWT custom** (access + refresh + CSRF) con cookies `httpOnly`, hashing argon2
+- **BullMQ + Redis** para colas (reports, uploads)
+- **Socket.IO** vía `RealtimeGateway`
+- **Helmet + Throttler** + `SanitizeInputPipe` global + `AuditInterceptor`
+- **Swagger** en `/api/docs`
 
-## Project setup
+## Modo `API_ENABLED=false`
+
+Por defecto la API responde **`503 Service Unavailable`** a todo. Esto permite desarrollar el frontend sin tocar Postgres/Redis. Para activarla:
 
 ```bash
-$ npm install
+echo "API_ENABLED=true" >> .env
+npm run start:dev
 ```
 
-## Compile and run the project
+## Estructura
+
+```
+src/
+├── main.ts                      Bootstrap + Swagger + CORS + helmet
+├── app.module.ts                Cablea TODOS los módulos + guards globales
+├── config/env.schema.ts         Validación de env con Zod
+├── common/
+│   ├── decorators/              @CurrentUser · @Permissions · @Public
+│   ├── guards/                  AccessTokenGuard · CsrfGuard · PermissionsGuard
+│   ├── interceptors/            AuditInterceptor
+│   ├── middleware/              RequestContextMiddleware
+│   ├── pipes/                   SanitizeInputPipe (XSS)
+│   ├── filters/                 GlobalExceptionFilter
+│   └── utils/request.utils.ts   cookieNames · extractTenantSlug
+├── infrastructure/
+│   ├── prisma/                  PrismaService
+│   ├── redis/                   RedisService
+│   ├── queue/                   BullMQ processors (report, upload)
+│   └── logger/                  Pino structured
+├── auth/                        register · login · refresh · logout · me · sessions
+├── tenancy/                     OrganizationProvisioningService
+├── audit/                       AuditLog automático
+├── mailer/                      nodemailer + plantillas
+├── onboarding/                  Wizard post-registro
+├── dashboard/                   KPIs + serie + stock crítico + top vendedores
+├── branches/                    CRUD sucursales + analytics
+├── inventory/                   Productos + alerts + movements
+├── pos/                         Catálogo + checkout idempotente
+├── sales/                       Ventas + customers + quotations + analytics
+├── accounting/                  Plan de cuentas + asientos + summary
+├── employees/                   Perfiles + asistencia + actividad
+├── reports/                     Catálogo + exports (encolados)
+├── settings/                    CompanySetting + security
+├── billing/                     Suscripción + change-plan + facturas
+├── uploads/                     FileAsset + MIME validation + scan queue
+├── realtime/                    Socket.IO gateway
+└── health/                      /health
+```
+
+## Endpoints clave
+
+Todos bajo `/api/v1/`. Auth requerida salvo lo marcado como público.
+
+### Autenticación
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| POST | `/auth/register` | público | Crea tenant + usuario admin + sucursal principal en transacción |
+| POST | `/auth/login` | público | Cookies `atria_access` + `atria_refresh` + `atria_csrf` |
+| POST | `/auth/refresh` | público (cookie) | Rota refresh token |
+| POST | `/auth/logout` | sesión | Revoca refresh token |
+| POST | `/auth/forgot-password` | público | Envía email de reset |
+| POST | `/auth/reset-password` | público | Aplica nueva password con token |
+| POST | `/auth/verify-email` | público | Verifica email con token |
+| GET | `/auth/me` | sesión | Datos de la sesión activa |
+| GET | `/auth/sessions` | sesión | Lista dispositivos del usuario |
+| POST | `/auth/revoke-session` | sesión | Cierra sesión específica |
+
+### Operación
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/dashboard/overview` | KPIs + serie 14d + stock crítico + top vendedores |
+| GET | `/onboarding/state` | Estado del wizard inicial |
+| POST | `/onboarding/complete` | Completa el wizard |
+| GET POST | `/branches` | Lista / crea sucursal |
+| GET | `/branches/analytics` | Ventas + inventario por sucursal |
+| GET POST | `/inventory/products` | Lista / crea producto |
+| GET | `/inventory/alerts` | Stock bajo + lotes por vencer |
+| GET | `/inventory/movements` | Últimos 50 movimientos |
+| GET POST | `/pos/catalog` `/pos/checkout` | Catálogo + procesar venta (asiento auto) |
+| GET | `/pos/suspended` | Ventas pausadas |
+| GET POST | `/sales` `/sales/:id` | Lista / detalle (con asiento) |
+| GET | `/sales/analytics` | Revenue + ticket promedio + top clientes |
+| GET POST | `/sales/customers` | CRUD clientes |
+| GET POST | `/sales/quotations` | CRUD cotizaciones |
+| GET | `/accounting/summary` | CxC + CxP + flujo de caja + gastos |
+| GET | `/accounting/accounts` | Plan de cuentas |
+| GET POST | `/accounting/entries` | Libro diario + asiento manual (valida balance) |
+| GET POST | `/employees` | Lista / crea empleado (con membership) |
+| GET | `/employees/attendance` `/employees/activity` | Asistencia + actividad |
+| GET POST | `/reports/exports` | Lista + encola exportación en BullMQ |
+| GET | `/reports/catalog` | Tipos de reporte disponibles |
+| GET PATCH | `/settings/company` | Empresa + facturación + POS |
+| GET | `/settings/security` | Dispositivos + políticas password |
+| GET | `/billing/overview` | Suscripción + usage + facturas |
+| POST | `/billing/change-plan` | Cambiar BUSINESS ↔ ENTERPRISE |
+| GET | `/health` | Liveness |
+
+Documentación completa interactiva: **http://localhost:4000/api/docs** (con `API_ENABLED=true`).
+
+## Seguridad
+
+**5 guards globales** se aplican en orden:
+1. `ThrottlerGuard` — rate-limit por IP (180 req/min).
+2. `AccessTokenGuard` — valida cookie `atria_access` o `Authorization: Bearer`. Excepción: rutas `@Public()`.
+3. `CsrfGuard` — exige header `x-csrf-token` que coincida con la cookie `atria_csrf` en mutaciones.
+4. `PermissionsGuard` — valida `@Permissions('key')` contra los permisos del rol del usuario.
+5. `AuditInterceptor` — registra cada mutación con quién/qué/cuándo en `AuditLog`.
+
+**Cookies**:
+- `atria_access` (httpOnly, sameSite=lax, secure en prod) — JWT 15m
+- `atria_refresh` (httpOnly, sameSite=lax, secure en prod) — JWT 30d, rotación en cada `/refresh`
+- `atria_csrf` (NO httpOnly) — token de doble submit replicado en header
+
+**Multi-tenant**: cada service filtra por `user.organizationId` derivado del JWT. **Nunca** se acepta `organizationId` del body. Para la red de seguridad opcional con RLS, ver skill `atria-rls-policies`.
+
+## Cómo correr
 
 ```bash
-# development
-$ npm run start
+# Desde raíz del monorepo:
+npm install
+cp apps/api/.env.example apps/api/.env
+# Editar JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, API_ENABLED=true
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+docker compose up -d postgres redis
+npm run db:generate     # prisma generate
+npm run db:migrate      # prisma migrate dev
+npm run db:seed         # poblar org demo "Acero Norte"
+npm run dev:api         # arranca en http://localhost:4000
 ```
 
-## Run tests
+Credenciales del seed:
+- Email: `owner@acero.test` / Password: `Atria2026!`
+- Tenant slug: `acero-norte`
+
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run test              # unit
+npm run test:e2e          # integración
+npm run test:cov          # cobertura
 ```
 
-## Deployment
+> Actualmente 0 specs. Prioridad alta para `AccountingModule` (motor contable) y `AuthModule` (flujos de JWT + CSRF).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Variables de entorno relevantes
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```env
+NODE_ENV=development|production
+API_ENABLED=true|false      # false → 503 a todo
+PORT=4000
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://localhost:6379
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=30d
+APP_URL=http://localhost:3000
+API_URL=http://localhost:4000
+COOKIE_DOMAIN=localhost
+SECURE_COOKIES=false        # true en prod
+CORS_ORIGINS=http://localhost:3000
+SMTP_HOST= SMTP_PORT= SMTP_USER= SMTP_PASS=
+SMTP_FROM=no-reply@atria.local
+UPLOAD_MAX_BYTES=10485760
+REPORT_EXPORT_PATH=./exports
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Reglas innegociables
 
-## Resources
+Ver [`../../CLAUDE.md`](../../CLAUDE.md) sección 4. En resumen:
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+1. **Multi-tenant por `organizationId`** del JWT, jamás del body.
+2. **Dinero en `Decimal`**, nunca `Float`.
+3. **`StockMovement` y `JournalEntryLine` son APPEND-ONLY**. Para corregir → contramovimiento o asiento reverso.
+4. **El motor contable es sagrado.** Cada operación que toca dinero/stock pasa por `AccountingService`.
+5. **Asientos siempre cuadran** (`Σ debit === Σ credit`).
+6. **Períodos cerrados son intocables.**
+7. **CSRF obligatorio en mutaciones.**

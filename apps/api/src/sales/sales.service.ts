@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { JwtUser } from '@/auth/auth.types';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
@@ -30,6 +30,41 @@ export class SalesService {
       orderBy: { soldAt: 'desc' },
       take: query.pageSize ?? 30,
     });
+  }
+
+  async findOne(user: JwtUser, id: string) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, organizationId: user.organizationId },
+      include: {
+        customer: true,
+        branch: true,
+        warehouse: true,
+        items: { include: { product: true } },
+        payments: true,
+        receivable: true,
+      },
+    });
+    if (!sale) {
+      throw new NotFoundException('No encontramos esa venta.');
+    }
+
+    const createdByMembership = sale.createdByMembershipId
+      ? await this.prisma.membership.findUnique({
+          where: { id: sale.createdByMembershipId },
+          include: { user: true },
+        })
+      : null;
+
+    const journal = await this.prisma.journalEntry.findFirst({
+      where: {
+        organizationId: user.organizationId,
+        sourceType: 'sale',
+        sourceId: sale.id,
+      },
+      include: { lines: { include: { account: true } } },
+    });
+
+    return { sale: { ...sale, createdByMembership }, journal };
   }
 
   async analytics(user: JwtUser) {

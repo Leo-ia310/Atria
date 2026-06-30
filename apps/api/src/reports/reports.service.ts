@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Queue } from 'bullmq';
 import type { JwtUser } from '@/auth/auth.types';
@@ -8,9 +8,11 @@ import { CreateExportDto } from './dto/reports.dto';
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('reports') private readonly reportsQueue: Queue,
+    @Optional() @InjectQueue('reports') private readonly reportsQueue?: Queue,
   ) {}
 
   catalog() {
@@ -57,13 +59,19 @@ export class ReportsService {
       },
     });
 
-    await this.reportsQueue.add('generate', {
-      exportId: exportRecord.id,
-      organizationId: user.organizationId,
-      type: dto.type,
-      format: dto.format,
-      filters: dto.filters,
-    });
+    if (this.reportsQueue) {
+      await this.reportsQueue.add('generate', {
+        exportId: exportRecord.id,
+        organizationId: user.organizationId,
+        type: dto.type,
+        format: dto.format,
+        filters: dto.filters,
+      });
+    } else {
+      this.logger.warn(
+        `Reporte ${exportRecord.id} no encolado: BullMQ inactivo (QUEUES_ENABLED=false).`,
+      );
+    }
 
     return exportRecord;
   }

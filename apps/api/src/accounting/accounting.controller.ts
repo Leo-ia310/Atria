@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AccountingService } from './accounting.service';
-import { CreateJournalEntryDto } from './dto/accounting.dto';
+import { CreateJournalEntryDto, JournalEntriesQueryDto } from './dto/accounting.dto';
 
 @ApiTags('Contabilidad')
 @Controller({ path: 'accounting', version: '1' })
@@ -21,8 +21,8 @@ export class AccountingController {
   }
 
   @Get('entries')
-  entries(@CurrentUser() user: JwtUser) {
-    return this.accountingService.entries(user);
+  entries(@CurrentUser() user: JwtUser, @Query() query: JournalEntriesQueryDto) {
+    return this.accountingService.entries(user, query);
   }
 
   @Post('entries')

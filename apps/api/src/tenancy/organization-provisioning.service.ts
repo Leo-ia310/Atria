@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type BusinessType } from '@prisma/client';
-import { roleTemplates } from '@atria/contracts';
+import { BASE_CHART_OF_ACCOUNTS, roleTemplates } from '@atria/contracts';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 
 type ProvisionTenantInput = {
@@ -149,30 +149,30 @@ export class OrganizationProvisioningService {
     transaction: Prisma.TransactionClient,
     organizationId: string,
   ): Promise<void> {
-    const chart = [
-      ['1101', 'Caja general', 'ASSET'],
-      ['1102', 'Bancos', 'ASSET'],
-      ['1201', 'Cuentas por cobrar', 'ASSET'],
-      ['1301', 'Inventario', 'ASSET'],
-      ['2101', 'Cuentas por pagar', 'LIABILITY'],
-      ['3101', 'Capital', 'EQUITY'],
-      ['4101', 'Ingresos por ventas', 'REVENUE'],
-      ['5101', 'Costo de ventas', 'COST_OF_SALES'],
-      ['6101', 'Gastos operativos', 'EXPENSE'],
-    ] as const;
-
-    await Promise.all(
-      chart.map(([code, name, type]) =>
-        transaction.account.create({
-          data: {
-            organizationId,
-            code,
-            name,
-            type,
-            level: 1,
-          },
-        }),
-      ),
-    );
+    const codeToId = new Map<string, string>();
+    for (const cuenta of BASE_CHART_OF_ACCOUNTS) {
+      const created = await transaction.account.create({
+        data: {
+          organizationId,
+          code: cuenta.code,
+          name: cuenta.name,
+          type: cuenta.type,
+          level: cuenta.level,
+          allowsPosting: cuenta.isDetail,
+        },
+      });
+      codeToId.set(cuenta.code, created.id);
+    }
+    for (const cuenta of BASE_CHART_OF_ACCOUNTS) {
+      if (!cuenta.parentCode) continue;
+      const parentId = codeToId.get(cuenta.parentCode);
+      const selfId = codeToId.get(cuenta.code);
+      if (parentId && selfId) {
+        await transaction.account.update({
+          where: { id: selfId },
+          data: { parentId },
+        });
+      }
+    }
   }
 }

@@ -10,7 +10,17 @@ import {
 import type { Socket, Server } from 'socket.io';
 import type { JwtUser } from '@/auth/auth.types';
 import { AuthService } from '@/auth/auth.service';
-import { extractBearerToken } from '@/common/utils/request.utils';
+import { cookieNames, extractBearerToken } from '@/common/utils/request.utils';
+
+function extractCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';').map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [key, ...rest] = cookie.split('=');
+    if (key === name) return decodeURIComponent(rest.join('='));
+  }
+  return null;
+}
 
 @Injectable()
 @WebSocketGateway({
@@ -38,9 +48,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnModuleInit {
       const handshakeAuth = client.handshake.auth as
         | { token?: unknown }
         | undefined;
+      const cookieToken = extractCookie(
+        client.handshake.headers.cookie,
+        cookieNames.access,
+      );
       const authToken =
         handshakeAuth?.token ??
-        extractBearerToken(client.handshake.headers.authorization);
+        extractBearerToken(client.handshake.headers.authorization) ??
+        cookieToken;
 
       if (!authToken || typeof authToken !== 'string') {
         client.disconnect();

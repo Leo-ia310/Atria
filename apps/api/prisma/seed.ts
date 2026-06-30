@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { roleTemplates } from '@atria/contracts';
+import { roleTemplates, BASE_CHART_OF_ACCOUNTS } from '@atria/contracts';
 
 const prisma = new PrismaClient();
 
@@ -328,34 +328,39 @@ async function main(): Promise<void> {
     },
   });
 
-  const accountCatalog = [
-    ['1101', 'Caja general', 'ASSET'],
-    ['1102', 'Bancos', 'ASSET'],
-    ['1201', 'Cuentas por cobrar', 'ASSET'],
-    ['1301', 'Inventario', 'ASSET'],
-    ['2101', 'Cuentas por pagar', 'LIABILITY'],
-    ['3101', 'Capital', 'EQUITY'],
-    ['4101', 'Ingresos por ventas', 'REVENUE'],
-    ['5101', 'Costo de ventas', 'COST_OF_SALES'],
-    ['6101', 'Gastos operativos', 'EXPENSE'],
-  ] as const;
-
-  for (const [code, name, type] of accountCatalog) {
-    await prisma.account.upsert({
+  // Catálogo de cuentas LATAM completo desde @atria/contracts.
+  // Se aplica en 2 pasadas para que parentId pueda resolverse.
+  const codeToId = new Map<string, string>();
+  for (const cuenta of BASE_CHART_OF_ACCOUNTS) {
+    const created = await prisma.account.upsert({
       where: {
         organizationId_code: {
           organizationId: organization.id,
-          code,
+          code: cuenta.code,
         },
       },
       update: {},
       create: {
         organizationId: organization.id,
-        code,
-        name,
-        type,
+        code: cuenta.code,
+        name: cuenta.name,
+        type: cuenta.type,
+        level: cuenta.level,
+        allowsPosting: cuenta.isDetail,
       },
     });
+    codeToId.set(cuenta.code, created.id);
+  }
+  for (const cuenta of BASE_CHART_OF_ACCOUNTS) {
+    if (!cuenta.parentCode) continue;
+    const parentId = codeToId.get(cuenta.parentCode);
+    const selfId = codeToId.get(cuenta.code);
+    if (parentId && selfId) {
+      await prisma.account.update({
+        where: { id: selfId },
+        data: { parentId },
+      });
+    }
   }
 
   const [

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { InjectQueue } from '@nestjs/bullmq';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import type { Express } from 'express';
@@ -18,10 +18,12 @@ const allowedMimeTypes = new Set([
 
 @Injectable()
 export class UploadsService {
+  private readonly logger = new Logger(UploadsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    @InjectQueue('uploads') private readonly uploadsQueue: Queue,
+    @Optional() @InjectQueue('uploads') private readonly uploadsQueue?: Queue,
   ) {}
 
   async upload(user: JwtUser, module: string, file: Express.Multer.File) {
@@ -60,9 +62,15 @@ export class UploadsService {
       },
     });
 
-    await this.uploadsQueue.add('scan', {
-      fileAssetId: asset.id,
-    });
+    if (this.uploadsQueue) {
+      await this.uploadsQueue.add('scan', {
+        fileAssetId: asset.id,
+      });
+    } else {
+      this.logger.warn(
+        `Archivo ${asset.id} no encolado para escaneo: BullMQ inactivo.`,
+      );
+    }
 
     return asset;
   }

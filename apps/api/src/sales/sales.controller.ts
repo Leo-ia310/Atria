@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
@@ -45,5 +45,10 @@ export class SalesController {
     @Body() dto: CreateQuotationDto,
   ) {
     return this.salesService.createQuotation(user, dto);
+  }
+
+  @Get(':id')
+  findOne(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.salesService.findOne(user, id);
   }
 }
