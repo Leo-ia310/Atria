@@ -1,9 +1,13 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AccountingService } from './accounting.service';
-import { CreateJournalEntryDto, JournalEntriesQueryDto } from './dto/accounting.dto';
+import {
+  CreateJournalEntryDto,
+  JournalEntriesQueryDto,
+  VoidJournalEntryDto,
+} from './dto/accounting.dto';
 
 @ApiTags('Contabilidad')
 @Controller({ path: 'accounting', version: '1' })
@@ -20,6 +24,11 @@ export class AccountingController {
     return this.accountingService.accounts(user);
   }
 
+  @Get('trial-balance')
+  trialBalance(@CurrentUser() user: JwtUser) {
+    return this.accountingService.trialBalance(user);
+  }
+
   @Get('entries')
   entries(@CurrentUser() user: JwtUser, @Query() query: JournalEntriesQueryDto) {
     return this.accountingService.entries(user, query);
@@ -31,5 +40,14 @@ export class AccountingController {
     @Body() dto: CreateJournalEntryDto,
   ) {
     return this.accountingService.createEntry(user, dto);
+  }
+
+  @Post('entries/:id/void')
+  voidEntry(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: VoidJournalEntryDto,
+  ) {
+    return this.accountingService.voidEntry(user, id, dto);
   }
 }

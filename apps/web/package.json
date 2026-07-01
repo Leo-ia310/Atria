@@ -1,0 +1,41 @@
+{
+  "name": "@atria/web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atria web app — UI operativa multi-tenant para POS, inventario y contabilidad",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@atria/contracts": "1.0.0",
+    "@hookform/resolvers": "^5.4.0",
+    "@tanstack/react-query": "^5.62.7",
+    "@tanstack/react-table": "^8.20.6",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.0.10",
+    "dexie-react-hooks": "^1.1.7",
+    "lucide-react": "^0.469.0",
+    "next": "15.1.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-hook-form": "^7.55.0",
+    "recharts": "^2.15.0",
+    "socket.io-client": "^4.8.1",
+    "zod": "^4.1.12",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0-beta.8",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-next": "15.1.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.0.0-beta.8",
+    "typescript": "^5.7.3"
+  }
+}

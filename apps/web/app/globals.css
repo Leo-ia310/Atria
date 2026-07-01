@@ -1,0 +1,308 @@
+@import "tailwindcss";
+
+/* ============================================
+ * ATRIA — Design system tokens
+ * ============================================ */
+
+@theme {
+  /* Paleta principal */
+  --color-primary: #2B1F3A;
+  --color-primary-hover: #3d2d52;
+  --color-secondary: #5C4B75;
+  --color-secondary-hover: #6e5a8a;
+  --color-tertiary: #A18BCF;
+  --color-tertiary-light: #D4C8F0;
+
+  /* Superficies */
+  --color-neutral: #F8F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F2F0F7;
+  --color-dark-bg: #1A1225;
+  --color-dark-surface: #231834;
+
+  /* Bordes */
+  --color-border: #E2DFF0;
+  --color-border-strong: #C4BEDF;
+
+  /* Texto */
+  --color-text-primary: #2B1F3A;
+  --color-text-secondary: #5C4B75;
+  --color-text-muted: #8B7FA8;
+  --color-text-on-dark: #F8F7FA;
+  --color-text-on-primary: #FFFFFF;
+
+  /* Semáforo */
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #DC2626;
+  --color-error-bg: #FEF2F2;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px rgba(43,31,58,0.06);
+  --shadow-md: 0 4px 12px rgba(43,31,58,0.10);
+  --shadow-lg: 0 8px 24px rgba(43,31,58,0.14);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --header-height: 56px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Font */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+/* ============================================
+ * Base
+ * ============================================ */
+
+* {
+  border-color: var(--color-border);
+}
+
+html,
+body {
+  background: var(--color-neutral);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-tertiary-light);
+  color: var(--color-text-primary);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+/* ============================================
+ * Typography helpers
+ * ============================================ */
+
+.text-display {
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text-2xl {
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.text-xl {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.text-lg {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.text-base {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.text-small {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.text-label {
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+ * Componentes utilitarios
+ * ============================================ */
+
+.atria-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.atria-input {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.atria-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.atria-input:focus {
+  border-color: var(--color-tertiary);
+  box-shadow: 0 0 0 3px rgba(161, 139, 207, 0.20);
+}
+
+.atria-input:disabled {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.atria-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
+}
+
+.atria-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.atria-btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+
+.atria-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.atria-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.atria-btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  border-color: var(--color-secondary);
+}
+
+.atria-btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.atria-btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+.atria-btn-danger {
+  background: var(--color-error);
+  color: white;
+}
+
+.atria-btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.atria-btn-lg {
+  padding: 12px 22px;
+  font-size: 15px;
+}
+
+.atria-btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.atria-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+}
+
+.atria-badge-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.atria-badge-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.atria-badge-error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.atria-badge-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.atria-badge-neutral {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 5px;
+  border: 2px solid var(--color-neutral);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}

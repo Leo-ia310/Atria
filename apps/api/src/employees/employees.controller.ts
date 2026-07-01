@@ -1,8 +1,16 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { CreateEmployeeDto } from './dto/employees.dto';
+import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employees.dto';
 import { EmployeesService } from './employees.service';
 
 @ApiTags('Empleados')
@@ -28,5 +36,19 @@ export class EmployeesController {
   @Get('activity')
   activity(@CurrentUser() user: JwtUser) {
     return this.employeesService.activity(user);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateEmployeeDto,
+  ) {
+    return this.employeesService.update(user, id, dto);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.employeesService.remove(user, id);
   }
 }

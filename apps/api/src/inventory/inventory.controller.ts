@@ -1,8 +1,21 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { CreateProductDto, InventoryQueryDto } from './dto/inventory.dto';
+import {
+  CreateProductDto,
+  InventoryQueryDto,
+  UpdateProductDto,
+} from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 @ApiTags('Inventario')
@@ -20,13 +33,40 @@ export class InventoryController {
     return this.inventoryService.createProduct(user, dto);
   }
 
+  @Get('products/:id')
+  productDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.inventoryService.productDetail(user, id);
+  }
+
+  @Patch('products/:id')
+  updateProduct(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.inventoryService.updateProduct(user, id, dto);
+  }
+
+  @Delete('products/:id')
+  deleteProduct(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.inventoryService.deleteProduct(user, id);
+  }
+
   @Get('alerts')
   alerts(@CurrentUser() user: JwtUser) {
     return this.inventoryService.alerts(user);
   }
 
+  @Get('filters')
+  filters(@CurrentUser() user: JwtUser) {
+    return this.inventoryService.filters(user);
+  }
+
   @Get('movements')
-  movements(@CurrentUser() user: JwtUser) {
-    return this.inventoryService.movements(user);
+  movements(
+    @CurrentUser() user: JwtUser,
+    @Query('productId') productId?: string,
+  ) {
+    return this.inventoryService.movements(user, productId);
   }
 }

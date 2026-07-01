@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { JwtUser } from '@/auth/auth.types';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
-import { CreateProductDto, InventoryQueryDto } from './dto/inventory.dto';
+import {
+  CreateProductDto,
+  InventoryQueryDto,
+  UpdateProductDto,
+} from './dto/inventory.dto';
 
 const decimal = (value: number) => new Prisma.Decimal(value);
 const numberValue = (value: unknown): number => Number(value ?? 0);
@@ -14,49 +18,109 @@ export class InventoryService {
   async products(user: JwtUser, query: InventoryQueryDto) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const skip = (page - 1) * pageSize;
 
-    const products = await this.prisma.product.findMany({
-      where: {
-        organizationId: user.organizationId,
-        deletedAt: null,
-        OR: query.search
-          ? [
-              { name: { contains: query.search, mode: 'insensitive' } },
-              { sku: { contains: query.search, mode: 'insensitive' } },
-              { barcode: { contains: query.search, mode: 'insensitive' } },
-            ]
+    const where: Prisma.ProductWhereInput = {
+      organizationId: user.organizationId,
+      deletedAt: null,
+      categoryId: query.categoryId,
+      supplierId: query.supplierId,
+      OR: query.search
+        ? [
+            { name: { contains: query.search, mode: 'insensitive' } },
+            { sku: { contains: query.search, mode: 'insensitive' } },
+            { barcode: { contains: query.search, mode: 'insensitive' } },
+          ]
+        : undefined,
+      inventory:
+        query.warehouseId || query.branchId
+          ? {
+              some: {
+                warehouseId: query.warehouseId,
+                warehouse: query.branchId
+                  ? { branchId: query.branchId }
+                  : undefined,
+              },
+            }
           : undefined,
-      },
-      include: {
-        category: true,
-        brand: true,
-        supplier: true,
-        taxRate: true,
-        inventory: {
-          include: {
-            warehouse: {
-              include: { branch: true },
-            },
+    };
+
+    const include = {
+      category: true,
+      brand: true,
+      supplier: true,
+      taxRate: true,
+      inventory: {
+        include: {
+          warehouse: {
+            include: { branch: true },
           },
         },
       },
-      skip,
-      take: pageSize,
-      orderBy: { name: 'asc' },
-    });
+    } satisfies Prisma.ProductInclude;
 
-    const total = await this.prisma.product.count({
-      where: {
-        organizationId: user.organizationId,
-        deletedAt: null,
-      },
-    });
+    if (query.stockLevel) {
+      const candidates = await this.prisma.product.findMany({
+        where,
+        include,
+        orderBy: { name: 'asc' },
+        take: 500,
+      });
+
+      const filtered = candidates.filter((product) => {
+        const disponible = product.inventory.reduce(
+          (acc, row) => acc + numberValue(row.availableQty),
+          0,
+        );
+        return query.stockLevel === 'OUT'
+          ? disponible <= 0
+          : disponible <= numberValue(product.minStock);
+      });
+
+      const skip = (page - 1) * pageSize;
+      return {
+        data: filtered.slice(skip, skip + pageSize),
+        meta: { page, pageSize, total: filtered.length },
+      };
+    }
+
+    const skip = (page - 1) * pageSize;
+    const [products, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        include,
+        skip,
+        take: pageSize,
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.product.count({ where }),
+    ]);
 
     return {
       data: products,
       meta: { page, pageSize, total },
     };
+  }
+
+  async filters(user: JwtUser) {
+    const [categories, suppliers, warehouses] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { organizationId: user.organizationId },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.supplier.findMany({
+        where: { organizationId: user.organizationId, deletedAt: null },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.warehouse.findMany({
+        where: { organizationId: user.organizationId },
+        select: { id: true, name: true, branch: { select: { name: true } } },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    return { categories, suppliers, warehouses };
   }
 
   async createProduct(user: JwtUser, dto: CreateProductDto) {
@@ -175,6 +239,59 @@ export class InventoryService {
     });
   }
 
+  async productDetail(user: JwtUser, id: string) {
+    const product = await this.prisma.product.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+      include: {
+        category: true,
+        brand: true,
+        supplier: true,
+        taxRate: true,
+        inventory: { include: { warehouse: { include: { branch: true } } } },
+      },
+    });
+    if (!product) throw new NotFoundException('Producto no encontrado.');
+    return product;
+  }
+
+  async updateProduct(user: JwtUser, id: string, dto: UpdateProductDto) {
+    const existing = await this.prisma.product.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Producto no encontrado.');
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        name: dto.name ?? undefined,
+        barcode: dto.barcode ?? undefined,
+        unit: dto.unit ?? undefined,
+        salePrice:
+          dto.salePrice !== undefined ? decimal(dto.salePrice) : undefined,
+        costPrice:
+          dto.costPrice !== undefined ? decimal(dto.costPrice) : undefined,
+        minStock:
+          dto.minStock !== undefined ? decimal(dto.minStock) : undefined,
+        isActive: dto.isActive ?? undefined,
+        isTrackSerial: dto.isTrackSerial ?? undefined,
+        isTrackExpiration: dto.isTrackExpiration ?? undefined,
+      },
+    });
+  }
+
+  async deleteProduct(user: JwtUser, id: string) {
+    const existing = await this.prisma.product.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Producto no encontrado.');
+
+    await this.prisma.product.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+    return { deleted: true, id };
+  }
+
   async alerts(user: JwtUser) {
     const [lowStock, expiring] = await Promise.all([
       this.prisma.productInventory.findMany({
@@ -220,15 +337,15 @@ export class InventoryService {
     };
   }
 
-  async movements(user: JwtUser) {
+  async movements(user: JwtUser, productId?: string) {
     return this.prisma.stockMovement.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: user.organizationId, productId },
       include: {
         product: true,
         warehouse: { include: { branch: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: productId ? 10 : 50,
     });
   }
 }

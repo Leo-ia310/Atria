@@ -101,3 +101,30 @@ export class CreateSupplierDto {
   @IsString()
   contactName?: string;
 }
+
+export class UpdateSupplierDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  taxIdentifier?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  contactName?: string;
+}

@@ -12,6 +12,7 @@ import {
   CreatePurchaseDto,
   CreateSupplierDto,
   PurchasesQueryDto,
+  UpdateSupplierDto,
 } from './dto/purchases.dto';
 
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -311,5 +312,40 @@ export class PurchasesService {
         contactName: dto.contactName,
       },
     });
+  }
+
+  async updateSupplier(user: JwtUser, id: string, dto: UpdateSupplierDto) {
+    const existing = await this.prisma.supplier.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Proveedor no encontrado.');
+    return this.prisma.supplier.update({
+      where: { id },
+      data: {
+        name: dto.name ?? undefined,
+        email: dto.email ?? undefined,
+        phone: dto.phone ?? undefined,
+        taxIdentifier: dto.taxIdentifier ?? undefined,
+        contactName: dto.contactName ?? undefined,
+      },
+    });
+  }
+
+  async deleteSupplier(user: JwtUser, id: string) {
+    const existing = await this.prisma.supplier.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+      include: { _count: { select: { payables: true } } },
+    });
+    if (!existing) throw new NotFoundException('Proveedor no encontrado.');
+    if (existing._count.payables > 0) {
+      throw new BadRequestException(
+        'El proveedor tiene cuentas por pagar pendientes.',
+      );
+    }
+    await this.prisma.supplier.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { deleted: true, id };
   }
 }

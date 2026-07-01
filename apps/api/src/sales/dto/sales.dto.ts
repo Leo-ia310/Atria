@@ -54,6 +54,35 @@ export class CreateCustomerDto {
   documentId?: string;
 }
 
+export class UpdateCustomerDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  documentId?: string;
+}
+
+export class VoidSaleDto {
+  @ApiPropertyOptional({ description: 'Razón de anulación (auditoría).' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 export class CreateQuotationDto {
   @ApiPropertyOptional()
   @IsOptional()

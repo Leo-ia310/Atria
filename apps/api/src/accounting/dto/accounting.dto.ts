@@ -68,3 +68,10 @@ export class CreateJournalEntryDto {
   @Type(() => EntryLineDto)
   lines!: EntryLineDto[];
 }
+
+export class VoidJournalEntryDto {
+  @ApiPropertyOptional({ description: 'Motivo de anulación (auditoría).' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}

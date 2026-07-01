@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { JwtUser } from '@/auth/auth.types';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
-import { CreateBranchDto } from './dto/branch.dto';
+import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
 
 const amount = (value: unknown): number => Number(value ?? 0);
 
@@ -89,6 +93,52 @@ export class BranchesService {
       });
 
       return { branch, warehouse };
+    });
+  }
+
+  async update(user: JwtUser, id: string, dto: UpdateBranchDto) {
+    const existing = await this.prisma.branch.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Sucursal no encontrada.');
+    return this.prisma.branch.update({
+      where: { id },
+      data: {
+        name: dto.name ?? undefined,
+        addressLine1: dto.addressLine1 ?? undefined,
+        city: dto.city ?? undefined,
+        countryCode: dto.countryCode?.toUpperCase() ?? undefined,
+      },
+    });
+  }
+
+  async remove(user: JwtUser, id: string) {
+    const existing = await this.prisma.branch.findFirst({
+      where: { id, organizationId: user.organizationId, deletedAt: null },
+      include: { _count: { select: { sales: true, memberships: true } } },
+    });
+    if (!existing) throw new NotFoundException('Sucursal no encontrada.');
+    if (existing.isPrimary) {
+      throw new BadRequestException(
+        'No puedes eliminar la sucursal principal.',
+      );
+    }
+    if (existing._count.sales > 0) {
+      throw new BadRequestException(
+        `Esta sucursal tiene ${existing._count.sales} ventas registradas. Anúlalas antes de eliminar.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.branch.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      await tx.subscription.update({
+        where: { organizationId: user.organizationId },
+        data: { branchesUsed: { decrement: 1 } },
+      });
+      return { deleted: true, id };
     });
   }
 }

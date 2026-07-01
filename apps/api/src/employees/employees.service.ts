@@ -3,7 +3,7 @@ import * as argon2 from 'argon2';
 import type { JwtUser } from '@/auth/auth.types';
 import { AuditService } from '@/audit/audit.service';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
-import { CreateEmployeeDto } from './dto/employees.dto';
+import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employees.dto';
 
 @Injectable()
 export class EmployeesService {
@@ -141,6 +141,69 @@ export class EmployeesService {
       include: { actor: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
+    });
+  }
+
+  async update(user: JwtUser, id: string, dto: UpdateEmployeeDto) {
+    const profile = await this.prisma.employeeProfile.findFirst({
+      where: { id, organizationId: user.organizationId },
+      include: { membership: { include: { user: true } } },
+    });
+    if (!profile) throw new NotFoundException('Empleado no encontrado.');
+
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.firstName || dto.lastName) {
+        await tx.user.update({
+          where: { id: profile.membership.userId },
+          data: {
+            firstName: dto.firstName ?? undefined,
+            lastName: dto.lastName ?? undefined,
+          },
+        });
+      }
+      if (dto.roleKey) {
+        const role = await tx.role.findFirst({
+          where: { organizationId: user.organizationId, key: dto.roleKey },
+        });
+        if (!role) throw new NotFoundException('Rol no encontrado.');
+        await tx.membership.update({
+          where: { id: profile.membershipId },
+          data: { roleId: role.id },
+        });
+      }
+      if (dto.branchId) {
+        await tx.membership.update({
+          where: { id: profile.membershipId },
+          data: { defaultBranchId: dto.branchId },
+        });
+      }
+      return tx.employeeProfile.update({
+        where: { id },
+        data: {
+          branchId: dto.branchId ?? undefined,
+          jobTitle: dto.jobTitle ?? undefined,
+        },
+      });
+    });
+  }
+
+  async remove(user: JwtUser, id: string) {
+    const profile = await this.prisma.employeeProfile.findFirst({
+      where: { id, organizationId: user.organizationId },
+      include: { membership: true },
+    });
+    if (!profile) throw new NotFoundException('Empleado no encontrado.');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.membership.update({
+        where: { id: profile.membershipId },
+        data: { deletedAt: new Date(), status: 'SUSPENDED' },
+      });
+      await tx.subscription.update({
+        where: { organizationId: user.organizationId },
+        data: { seatsUsed: { decrement: 1 } },
+      });
+      return { deleted: true, id };
     });
   }
 }
