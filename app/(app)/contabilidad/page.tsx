@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, BookText, TableProperties, FileBarChart, PieChart } from "lucide-react";
+import { BookOpen, BookText, TableProperties, FileBarChart, PieChart, Calendar } from "lucide-react";
 import { count, eq, and, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -143,6 +143,12 @@ export default async function ContabilidadPage() {
           icon={BookText}
           titulo="Catálogo de cuentas"
           descripcion="Plan de cuentas de tu empresa"
+        />
+        <ModuloLink
+          href="/contabilidad/periodos"
+          icon={Calendar}
+          titulo="Períodos contables"
+          descripcion="Abrir y cerrar períodos mensuales"
         />
       </div>
     </div>

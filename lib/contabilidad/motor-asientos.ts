@@ -8,7 +8,7 @@
  * de persistir. Si no cuadra, lanzar AsientoNoBalanceadoError sin tocar la DB.
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   asientosContables,
@@ -320,8 +320,9 @@ export type RegistrarPagoProveedorInput = {
 
 export async function registrarPagoProveedor(
   input: RegistrarPagoProveedorInput,
+  externalTx?: TX,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
+  const core = async (tx: TX) => {
     const cuentas = await resolverCuentasClave(tx, input.empresaId, [
       "CXP_PROVEEDORES",
     ]);
@@ -329,7 +330,7 @@ export async function registrarPagoProveedor(
     const [cf] = await tx
       .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
       .from(cuentasFinancieras)
-      .where(eq(cuentasFinancieras.id, input.cuentaFinancieraId))
+      .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
@@ -359,7 +360,8 @@ export async function registrarPagoProveedor(
         },
       ],
     });
-  });
+  };
+  return externalTx ? core(externalTx) : db.transaction(core);
 }
 
 /* =====================================================================
@@ -379,8 +381,9 @@ export type RegistrarAbonoClienteInput = {
 
 export async function registrarAbonoCliente(
   input: RegistrarAbonoClienteInput,
+  externalTx?: TX,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
+  const core = async (tx: TX) => {
     const cuentas = await resolverCuentasClave(tx, input.empresaId, [
       "CXC_CLIENTES",
     ]);
@@ -388,7 +391,7 @@ export async function registrarAbonoCliente(
     const [cf] = await tx
       .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
       .from(cuentasFinancieras)
-      .where(eq(cuentasFinancieras.id, input.cuentaFinancieraId))
+      .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
@@ -418,7 +421,8 @@ export async function registrarAbonoCliente(
         },
       ],
     });
-  });
+  };
+  return externalTx ? core(externalTx) : db.transaction(core);
 }
 
 /* =====================================================================
@@ -438,12 +442,12 @@ export type RegistrarGastoInput = {
   total: number;
 };
 
-export async function registrarGasto(input: RegistrarGastoInput): Promise<string> {
-  return db.transaction(async (tx) => {
+export async function registrarGasto(input: RegistrarGastoInput, externalTx?: TX): Promise<string> {
+  const core = async (tx: TX) => {
     const [categoria] = await tx
       .select({ cuentaContableId: categoriasGasto.cuentaContableId, nombre: categoriasGasto.nombre })
       .from(categoriasGasto)
-      .where(eq(categoriasGasto.id, input.categoriaGastoId))
+      .where(and(eq(categoriasGasto.id, input.categoriaGastoId), eq(categoriasGasto.empresaId, input.empresaId)))
       .limit(1);
     if (!categoria?.cuentaContableId) {
       throw new Error("Categoría de gasto sin cuenta contable asociada");
@@ -452,7 +456,7 @@ export async function registrarGasto(input: RegistrarGastoInput): Promise<string
     const [cf] = await tx
       .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
       .from(cuentasFinancieras)
-      .where(eq(cuentasFinancieras.id, input.cuentaFinancieraId))
+      .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
@@ -494,7 +498,8 @@ export async function registrarGasto(input: RegistrarGastoInput): Promise<string
       partidas,
       usuarioId: input.usuarioId,
     });
-  });
+  };
+  return externalTx ? core(externalTx) : db.transaction(core);
 }
 
 /* =====================================================================
@@ -578,12 +583,13 @@ async function cuentaAjustePorDefecto(
   const [cuenta] = await tx
     .select({ id: catalogoCuentas.id })
     .from(catalogoCuentas)
-    .where(eq(catalogoCuentas.empresaId, empresaId));
+    .where(eq(catalogoCuentas.empresaId, empresaId))
+    .limit(1);
   if (!cuenta) throw new Error("Catálogo de cuentas vacío");
   const [encontrada] = await tx
     .select({ id: catalogoCuentas.id })
     .from(catalogoCuentas)
-    .where(eq(catalogoCuentas.codigo, codigo));
+    .where(and(eq(catalogoCuentas.empresaId, empresaId), eq(catalogoCuentas.codigo, codigo)));
   if (!encontrada) {
     throw new Error(`Cuenta de ajuste ${codigo} no encontrada en catálogo`);
   }

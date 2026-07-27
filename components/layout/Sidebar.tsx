@@ -14,10 +14,14 @@ import {
   BarChart3,
   Settings,
   CircleAlert,
+  HandCoins,
+  Banknote,
+  Store,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Item = { href: string; label: string; icon: React.ComponentType<{ size?: number }> };
+type Item = { href: string; label: string; icon: LucideIcon };
 
 const GRUPOS: { titulo: string; items: Item[] }[] = [
   {
@@ -25,10 +29,13 @@ const GRUPOS: { titulo: string; items: Item[] }[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/pos", label: "POS", icon: ShoppingCart },
+      { href: "/caja", label: "Caja", icon: Store },
       { href: "/ventas", label: "Ventas", icon: Receipt },
       { href: "/inventario", label: "Inventario", icon: Package },
       { href: "/clientes", label: "Clientes", icon: Users },
+      { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins },
       { href: "/compras", label: "Compras", icon: Truck },
+      { href: "/cxp", label: "Pagos (CxP)", icon: Banknote },
     ],
   },
   {

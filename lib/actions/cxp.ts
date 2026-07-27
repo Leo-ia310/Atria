@@ -1,0 +1,123 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { cuentasPorPagar, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
+import { registrarPagoSchema } from "@/lib/validations/cxp";
+import { requireSession } from "@/lib/actions/session-helpers";
+import { registrarPagoProveedor } from "@/lib/contabilidad/motor-asientos";
+import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
+
+export async function registrarPago(
+  input: unknown,
+): Promise<{ ok: true; pagoId: string } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const parsed = registrarPagoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const data = parsed.data;
+
+  // Validate cuenta financiera ownership before entering transaction
+  const [cuenta] = await db
+    .select({ id: cuentasFinancieras.id })
+    .from(cuentasFinancieras)
+    .where(
+      and(
+        eq(cuentasFinancieras.id, data.cuentaFinancieraId),
+        eq(cuentasFinancieras.empresaId, user.empresaId),
+      ),
+    )
+    .limit(1);
+  if (!cuenta) return { ok: false, error: "Cuenta financiera no encontrada" };
+
+  try {
+    const pagoId = await db.transaction(async (tx) => {
+      const [cxp] = await tx
+        .select({
+          id: cuentasPorPagar.id,
+          saldo: cuentasPorPagar.saldo,
+          estado: cuentasPorPagar.estado,
+        })
+        .from(cuentasPorPagar)
+        .where(
+          and(
+            eq(cuentasPorPagar.id, data.cxpId),
+            eq(cuentasPorPagar.empresaId, user.empresaId),
+          ),
+        )
+        .for("update")
+        .limit(1);
+
+      if (!cxp) throw new Error("Cuenta por pagar no encontrada");
+      if (cxp.estado === "pagada") throw new Error("Esta cuenta ya está saldada");
+
+      const saldoActual = dinero(cxp.saldo);
+      const monto = dinero(data.monto);
+      if (monto > saldoActual + 0.0001) {
+        throw new Error(
+          `El pago (${monto.toFixed(2)}) supera el saldo pendiente (${saldoActual.toFixed(2)})`,
+        );
+      }
+
+      const nuevoSaldo = dinero(saldoActual - monto);
+      const nuevoEstado =
+        nuevoSaldo <= 0.0001 ? "pagada" : cxp.estado === "vencida" ? "vencida" : "parcial";
+
+      const fecha = new Date(data.fecha + "T12:00:00Z");
+
+      const [pago] = await tx
+        .insert(pagosProveedor)
+        .values({
+          empresaId: user.empresaId,
+          cxpId: data.cxpId,
+          cuentaFinancieraId: data.cuentaFinancieraId,
+          fecha: data.fecha,
+          monto: aDecimalStr(monto),
+          referencia: data.referencia || null,
+          notas: data.notas || null,
+          usuarioId: user.id,
+        })
+        .returning({ id: pagosProveedor.id });
+
+      await tx
+        .update(cuentasPorPagar)
+        .set({
+          saldo: aDecimalStr(nuevoSaldo <= 0.0001 ? 0 : nuevoSaldo),
+          estado: nuevoEstado,
+        })
+        .where(eq(cuentasPorPagar.id, data.cxpId));
+
+      const asientoId = await registrarPagoProveedor(
+        {
+          empresaId: user.empresaId,
+          usuarioId: user.id,
+          pagoId: pago.id,
+          cxpId: data.cxpId,
+          fecha,
+          monto,
+          cuentaFinancieraId: data.cuentaFinancieraId,
+          referencia: data.referencia || undefined,
+        },
+        tx,
+      );
+
+      await tx
+        .update(pagosProveedor)
+        .set({ asientoId })
+        .where(eq(pagosProveedor.id, pago.id));
+
+      return pago.id;
+    });
+
+    revalidatePath("/cxp");
+    revalidatePath(`/cxp/${data.cxpId}`);
+    return { ok: true, pagoId };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Error al registrar pago",
+    };
+  }
+}

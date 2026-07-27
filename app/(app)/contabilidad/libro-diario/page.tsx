@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   asientosContables,
@@ -14,15 +14,26 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
+import type { PaisCodigo } from "@/lib/paises";
 
-export default async function LibroDiarioPage() {
+export default async function LibroDiarioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ desde?: string; hasta?: string }>;
+}) {
+  const params = await searchParams;
   const user = await requireSession();
+
   const [empresa] = await db
     .select({ pais: empresas.pais })
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
-  const pais = empresa?.pais ?? "NI";
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+
+  const filtros = [eq(asientosContables.empresaId, user.empresaId)];
+  if (params.desde) filtros.push(gte(asientosContables.fecha, params.desde));
+  if (params.hasta) filtros.push(lte(asientosContables.fecha, params.hasta));
 
   const asientos = await db
     .select({
@@ -35,26 +46,83 @@ export default async function LibroDiarioPage() {
       estado: asientosContables.estado,
     })
     .from(asientosContables)
-    .where(eq(asientosContables.empresaId, user.empresaId))
+    .where(and(...filtros))
     .orderBy(desc(asientosContables.fecha), desc(asientosContables.numero))
-    .limit(100);
+    .limit(200);
+
+  const filtroActivo = Boolean(params.desde || params.hasta);
+
+  const filterBar = (
+    <form method="GET" className="flex flex-wrap items-end gap-2">
+      <label className="flex flex-col gap-0.5">
+        <span className="text-label">Desde</span>
+        <input
+          type="date"
+          name="desde"
+          defaultValue={params.desde ?? ""}
+          className="atria-input py-1.5 text-small"
+        />
+      </label>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-label">Hasta</span>
+        <input
+          type="date"
+          name="hasta"
+          defaultValue={params.hasta ?? ""}
+          className="atria-input py-1.5 text-small"
+        />
+      </label>
+      <button type="submit" className="atria-btn atria-btn-secondary atria-btn-sm">
+        Filtrar
+      </button>
+      {filtroActivo && (
+        <Link href="/contabilidad/libro-diario" className="atria-btn atria-btn-ghost atria-btn-sm">
+          Limpiar
+        </Link>
+      )}
+    </form>
+  );
+
+  const header = (
+    <PageHeader
+      title="Libro Diario"
+      subtitle={`${asientos.length} asiento(s)${filtroActivo ? " (filtrado)" : ""}`}
+      actions={
+        <div className="flex flex-wrap items-end gap-3">
+          {filterBar}
+          <Link
+            href="/contabilidad/libro-mayor"
+            className="atria-btn atria-btn-secondary atria-btn-sm"
+          >
+            Libro mayor →
+          </Link>
+        </div>
+      }
+    />
+  );
 
   if (asientos.length === 0) {
     return (
       <div>
-        <PageHeader title="Libro Diario" subtitle="Asientos contables del periodo" />
+        {header}
         <Card>
           <EmptyState
             icon={BookOpen}
-            titulo="Aún no hay asientos"
-            descripcion="Cada venta, compra o gasto genera asientos automáticamente. Empieza haciendo una operación."
+            titulo="Sin asientos en este rango"
+            descripcion={
+              filtroActivo
+                ? "Prueba otro rango de fechas o limpia el filtro."
+                : "Cada venta, compra o gasto genera asientos automáticamente. Empieza haciendo una operación."
+            }
           />
         </Card>
       </div>
     );
   }
 
-  const partidas = await db
+  // Single query for all partidas of the loaded asientos — no duplicates, no cross-tenant leakage
+  const ids = asientos.map((a) => a.id);
+  const todasLasPartidas = await db
     .select({
       asientoId: asientoPartidas.asientoId,
       codigo: catalogoCuentas.codigo,
@@ -66,49 +134,18 @@ export default async function LibroDiarioPage() {
     })
     .from(asientoPartidas)
     .innerJoin(catalogoCuentas, eq(catalogoCuentas.id, asientoPartidas.cuentaId))
-    .where(eq(asientoPartidas.asientoId, asientos[0].id));
+    .where(inArray(asientoPartidas.asientoId, ids));
 
-  const partidasPorAsiento = new Map<string, typeof partidas>();
-  partidasPorAsiento.set(asientos[0].id, partidas);
-
-  const otrosIds = asientos.slice(1).map((a) => a.id);
-  if (otrosIds.length > 0) {
-    const todas = await db
-      .select({
-        asientoId: asientoPartidas.asientoId,
-        codigo: catalogoCuentas.codigo,
-        cuenta: catalogoCuentas.nombre,
-        descripcion: asientoPartidas.descripcion,
-        debe: asientoPartidas.debe,
-        haber: asientoPartidas.haber,
-        orden: asientoPartidas.orden,
-      })
-      .from(asientoPartidas)
-      .innerJoin(catalogoCuentas, eq(catalogoCuentas.id, asientoPartidas.cuentaId))
-      .innerJoin(asientosContables, eq(asientosContables.id, asientoPartidas.asientoId))
-      .where(eq(asientosContables.empresaId, user.empresaId));
-
-    for (const p of todas) {
-      const arr = partidasPorAsiento.get(p.asientoId) ?? [];
-      arr.push(p);
-      partidasPorAsiento.set(p.asientoId, arr);
-    }
+  const partidasPorAsiento = new Map<string, typeof todasLasPartidas>();
+  for (const p of todasLasPartidas) {
+    const arr = partidasPorAsiento.get(p.asientoId) ?? [];
+    arr.push(p);
+    partidasPorAsiento.set(p.asientoId, arr);
   }
 
   return (
     <div>
-      <PageHeader
-        title="Libro Diario"
-        subtitle={`${asientos.length} asientos registrados`}
-        actions={
-          <Link
-            href="/contabilidad/libro-mayor"
-            className="atria-btn atria-btn-secondary atria-btn-sm"
-          >
-            Ver libro mayor →
-          </Link>
-        }
-      />
+      {header}
 
       <div className="space-y-3">
         {asientos.map((a) => {

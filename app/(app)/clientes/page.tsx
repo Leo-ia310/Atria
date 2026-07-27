@@ -85,14 +85,22 @@ export default async function ClientesPage() {
       header: "",
       align: "right",
       cell: (r) => (
-        <Link
-          href={`/clientes/${r.id}`}
-          className="text-[color:var(--color-secondary)] hover:underline"
-        >
-          Editar →
-        </Link>
+        <div className="flex items-center justify-end gap-3">
+          <Link
+            href={`/cxc?clienteId=${r.id}`}
+            className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-secondary)] text-[12px]"
+          >
+            Cobros
+          </Link>
+          <Link
+            href={`/clientes/${r.id}`}
+            className="text-[color:var(--color-secondary)] hover:underline"
+          >
+            Editar →
+          </Link>
+        </div>
       ),
-      width: "100px",
+      width: "160px",
     },
   ];
 

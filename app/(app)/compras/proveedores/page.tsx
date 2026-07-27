@@ -59,14 +59,22 @@ export default async function ProveedoresPage() {
       header: "",
       align: "right",
       cell: (r) => (
-        <Link
-          href={`/compras/proveedores/${r.id}`}
-          className="text-[color:var(--color-secondary)] hover:underline"
-        >
-          Editar →
-        </Link>
+        <div className="flex items-center justify-end gap-3">
+          <Link
+            href={`/cxp?proveedorId=${r.id}`}
+            className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-secondary)] text-[12px]"
+          >
+            Pagos
+          </Link>
+          <Link
+            href={`/compras/proveedores/${r.id}`}
+            className="text-[color:var(--color-secondary)] hover:underline"
+          >
+            Editar →
+          </Link>
+        </div>
       ),
-      width: "100px",
+      width: "160px",
     },
   ];
 
