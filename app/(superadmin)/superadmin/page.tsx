@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { empresas, suscripciones, usuarios, ventas } from "@/lib/db/schema";
 import { Building2, Users, CreditCard, Receipt, ArrowRight } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function SuperAdminPage() {
   const [tenantsCount] = await db.select({ n: count() }).from(empresas);
   const [usuariosCount] = await db.select({ n: count() }).from(usuarios);

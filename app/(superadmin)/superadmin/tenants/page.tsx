@@ -10,6 +10,8 @@ import {
 } from "@/lib/db/schema";
 import { formatearFecha } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function TenantsPage() {
   const filas = await db
     .select({
