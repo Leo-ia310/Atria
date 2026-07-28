@@ -13,7 +13,10 @@ import {
   formasPago as formasPagoTable,
   clientes,
   sesionesCaja,
+  productos,
+  facturas,
 } from "@/lib/db/schema";
+import { inArray } from "drizzle-orm";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
@@ -192,11 +195,13 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     const formaPagos = await db
       .select({
         id: formasPagoTable.id,
+        nombre: formasPagoTable.nombre,
         cuentaFinancieraId: formasPagoTable.cuentaFinancieraId,
       })
       .from(formasPagoTable)
       .where(eq(formasPagoTable.empresaId, user.empresaId));
     const mapaFormas = new Map(formaPagos.map((f) => [f.id, f.cuentaFinancieraId]));
+    const mapaFormasNombre = new Map(formaPagos.map((f) => [f.id, f.nombre]));
 
     const pagosContables = data.esCredito
       ? undefined
@@ -226,7 +231,85 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       .set({ asientoId })
       .where(eq(ventas.id, resultado.id));
 
+    // Guardar la factura (snapshot JSON) para el repositorio de facturas y la
+    // reconstrucción del documento desde plantilla. No debe tumbar la venta.
+    try {
+      const idsProductos = [...new Set(data.items.map((i) => i.productoId))];
+      const prods = idsProductos.length
+        ? await db
+            .select({ id: productos.id, nombre: productos.nombre, sku: productos.sku })
+            .from(productos)
+            .where(inArray(productos.id, idsProductos))
+        : [];
+      const mapaProd = new Map(prods.map((p) => [p.id, p]));
+
+      let clienteNombre = "Consumidor final";
+      if (data.clienteId) {
+        const [c] = await db
+          .select({ nombre: clientes.nombre })
+          .from(clientes)
+          .where(eq(clientes.id, data.clienteId))
+          .limit(1);
+        if (c) clienteNombre = c.nombre;
+      }
+
+      const nombresFormas = [
+        ...new Set(
+          data.pagos.map((p) => mapaFormasNombre.get(p.formaPagoId) ?? "Otro"),
+        ),
+      ];
+
+      const snapshot = {
+        numero: resultado.numero,
+        fecha: fechaVenta.toISOString(),
+        esCredito: data.esCredito,
+        cliente: clienteNombre,
+        cajero: user.nombre,
+        items: data.items.map((it) => {
+          const p = mapaProd.get(it.productoId);
+          return {
+            nombre: p?.nombre ?? "Producto",
+            sku: p?.sku ?? "",
+            cantidad: it.cantidad,
+            precioUnitario: it.precioUnitario,
+            descuento: it.descuento,
+            impuesto: it.impuesto,
+            subtotal: dinero(it.cantidad * it.precioUnitario - it.descuento),
+          };
+        }),
+        pagos: data.pagos.map((p) => ({
+          formaPago: mapaFormasNombre.get(p.formaPagoId) ?? "Otro",
+          monto: p.monto,
+          referencia: p.referencia || null,
+        })),
+        subtotal,
+        descuento: descuentoTotal,
+        impuesto: impuestoTotal,
+        total,
+      };
+
+      await db
+        .insert(facturas)
+        .values({
+          empresaId: user.empresaId,
+          ventaId: resultado.id,
+          numero: resultado.numero,
+          fecha: fechaVenta,
+          vendedorId: user.id,
+          vendedorNombre: user.nombre,
+          clienteNombre,
+          formasPago: data.esCredito ? "Crédito" : nombresFormas.join(", "),
+          esCredito: data.esCredito,
+          total: aDecimalStr(total),
+          snapshot,
+        })
+        .onConflictDoNothing();
+    } catch (errFactura) {
+      console.error("[procesarVenta:factura]", errFactura);
+    }
+
     revalidatePath("/ventas");
+    revalidatePath("/facturas");
     revalidatePath("/dashboard");
 
     return { ok: true, ventaId: resultado.id, numero: resultado.numero, asientoId };

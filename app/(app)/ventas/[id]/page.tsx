@@ -12,6 +12,7 @@ import {
   clientes,
   empresas,
   asientosContables,
+  facturas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -78,6 +79,12 @@ export default async function VentaDetallePage({
     .from(pagosVenta)
     .innerJoin(formasPago, eq(formasPago.id, pagosVenta.formaPagoId))
     .where(eq(pagosVenta.ventaId, venta.id));
+
+  const [factura] = await db
+    .select({ id: facturas.id })
+    .from(facturas)
+    .where(eq(facturas.ventaId, venta.id))
+    .limit(1);
 
   const asiento = venta.asientoId
     ? (
@@ -199,10 +206,21 @@ export default async function VentaDetallePage({
         <Card>
           <CardHeader title="Trazabilidad" />
           <CardBody className="space-y-3 text-small">
-            <div className="flex items-center gap-2 text-[color:var(--color-text-muted)]">
-              <FileText size={14} />
-              <span>Documento: {venta.numero}</span>
-            </div>
+            {factura ? (
+              <Link
+                href={`/ticket/${venta.id}`}
+                target="_blank"
+                className="flex items-center gap-2 text-[color:var(--color-secondary)] hover:underline"
+              >
+                <FileText size={14} />
+                Factura {venta.numero} · Ver / Imprimir
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2 text-[color:var(--color-text-muted)]">
+                <FileText size={14} />
+                <span>Documento: {venta.numero}</span>
+              </div>
+            )}
             {asiento ? (
               <Link
                 href="/contabilidad/libro-diario"

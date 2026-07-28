@@ -125,7 +125,7 @@ export function ProductoForm({
               value={categoriaId}
               onChange={(v) => setValue("categoriaId", v)}
               options={[{ value: "", label: "Sin categoría" }, ...categorias]}
-              onCrear={crearCategoria}
+              onCrear={(nombre) => crearCategoria({ nombre })}
             />
             <SelectConAgregar
               label="Marca"
@@ -133,7 +133,7 @@ export function ProductoForm({
               value={marcaId}
               onChange={(v) => setValue("marcaId", v)}
               options={[{ value: "", label: "Sin marca" }, ...marcas]}
-              onCrear={crearMarca}
+              onCrear={(nombre) => crearMarca({ nombre })}
             />
           </div>
           <Input

@@ -1128,6 +1128,37 @@ export const notaCreditoDetalle = pgTable(
   (t) => [index("nc_detalle_nota_idx").on(t.notaId)],
 );
 
+// Repositorio de facturas emitidas. Guarda un snapshot JSON de la venta para
+// reconstruir el documento desde una plantilla y filtrar sin joins pesados.
+export const facturas = pgTable(
+  "facturas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    ventaId: uuid("venta_id")
+      .notNull()
+      .references(() => ventas.id, { onDelete: "cascade" }),
+    numero: text("numero").notNull(),
+    fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
+    vendedorId: uuid("vendedor_id").references(() => usuarios.id),
+    vendedorNombre: text("vendedor_nombre"),
+    clienteNombre: text("cliente_nombre"),
+    formasPago: text("formas_pago"),
+    esCredito: boolean("es_credito").notNull().default(false),
+    total: numeric("total", { precision: 18, scale: 4 }).notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("facturas_venta_uq").on(t.ventaId),
+    index("facturas_empresa_idx").on(t.empresaId),
+    index("facturas_fecha_idx").on(t.fecha),
+    index("facturas_vendedor_idx").on(t.vendedorId),
+  ],
+);
+
 export const cuentasPorCobrar = pgTable(
   "cuentas_por_cobrar",
   {

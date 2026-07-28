@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Search, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { NotificacionesBell, type Notificacion } from "./NotificacionesBell";
+import { CommandPalette } from "./CommandPalette";
 
 export function Header({
   breadcrumb,
@@ -11,6 +13,18 @@ export function Header({
   breadcrumb: { label: string; href?: string }[];
   notificaciones?: Notificacion[];
 }) {
+  const [paleta, setPaleta] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaleta((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <header
       style={{ height: "var(--header-height)" }}
@@ -38,10 +52,11 @@ export function Header({
       <div className="flex items-center gap-2">
         <button
           type="button"
+          onClick={() => setPaleta(true)}
           className="flex h-8 w-64 items-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-3 text-small text-[color:var(--color-text-muted)] transition hover:border-[color:var(--color-border-strong)]"
         >
           <Search size={14} />
-          <span className="flex-1 text-left">Buscar...</span>
+          <span className="flex-1 text-left">Buscar módulo...</span>
           <kbd className="rounded border border-[color:var(--color-border)] bg-white px-1.5 py-0.5 text-[10px]">
             ⌘K
           </kbd>
@@ -56,6 +71,8 @@ export function Header({
           Salir
         </button>
       </div>
+
+      <CommandPalette abierto={paleta} onCerrar={() => setPaleta(false)} />
     </header>
   );
 }

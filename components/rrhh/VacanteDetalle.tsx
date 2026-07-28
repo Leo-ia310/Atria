@@ -78,6 +78,7 @@ export function VacanteDetalle({
   const [pending, startTransition] = useTransition();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overEtapa, setOverEtapa] = useState<Etapa | null>(null);
+  const [estadoLocal, setEstadoLocal] = useState(estado);
 
   const {
     register,
@@ -126,13 +127,20 @@ export function VacanteDetalle({
   }
 
   function cambiarVacante(nuevo: string) {
+    const previo = estadoLocal;
+    setEstadoLocal(nuevo); // optimista: el select refleja el cambio de inmediato
     startTransition(async () => {
       const res = await cambiarEstadoVacante(
         vacanteId,
         nuevo as "abierta" | "pausada" | "cerrada" | "cancelada",
       );
-      if (!res.ok) return mostrar("error", res.error);
-      mostrar("success", "Estado de la vacante actualizado");
+      if (!res.ok) {
+        setEstadoLocal(previo);
+        return mostrar("error", res.error);
+      }
+      const etiqueta =
+        ESTADOS_VACANTE.find((s) => s.value === nuevo)?.label ?? nuevo;
+      mostrar("success", `Vacante marcada como "${etiqueta}"`);
       router.refresh();
     });
   }
@@ -151,11 +159,12 @@ export function VacanteDetalle({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="w-48">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="w-56">
           <Select
+            label="Estado de la vacante"
             options={ESTADOS_VACANTE}
-            value={estado}
+            value={estadoLocal}
             disabled={pending}
             onChange={(e) => cambiarVacante(e.target.value)}
           />

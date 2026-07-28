@@ -14,9 +14,17 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { db } from "@/lib/db";
-import { empresas, sucursales } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import {
+  empresas,
+  sucursales,
+  ventas,
+  productos,
+  cuentasPorCobrar,
+  clientes,
+} from "@/lib/db/schema";
+import { eq, and, isNull, gte, sql, sum, count, desc } from "drizzle-orm";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
+import type { PaisCodigo } from "@/lib/paises";
 
 export default async function DashboardPage({
   searchParams,
@@ -33,12 +41,80 @@ export default async function DashboardPage({
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
 
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+
   const sucs = await db
     .select({ id: sucursales.id, nombre: sucursales.nombre })
     .from(sucursales)
     .where(
       and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn)),
     );
+
+  const inicioMes = new Date();
+  inicioMes.setDate(1);
+  inicioMes.setHours(0, 0, 0, 0);
+
+  const [ventasHoyRes, ventasMesRes, productosRes, cxcRes, recientes] =
+    await Promise.all([
+      db
+        .select({ total: sum(ventas.total) })
+        .from(ventas)
+        .where(
+          and(
+            eq(ventas.empresaId, user.empresaId),
+            isNull(ventas.anuladoEn),
+            sql`${ventas.fecha}::date = current_date`,
+          ),
+        ),
+      db
+        .select({ total: sum(ventas.total) })
+        .from(ventas)
+        .where(
+          and(
+            eq(ventas.empresaId, user.empresaId),
+            isNull(ventas.anuladoEn),
+            gte(ventas.fecha, inicioMes),
+          ),
+        ),
+      db
+        .select({ n: count() })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.empresaId, user.empresaId),
+            eq(productos.activo, true),
+            isNull(productos.eliminadoEn),
+          ),
+        ),
+      db
+        .select({ saldo: sum(cuentasPorCobrar.saldo) })
+        .from(cuentasPorCobrar)
+        .where(
+          and(
+            eq(cuentasPorCobrar.empresaId, user.empresaId),
+            eq(cuentasPorCobrar.estado, "pendiente"),
+          ),
+        ),
+      db
+        .select({
+          id: ventas.id,
+          numero: ventas.numero,
+          fecha: ventas.fecha,
+          total: ventas.total,
+          esCredito: ventas.esCredito,
+          cliente: clientes.nombre,
+        })
+        .from(ventas)
+        .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
+        .where(and(eq(ventas.empresaId, user.empresaId), isNull(ventas.anuladoEn)))
+        .orderBy(desc(ventas.fecha))
+        .limit(6),
+    ]);
+
+  const ventasHoy = parseFloat(ventasHoyRes[0]?.total ?? "0");
+  const ventasMes = parseFloat(ventasMesRes[0]?.total ?? "0");
+  const productosCount = productosRes[0]?.n ?? 0;
+  const cxcPendiente = parseFloat(cxcRes[0]?.saldo ?? "0");
 
   return (
     <div>
@@ -94,26 +170,26 @@ export default async function DashboardPage({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             label="Ventas hoy"
-            value={formatearMoneda(0, empresa?.pais ?? "NI")}
-            hint="Aún no hay ventas registradas"
+            value={formatearMoneda(ventasHoy, pais)}
+            hint={ventasHoy > 0 ? "Ventas del día de hoy" : "Aún no hay ventas hoy"}
             icon={Receipt}
           />
           <KpiCard
             label="Ventas del mes"
-            value={formatearMoneda(0, empresa?.pais ?? "NI")}
-            hint="Tu primer mes apenas comienza"
+            value={formatearMoneda(ventasMes, pais)}
+            hint="Acumulado del mes en curso"
             icon={TrendingUp}
           />
           <KpiCard
             label="Productos en catálogo"
-            value="0"
-            hint="Crea tu primer producto"
+            value={String(productosCount)}
+            hint={productosCount > 0 ? "Productos activos" : "Crea tu primer producto"}
             icon={Package}
           />
           <KpiCard
             label="Cuentas por cobrar"
-            value={formatearMoneda(0, empresa?.pais ?? "NI")}
-            hint="Sin saldos pendientes"
+            value={formatearMoneda(cxcPendiente, pais)}
+            hint={cxcPendiente > 0 ? "Saldo pendiente de cobro" : "Sin saldos pendientes"}
             icon={Wallet}
           />
         </div>
@@ -125,24 +201,56 @@ export default async function DashboardPage({
             title="Actividad reciente"
             subtitle="Tus últimas operaciones aparecerán aquí"
           />
-          <CardBody>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-3 rounded-full bg-[color:var(--color-surface-2)] p-3 text-[color:var(--color-text-muted)]">
-                <Receipt size={24} />
+          {recientes.length === 0 ? (
+            <CardBody>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="mb-3 rounded-full bg-[color:var(--color-surface-2)] p-3 text-[color:var(--color-text-muted)]">
+                  <Receipt size={24} />
+                </div>
+                <p className="text-base font-medium text-[color:var(--color-text-primary)]">
+                  Sin actividad todavía
+                </p>
+                <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+                  Cuando hagas tu primera venta o compra, la verás aquí.
+                </p>
+                <Link href="/pos">
+                  <Button size="sm" className="mt-4">
+                    Abrir POS
+                  </Button>
+                </Link>
               </div>
-              <p className="text-base font-medium text-[color:var(--color-text-primary)]">
-                Sin actividad todavía
-              </p>
-              <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-                Cuando hagas tu primera venta o compra, la verás aquí.
-              </p>
-              <Link href="/pos">
-                <Button size="sm" className="mt-4">
-                  Abrir POS
-                </Button>
-              </Link>
+            </CardBody>
+          ) : (
+            <div className="divide-y divide-[color:var(--color-border)]">
+              {recientes.map((v) => (
+                <Link
+                  key={v.id}
+                  href={`/ventas/${v.id}`}
+                  className="flex items-center justify-between px-4 py-3 transition hover:bg-[color:var(--color-surface-2)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-md bg-[color:var(--color-surface-2)] p-2 text-[color:var(--color-primary)]">
+                      <Receipt size={16} />
+                    </div>
+                    <div>
+                      <div className="text-small font-medium">{v.numero}</div>
+                      <div className="text-[12px] text-[color:var(--color-text-muted)]">
+                        {v.cliente ?? "Consumidor final"} · {formatearFechaHora(v.fecha)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-small font-semibold">
+                      {formatearMoneda(parseFloat(v.total), pais)}
+                    </div>
+                    <div className="text-[11px] text-[color:var(--color-text-muted)]">
+                      {v.esCredito ? "Crédito" : "Contado"}
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
-          </CardBody>
+          )}
         </Card>
 
         <Card>

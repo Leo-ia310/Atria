@@ -23,11 +23,13 @@ import {
   CalendarCheck,
   Inbox,
   Briefcase,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlanesModal } from "@/components/layout/PlanesModal";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -47,6 +49,7 @@ const GRUPOS: { titulo: string; items: Item[] }[] = [
   {
     titulo: "Finanzas",
     items: [
+      { href: "/facturas", label: "Facturas", icon: FileText },
       { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins },
       { href: "/cxp", label: "Pagos (CxP)", icon: Banknote },
       { href: "/contabilidad", label: "Contabilidad", icon: BookOpen },
@@ -90,6 +93,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [colapsado, setColapsado] = useState(false);
+  const [planesAbierto, setPlanesAbierto] = useState(false);
 
   useEffect(() => {
     const guardado = localStorage.getItem(STORAGE_KEY) === "1";
@@ -196,7 +200,11 @@ export function Sidebar({
 
       <div className="border-t border-white/10 p-3">
         {!colapsado && (
-          <div className="rounded-md bg-white/5 p-3">
+          <button
+            type="button"
+            onClick={() => setPlanesAbierto(true)}
+            className="w-full rounded-md bg-white/5 p-3 text-left transition hover:bg-white/10"
+          >
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-wider text-white/50">
                 Plan {planNombre}
@@ -207,20 +215,17 @@ export function Sidebar({
             </div>
             {esDemo ? (
               <>
-                <p className="mt-1 text-[12px] text-white/70">
-                  Funciones limitadas
-                </p>
-                <Link
-                  href="/configuracion/facturacion"
-                  className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] hover:text-white"
-                >
+                <p className="mt-1 text-[12px] text-white/70">Funciones limitadas</p>
+                <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
                   Mejorar plan →
-                </Link>
+                </span>
               </>
             ) : (
-              <p className="mt-1 text-[12px] text-white/70">Suscripción activa</p>
+              <p className="mt-1 text-[12px] text-white/70">
+                Suscripción activa · ver planes →
+              </p>
             )}
-          </div>
+          </button>
         )}
 
         <Link
@@ -244,6 +249,12 @@ export function Sidebar({
           )}
         </Link>
       </div>
+
+      <PlanesModal
+        abierto={planesAbierto}
+        onCerrar={() => setPlanesAbierto(false)}
+        planActual={planNombre}
+      />
     </aside>
   );
 }
