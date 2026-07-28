@@ -6,12 +6,15 @@ import { db } from "@/lib/db";
 import { cajas, sesionesCaja, sucursales, ventas } from "@/lib/db/schema";
 import { crearCajaSchema, abrirSesionSchema, cerrarSesionSchema } from "@/lib/validations/caja";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion } from "@/lib/server-access";
 import { aDecimalStr, dinero } from "@/lib/contabilidad/helpers";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
 export async function crearCaja(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = crearCajaSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -41,6 +44,8 @@ export async function abrirSesion(
   input: unknown,
 ): Promise<{ ok: true; sesionId: string } | { ok: false; error: string }> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "caja", permisos: "ventas.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = abrirSesionSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -85,6 +90,8 @@ export async function abrirSesion(
 
 export async function cerrarSesion(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "caja", permisos: "ventas.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = cerrarSesionSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };

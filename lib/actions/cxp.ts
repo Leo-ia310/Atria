@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { cuentasPorPagar, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
 import { registrarPagoSchema } from "@/lib/validations/cxp";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion } from "@/lib/server-access";
 import { registrarPagoProveedor } from "@/lib/contabilidad/motor-asientos";
 import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
 
@@ -13,6 +14,8 @@ export async function registrarPago(
   input: unknown,
 ): Promise<{ ok: true; pagoId: string } | { ok: false; error: string }> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "cxp", permisos: "compras.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = registrarPagoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };

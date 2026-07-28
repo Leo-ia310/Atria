@@ -12,6 +12,7 @@ import {
   usuarios,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { requireModulo } from "@/lib/server-access";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { TicketPrint } from "@/components/pos/TicketPrint";
 
@@ -25,6 +26,7 @@ export default async function TicketPage({
   const { ventaId } = await params;
   const { print } = await searchParams;
   const user = await requireSession();
+  await requireModulo(user, "ventas");
 
   const [venta] = await db
     .select({

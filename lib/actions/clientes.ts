@@ -6,16 +6,24 @@ import { db } from "@/lib/db";
 import { clientes } from "@/lib/db/schema";
 import { clienteSchema } from "@/lib/validations/clientes";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
 export async function crearCliente(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "clientes",
+    permisos: ["ventas.crear", "ventas.ver"],
+  });
+  if (!acceso.ok) return acceso;
   const parsed = clienteSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const d = parsed.data;
+  const limite = await validarLimitePlan(acceso.access, user.empresaId, "clientes");
+  if (!limite.ok) return limite;
   try {
     const [creado] = await db
       .insert(clientes)
@@ -43,6 +51,11 @@ export async function crearCliente(input: unknown): Promise<Resultado> {
 
 export async function actualizarCliente(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "clientes",
+    permisos: ["ventas.crear", "ventas.ver"],
+  });
+  if (!acceso.ok) return acceso;
   const parsed = clienteSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };

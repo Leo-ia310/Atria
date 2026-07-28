@@ -3,78 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Receipt,
-  Package,
-  Users,
-  Truck,
-  BookOpen,
-  Wallet,
-  BarChart3,
-  Settings,
-  CircleAlert,
-  HandCoins,
-  Banknote,
-  Store,
-  UsersRound,
-  UserRound,
-  CalendarCheck,
-  Inbox,
-  Briefcase,
-  FileText,
-  PanelLeftClose,
-  PanelLeftOpen,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleAlert, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlanesModal } from "@/components/layout/PlanesModal";
-
-type Item = { href: string; label: string; icon: LucideIcon };
-
-const GRUPOS: { titulo: string; items: Item[] }[] = [
-  {
-    titulo: "Operativo",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/pos", label: "POS", icon: ShoppingCart },
-      { href: "/caja", label: "Caja", icon: Store },
-      { href: "/ventas", label: "Ventas", icon: Receipt },
-      { href: "/inventario", label: "Inventario", icon: Package },
-      { href: "/clientes", label: "Clientes", icon: Users },
-      { href: "/compras", label: "Compras", icon: Truck },
-    ],
-  },
-  {
-    titulo: "Finanzas",
-    items: [
-      { href: "/facturas", label: "Facturas", icon: FileText },
-      { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins },
-      { href: "/cxp", label: "Pagos (CxP)", icon: Banknote },
-      { href: "/contabilidad", label: "Contabilidad", icon: BookOpen },
-      { href: "/tesoreria", label: "Tesorería", icon: Wallet },
-    ],
-  },
-  {
-    titulo: "Recursos Humanos",
-    items: [
-      { href: "/rrhh", label: "Panel RRHH", icon: UsersRound },
-      { href: "/rrhh/empleados", label: "Empleados", icon: UserRound },
-      { href: "/rrhh/asistencia", label: "Asistencia", icon: CalendarCheck },
-      { href: "/rrhh/nomina", label: "Nómina", icon: Wallet },
-      { href: "/rrhh/solicitudes", label: "Solicitudes", icon: Inbox },
-      { href: "/rrhh/reclutamiento", label: "Reclutamiento", icon: Briefcase },
-    ],
-  },
-  {
-    titulo: "Gestión",
-    items: [
-      { href: "/reportes", label: "Reportes", icon: BarChart3 },
-      { href: "/configuracion", label: "Configuración", icon: Settings },
-    ],
-  },
-];
+import { NAV_GROUPS } from "@/components/layout/nav-items";
+import type { ModuloAcceso } from "@/lib/access-control";
 
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
@@ -85,15 +18,22 @@ export function Sidebar({
   planNombre,
   esDemo,
   nombreUsuario,
+  modulosPermitidos,
 }: {
   nombreEmpresa: string;
   planNombre: string;
   esDemo: boolean;
   nombreUsuario: string;
+  modulosPermitidos: ModuloAcceso[];
 }) {
   const pathname = usePathname();
   const [colapsado, setColapsado] = useState(false);
   const [planesAbierto, setPlanesAbierto] = useState(false);
+  const permitidos = new Set(modulosPermitidos);
+  const grupos = NAV_GROUPS.map((grupo) => ({
+    ...grupo,
+    items: grupo.items.filter((item) => permitidos.has(item.modulo)),
+  })).filter((grupo) => grupo.items.length > 0);
 
   useEffect(() => {
     const guardado = localStorage.getItem(STORAGE_KEY) === "1";
@@ -165,7 +105,7 @@ export function Sidebar({
       )}
 
       <nav className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
-        {GRUPOS.map((g) => (
+        {grupos.map((g) => (
           <div key={g.titulo} className="mt-4 first:mt-1">
             {!colapsado && (
               <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
@@ -221,9 +161,7 @@ export function Sidebar({
                 </span>
               </>
             ) : (
-              <p className="mt-1 text-[12px] text-white/70">
-                Suscripción activa · ver planes →
-              </p>
+              <p className="mt-1 text-[12px] text-white/70">Suscripción activa</p>
             )}
           </button>
         )}

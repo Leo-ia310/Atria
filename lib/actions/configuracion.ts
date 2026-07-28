@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema";
 import {
   crearUsuarioSchema,
+  actualizarUsuarioSchema,
   formaPagoSchema,
   impuestoSchema,
   rolSchema,
@@ -25,6 +26,7 @@ import {
   cambiarPasswordSchema,
 } from "@/lib/validations/configuracion";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 
 type Resultado = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -32,11 +34,17 @@ type Resultado = { ok: true; id?: string } | { ok: false; error: string };
 
 export async function crearUsuario(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = crearUsuarioSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const d = parsed.data;
+  if (d.activo) {
+    const limite = await validarLimitePlan(acceso.access, user.empresaId, "usuarios");
+    if (!limite.ok) return limite;
+  }
   try {
     const [rol] = await db
       .select({ id: roles.id })
@@ -80,8 +88,14 @@ export async function cambiarEstadoUsuario(
   activo: boolean,
 ): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   if (id === user.id) {
     return { ok: false, error: "No puedes desactivar tu propio usuario." };
+  }
+  if (activo) {
+    const limite = await validarLimitePlan(acceso.access, user.empresaId, "usuarios");
+    if (!limite.ok) return limite;
   }
   try {
     await db
@@ -92,6 +106,82 @@ export async function cambiarEstadoUsuario(
     return { ok: true };
   } catch (err) {
     console.error("[cambiarEstadoUsuario]", err);
+    return { ok: false, error: "No pudimos actualizar el usuario." };
+  }
+}
+
+export async function actualizarUsuario(
+  id: string,
+  input: unknown,
+): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
+  const parsed = actualizarUsuarioSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const d = parsed.data;
+
+  try {
+    const [actual] = await db
+      .select({
+        id: usuarios.id,
+        rolId: usuarios.rolId,
+        activo: usuarios.activo,
+      })
+      .from(usuarios)
+      .where(and(eq(usuarios.id, id), eq(usuarios.empresaId, user.empresaId)))
+      .limit(1);
+    if (!actual) return { ok: false, error: "Usuario no encontrado" };
+
+    if (id === user.id && actual.rolId !== d.rolId) {
+      return { ok: false, error: "No puedes cambiar tu propio rol." };
+    }
+    if (id === user.id && !d.activo) {
+      return { ok: false, error: "No puedes desactivar tu propio usuario." };
+    }
+
+    if (!actual.activo && d.activo) {
+      const limite = await validarLimitePlan(acceso.access, user.empresaId, "usuarios");
+      if (!limite.ok) return limite;
+    }
+
+    const [rol] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(and(eq(roles.id, d.rolId), eq(roles.empresaId, user.empresaId)))
+      .limit(1);
+    if (!rol) return { ok: false, error: "Rol no valido" };
+
+    const duplicado = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(and(eq(usuarios.empresaId, user.empresaId), eq(usuarios.email, d.email)))
+      .limit(1);
+    if (duplicado.length > 0 && duplicado[0].id !== id) {
+      return { ok: false, error: "Ya existe un usuario con ese correo" };
+    }
+
+    const cambios: Partial<typeof usuarios.$inferInsert> = {
+      nombre: d.nombre,
+      email: d.email,
+      rolId: d.rolId,
+      activo: d.activo,
+    };
+    if (d.password) {
+      cambios.passwordHash = await bcrypt.hash(d.password, 10);
+    }
+
+    await db
+      .update(usuarios)
+      .set(cambios)
+      .where(and(eq(usuarios.id, id), eq(usuarios.empresaId, user.empresaId)));
+
+    revalidatePath("/configuracion/usuarios");
+    return { ok: true, id };
+  } catch (err) {
+    console.error("[actualizarUsuario]", err);
     return { ok: false, error: "No pudimos actualizar el usuario." };
   }
 }
@@ -152,6 +242,8 @@ export async function cambiarMiPassword(input: unknown): Promise<Resultado> {
 
 export async function crearRol(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = rolSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -196,6 +288,8 @@ export async function actualizarPermisosRol(
   permisoIds: string[],
 ): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   try {
     const [rol] = await db
       .select({ id: roles.id, esBase: roles.esBase })
@@ -224,6 +318,8 @@ export async function actualizarPermisosRol(
 
 export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = cuentaFinancieraSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -255,6 +351,8 @@ export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> 
 
 export async function crearSecuenciaFiscal(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = secuenciaFiscalSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -319,6 +417,8 @@ export async function crearSecuenciaFiscal(input: unknown): Promise<Resultado> {
 
 export async function crearFormaPago(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = formaPagoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -357,6 +457,8 @@ export async function actualizarFormaPago(
   input: unknown,
 ): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = formaPagoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -390,6 +492,8 @@ export async function actualizarFormaPago(
 
 export async function eliminarFormaPago(id: string): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   try {
     // Baja lógica: se desactiva para no romper ventas históricas que la referencian.
     await db
@@ -408,6 +512,8 @@ export async function eliminarFormaPago(id: string): Promise<Resultado> {
 
 export async function crearImpuesto(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
   const parsed = impuestoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };

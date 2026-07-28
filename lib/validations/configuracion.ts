@@ -12,6 +12,20 @@ export const crearUsuarioSchema = z.object({
 });
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
 
+export const actualizarUsuarioSchema = z.object({
+  nombre: z.string().trim().min(2, "Nombre requerido").max(120),
+  email: z.string().trim().toLowerCase().email("Correo no valido"),
+  password: z
+    .union([
+      z.literal(""),
+      z.string().min(8, "Minimo 8 caracteres").max(72, "Maximo 72 caracteres"),
+    ])
+    .optional(),
+  rolId: z.string().uuid("Selecciona un rol"),
+  activo: z.boolean().default(true),
+});
+export type ActualizarUsuarioInput = z.infer<typeof actualizarUsuarioSchema>;
+
 export const formaPagoSchema = z.object({
   codigo: z
     .string()

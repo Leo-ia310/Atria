@@ -19,6 +19,7 @@ import {
 import { inArray } from "drizzle-orm";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
 import { siguienteNumero, dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
 
@@ -28,10 +29,24 @@ type Resultado =
 
 export async function procesarVenta(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "pos", permisos: "ventas.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = procesarVentaSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
+  const limiteTransacciones = await validarLimitePlan(
+    acceso.access,
+    user.empresaId,
+    "transacciones_mes",
+  );
+  if (!limiteTransacciones.ok) return limiteTransacciones;
+  const limiteFacturas = await validarLimitePlan(
+    acceso.access,
+    user.empresaId,
+    "facturas_mes",
+  );
+  if (!limiteFacturas.ok) return limiteFacturas;
   const data = parsed.data;
 
   const subtotal = dinero(

@@ -6,12 +6,15 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { CrearUsuarioForm } from "@/components/configuracion/CrearUsuarioForm";
+import { UsuarioAcciones } from "@/components/configuracion/UsuarioAcciones";
 import { formatearFechaHora } from "@/lib/utils";
+import { getAccessContext } from "@/lib/server-access";
 
 type Fila = {
   id: string;
   nombre: string;
   email: string;
+  rolId: string | null;
   rol: string | null;
   activo: boolean;
   ultimoLogin: Date | null;
@@ -19,12 +22,14 @@ type Fila = {
 
 export default async function UsuariosPage() {
   const user = await requireSession();
+  const access = await getAccessContext(user);
 
   const filas: Fila[] = await db
     .select({
       id: usuarios.id,
       nombre: usuarios.nombre,
       email: usuarios.email,
+      rolId: usuarios.rolId,
       rol: roles.nombre,
       activo: usuarios.activo,
       ultimoLogin: usuarios.ultimoLogin,
@@ -37,6 +42,16 @@ export default async function UsuariosPage() {
     .select({ id: roles.id, nombre: roles.nombre })
     .from(roles)
     .where(eq(roles.empresaId, user.empresaId));
+  const rolesOptions = rolesList.map((r) => ({ value: r.id, label: r.nombre }));
+  const usuariosActivos = filas.filter((f) => f.activo).length;
+  const limiteUsuarios =
+    access.plan.maxUsuarios === null ? null : access.plan.maxUsuarios + access.usuariosExtra;
+  const puedeCrearUsuario =
+    limiteUsuarios === null || usuariosActivos < limiteUsuarios;
+  const limiteTexto =
+    limiteUsuarios === null
+      ? undefined
+      : `Tu plan ${access.plan.nombre} permite ${limiteUsuarios} usuarios activos. Ya tienes ${usuariosActivos}.`;
 
   const columnas: Columna<Fila>[] = [
     {
@@ -71,6 +86,27 @@ export default async function UsuariosPage() {
         r.activo ? <Badge variant="success">Activo</Badge> : <Badge variant="error">Inactivo</Badge>,
       width: "100px",
     },
+    {
+      key: "acciones",
+      header: "",
+      cell: (r) =>
+        rolesOptions.length > 0 ? (
+          <UsuarioAcciones
+            usuario={{
+              id: r.id,
+              nombre: r.nombre,
+              email: r.email,
+              rolId: r.rolId ?? rolesOptions[0].value,
+              activo: r.activo,
+            }}
+            roles={rolesOptions}
+          />
+        ) : (
+          <span className="text-[color:var(--color-text-muted)]">Sin rol</span>
+        ),
+      align: "right",
+      width: "120px",
+    },
   ];
 
   return (
@@ -80,7 +116,9 @@ export default async function UsuariosPage() {
         subtitle={`${filas.length} usuarios con acceso`}
         actions={
           <CrearUsuarioForm
-            roles={rolesList.map((r) => ({ value: r.id, label: r.nombre }))}
+            roles={rolesOptions}
+            puedeCrear={puedeCrearUsuario}
+            limiteTexto={limiteTexto}
           />
         }
       />

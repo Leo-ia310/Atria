@@ -1,19 +1,26 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { and, count, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   empresas,
-  suscripciones,
-  planes,
   cuentasPorCobrar,
   cuentasPorPagar,
   solicitudesRrhh,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import {
+  moduloDesdeRuta,
+  modulosPermitidos,
+  puedeAccederModulo,
+} from "@/lib/access-control";
+import { getAccessContext } from "@/lib/server-access";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { filtrarCommandItems } from "@/components/layout/nav-items";
 
 export default async function AppLayout({
   children,
@@ -21,56 +28,70 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireSession();
+  const access = await getAccessContext(user);
+  const pathname = (await headers()).get("x-atria-pathname") ?? "";
+  const moduloActual = moduloDesdeRuta(pathname);
+
+  if (moduloActual && !puedeAccederModulo(access, moduloActual)) {
+    redirect("/dashboard?acceso=denegado");
+  }
 
   const filas = await db
     .select({
       nombreEmpresa: empresas.nombreComercial,
       razonSocial: empresas.razonSocial,
-      planNombre: planes.nombre,
-      planTipo: planes.tipo,
     })
     .from(empresas)
-    .leftJoin(suscripciones, eq(suscripciones.empresaId, empresas.id))
-    .leftJoin(planes, eq(planes.id, suscripciones.planId))
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
 
   const datos = filas[0];
   const nombreEmpresa = datos?.nombreEmpresa || datos?.razonSocial || "Empresa";
-  const planNombre = datos?.planNombre ?? "Demo";
-  const esDemo = datos?.planTipo === "demo";
+  const planNombre = access.plan.nombre;
+  const esDemo = access.plan.id === "demo";
+  const permitidos = modulosPermitidos(access);
+  const commandItems = filtrarCommandItems(permitidos);
+  const puedeVerCxc = puedeAccederModulo(access, "cxc");
+  const puedeVerCxp = puedeAccederModulo(access, "cxp");
+  const puedeVerRrhh = puedeAccederModulo(access, "rrhh");
 
   const hoy = new Date().toISOString().slice(0, 10);
   const [cxcVencidas, cxpVencidas, solicitudesPendientes] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(cuentasPorCobrar)
-      .where(
-        and(
-          eq(cuentasPorCobrar.empresaId, user.empresaId),
-          eq(cuentasPorCobrar.estado, "pendiente"),
-          lt(cuentasPorCobrar.fechaVencimiento, hoy),
-        ),
-      ),
-    db
-      .select({ n: count() })
-      .from(cuentasPorPagar)
-      .where(
-        and(
-          eq(cuentasPorPagar.empresaId, user.empresaId),
-          eq(cuentasPorPagar.estado, "pendiente"),
-          lt(cuentasPorPagar.fechaVencimiento, hoy),
-        ),
-      ),
-    db
-      .select({ n: count() })
-      .from(solicitudesRrhh)
-      .where(
-        and(
-          eq(solicitudesRrhh.empresaId, user.empresaId),
-          eq(solicitudesRrhh.estado, "pendiente"),
-        ),
-      ),
+    puedeVerCxc
+      ? db
+          .select({ n: count() })
+          .from(cuentasPorCobrar)
+          .where(
+            and(
+              eq(cuentasPorCobrar.empresaId, user.empresaId),
+              eq(cuentasPorCobrar.estado, "pendiente"),
+              lt(cuentasPorCobrar.fechaVencimiento, hoy),
+            ),
+          )
+      : Promise.resolve([{ n: 0 }]),
+    puedeVerCxp
+      ? db
+          .select({ n: count() })
+          .from(cuentasPorPagar)
+          .where(
+            and(
+              eq(cuentasPorPagar.empresaId, user.empresaId),
+              eq(cuentasPorPagar.estado, "pendiente"),
+              lt(cuentasPorPagar.fechaVencimiento, hoy),
+            ),
+          )
+      : Promise.resolve([{ n: 0 }]),
+    puedeVerRrhh
+      ? db
+          .select({ n: count() })
+          .from(solicitudesRrhh)
+          .where(
+            and(
+              eq(solicitudesRrhh.empresaId, user.empresaId),
+              eq(solicitudesRrhh.estado, "pendiente"),
+            ),
+          )
+      : Promise.resolve([{ n: 0 }]),
   ]);
 
   const notificaciones: Notificacion[] = [];
@@ -114,6 +135,7 @@ export default async function AppLayout({
             planNombre={planNombre}
             esDemo={esDemo}
             nombreUsuario={user.nombre}
+            modulosPermitidos={permitidos}
           />
           <div
             style={{ marginLeft: "var(--sidebar-width)" }}
@@ -122,6 +144,7 @@ export default async function AppLayout({
             <Header
               breadcrumb={[{ label: nombreEmpresa }]}
               notificaciones={notificaciones}
+              commandItems={commandItems}
             />
             <main className="p-6">{children}</main>
           </div>

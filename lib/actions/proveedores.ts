@@ -6,11 +6,14 @@ import { db } from "@/lib/db";
 import { proveedores } from "@/lib/db/schema";
 import { proveedorSchema } from "@/lib/validations/proveedores";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion } from "@/lib/server-access";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
 export async function crearProveedor(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = proveedorSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   const d = parsed.data;
@@ -41,6 +44,8 @@ export async function crearProveedor(input: unknown): Promise<Resultado> {
 
 export async function actualizarProveedor(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
+  if (!acceso.ok) return acceso;
   const parsed = proveedorSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   const d = parsed.data;

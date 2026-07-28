@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { periodosContables } from "@/lib/db/schema";
 import { requireSession } from "./session-helpers";
 import { crearPeriodoSchema, periodoIdSchema } from "@/lib/validations/periodos";
+import { validarAccion } from "@/lib/server-access";
 
 function fechasPeriodo(anio: number, mes: number): { fechaInicio: string; fechaFin: string } {
   // UTC to avoid timezone-shifted days
@@ -18,6 +19,11 @@ function fechasPeriodo(anio: number, mes: number): { fechaInicio: string; fechaF
 
 export async function crearPeriodo(data: unknown) {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "contabilidad",
+    permisos: "contabilidad.cerrar_periodo",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = crearPeriodoSchema.safeParse(data);
   if (!parsed.success) return { ok: false as const, error: "Datos inválidos" };
 
@@ -56,6 +62,11 @@ export async function crearPeriodo(data: unknown) {
 
 export async function cerrarPeriodo(data: unknown) {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "contabilidad",
+    permisos: "contabilidad.cerrar_periodo",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = periodoIdSchema.safeParse(data);
   if (!parsed.success) return { ok: false as const, error: "Datos inválidos" };
 
@@ -85,6 +96,11 @@ export async function cerrarPeriodo(data: unknown) {
 
 export async function reabrirPeriodo(data: unknown) {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "contabilidad",
+    permisos: "contabilidad.cerrar_periodo",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = periodoIdSchema.safeParse(data);
   if (!parsed.success) return { ok: false as const, error: "Datos inválidos" };
 

@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 
 const { auth } = NextAuth(authConfig);
@@ -6,6 +7,14 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-atria-pathname", pathname);
+  const continuar = () =>
+    NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
 
   const esRutaPublica =
     pathname === "/" ||
@@ -17,7 +26,7 @@ export default auth((req) => {
     pathname.startsWith("/_next") ||
     pathname.includes(".");
 
-  if (esRutaPublica) return;
+  if (esRutaPublica) return continuar();
 
   if (!session?.user) {
     const url = req.nextUrl.clone();
@@ -31,6 +40,8 @@ export default auth((req) => {
     url.pathname = "/dashboard";
     return Response.redirect(url);
   }
+
+  return continuar();
 });
 
 export const config = {

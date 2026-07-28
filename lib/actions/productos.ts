@@ -10,6 +10,7 @@ import {
   crearCategoriaSchema,
 } from "@/lib/validations/productos";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 
 type Resultado =
   | { ok: true; id: string }
@@ -25,11 +26,18 @@ function limpiar<T extends Record<string, unknown>>(obj: T): T {
 
 export async function crearProducto(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = productoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const datos = limpiar(parsed.data);
+  const limite = await validarLimitePlan(acceso.access, user.empresaId, "productos");
+  if (!limite.ok) return limite;
 
   try {
     const yaExiste = await db
@@ -85,6 +93,11 @@ export async function actualizarProducto(
   input: unknown,
 ): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = productoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -137,6 +150,11 @@ export async function crearMarca(
   input: unknown,
 ): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = crearMarcaSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -167,6 +185,11 @@ export async function crearCategoria(
   input: unknown,
 ): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
   const parsed = crearCategoriaSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -195,6 +218,11 @@ export async function crearCategoria(
 
 export async function eliminarProducto(id: string): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
   try {
     await db
       .update(productos)

@@ -2,64 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CornerDownLeft } from "lucide-react";
-
-type Item = { label: string; href: string; grupo: string; keywords?: string };
-
-const ITEMS: Item[] = [
-  { label: "Dashboard", href: "/dashboard", grupo: "Operativo" },
-  { label: "Punto de Venta (POS)", href: "/pos", grupo: "Operativo", keywords: "caja cobrar vender" },
-  { label: "Caja / Sesiones", href: "/caja", grupo: "Operativo", keywords: "arqueo apertura cierre" },
-  { label: "Ventas", href: "/ventas", grupo: "Operativo" },
-  { label: "Inventario", href: "/inventario", grupo: "Operativo", keywords: "productos stock" },
-  { label: "Nuevo producto", href: "/inventario/nuevo", grupo: "Operativo" },
-  { label: "Clientes", href: "/clientes", grupo: "Operativo" },
-  { label: "Compras", href: "/compras", grupo: "Operativo", keywords: "proveedores" },
-
-  { label: "Facturas", href: "/facturas", grupo: "Finanzas", keywords: "documentos recibos" },
-  { label: "Cobros (CxC)", href: "/cxc", grupo: "Finanzas", keywords: "cuentas por cobrar" },
-  { label: "Pagos (CxP)", href: "/cxp", grupo: "Finanzas", keywords: "cuentas por pagar" },
-  { label: "Contabilidad", href: "/contabilidad", grupo: "Finanzas", keywords: "asientos libro diario mayor balance" },
-  { label: "Libro Diario", href: "/contabilidad/libro-diario", grupo: "Finanzas" },
-  { label: "Estado de Resultados", href: "/contabilidad/estado-resultados", grupo: "Finanzas" },
-  { label: "Balance General", href: "/contabilidad/balance-general", grupo: "Finanzas" },
-  { label: "Tesorería", href: "/tesoreria", grupo: "Finanzas", keywords: "bancos gastos" },
-  { label: "Gastos", href: "/tesoreria/gastos", grupo: "Finanzas" },
-
-  { label: "Panel RRHH", href: "/rrhh", grupo: "Recursos Humanos" },
-  { label: "Empleados", href: "/rrhh/empleados", grupo: "Recursos Humanos" },
-  { label: "Asistencia", href: "/rrhh/asistencia", grupo: "Recursos Humanos" },
-  { label: "Historial de asistencias", href: "/rrhh/asistencia/historial", grupo: "Recursos Humanos" },
-  { label: "Nómina", href: "/rrhh/nomina", grupo: "Recursos Humanos", keywords: "pago salario planilla" },
-  { label: "Feriados", href: "/rrhh/feriados", grupo: "Recursos Humanos" },
-  { label: "Solicitudes", href: "/rrhh/solicitudes", grupo: "Recursos Humanos", keywords: "permisos vacaciones" },
-  { label: "Reclutamiento", href: "/rrhh/reclutamiento", grupo: "Recursos Humanos", keywords: "vacantes candidatos" },
-
-  { label: "Reportes", href: "/reportes", grupo: "Gestión" },
-  { label: "Reporte de inventario", href: "/reportes/inventario", grupo: "Gestión" },
-  { label: "Reporte de ventas", href: "/reportes/ventas", grupo: "Gestión" },
-  { label: "Configuración", href: "/configuracion", grupo: "Gestión" },
-  { label: "Usuarios", href: "/configuracion/usuarios", grupo: "Gestión" },
-  { label: "Roles y permisos", href: "/configuracion/roles", grupo: "Gestión" },
-  { label: "Cajas", href: "/configuracion/cajas", grupo: "Gestión" },
-  { label: "Impuestos", href: "/configuracion/impuestos", grupo: "Gestión" },
-  { label: "Formas de pago", href: "/configuracion/formas-pago", grupo: "Gestión" },
-  { label: "Cuentas financieras", href: "/configuracion/cuentas-financieras", grupo: "Gestión" },
-  { label: "Facturación fiscal", href: "/configuracion/facturacion", grupo: "Gestión", keywords: "cai secuencias" },
-  { label: "Sucursales", href: "/configuracion/sucursales", grupo: "Gestión" },
-  { label: "Mi cuenta", href: "/mi-cuenta", grupo: "Gestión", keywords: "perfil contraseña" },
-];
+import { CornerDownLeft, Search } from "lucide-react";
+import type { CommandItem } from "@/components/layout/nav-items";
 
 function norm(s: string) {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 export function CommandPalette({
   abierto,
   onCerrar,
+  items,
 }: {
   abierto: boolean;
   onCerrar: () => void;
+  items: CommandItem[];
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -69,11 +26,11 @@ export function CommandPalette({
 
   const filtrados = useMemo(() => {
     const query = norm(q.trim());
-    if (!query) return ITEMS;
-    return ITEMS.filter((it) =>
+    if (!query) return items;
+    return items.filter((it) =>
       norm(`${it.label} ${it.grupo} ${it.keywords ?? ""}`).includes(query),
     );
-  }, [q]);
+  }, [items, q]);
 
   useEffect(() => {
     if (abierto) {
@@ -137,10 +94,10 @@ export function CommandPalette({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Buscar módulo o página…"
+            placeholder="Buscar módulo o página..."
             className="h-12 flex-1 bg-transparent text-small outline-none placeholder:text-[color:var(--color-text-muted)]"
           />
-          <kbd className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-1.5 py-0.5 text-[10px] text-[color:var(--color-text-muted)]">
+          <kbd className="rounded border border-[color:var(--color-border)] bg-white px-1.5 py-0.5 text-[10px]">
             Esc
           </kbd>
         </div>
@@ -148,7 +105,7 @@ export function CommandPalette({
         <div ref={listRef} className="max-h-80 overflow-y-auto p-2">
           {filtrados.length === 0 ? (
             <div className="px-3 py-6 text-center text-small text-[color:var(--color-text-muted)]">
-              Sin resultados para “{q}”.
+              Sin resultados para "{q}".
             </div>
           ) : (
             filtrados.map((it, i) => (

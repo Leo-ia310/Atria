@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/schema";
 import { registrarAbonoSchema } from "@/lib/validations/cxc";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { validarAccion } from "@/lib/server-access";
 import { registrarAbonoCliente } from "@/lib/contabilidad/motor-asientos";
 import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
 
@@ -17,6 +18,11 @@ export async function registrarAbono(
   input: unknown,
 ): Promise<{ ok: true; abonoId: string } | { ok: false; error: string }> {
   const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "cxc",
+    permisos: ["ventas.crear", "ventas.ver"],
+  });
+  if (!acceso.ok) return acceso;
   const parsed = registrarAbonoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };

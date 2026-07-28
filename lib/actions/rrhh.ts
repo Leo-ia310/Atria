@@ -38,6 +38,7 @@ import {
   SOLICITUD_TIPO_LABEL,
 } from "@/lib/rrhh";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
+import { validarAccion } from "@/lib/server-access";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 type ResultadoSimple = { ok: true } | { ok: false; error: string };
@@ -57,6 +58,10 @@ function fechaMediodia(iso: string): Date {
 function correlativo(ultimo: string | undefined, prefijo: string): string {
   const n = ultimo ? parseInt(ultimo.split("-").pop() ?? "0", 10) + 1 : 1;
   return `${prefijo}-${String(n).padStart(4, "0")}`;
+}
+
+async function validarAccesoRrhh(user: Awaited<ReturnType<typeof requireSession>>) {
+  return validarAccion(user, { modulo: "rrhh", soloAdmin: true });
 }
 
 async function siguienteCodigoEmpleado(empresaId: string): Promise<string> {
@@ -83,6 +88,8 @@ async function siguienteCodigoVacante(empresaId: string): Promise<string> {
 
 export async function crearEmpleado(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = empleadoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -129,6 +136,8 @@ export async function crearEmpleado(input: unknown): Promise<Resultado> {
 
 export async function actualizarEmpleado(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = empleadoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -176,6 +185,8 @@ export async function cambiarEstadoEmpleado(
   estado: "activo" | "vacaciones" | "licencia" | "suspendido" | "baja",
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     await db
       .update(empleados)
@@ -198,6 +209,8 @@ export async function cambiarEstadoEmpleado(
 
 export async function registrarAsistencia(input: unknown): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = asistenciaSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -245,6 +258,8 @@ export async function registrarAsistencia(input: unknown): Promise<ResultadoSimp
 
 export async function crearFeriado(input: unknown): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = feriadoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -275,6 +290,8 @@ export async function actualizarFeriado(
   input: unknown,
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = actualizarFeriadoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -296,6 +313,8 @@ export async function actualizarFeriado(
 
 export async function eliminarFeriado(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     await db
       .delete(feriados)
@@ -311,6 +330,8 @@ export async function eliminarFeriado(id: string): Promise<ResultadoSimple> {
 
 export async function sembrarFeriados(anio: number): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     const [empresa] = await db
       .select({ pais: empresas.pais })
@@ -350,6 +371,8 @@ function contarDias(inicio?: string, fin?: string): number {
 
 export async function crearSolicitud(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = solicitudSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -424,6 +447,8 @@ export async function resolverSolicitud(
   comentario?: string,
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     await db
       .update(solicitudesRrhh)
@@ -452,6 +477,8 @@ export async function resolverSolicitud(
 
 export async function generarNomina(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = nominaGenerarSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -627,6 +654,8 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
 
 export async function aprobarNomina(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     const [nom] = await db
       .select()
@@ -678,6 +707,8 @@ export async function pagarNomina(
   cuentaFinancieraId: string,
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   if (!cuentaFinancieraId) {
     return { ok: false, error: "Selecciona la cuenta de pago." };
   }
@@ -728,6 +759,8 @@ export async function pagarNomina(
 
 export async function eliminarNominaBorrador(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     const [nom] = await db
       .select({ estado: nominas.estado })
@@ -754,6 +787,8 @@ export async function eliminarNominaBorrador(id: string): Promise<ResultadoSimpl
 
 export async function crearVacante(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = vacanteSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -795,6 +830,8 @@ export async function cambiarEstadoVacante(
   estado: "abierta" | "pausada" | "cerrada" | "cancelada",
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     await db
       .update(vacantes)
@@ -817,6 +854,8 @@ export async function cambiarEstadoVacante(
 
 export async function crearCandidato(input: unknown): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   const parsed = candidatoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -860,6 +899,8 @@ export async function moverEtapaCandidato(
   calificacion?: number,
 ): Promise<ResultadoSimple> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     const [cand] = await db
       .select({ vacanteId: candidatos.vacanteId })
@@ -892,6 +933,8 @@ export async function contratarCandidato(
   datos: { puesto: string; salarioBase: number; fechaIngreso: string; frecuenciaPago: "semanal" | "quincenal" | "mensual" },
 ): Promise<Resultado> {
   const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
   try {
     const [cand] = await db
       .select()

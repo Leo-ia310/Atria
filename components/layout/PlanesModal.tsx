@@ -38,7 +38,7 @@ export function PlanesModal({
       onClick={onCerrar}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 text-[color:var(--color-text-primary)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button

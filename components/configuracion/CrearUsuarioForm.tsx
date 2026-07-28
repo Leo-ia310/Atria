@@ -18,8 +18,12 @@ import { useToast } from "@/components/ui/Toast";
 
 export function CrearUsuarioForm({
   roles,
+  puedeCrear = true,
+  limiteTexto,
 }: {
   roles: { value: string; label: string }[];
+  puedeCrear?: boolean;
+  limiteTexto?: string;
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -54,12 +58,14 @@ export function CrearUsuarioForm({
   }
 
   const sinRoles = roles.length === 0;
+  const bloqueado = sinRoles || !puedeCrear;
 
   return (
     <>
       <button
         type="button"
         onClick={() => setAbierto(true)}
+        title={!puedeCrear ? limiteTexto : undefined}
         className="atria-btn atria-btn-primary atria-btn-sm"
       >
         <UserPlus size={14} /> Nuevo usuario
@@ -75,7 +81,7 @@ export function CrearUsuarioForm({
             <Button variant="ghost" onClick={() => setAbierto(false)} disabled={enviando}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit(onSubmit)} loading={enviando} disabled={sinRoles}>
+            <Button onClick={handleSubmit(onSubmit)} loading={enviando} disabled={bloqueado}>
               Crear usuario
             </Button>
           </>
@@ -84,6 +90,10 @@ export function CrearUsuarioForm({
         {sinRoles ? (
           <p className="text-small text-[color:var(--color-text-muted)]">
             Primero crea al menos un rol en Configuración → Roles y permisos.
+          </p>
+        ) : !puedeCrear ? (
+          <p className="text-small text-[color:var(--color-text-muted)]">
+            {limiteTexto ?? "Tu plan ya alcanzo el limite de usuarios activos."}
           </p>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

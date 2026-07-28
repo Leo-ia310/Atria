@@ -5,13 +5,16 @@ import { Search, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { NotificacionesBell, type Notificacion } from "./NotificacionesBell";
 import { CommandPalette } from "./CommandPalette";
+import type { CommandItem } from "@/components/layout/nav-items";
 
 export function Header({
   breadcrumb,
   notificaciones = [],
+  commandItems,
 }: {
   breadcrumb: { label: string; href?: string }[];
   notificaciones?: Notificacion[];
+  commandItems: CommandItem[];
 }) {
   const [paleta, setPaleta] = useState(false);
 
@@ -72,7 +75,11 @@ export function Header({
         </button>
       </div>
 
-      <CommandPalette abierto={paleta} onCerrar={() => setPaleta(false)} />
+      <CommandPalette
+        abierto={paleta}
+        onCerrar={() => setPaleta(false)}
+        items={commandItems}
+      />
     </header>
   );
 }

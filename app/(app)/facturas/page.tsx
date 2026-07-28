@@ -7,9 +7,11 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FileText, Printer } from "lucide-react";
+import { FileText } from "lucide-react";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
-import type { PaisCodigo } from "@/lib/paises";
+import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
+import { FacturaVer } from "@/components/facturas/FacturaVer";
+import type { ReciboData } from "@/components/pos/Recibo";
 
 export default async function FacturasPage({
   searchParams,
@@ -26,11 +28,26 @@ export default async function FacturasPage({
   const user = await requireSession();
 
   const [empresa] = await db
-    .select({ pais: empresas.pais })
+    .select({
+      pais: empresas.pais,
+      razonSocial: empresas.razonSocial,
+      nombreComercial: empresas.nombreComercial,
+      identificacionFiscal: empresas.identificacionFiscal,
+      direccion: empresas.direccion,
+      telefono: empresas.telefono,
+    })
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const config = getPaisConfig(pais);
+  const empresaRecibo = {
+    nombre: empresa?.nombreComercial || empresa?.razonSocial || "Mi Empresa",
+    idFiscalNombre: config.idFiscalNombre,
+    identificacionFiscal: empresa?.identificacionFiscal ?? "",
+    direccion: empresa?.direccion ?? null,
+    telefono: empresa?.telefono ?? null,
+  };
 
   const vendedores = await db
     .select({ id: usuarios.id, nombre: usuarios.nombre })
@@ -60,6 +77,7 @@ export default async function FacturasPage({
       formasPago: facturas.formasPago,
       esCredito: facturas.esCredito,
       total: facturas.total,
+      snapshot: facturas.snapshot,
     })
     .from(facturas)
     .where(and(...cond))
@@ -67,6 +85,37 @@ export default async function FacturasPage({
     .limit(500);
 
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
+
+  function reciboDe(snap: Record<string, unknown>): ReciboData {
+    const items = Array.isArray(snap.items) ? (snap.items as Record<string, number>[]) : [];
+    const pagos = Array.isArray(snap.pagos) ? (snap.pagos as Record<string, unknown>[]) : [];
+    return {
+      pais,
+      empresa: empresaRecibo,
+      numero: String(snap.numero ?? ""),
+      fecha: String(snap.fecha ?? new Date().toISOString()),
+      cajero: (snap.cajero as string) ?? null,
+      cliente: String(snap.cliente ?? "Consumidor final"),
+      esCredito: Boolean(snap.esCredito),
+      impuestoNombre: config.impuestoNombre,
+      items: items.map((it) => ({
+        nombre: String(it.nombre ?? "Producto"),
+        sku: it.sku != null ? String(it.sku) : "",
+        cantidad: Number(it.cantidad ?? 0),
+        precioUnitario: Number(it.precioUnitario ?? 0),
+        subtotal: Number(it.subtotal ?? 0),
+      })),
+      pagos: pagos.map((p) => ({
+        formaPago: String(p.formaPago ?? "Otro"),
+        monto: Number(p.monto ?? 0),
+        referencia: (p.referencia as string) ?? null,
+      })),
+      subtotal: Number(snap.subtotal ?? 0),
+      descuento: Number(snap.descuento ?? 0),
+      impuesto: Number(snap.impuesto ?? 0),
+      total: Number(snap.total ?? 0),
+    };
+  }
 
   return (
     <div>
@@ -171,13 +220,7 @@ export default async function FacturasPage({
                       {formatearMoneda(parseFloat(f.total), pais)}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <Link
-                        href={`/ticket/${f.ventaId}`}
-                        target="_blank"
-                        className="inline-flex items-center gap-1 text-[color:var(--color-secondary)] hover:underline"
-                      >
-                        <Printer size={13} /> Ver
-                      </Link>
+                      <FacturaVer data={reciboDe(f.snapshot as Record<string, unknown>)} />
                     </td>
                   </tr>
                 ))}

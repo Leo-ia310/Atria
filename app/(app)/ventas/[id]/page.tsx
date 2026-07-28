@@ -206,21 +206,10 @@ export default async function VentaDetallePage({
         <Card>
           <CardHeader title="Trazabilidad" />
           <CardBody className="space-y-3 text-small">
-            {factura ? (
-              <Link
-                href={`/ticket/${venta.id}`}
-                target="_blank"
-                className="flex items-center gap-2 text-[color:var(--color-secondary)] hover:underline"
-              >
-                <FileText size={14} />
-                Factura {venta.numero} · Ver / Imprimir
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2 text-[color:var(--color-text-muted)]">
-                <FileText size={14} />
-                <span>Documento: {venta.numero}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-[color:var(--color-text-muted)]">
+              <FileText size={14} />
+              <span>{factura ? `Factura ${venta.numero}` : `Documento: ${venta.numero}`}</span>
+            </div>
             {asiento ? (
               <Link
                 href="/contabilidad/libro-diario"
