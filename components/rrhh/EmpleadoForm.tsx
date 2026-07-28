@@ -44,6 +44,7 @@ export function EmpleadoForm({
   const router = useRouter();
   const { mostrar } = useToast();
   const [enviando, setEnviando] = useState(false);
+  const hoyIso = new Date().toISOString().slice(0, 10);
 
   const {
     register,
@@ -102,7 +103,14 @@ export function EmpleadoForm({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Identificación / Cédula" {...register("identificacion")} />
-            <Input label="Fecha de nacimiento" type="date" {...register("fechaNacimiento")} />
+            <Input
+              label="Fecha de nacimiento"
+              type="date"
+              max={hoyIso}
+              error={errors.fechaNacimiento?.message}
+              hint="Debe ser mayor de 16 años"
+              {...register("fechaNacimiento")}
+            />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Correo" type="email" error={errors.email?.message} {...register("email")} />

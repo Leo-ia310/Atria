@@ -1,4 +1,5 @@
-import { CalendarCheck } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, History } from "lucide-react";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { empleados, asistencias, feriados } from "@/lib/db/schema";
@@ -74,6 +75,14 @@ export default async function AsistenciaPage({
       <PageHeader
         title="Asistencia"
         subtitle={`${activos.length} empleados · ${registrados} registrados el día`}
+        actions={
+          <Link
+            href="/rrhh/asistencia/historial"
+            className="atria-btn atria-btn-secondary atria-btn-sm"
+          >
+            <History size={14} /> Ver historial
+          </Link>
+        }
       />
       {activos.length === 0 ? (
         <div className="atria-card p-8">

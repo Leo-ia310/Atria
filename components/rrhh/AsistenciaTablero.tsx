@@ -154,7 +154,7 @@ function FilaAsistencia({
         <select
           value={estado}
           onChange={(e) => setEstado(e.target.value)}
-          className="atria-input h-9 w-36"
+          className="atria-input w-40"
         >
           {ESTADOS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -169,7 +169,7 @@ function FilaAsistencia({
           step="0.5"
           value={horas}
           onChange={(e) => setHoras(e.target.value)}
-          className="atria-input h-9 w-20 text-right"
+          className="atria-input w-20 text-right"
         />
       </td>
       <td className="px-4 py-2 text-right">
@@ -178,7 +178,7 @@ function FilaAsistencia({
           step="0.5"
           value={extra}
           onChange={(e) => setExtra(e.target.value)}
-          className="atria-input h-9 w-20 text-right"
+          className="atria-input w-20 text-right"
         />
       </td>
       <td className="px-4 py-2 text-right">

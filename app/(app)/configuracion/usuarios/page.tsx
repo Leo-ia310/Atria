@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
+import { CrearUsuarioForm } from "@/components/configuracion/CrearUsuarioForm";
 import { formatearFechaHora } from "@/lib/utils";
 
 type Fila = {
@@ -31,6 +32,11 @@ export default async function UsuariosPage() {
     .from(usuarios)
     .leftJoin(roles, eq(roles.id, usuarios.rolId))
     .where(and(eq(usuarios.empresaId, user.empresaId), isNull(usuarios.eliminadoEn)));
+
+  const rolesList = await db
+    .select({ id: roles.id, nombre: roles.nombre })
+    .from(roles)
+    .where(eq(roles.empresaId, user.empresaId));
 
   const columnas: Columna<Fila>[] = [
     {
@@ -69,7 +75,15 @@ export default async function UsuariosPage() {
 
   return (
     <div>
-      <PageHeader title="Usuarios" subtitle={`${filas.length} usuarios con acceso`} />
+      <PageHeader
+        title="Usuarios"
+        subtitle={`${filas.length} usuarios con acceso`}
+        actions={
+          <CrearUsuarioForm
+            roles={rolesList.map((r) => ({ value: r.id, label: r.nombre }))}
+          />
+        }
+      />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />
     </div>
   );

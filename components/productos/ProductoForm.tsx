@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { productoSchema, type ProductoInput } from "@/lib/validations/productos";
-import { crearProducto, actualizarProducto } from "@/lib/actions/productos";
+import {
+  crearProducto,
+  actualizarProducto,
+  crearMarca,
+  crearCategoria,
+} from "@/lib/actions/productos";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
+import { SelectConAgregar } from "@/components/productos/SelectConAgregar";
 
 type OpcionRef = { value: string; label: string };
 
@@ -36,6 +42,8 @@ export function ProductoForm({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<ProductoInput>({
     resolver: zodResolver(productoSchema),
@@ -56,8 +64,12 @@ export function ProductoForm({
       metodoCosteo: defaults?.metodoCosteo ?? "promedio",
       manejaLotes: defaults?.manejaLotes ?? false,
       manejaSeries: defaults?.manejaSeries ?? false,
+      fechaVencimiento: defaults?.fechaVencimiento ?? "",
     },
   });
+
+  const categoriaId = watch("categoriaId") ?? "";
+  const marcaId = watch("marcaId") ?? "";
 
   async function onSubmit(values: ProductoInput) {
     setEnviando(true);
@@ -107,19 +119,30 @@ export function ProductoForm({
             />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select
-              label="Categoría (opcional)"
-              placeholder="Sin categoría"
-              {...register("categoriaId")}
-              options={categorias}
+            <SelectConAgregar
+              label="Categoría"
+              tituloModal="Agregar categoría"
+              value={categoriaId}
+              onChange={(v) => setValue("categoriaId", v)}
+              options={[{ value: "", label: "Sin categoría" }, ...categorias]}
+              onCrear={crearCategoria}
             />
-            <Select
-              label="Marca (opcional)"
-              placeholder="Sin marca"
-              {...register("marcaId")}
-              options={marcas}
+            <SelectConAgregar
+              label="Marca"
+              tituloModal="Agregar marca"
+              value={marcaId}
+              onChange={(v) => setValue("marcaId", v)}
+              options={[{ value: "", label: "Sin marca" }, ...marcas]}
+              onCrear={crearMarca}
             />
           </div>
+          <Input
+            label="Fecha de vencimiento"
+            type="date"
+            error={errors.fechaVencimiento?.message}
+            {...register("fechaVencimiento")}
+            hint="Déjalo vacío si el producto no vence"
+          />
         </CardBody>
       </Card>
 

@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { existencias, productos, empresas } from "@/lib/db/schema";
+import { movimientosInventario, productos, empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -23,27 +23,32 @@ export default async function ReporteInventarioPage() {
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
-  // Stock agrupado por producto (suma de todos los almacenes)
+  // Stock reconstruido desde movimientos_inventario (fuente de verdad, ver
+  // CLAUDE.md). Se listan todos los productos activos, tengan o no movimientos,
+  // para que el reporte nunca aparezca vacío teniendo productos.
   const rows = await db
     .select({
-      productoId: existencias.productoId,
+      productoId: productos.id,
       nombre: productos.nombre,
       sku: productos.sku,
       stockMinimo: productos.stockMinimo,
       costoPromedio: productos.costoPromedio,
-      stockTotal: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+      stockTotal: sql<string>`COALESCE(SUM(${movimientosInventario.cantidad}), 0)`,
     })
-    .from(existencias)
-    .innerJoin(productos, eq(productos.id, existencias.productoId))
+    .from(productos)
+    .leftJoin(
+      movimientosInventario,
+      eq(movimientosInventario.productoId, productos.id),
+    )
     .where(
       and(
-        eq(existencias.empresaId, user.empresaId),
+        eq(productos.empresaId, user.empresaId),
         eq(productos.activo, true),
         isNull(productos.eliminadoEn),
       ),
     )
     .groupBy(
-      existencias.productoId,
+      productos.id,
       productos.nombre,
       productos.sku,
       productos.stockMinimo,

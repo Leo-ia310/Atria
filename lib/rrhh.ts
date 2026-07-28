@@ -86,6 +86,66 @@ export const SEGURIDAD_SOCIAL_NOMBRE: Record<PaisCodigo, string> = {
   SV: "ISSS/AFP",
 };
 
+/**
+ * Tramos anuales del Impuesto sobre la Renta (IR/ISR) para rentas del trabajo.
+ * Cada tramo: `desde` = límite inferior anual; el impuesto = `cuotaFija`
+ * + (baseAnual − desde) × `tasa`. Los tramos están ordenados ascendente.
+ *
+ * Nicaragua está calibrado según Ley 822 (rentas del trabajo). Los demás países
+ * son valores REFERENCIALES 2024 y deberían ajustarse a la legislación vigente
+ * (misma filosofía que las tasas de seguridad social de este archivo).
+ */
+type TramoIR = { desde: number; tasa: number; cuotaFija: number };
+
+export const IR_ANUAL: Record<PaisCodigo, TramoIR[]> = {
+  NI: [
+    { desde: 0, tasa: 0, cuotaFija: 0 },
+    { desde: 100_000, tasa: 0.15, cuotaFija: 0 },
+    { desde: 200_000, tasa: 0.2, cuotaFija: 15_000 },
+    { desde: 350_000, tasa: 0.25, cuotaFija: 45_000 },
+    { desde: 500_000, tasa: 0.3, cuotaFija: 82_500 },
+  ],
+  HN: [
+    { desde: 0, tasa: 0, cuotaFija: 0 },
+    { desde: 199_039.47, tasa: 0.15, cuotaFija: 0 },
+    { desde: 303_499.9, tasa: 0.2, cuotaFija: 15_669.06 },
+    { desde: 705_813.76, tasa: 0.25, cuotaFija: 96_131.83 },
+  ],
+  GT: [
+    { desde: 0, tasa: 0.05, cuotaFija: 0 },
+    { desde: 300_000, tasa: 0.07, cuotaFija: 15_000 },
+  ],
+  CR: [
+    { desde: 0, tasa: 0, cuotaFija: 0 },
+    { desde: 11_148_000, tasa: 0.1, cuotaFija: 0 },
+    { desde: 16_356_000, tasa: 0.15, cuotaFija: 520_800 },
+    { desde: 28_704_000, tasa: 0.2, cuotaFija: 2_373_000 },
+    { desde: 57_396_000, tasa: 0.25, cuotaFija: 8_111_400 },
+  ],
+  SV: [
+    { desde: 0, tasa: 0, cuotaFija: 0 },
+    { desde: 5_664, tasa: 0.1, cuotaFija: 212.04 },
+    { desde: 10_742.88, tasa: 0.2, cuotaFija: 720 },
+    { desde: 24_457.2, tasa: 0.3, cuotaFija: 3_462.84 },
+  ],
+};
+
+/**
+ * Calcula el IR mensual a retener a partir de la base gravable mensual
+ * (salario menos seguridad social). Devuelve la cuota mensual.
+ */
+export function calcularIRMensual(pais: PaisCodigo, baseMensualGravable: number): number {
+  const anual = Math.max(0, baseMensualGravable) * 12;
+  const tramos = IR_ANUAL[pais] ?? [];
+  let elegido: TramoIR | undefined = tramos[0];
+  for (const t of tramos) {
+    if (anual > t.desde) elegido = t;
+  }
+  if (!elegido) return 0;
+  const irAnual = elegido.cuotaFija + (anual - elegido.desde) * elegido.tasa;
+  return Math.max(0, irAnual) / 12;
+}
+
 export const TIPO_CONTRATO_LABEL: Record<string, string> = {
   indefinido: "Indefinido",
   temporal: "Temporal",

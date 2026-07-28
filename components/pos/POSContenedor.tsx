@@ -81,6 +81,7 @@ export function POSContenedor({
   const [clienteId, setClienteId] = useState<string>("");
   const [modalPago, setModalPago] = useState(false);
   const [procesando, setProcesando] = useState(false);
+  const [ventaExito, setVentaExito] = useState<{ id: string; numero: string } | null>(null);
   const buscadorRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -412,9 +413,43 @@ export function POSContenedor({
             setCarrito([]);
             setClienteId("");
             setModalPago(false);
+            setVentaExito({ id: res.ventaId, numero: res.numero });
             router.refresh();
           }}
         />
+      )}
+
+      {ventaExito && (
+        <Modal
+          abierto={true}
+          onCerrar={() => setVentaExito(null)}
+          titulo="Venta completada"
+          descripcion={`Factura ${ventaExito.numero} registrada correctamente.`}
+          ancho="sm"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setVentaExito(null)}>
+                Nueva venta
+              </Button>
+              <Button
+                onClick={() =>
+                  window.open(`/ticket/${ventaExito.id}?print=1`, "_blank")
+                }
+              >
+                <Receipt size={14} /> Imprimir factura
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]">
+              <Check size={28} />
+            </div>
+            <p className="text-small text-[color:var(--color-text-muted)]">
+              Se imprimen dos copias: una para el cliente y otra para el negocio.
+            </p>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -534,16 +569,17 @@ function ModalPago({
 
   const [modo, setModo] = useState<"contado" | "mixto" | "credito">("contado");
   const [formaUnica, setFormaUnica] = useState<string>(efectivo?.id ?? noCredito[0]?.id ?? "");
-  const [montoEfectivo, setMontoEfectivo] = useState<number>(total);
-  const [montoMixto, setMontoMixto] = useState<Record<string, number>>({});
+  const [montoEfectivoStr, setMontoEfectivoStr] = useState<string>(total.toFixed(2));
+  const [montoMixto, setMontoMixto] = useState<Record<string, string>>({});
   const [referencias, setReferencias] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setMontoEfectivo(total);
+    setMontoEfectivoStr(total.toFixed(2));
   }, [total]);
 
   void carrito; // referenciado para tipo
 
+  const montoEfectivo = parseFloat(montoEfectivoStr) || 0;
   const cambio = Math.max(0, montoEfectivo - total);
 
   function confirmar() {
@@ -564,12 +600,12 @@ function ModalPago({
       });
     } else if (modo === "mixto") {
       const pagos = Object.entries(montoMixto)
-        .filter(([_, m]) => m > 0)
         .map(([id, monto]) => ({
           formaPagoId: id,
-          monto,
+          monto: parseFloat(monto) || 0,
           referencia: referencias[id],
-        }));
+        }))
+        .filter((p) => p.monto > 0);
       const sumaTotal = pagos.reduce((a, p) => a + p.monto, 0);
       if (Math.abs(sumaTotal - total) > 0.01) return;
       onConfirmar({ pagos, esCredito: false });
@@ -640,10 +676,13 @@ function ModalPago({
               <>
                 <Input
                   label="Monto recibido"
-                  type="number"
-                  step="0.01"
-                  value={montoEfectivo}
-                  onChange={(e) => setMontoEfectivo(parseFloat(e.target.value) || 0)}
+                  type="text"
+                  inputMode="decimal"
+                  value={montoEfectivoStr}
+                  onChange={(e) =>
+                    setMontoEfectivoStr(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                  onFocus={(e) => e.target.select()}
                   autoFocus
                 />
                 <div className="rounded-md bg-[color:var(--color-surface-2)] p-3 text-center">
@@ -675,15 +714,16 @@ function ModalPago({
                 <div className="flex-1">
                   <Input
                     label={f.nombre}
-                    type="number"
-                    step="0.01"
-                    value={montoMixto[f.id] ?? 0}
+                    type="text"
+                    inputMode="decimal"
+                    value={montoMixto[f.id] ?? ""}
                     onChange={(e) =>
                       setMontoMixto((m) => ({
                         ...m,
-                        [f.id]: parseFloat(e.target.value) || 0,
+                        [f.id]: e.target.value.replace(/[^0-9.]/g, ""),
                       }))
                     }
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
@@ -692,7 +732,10 @@ function ModalPago({
               <Fila
                 label="Suma de pagos"
                 valor={formatearMoneda(
-                  Object.values(montoMixto).reduce((a, b) => a + b, 0),
+                  Object.values(montoMixto).reduce(
+                    (a, b) => a + (parseFloat(b) || 0),
+                    0,
+                  ),
                   pais,
                 )}
               />

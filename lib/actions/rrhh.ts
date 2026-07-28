@@ -20,6 +20,7 @@ import {
   asistenciaSchema,
   solicitudSchema,
   feriadoSchema,
+  actualizarFeriadoSchema,
   nominaGenerarSchema,
   vacanteSchema,
   candidatoSchema,
@@ -33,6 +34,8 @@ import {
   TASA_SEGURIDAD_SOCIAL,
   factorPeriodo,
   diasDelPeriodo,
+  calcularIRMensual,
+  SOLICITUD_TIPO_LABEL,
 } from "@/lib/rrhh";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 
@@ -267,6 +270,30 @@ export async function crearFeriado(input: unknown): Promise<ResultadoSimple> {
   }
 }
 
+export async function actualizarFeriado(
+  id: string,
+  input: unknown,
+): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const parsed = actualizarFeriadoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  try {
+    await db
+      .update(feriados)
+      .set({ nombre: d.nombre, fecha: d.fecha })
+      .where(and(eq(feriados.id, id), eq(feriados.empresaId, user.empresaId)));
+    revalidatePath("/rrhh/nomina");
+    revalidatePath("/rrhh/feriados");
+    return { ok: true };
+  } catch (err) {
+    console.error("[actualizarFeriado]", err);
+    return { ok: false, error: "No pudimos actualizar el feriado." };
+  }
+}
+
 export async function eliminarFeriado(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
   try {
@@ -335,6 +362,38 @@ export async function crearSolicitud(input: unknown): Promise<Resultado> {
       .where(and(eq(empleados.id, d.empleadoId), eq(empleados.empresaId, user.empresaId)))
       .limit(1);
     if (!emp) return { ok: false, error: "Empleado no encontrado." };
+
+    // Evitar solicitudes con fechas solapadas para el mismo empleado.
+    // Solo aplica a solicitudes con rango de fechas (permiso, vacaciones, etc.).
+    if (d.fechaInicio && d.fechaFin) {
+      const solapada = await db
+        .select({
+          id: solicitudesRrhh.id,
+          tipo: solicitudesRrhh.tipo,
+          fechaInicio: solicitudesRrhh.fechaInicio,
+          fechaFin: solicitudesRrhh.fechaFin,
+        })
+        .from(solicitudesRrhh)
+        .where(
+          and(
+            eq(solicitudesRrhh.empresaId, user.empresaId),
+            eq(solicitudesRrhh.empleadoId, d.empleadoId),
+            sql`${solicitudesRrhh.estado} not in ('rechazada', 'cancelada')`,
+            sql`${solicitudesRrhh.fechaInicio} is not null`,
+            sql`${solicitudesRrhh.fechaFin} is not null`,
+            lte(solicitudesRrhh.fechaInicio, d.fechaFin),
+            gte(solicitudesRrhh.fechaFin, d.fechaInicio),
+          ),
+        )
+        .limit(1);
+      if (solapada.length > 0) {
+        const s = solapada[0];
+        return {
+          ok: false,
+          error: `El empleado ya tiene una solicitud (${SOLICITUD_TIPO_LABEL[s.tipo] ?? s.tipo}) del ${s.fechaInicio} al ${s.fechaFin} que se solapa con esas fechas.`,
+        };
+      }
+    }
 
     const dias = contarDias(d.fechaInicio || undefined, d.fechaFin || undefined);
     const [creada] = await db
@@ -407,6 +466,9 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
     const pais = (empresa?.pais ?? "NI") as PaisCodigo;
     const tasaSS = TASA_SEGURIDAD_SOCIAL[pais] ?? 0;
 
+    // La nómina se genera para TODOS los empleados activos según el período
+    // elegido. La frecuencia de pago del empleado no restringe la generación
+    // (siempre se puede pagar semanal/quincenal/mensual).
     const activos = await db
       .select({
         id: empleados.id,
@@ -417,7 +479,6 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
       .where(
         and(
           eq(empleados.empresaId, user.empresaId),
-          eq(empleados.frecuenciaPago, d.frecuencia),
           isNull(empleados.eliminadoEn),
           sql`${empleados.estado} <> 'baja'`,
         ),
@@ -426,7 +487,7 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
     if (activos.length === 0) {
       return {
         ok: false,
-        error: `No hay empleados activos con pago ${d.frecuencia}.`,
+        error: "No hay empleados activos para generar la nómina.",
       };
     }
 
@@ -475,7 +536,13 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
       const montoHorasExtra = horasExtra * salarioHora * 1.5;
       const totalDevengado = salarioPeriodo + montoHorasExtra;
       const deduccionSS = totalDevengado * tasaSS;
-      const totalDeducciones = deduccionSS;
+      // IR: se calcula sobre la base gravable mensual (salario menos seguridad
+      // social) y se prorratea al período trabajado.
+      const baseGravableMensual = salarioMensual - salarioMensual * tasaSS;
+      const irMensual = calcularIRMensual(pais, baseGravableMensual);
+      const deduccionRenta =
+        irMensual * factor * (diasTrabajados / diasPeriodo);
+      const totalDeducciones = deduccionSS + deduccionRenta;
       const totalNeto = totalDevengado - totalDeducciones;
       return {
         empleadoId: e.id,
@@ -485,6 +552,7 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
         montoHorasExtra,
         totalDevengado,
         deduccionSS,
+        deduccionRenta,
         totalDeducciones,
         totalNeto,
       };
@@ -541,6 +609,7 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
           montoHorasExtra: dec(x.montoHorasExtra),
           totalDevengado: dec(x.totalDevengado),
           deduccionSeguridadSocial: dec(x.deduccionSS),
+          deduccionRenta: dec(x.deduccionRenta),
           totalDeducciones: dec(x.totalDeducciones),
           totalNeto: dec(x.totalNeto),
         })),
@@ -702,6 +771,8 @@ export async function crearVacante(input: unknown): Promise<Resultado> {
         departamento: d.departamento || null,
         descripcion: d.descripcion || null,
         requisitos: d.requisitos || null,
+        habilidades: d.habilidades && d.habilidades.length > 0 ? d.habilidades : null,
+        experienciaAnios: d.experienciaAnios ?? null,
         tipoContrato: d.tipoContrato,
         salarioMin: d.salarioMin !== undefined ? dec(d.salarioMin) : null,
         salarioMax: d.salarioMax !== undefined ? dec(d.salarioMax) : null,

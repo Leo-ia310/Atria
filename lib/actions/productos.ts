@@ -3,8 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { productos } from "@/lib/db/schema";
-import { productoSchema } from "@/lib/validations/productos";
+import { productos, marcas, categorias } from "@/lib/db/schema";
+import {
+  productoSchema,
+  crearMarcaSchema,
+  crearCategoriaSchema,
+} from "@/lib/validations/productos";
 import { requireSession } from "@/lib/actions/session-helpers";
 
 type Resultado =
@@ -63,6 +67,7 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
         metodoCosteo: datos.metodoCosteo,
         manejaLotes: datos.manejaLotes,
         manejaSeries: datos.manejaSeries,
+        fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
         activo: true,
       })
       .returning({ id: productos.id });
@@ -114,6 +119,7 @@ export async function actualizarProducto(
         metodoCosteo: datos.metodoCosteo,
         manejaLotes: datos.manejaLotes,
         manejaSeries: datos.manejaSeries,
+        fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
         actualizadoEn: new Date(),
       })
       .where(eq(productos.id, id));
@@ -124,6 +130,66 @@ export async function actualizarProducto(
   } catch (err) {
     console.error("[actualizarProducto]", err);
     return { ok: false, error: "No pudimos actualizar el producto." };
+  }
+}
+
+export async function crearMarca(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const parsed = crearMarcaSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const nombre = parsed.data.nombre.trim();
+  try {
+    const yaExiste = await db
+      .select({ id: marcas.id, nombre: marcas.nombre })
+      .from(marcas)
+      .where(and(eq(marcas.empresaId, user.empresaId), eq(marcas.nombre, nombre)))
+      .limit(1);
+    if (yaExiste.length > 0) {
+      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
+    }
+    const [creada] = await db
+      .insert(marcas)
+      .values({ empresaId: user.empresaId, nombre })
+      .returning({ id: marcas.id, nombre: marcas.nombre });
+    revalidatePath("/inventario/nuevo");
+    return { ok: true, id: creada.id, nombre: creada.nombre };
+  } catch (err) {
+    console.error("[crearMarca]", err);
+    return { ok: false, error: "No pudimos crear la marca." };
+  }
+}
+
+export async function crearCategoria(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const parsed = crearCategoriaSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const nombre = parsed.data.nombre.trim();
+  try {
+    const yaExiste = await db
+      .select({ id: categorias.id, nombre: categorias.nombre })
+      .from(categorias)
+      .where(and(eq(categorias.empresaId, user.empresaId), eq(categorias.nombre, nombre)))
+      .limit(1);
+    if (yaExiste.length > 0) {
+      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
+    }
+    const [creada] = await db
+      .insert(categorias)
+      .values({ empresaId: user.empresaId, nombre })
+      .returning({ id: categorias.id, nombre: categorias.nombre });
+    revalidatePath("/inventario/nuevo");
+    return { ok: true, id: creada.id, nombre: creada.nombre };
+  } catch (err) {
+    console.error("[crearCategoria]", err);
+    return { ok: false, error: "No pudimos crear la categoría." };
   }
 }
 

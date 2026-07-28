@@ -64,6 +64,7 @@ export default async function EditarProductoPage({
           metodoCosteo: producto.metodoCosteo,
           manejaLotes: producto.manejaLotes,
           manejaSeries: producto.manejaSeries,
+          fechaVencimiento: producto.fechaVencimiento ?? "",
         }}
         categorias={cats.map((c) => ({ value: c.id, label: c.nombre }))}
         marcas={mks.map((m) => ({ value: m.id, label: m.nombre }))}

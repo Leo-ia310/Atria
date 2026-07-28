@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { impuestos } from "@/lib/db/schema";
+import { impuestos, empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
+import { CrearImpuestoForm } from "@/components/configuracion/CrearImpuestoForm";
+import { TASA_SEGURIDAD_SOCIAL } from "@/lib/rrhh";
+import type { PaisCodigo } from "@/lib/paises";
 
 type Fila = {
   id: string;
@@ -17,6 +20,14 @@ type Fila = {
 
 export default async function ImpuestosPage() {
   const user = await requireSession();
+
+  const [empresa] = await db
+    .select({ pais: empresas.pais })
+    .from(empresas)
+    .where(eq(empresas.id, user.empresaId))
+    .limit(1);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const tasaInss = TASA_SEGURIDAD_SOCIAL[pais] ?? 0.07;
 
   const filas: Fila[] = await db
     .select({
@@ -65,7 +76,11 @@ export default async function ImpuestosPage() {
 
   return (
     <div>
-      <PageHeader title="Impuestos" subtitle={`${filas.length} impuestos configurados`} />
+      <PageHeader
+        title="Impuestos"
+        subtitle={`${filas.length} impuestos configurados`}
+        actions={<CrearImpuestoForm tasaInssPct={tasaInss} />}
+      />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />
     </div>
   );

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { feriados, empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackLink } from "@/components/layout/BackLink";
 import { FeriadosManager } from "@/components/rrhh/FeriadosManager";
 import { getPaisConfig } from "@/lib/paises";
 
@@ -41,7 +42,8 @@ export default async function FeriadosPage({
     .orderBy(asc(feriados.fecha));
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl space-y-3">
+      <BackLink href="/rrhh/nomina" label="Volver a Nómina" />
       <PageHeader
         title="Feriados"
         subtitle={`Calendario de días no laborables · ${getPaisConfig(pais).nombre}`}

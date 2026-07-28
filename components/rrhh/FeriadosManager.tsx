@@ -2,8 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Trash2, Download } from "lucide-react";
-import { crearFeriado, eliminarFeriado, sembrarFeriados } from "@/lib/actions/rrhh";
+import { CalendarPlus, Trash2, Download, Pencil, Check, X } from "lucide-react";
+import {
+  crearFeriado,
+  actualizarFeriado,
+  eliminarFeriado,
+  sembrarFeriados,
+} from "@/lib/actions/rrhh";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +58,17 @@ export function FeriadosManager({
       const res = await eliminarFeriado(id);
       if (!res.ok) return mostrar("error", res.error);
       mostrar("success", "Feriado eliminado");
+      router.refresh();
+    });
+  }
+
+  function editar(id: string, nombre: string, fecha: string, onListo: () => void) {
+    if (nombre.trim().length < 2) return mostrar("error", "Escribe el nombre del feriado");
+    startTransition(async () => {
+      const res = await actualizarFeriado(id, { nombre, fecha });
+      if (!res.ok) return mostrar("error", res.error);
+      mostrar("success", "Feriado actualizado");
+      onListo();
       router.refresh();
     });
   }
@@ -119,30 +135,108 @@ export function FeriadosManager({
         ) : (
           <div className="divide-y divide-[color:var(--color-border)]">
             {feriados.map((f) => (
-              <div key={f.id} className="flex items-center justify-between px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-small font-medium">{f.nombre}</span>
-                  {f.esNacional && <Badge variant="info">Nacional</Badge>}
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-small text-[color:var(--color-text-muted)]">
-                    {formatearFecha(f.fecha)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => quitar(f.id)}
-                    disabled={pending}
-                    className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
-                    title="Eliminar"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
+              <FilaFeriado
+                key={f.id}
+                feriado={f}
+                pending={pending}
+                onGuardar={editar}
+                onEliminar={quitar}
+              />
             ))}
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function FilaFeriado({
+  feriado,
+  pending,
+  onGuardar,
+  onEliminar,
+}: {
+  feriado: Feriado;
+  pending: boolean;
+  onGuardar: (id: string, nombre: string, fecha: string, onListo: () => void) => void;
+  onEliminar: (id: string) => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [nombre, setNombre] = useState(feriado.nombre);
+  const [fecha, setFecha] = useState(feriado.fecha);
+
+  if (editando) {
+    return (
+      <div className="flex flex-wrap items-end gap-3 px-5 py-3">
+        <div className="flex-1 min-w-[160px]">
+          <Input
+            label="Nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+          />
+        </div>
+        <div className="w-44">
+          <Input
+            label="Fecha"
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            onClick={() => onGuardar(feriado.id, nombre, fecha, () => setEditando(false))}
+            disabled={pending}
+          >
+            <Check size={14} /> Guardar
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setNombre(feriado.nombre);
+              setFecha(feriado.fecha);
+              setEditando(false);
+            }}
+            disabled={pending}
+          >
+            <X size={14} />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3">
+      <div className="flex items-center gap-3">
+        <span className="text-small font-medium">{feriado.nombre}</span>
+        {feriado.esNacional && <Badge variant="info">Nacional</Badge>}
+      </div>
+      <div className="flex items-center gap-4">
+        <span className="text-small text-[color:var(--color-text-muted)]">
+          {formatearFecha(feriado.fecha)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setEditando(true)}
+          disabled={pending}
+          className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-secondary)]"
+          title="Editar"
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onEliminar(feriado.id)}
+          disabled={pending}
+          className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
+          title="Eliminar"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
     </div>
   );
 }

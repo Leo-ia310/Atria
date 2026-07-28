@@ -17,6 +17,19 @@ export const productoSchema = z.object({
   metodoCosteo: z.enum(["promedio", "fifo"]).default("promedio"),
   manejaLotes: z.boolean().default(false),
   manejaSeries: z.boolean().default(false),
+  fechaVencimiento: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const crearMarcaSchema = z.object({
+  nombre: z.string().min(1, "Nombre requerido").max(80),
+});
+
+export const crearCategoriaSchema = z.object({
+  nombre: z.string().min(1, "Nombre requerido").max(80),
 });
 
 export type ProductoInput = z.infer<typeof productoSchema>;

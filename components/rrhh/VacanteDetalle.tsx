@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { formatearMoneda } from "@/lib/utils";
+import { cn, formatearMoneda } from "@/lib/utils";
 import { CANDIDATO_ETAPA_LABEL } from "@/lib/rrhh";
 import type { PaisCodigo } from "@/lib/paises";
 
@@ -42,7 +42,16 @@ const ETAPAS = [
 ] as const;
 type Etapa = (typeof ETAPAS)[number];
 
-const ETAPA_OPTS = ETAPAS.map((e) => ({ value: e, label: CANDIDATO_ETAPA_LABEL[e] }));
+// Color por etapa (tokens del design system). La última etapa positiva
+// (contratado) es verde; descartado es rojo.
+const ETAPA_COLOR: Record<Etapa, string> = {
+  aplicado: "var(--color-text-muted)",
+  preseleccion: "var(--color-secondary)",
+  entrevista: "var(--color-tertiary)",
+  oferta: "var(--color-warning)",
+  contratado: "var(--color-success)",
+  descartado: "var(--color-error)",
+};
 
 const ESTADOS_VACANTE = [
   { value: "abierta", label: "Abierta" },
@@ -67,6 +76,8 @@ export function VacanteDetalle({
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overEtapa, setOverEtapa] = useState<Etapa | null>(null);
 
   const {
     register,
@@ -128,6 +139,16 @@ export function VacanteDetalle({
 
   const porEtapa = (e: Etapa) => candidatos.filter((c) => c.etapa === e);
 
+  function soltarEn(etapa: Etapa) {
+    const id = dragId;
+    setDragId(null);
+    setOverEtapa(null);
+    if (!id) return;
+    const cand = candidatos.find((c) => c.id === id);
+    if (!cand || cand.etapa === etapa) return;
+    mover(id, etapa);
+  }
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -148,22 +169,67 @@ export function VacanteDetalle({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <p className="mb-3 text-[12px] text-[color:var(--color-text-muted)]">
+        Arrastra las tarjetas entre columnas para cambiar la etapa.
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {ETAPAS.map((etapa) => {
           const items = porEtapa(etapa);
+          const color = ETAPA_COLOR[etapa];
+          const activa = overEtapa === etapa;
           return (
-            <div key={etapa} className="rounded-lg bg-[color:var(--color-surface-2)] p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-label">{CANDIDATO_ETAPA_LABEL[etapa]}</span>
-                <span className="text-[11px] text-[color:var(--color-text-muted)]">
+            <div
+              key={etapa}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (overEtapa !== etapa) setOverEtapa(etapa);
+              }}
+              onDragLeave={() =>
+                setOverEtapa((prev) => (prev === etapa ? null : prev))
+              }
+              onDrop={() => soltarEn(etapa)}
+              className={cn(
+                "rounded-lg border-2 p-3 transition-colors",
+                activa
+                  ? "bg-[color:var(--color-surface-2)]"
+                  : "border-transparent bg-[color:var(--color-surface-2)]/60",
+              )}
+              style={activa ? { borderColor: color } : undefined}
+            >
+              <div
+                className="mb-2 flex items-center justify-between border-b-2 pb-2"
+                style={{ borderColor: color }}
+              >
+                <span className="inline-flex items-center gap-1.5 text-label">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: color }}
+                  />
+                  {CANDIDATO_ETAPA_LABEL[etapa]}
+                </span>
+                <span
+                  className="rounded-full px-1.5 text-[11px] font-semibold text-white"
+                  style={{ background: color }}
+                >
                   {items.length}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="min-h-[48px] space-y-2">
                 {items.map((c) => (
                   <div
                     key={c.id}
-                    className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3"
+                    draggable={!pending}
+                    onDragStart={() => setDragId(c.id)}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setOverEtapa(null);
+                    }}
+                    className={cn(
+                      "cursor-grab rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3 active:cursor-grabbing",
+                      dragId === c.id && "opacity-50",
+                    )}
+                    style={{ borderLeft: `3px solid ${color}` }}
                   >
                     <div className="text-small font-medium">{c.nombre}</div>
                     {c.expectativaSalarial != null && (
@@ -201,22 +267,12 @@ export function VacanteDetalle({
                         </button>
                       ))}
                     </div>
-                    <select
-                      value={c.etapa}
-                      disabled={pending}
-                      onChange={(e) => mover(c.id, e.target.value as Etapa)}
-                      className="atria-input mt-2 h-8 w-full text-[12px]"
-                    >
-                      {ETAPA_OPTS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 ))}
                 {items.length === 0 && (
-                  <p className="py-2 text-center text-[11px] text-[color:var(--color-text-muted)]">—</p>
+                  <p className="py-3 text-center text-[11px] text-[color:var(--color-text-muted)]">
+                    Suelta aquí
+                  </p>
                 )}
               </div>
             </div>

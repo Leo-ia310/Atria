@@ -1,9 +1,16 @@
 "use client";
 
-import { Bell, Search, LogOut } from "lucide-react";
+import { Search, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { NotificacionesBell, type Notificacion } from "./NotificacionesBell";
 
-export function Header({ breadcrumb }: { breadcrumb: { label: string; href?: string }[] }) {
+export function Header({
+  breadcrumb,
+  notificaciones = [],
+}: {
+  breadcrumb: { label: string; href?: string }[];
+  notificaciones?: Notificacion[];
+}) {
   return (
     <header
       style={{ height: "var(--header-height)" }}
@@ -39,13 +46,7 @@ export function Header({ breadcrumb }: { breadcrumb: { label: string; href?: str
             ⌘K
           </kbd>
         </button>
-        <button
-          type="button"
-          className="atria-btn atria-btn-ghost p-2 relative"
-          aria-label="Notificaciones"
-        >
-          <Bell size={16} />
-        </button>
+        <NotificacionesBell notificaciones={notificaciones} />
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/" })}

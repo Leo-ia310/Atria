@@ -63,6 +63,7 @@ export default async function NominaDetallePage({
       montoHorasExtra: nominaDetalles.montoHorasExtra,
       totalDevengado: nominaDetalles.totalDevengado,
       deduccionSeguridadSocial: nominaDetalles.deduccionSeguridadSocial,
+      deduccionRenta: nominaDetalles.deduccionRenta,
       otrasDeducciones: nominaDetalles.otrasDeducciones,
       totalDeducciones: nominaDetalles.totalDeducciones,
       totalNeto: nominaDetalles.totalNeto,
@@ -150,6 +151,7 @@ export default async function NominaDetallePage({
                 <th className="text-label px-4 py-3 text-right font-semibold">H. Extra</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Devengado</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">{ssNombre}</th>
+                <th className="text-label px-4 py-3 text-right font-semibold">IR</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Deducciones</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Neto</th>
               </tr>
@@ -170,6 +172,9 @@ export default async function NominaDetallePage({
                     {money(d.deduccionSeguridadSocial)}
                   </td>
                   <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
+                    {money(d.deduccionRenta)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
                     {money(d.totalDeducciones)}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">{money(d.totalNeto)}</td>
@@ -182,6 +187,7 @@ export default async function NominaDetallePage({
                 <td></td>
                 <td></td>
                 <td className="px-4 py-3 text-right">{money(nom.totalDevengado)}</td>
+                <td></td>
                 <td></td>
                 <td className="px-4 py-3 text-right">{money(nom.totalDeducciones)}</td>
                 <td className="px-4 py-3 text-right">{money(nom.totalNeto)}</td>

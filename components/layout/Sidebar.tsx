@@ -41,14 +41,14 @@ const GRUPOS: { titulo: string; items: Item[] }[] = [
       { href: "/ventas", label: "Ventas", icon: Receipt },
       { href: "/inventario", label: "Inventario", icon: Package },
       { href: "/clientes", label: "Clientes", icon: Users },
-      { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins },
       { href: "/compras", label: "Compras", icon: Truck },
-      { href: "/cxp", label: "Pagos (CxP)", icon: Banknote },
     ],
   },
   {
     titulo: "Finanzas",
     items: [
+      { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins },
+      { href: "/cxp", label: "Pagos (CxP)", icon: Banknote },
       { href: "/contabilidad", label: "Contabilidad", icon: BookOpen },
       { href: "/tesoreria", label: "Tesorería", icon: Wallet },
     ],
@@ -160,7 +160,7 @@ export function Sidebar({
         </button>
       )}
 
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
+      <nav className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
         {GRUPOS.map((g) => (
           <div key={g.titulo} className="mt-4 first:mt-1">
             {!colapsado && (
@@ -224,7 +224,7 @@ export function Sidebar({
         )}
 
         <Link
-          href="/configuracion"
+          href="/mi-cuenta"
           title={colapsado ? nombreUsuario : undefined}
           className={cn(
             "mt-3 flex items-center rounded-md p-2 text-[13px] text-white/80 hover:bg-white/5",

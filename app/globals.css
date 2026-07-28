@@ -306,3 +306,21 @@ textarea:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-secondary);
 }
+
+/* Animación de campana de notificaciones */
+@keyframes wiggle {
+  0%, 90%, 100% { transform: rotate(0deg); }
+  92%, 96% { transform: rotate(-12deg); }
+  94%, 98% { transform: rotate(12deg); }
+}
+
+/* Ocultar scrollbar manteniendo el scroll (sidebar, carruseles) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   ventas,
@@ -12,6 +12,7 @@ import {
   cuentasPorCobrar,
   formasPago as formasPagoTable,
   clientes,
+  sesionesCaja,
 } from "@/lib/db/schema";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -66,6 +67,23 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     }
   }
 
+  // Enlazar la venta a la sesión de caja abierta (se resuelve en el servidor,
+  // nunca se acepta del cliente). Se prioriza la sesión del propio cajero.
+  const sesionesAbiertas = await db
+    .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
+    .from(sesionesCaja)
+    .where(
+      and(
+        eq(sesionesCaja.empresaId, user.empresaId),
+        eq(sesionesCaja.estado, "abierta"),
+      ),
+    )
+    .orderBy(desc(sesionesCaja.abiertaEn));
+  const sesionCajaId =
+    sesionesAbiertas.find((s) => s.usuarioId === user.id)?.id ??
+    sesionesAbiertas[0]?.id ??
+    null;
+
   try {
     const fechaVenta = new Date();
     const fechaVencimiento = data.esCredito
@@ -86,6 +104,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         .values({
           empresaId: user.empresaId,
           sucursalId: data.sucursalId,
+          sesionCajaId,
           clienteId: data.clienteId || null,
           numero,
           fecha: fechaVenta,
