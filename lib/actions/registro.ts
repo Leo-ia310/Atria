@@ -398,9 +398,8 @@ export async function asegurarPlanes() {
   const existentes = new Set(filas.map((p) => p.codigo));
 
   for (const id of ["demo", "pro", "enterprise"] as const) {
-    if (existentes.has(id)) continue;
     const p = PLANES[id];
-    await db.insert(planesTable).values({
+    const values = {
       codigo: p.id,
       nombre: p.nombre,
       tipo: p.id,
@@ -414,6 +413,12 @@ export async function asegurarPlanes() {
       precioSucursalExtra: p.precioSucursalExtra?.toString(),
       features: p.features,
       activo: true,
-    });
+    };
+
+    if (existentes.has(id)) {
+      await db.update(planesTable).set(values).where(eq(planesTable.codigo, id));
+    } else {
+      await db.insert(planesTable).values(values);
+    }
   }
 }

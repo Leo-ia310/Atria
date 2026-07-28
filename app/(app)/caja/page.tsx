@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Store, Plus } from "lucide-react";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cajas, sesionesCaja, empresas, usuarios } from "@/lib/db/schema";
+import { cajas, empresas, sesionesCaja, sucursales, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -12,6 +12,7 @@ import { AbrirSesionForm } from "@/components/caja/AbrirSesionForm";
 import { CrearCajaForm } from "@/components/caja/CrearCajaForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function CajaPage() {
   const user = await requireSession();
@@ -22,24 +23,39 @@ export default async function CajaPage() {
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const cajasList = await db
     .select({ id: cajas.id, nombre: cajas.nombre, codigo: cajas.codigo })
     .from(cajas)
-    .where(and(eq(cajas.empresaId, user.empresaId), eq(cajas.activa, true)));
+    .where(
+      and(
+        eq(cajas.empresaId, user.empresaId),
+        eq(cajas.activa, true),
+        sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+      ),
+    );
 
   // Find any currently open session (across all cajas of this empresa)
   const [sesionAbierta] = await db
     .select({
       id: sesionesCaja.id,
+      cajaId: cajas.id,
       cajaNombre: cajas.nombre,
+      sucursalNombre: sucursales.nombre,
       montoInicial: sesionesCaja.montoInicial,
       abiertaEn: sesionesCaja.abiertaEn,
     })
     .from(sesionesCaja)
     .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
+    .leftJoin(sucursales, eq(sucursales.id, cajas.sucursalId))
     .where(
-      and(eq(sesionesCaja.empresaId, user.empresaId), eq(sesionesCaja.estado, "abierta")),
+      and(
+        eq(sesionesCaja.empresaId, user.empresaId),
+        eq(sesionesCaja.estado, "abierta"),
+        sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+      ),
     )
     .limit(1);
 
@@ -54,21 +70,31 @@ export default async function CajaPage() {
       abiertaEn: sesionesCaja.abiertaEn,
       cerradaEn: sesionesCaja.cerradaEn,
       usuarioNombre: usuarios.nombre,
+      sucursalNombre: sucursales.nombre,
     })
     .from(sesionesCaja)
     .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
     .innerJoin(usuarios, eq(usuarios.id, sesionesCaja.usuarioId))
-    .where(eq(sesionesCaja.empresaId, user.empresaId))
+    .leftJoin(sucursales, eq(sucursales.id, cajas.sucursalId))
+    .where(
+      and(
+        eq(sesionesCaja.empresaId, user.empresaId),
+        sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(desc(sesionesCaja.abiertaEn))
     .limit(20);
 
   const cajasDisponibles = cajasList
-    .filter((c) => c.id !== sesionAbierta?.id)
+    .filter((c) => c.id !== sesionAbierta?.cajaId)
     .map((c) => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }));
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sesión de caja" subtitle="Control de apertura y cierre de caja" />
+      <PageHeader
+        title="Sesión de caja"
+        subtitle={`Control de apertura y cierre de caja${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+      />
 
       {/* Sesión activa */}
       {sesionAbierta && (
@@ -78,6 +104,11 @@ export default async function CajaPage() {
               <div className="flex items-center gap-2">
                 <Badge variant="success">Abierta</Badge>
                 <span className="font-semibold">{sesionAbierta.cajaNombre}</span>
+                {scope.visible && sesionAbierta.sucursalNombre && (
+                  <span className="text-small text-[color:var(--color-text-muted)]">
+                    · {sesionAbierta.sucursalNombre}
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
                 Abierta el {new Date(sesionAbierta.abiertaEn).toLocaleString()} ·{" "}
@@ -126,6 +157,11 @@ export default async function CajaPage() {
                         {s.estado === "abierta" ? "Abierta" : "Cerrada"}
                       </Badge>
                       <span className="text-small font-medium">{s.cajaNombre}</span>
+                      {scope.visible && s.sucursalNombre && (
+                        <span className="text-[12px] text-[color:var(--color-text-muted)]">
+                          · {s.sucursalNombre}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 text-[12px] text-[color:var(--color-text-muted)]">
                       {s.usuarioNombre} · {formatearFecha(new Date(s.abiertaEn).toISOString().slice(0, 10), pais)}

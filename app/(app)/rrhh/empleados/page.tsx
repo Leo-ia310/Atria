@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { UserRound, Plus } from "lucide-react";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { empleados, empresas } from "@/lib/db/schema";
+import { empleados, empresas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -15,12 +15,14 @@ import {
   TIPO_CONTRATO_LABEL,
   FRECUENCIA_LABEL,
 } from "@/lib/rrhh";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
   codigo: string;
   nombres: string;
   apellidos: string;
+  sucursal: string | null;
   puesto: string;
   departamento: string | null;
   tipoContrato: string;
@@ -47,6 +49,8 @@ export default async function EmpleadosPage() {
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
@@ -54,6 +58,7 @@ export default async function EmpleadosPage() {
       codigo: empleados.codigo,
       nombres: empleados.nombres,
       apellidos: empleados.apellidos,
+      sucursal: sucursales.nombre,
       puesto: empleados.puesto,
       departamento: empleados.departamento,
       tipoContrato: empleados.tipoContrato,
@@ -62,7 +67,14 @@ export default async function EmpleadosPage() {
       estado: empleados.estado,
     })
     .from(empleados)
-    .where(and(eq(empleados.empresaId, user.empresaId), isNull(empleados.eliminadoEn)))
+    .leftJoin(sucursales, eq(sucursales.id, empleados.sucursalId))
+    .where(
+      and(
+        eq(empleados.empresaId, user.empresaId),
+        isNull(empleados.eliminadoEn),
+        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(desc(empleados.creadoEn))
     .limit(300);
 
@@ -93,6 +105,19 @@ export default async function EmpleadosPage() {
         </div>
       ),
     },
+    ...(scope.visible
+      ? [
+          {
+            key: "sucursal",
+            header: "Sucursal",
+            cell: (r: Fila) =>
+              r.sucursal ?? (
+                <span className="text-[color:var(--color-text-muted)]">Sin asignar</span>
+              ),
+            width: "150px",
+          } satisfies Columna<Fila>,
+        ]
+      : []),
     {
       key: "contrato",
       header: "Contrato",
@@ -145,7 +170,7 @@ export default async function EmpleadosPage() {
     <div>
       <PageHeader
         title="Empleados"
-        subtitle={`${filas.length} empleados · ${activos} activos`}
+        subtitle={`${filas.length} empleados · ${activos} activos${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link href="/rrhh/empleados/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
             <Plus size={14} /> Nuevo empleado

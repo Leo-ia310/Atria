@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ventas, empresas } from "@/lib/db/schema";
@@ -11,6 +11,7 @@ import { GraficaRentabilidad } from "@/components/reportes/GraficaRentabilidad";
 import { TrendingUp, Coins, Percent } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
@@ -21,6 +22,8 @@ export default async function ReporteRentabilidadPage() {
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const hace12 = new Date();
   hace12.setFullYear(hace12.getFullYear() - 1);
@@ -42,6 +45,7 @@ export default async function ReporteRentabilidadPage() {
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
         gte(ventas.fecha, hace12),
+        sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
       ),
     )
     .groupBy(periodoExpr)
@@ -72,7 +76,7 @@ export default async function ReporteRentabilidadPage() {
     <div>
       <PageHeader
         title="Rentabilidad"
-        subtitle="Ingresos vs costo de ventas — últimos 12 meses"
+        subtitle={`Ingresos vs costo de ventas — últimos 12 meses${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link href="/reportes" className="atria-btn atria-btn-secondary atria-btn-sm">
             ← Reportes

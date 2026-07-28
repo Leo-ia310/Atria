@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Truck, Plus, FileText } from "lucide-react";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { compras, proveedores, empresas } from "@/lib/db/schema";
+import { compras, empresas, proveedores, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -10,12 +10,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
   numeroFactura: string | null;
   fecha: string;
   proveedor: string;
+  sucursal: string | null;
   total: string;
   esCredito: boolean;
   estado: string;
@@ -28,6 +30,8 @@ export default async function ComprasPage() {
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
@@ -35,13 +39,20 @@ export default async function ComprasPage() {
       numeroFactura: compras.numeroFactura,
       fecha: compras.fecha,
       proveedor: proveedores.razonSocial,
+      sucursal: sucursales.nombre,
       total: compras.total,
       esCredito: compras.esCredito,
       estado: compras.estado,
     })
     .from(compras)
     .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
-    .where(eq(compras.empresaId, user.empresaId))
+    .leftJoin(sucursales, eq(sucursales.id, compras.sucursalId))
+    .where(
+      and(
+        eq(compras.empresaId, user.empresaId),
+        sucursalIds ? inArray(compras.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(desc(compras.fecha))
     .limit(200);
 
@@ -62,6 +73,16 @@ export default async function ComprasPage() {
       header: "Proveedor",
       cell: (r) => <span className="font-medium">{r.proveedor}</span>,
     },
+    ...(scope.visible
+      ? [
+          {
+            key: "sucursal",
+            header: "Sucursal",
+            cell: (r: Fila) => r.sucursal ?? "Sin sucursal",
+            width: "150px",
+          } satisfies Columna<Fila>,
+        ]
+      : []),
     {
       key: "total",
       header: "Total",
@@ -94,7 +115,7 @@ export default async function ComprasPage() {
     <div>
       <PageHeader
         title="Compras"
-        subtitle={`${filas.length} compras registradas`}
+        subtitle={`${filas.length} compras registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex gap-2">
             <Link href="/compras/proveedores" className="atria-btn atria-btn-secondary atria-btn-sm">

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Banknote } from "lucide-react";
-import { and, desc, eq, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cuentasPorPagar, proveedores, compras, empresas } from "@/lib/db/schema";
+import { compras, cuentasPorPagar, empresas, proveedores, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -11,11 +11,13 @@ import { Badge } from "@/components/ui/Badge";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
   proveedor: string;
   compraNumero: string | null;
+  sucursal: string | null;
   fechaEmision: string;
   fechaVencimiento: string;
   monto: string;
@@ -46,12 +48,15 @@ export default async function CxPPage({
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
       id: cuentasPorPagar.id,
       proveedor: proveedores.razonSocial,
       compraNumero: compras.numeroFactura,
+      sucursal: sucursales.nombre,
       fechaEmision: cuentasPorPagar.fechaEmision,
       fechaVencimiento: cuentasPorPagar.fechaVencimiento,
       monto: cuentasPorPagar.monto,
@@ -61,11 +66,13 @@ export default async function CxPPage({
     .from(cuentasPorPagar)
     .innerJoin(proveedores, eq(proveedores.id, cuentasPorPagar.proveedorId))
     .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
+    .leftJoin(sucursales, eq(sucursales.id, compras.sucursalId))
     .where(
       and(
         eq(cuentasPorPagar.empresaId, user.empresaId),
         notInArray(cuentasPorPagar.estado, ["pagada"]),
         proveedorId ? eq(cuentasPorPagar.proveedorId, proveedorId) : undefined,
+        sucursalIds ? inArray(compras.sucursalId, sucursalIds) : undefined,
       ),
     )
     .orderBy(desc(cuentasPorPagar.fechaVencimiento))
@@ -93,6 +100,16 @@ export default async function CxPPage({
         ),
       width: "130px",
     },
+    ...(scope.visible
+      ? [
+          {
+            key: "sucursal",
+            header: "Sucursal",
+            cell: (r: Fila) => r.sucursal ?? "Sin sucursal",
+            width: "150px",
+          } satisfies Columna<Fila>,
+        ]
+      : []),
     {
       key: "emision",
       header: "Emisión",
@@ -157,7 +174,7 @@ export default async function CxPPage({
     <div className="space-y-5">
       <PageHeader
         title={proveedorId ? "Pagos del proveedor" : "Cuentas por pagar"}
-        subtitle={`${filas.length} deudas activas`}
+        subtitle={`${filas.length} deudas activas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
 
       {filas.length > 0 && (

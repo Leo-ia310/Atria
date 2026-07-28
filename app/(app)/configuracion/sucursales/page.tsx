@@ -1,10 +1,11 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
@@ -17,6 +18,8 @@ type Fila = {
 
 export default async function SucursalesPage() {
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
@@ -28,7 +31,13 @@ export default async function SucursalesPage() {
       activa: sucursales.activa,
     })
     .from(sucursales)
-    .where(and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn)));
+    .where(
+      and(
+        eq(sucursales.empresaId, user.empresaId),
+        isNull(sucursales.eliminadoEn),
+        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
+      ),
+    );
 
   const columnas: Columna<Fila>[] = [
     {
@@ -61,7 +70,7 @@ export default async function SucursalesPage() {
     <div>
       <PageHeader
         title="Sucursales"
-        subtitle={`${filas.length} sucursales · plan actual limita las disponibles`}
+        subtitle={`${filas.length} sucursales · plan actual limita las disponibles${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />
     </div>

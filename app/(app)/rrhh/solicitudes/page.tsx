@@ -1,12 +1,15 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { solicitudesRrhh, empleados, empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SolicitudesPanel } from "@/components/rrhh/SolicitudesPanel";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function SolicitudesPage() {
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const [empresa] = await db
     .select({ pais: empresas.pais })
@@ -30,8 +33,15 @@ export default async function SolicitudesPage() {
       empleadoApellidos: empleados.apellidos,
     })
     .from(solicitudesRrhh)
-    .leftJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
-    .where(eq(solicitudesRrhh.empresaId, user.empresaId))
+    .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
+    .where(
+      and(
+        eq(solicitudesRrhh.empresaId, user.empresaId),
+        eq(empleados.empresaId, user.empresaId),
+        isNull(empleados.eliminadoEn),
+        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(desc(solicitudesRrhh.creadoEn))
     .limit(200);
 
@@ -43,6 +53,7 @@ export default async function SolicitudesPage() {
         eq(empleados.empresaId, user.empresaId),
         isNull(empleados.eliminadoEn),
         sql`${empleados.estado} <> 'baja'`,
+        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
       ),
     )
     .orderBy(empleados.nombres);
@@ -53,7 +64,7 @@ export default async function SolicitudesPage() {
     <div>
       <PageHeader
         title="Solicitudes"
-        subtitle={`${lista.length} solicitudes · ${pendientes} pendientes`}
+        subtitle={`${lista.length} solicitudes · ${pendientes} pendientes${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
       <SolicitudesPanel
         pais={empresa?.pais ?? "NI"}

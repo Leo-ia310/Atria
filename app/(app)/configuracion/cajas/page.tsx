@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cajas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -8,9 +8,12 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CrearCajaForm } from "@/components/caja/CrearCajaForm";
 import { Receipt } from "lucide-react";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function CajasPage() {
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas = await db
     .select({
@@ -22,13 +25,18 @@ export default async function CajasPage() {
     })
     .from(cajas)
     .leftJoin(sucursales, eq(sucursales.id, cajas.sucursalId))
-    .where(eq(cajas.empresaId, user.empresaId));
+    .where(
+      and(
+        eq(cajas.empresaId, user.empresaId),
+        sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+      ),
+    );
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Cajas"
-        subtitle={`${filas.length} cajas registradas`}
+        subtitle={`${filas.length} cajas registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
 
       <Card>

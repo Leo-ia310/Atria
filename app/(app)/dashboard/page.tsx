@@ -22,9 +22,10 @@ import {
   cuentasPorCobrar,
   clientes,
 } from "@/lib/db/schema";
-import { eq, and, isNull, gte, sql, sum, count, desc } from "drizzle-orm";
+import { eq, and, isNull, gte, sql, sum, count, desc, inArray } from "drizzle-orm";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function DashboardPage({
   searchParams,
@@ -43,12 +44,11 @@ export default async function DashboardPage({
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
-  const sucs = await db
-    .select({ id: sucursales.id, nombre: sucursales.nombre })
-    .from(sucursales)
-    .where(
-      and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn)),
-    );
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
+  const filtroSucursalVenta = sucursalIds
+    ? inArray(ventas.sucursalId, sucursalIds)
+    : undefined;
 
   const inicioMes = new Date();
   inicioMes.setDate(1);
@@ -64,6 +64,7 @@ export default async function DashboardPage({
             eq(ventas.empresaId, user.empresaId),
             isNull(ventas.anuladoEn),
             sql`${ventas.fecha}::date = current_date`,
+            filtroSucursalVenta,
           ),
         ),
       db
@@ -74,6 +75,7 @@ export default async function DashboardPage({
             eq(ventas.empresaId, user.empresaId),
             isNull(ventas.anuladoEn),
             gte(ventas.fecha, inicioMes),
+            filtroSucursalVenta,
           ),
         ),
       db
@@ -89,10 +91,12 @@ export default async function DashboardPage({
       db
         .select({ saldo: sum(cuentasPorCobrar.saldo) })
         .from(cuentasPorCobrar)
+        .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
         .where(
           and(
             eq(cuentasPorCobrar.empresaId, user.empresaId),
             eq(cuentasPorCobrar.estado, "pendiente"),
+            filtroSucursalVenta,
           ),
         ),
       db
@@ -103,10 +107,18 @@ export default async function DashboardPage({
           total: ventas.total,
           esCredito: ventas.esCredito,
           cliente: clientes.nombre,
+          sucursal: sucursales.nombre,
         })
         .from(ventas)
         .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
-        .where(and(eq(ventas.empresaId, user.empresaId), isNull(ventas.anuladoEn)))
+        .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
+        .where(
+          and(
+            eq(ventas.empresaId, user.empresaId),
+            isNull(ventas.anuladoEn),
+            filtroSucursalVenta,
+          ),
+        )
         .orderBy(desc(ventas.fecha))
         .limit(6),
     ]);
@@ -236,6 +248,7 @@ export default async function DashboardPage({
                       <div className="text-small font-medium">{v.numero}</div>
                       <div className="text-[12px] text-[color:var(--color-text-muted)]">
                         {v.cliente ?? "Consumidor final"} · {formatearFechaHora(v.fecha)}
+                        {scope.visible && v.sucursal ? ` · ${v.sucursal}` : ""}
                       </div>
                     </div>
                   </div>
@@ -256,7 +269,11 @@ export default async function DashboardPage({
         <Card>
           <CardHeader title="Tu cuenta" />
           <CardBody className="space-y-3 text-small">
-            <Fila label="Sucursales activas" valor={String(sucs.length)} />
+            <Fila
+              label={scope.visible ? "Sucursales en vista" : "Sucursales activas"}
+              valor={String(scope.sucursalIds.length)}
+            />
+            {scope.visible && <Fila label="Alcance" valor={scope.etiqueta} />}
             <Fila label="Último acceso" valor={formatearFechaHora(new Date())} />
             <Fila
               label="Estado fiscal"

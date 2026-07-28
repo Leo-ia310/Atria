@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { facturas, usuarios, empresas } from "@/lib/db/schema";
+import { empresas, facturas, sucursales, usuarios, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -12,6 +12,7 @@ import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { FacturaVer } from "@/components/facturas/FacturaVer";
 import type { ReciboData } from "@/components/pos/Recibo";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function FacturasPage({
   searchParams,
@@ -26,6 +27,8 @@ export default async function FacturasPage({
 }) {
   const sp = await searchParams;
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const [empresa] = await db
     .select({
@@ -65,6 +68,7 @@ export default async function FacturasPage({
   if (sp.forma) cond.push(ilike(facturas.formasPago, `%${sp.forma}%`));
   if (sp.tipo === "contado") cond.push(eq(facturas.esCredito, false));
   if (sp.tipo === "credito") cond.push(eq(facturas.esCredito, true));
+  if (sucursalIds) cond.push(inArray(ventas.sucursalId, sucursalIds));
 
   const filas = await db
     .select({
@@ -78,8 +82,11 @@ export default async function FacturasPage({
       esCredito: facturas.esCredito,
       total: facturas.total,
       snapshot: facturas.snapshot,
+      sucursal: sucursales.nombre,
     })
     .from(facturas)
+    .leftJoin(ventas, eq(ventas.id, facturas.ventaId))
+    .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
     .where(and(...cond))
     .orderBy(desc(facturas.fecha))
     .limit(500);
@@ -121,7 +128,7 @@ export default async function FacturasPage({
     <div>
       <PageHeader
         title="Facturas"
-        subtitle={`${filas.length} facturas · ${formatearMoneda(totalFiltrado, pais)}`}
+        subtitle={`${filas.length} facturas · ${formatearMoneda(totalFiltrado, pais)}${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
 
       <Card className="mb-4">
@@ -191,6 +198,9 @@ export default async function FacturasPage({
                   <th className="text-label px-4 py-3 text-left">Factura</th>
                   <th className="text-label px-4 py-3 text-left">Fecha</th>
                   <th className="text-label px-4 py-3 text-left">Cliente</th>
+                  {scope.visible && (
+                    <th className="text-label px-4 py-3 text-left">Sucursal</th>
+                  )}
                   <th className="text-label px-4 py-3 text-left">Vendedor</th>
                   <th className="text-label px-4 py-3 text-left">Pago</th>
                   <th className="text-label px-4 py-3 text-right">Total</th>
@@ -209,6 +219,9 @@ export default async function FacturasPage({
                       {formatearFechaHora(f.fecha)}
                     </td>
                     <td className="px-4 py-2">{f.cliente ?? "Consumidor final"}</td>
+                    {scope.visible && (
+                      <td className="px-4 py-2">{f.sucursal ?? "Sin sucursal"}</td>
+                    )}
                     <td className="px-4 py-2">{f.vendedor ?? "—"}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1.5">

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { CalendarCheck, History } from "lucide-react";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { empleados, asistencias, feriados } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AsistenciaTablero } from "@/components/rrhh/AsistenciaTablero";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
@@ -20,6 +21,8 @@ export default async function AsistenciaPage({
   const { fecha } = await searchParams;
   const dia = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyISO();
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const activos = await db
     .select({
@@ -35,20 +38,31 @@ export default async function AsistenciaPage({
         eq(empleados.empresaId, user.empresaId),
         isNull(empleados.eliminadoEn),
         sql`${empleados.estado} <> 'baja'`,
+        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
       ),
     )
     .orderBy(empleados.nombres);
 
-  const registros = await db
-    .select({
-      empleadoId: asistencias.empleadoId,
-      estado: asistencias.estado,
-      horasTrabajadas: asistencias.horasTrabajadas,
-      horasExtra: asistencias.horasExtra,
-      notas: asistencias.notas,
-    })
-    .from(asistencias)
-    .where(and(eq(asistencias.empresaId, user.empresaId), eq(asistencias.fecha, dia)));
+  const empleadoIds = activos.map((empleado) => empleado.id);
+  const registros =
+    empleadoIds.length === 0
+      ? []
+      : await db
+          .select({
+            empleadoId: asistencias.empleadoId,
+            estado: asistencias.estado,
+            horasTrabajadas: asistencias.horasTrabajadas,
+            horasExtra: asistencias.horasExtra,
+            notas: asistencias.notas,
+          })
+          .from(asistencias)
+          .where(
+            and(
+              eq(asistencias.empresaId, user.empresaId),
+              eq(asistencias.fecha, dia),
+              inArray(asistencias.empleadoId, empleadoIds),
+            ),
+          );
 
   const [feriado] = await db
     .select({ nombre: feriados.nombre })
@@ -74,7 +88,7 @@ export default async function AsistenciaPage({
     <div>
       <PageHeader
         title="Asistencia"
-        subtitle={`${activos.length} empleados · ${registrados} registrados el día`}
+        subtitle={`${activos.length} empleados · ${registrados} registrados el día${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link
             href="/rrhh/asistencia/historial"

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Package, Plus } from "lucide-react";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { productos, empresas } from "@/lib/db/schema";
+import { almacenes, empresas, existencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatearMoneda, desdeDecimal } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
@@ -17,6 +18,7 @@ type Fila = {
   nombre: string;
   precio: string;
   costo: string;
+  existencia: number;
   stockMinimo: string;
   activo: boolean;
 };
@@ -28,8 +30,30 @@ export default async function InventarioPage() {
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
-  const filas: Fila[] = await db
+  const stockRows = await db
+    .select({
+      productoId: existencias.productoId,
+      existencia: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+    })
+    .from(existencias)
+    .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+    .where(
+      and(
+        eq(existencias.empresaId, user.empresaId),
+        eq(almacenes.empresaId, user.empresaId),
+        eq(almacenes.activo, true),
+        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+      ),
+    )
+    .groupBy(existencias.productoId);
+  const existenciaPorProducto = new Map(
+    stockRows.map((row) => [row.productoId, parseFloat(row.existencia)]),
+  );
+
+  const productosRows = await db
     .select({
       id: productos.id,
       sku: productos.sku,
@@ -43,6 +67,10 @@ export default async function InventarioPage() {
     .where(and(eq(productos.empresaId, user.empresaId), isNull(productos.eliminadoEn)))
     .orderBy(desc(productos.creadoEn))
     .limit(200);
+  const filas: Fila[] = productosRows.map((producto) => ({
+    ...producto,
+    existencia: existenciaPorProducto.get(producto.id) ?? 0,
+  }));
 
   const columnas: Columna<Fila>[] = [
     { key: "sku", header: "SKU", cell: (r) => <span className="font-mono text-[12px]">{r.sku}</span>, width: "120px" },
@@ -66,6 +94,13 @@ export default async function InventarioPage() {
           {formatearMoneda(desdeDecimal(r.costo), empresa?.pais ?? "NI")}
         </span>
       ),
+    },
+    {
+      key: "existencia",
+      header: "Existencia",
+      align: "right",
+      cell: (r) => r.existencia.toFixed(2),
+      width: "110px",
     },
     {
       key: "stockMinimo",
@@ -104,7 +139,7 @@ export default async function InventarioPage() {
     <div>
       <PageHeader
         title="Inventario"
-        subtitle={`${filas.length} productos en el catálogo`}
+        subtitle={`${filas.length} productos en el catálogo${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link href="/inventario/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
             <Plus size={14} /> Nuevo producto

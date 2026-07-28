@@ -1,7 +1,7 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { movimientosInventario, productos, empresas } from "@/lib/db/schema";
+import { almacenes, empresas, existencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -12,6 +12,7 @@ import { GraficaInventario } from "@/components/reportes/GraficaInventario";
 import { Package, TrendingDown, Coins } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function ReporteInventarioPage() {
   const user = await requireSession();
@@ -22,38 +23,51 @@ export default async function ReporteInventarioPage() {
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
-  // Stock reconstruido desde movimientos_inventario (fuente de verdad, ver
-  // CLAUDE.md). Se listan todos los productos activos, tengan o no movimientos,
-  // para que el reporte nunca aparezca vacío teniendo productos.
-  const rows = await db
+  const stockRows = await db
+    .select({
+      productoId: existencias.productoId,
+      stockTotal: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+    })
+    .from(existencias)
+    .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+    .where(
+      and(
+        eq(existencias.empresaId, user.empresaId),
+        eq(almacenes.empresaId, user.empresaId),
+        eq(almacenes.activo, true),
+        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+      ),
+    )
+    .groupBy(existencias.productoId);
+  const stockPorProducto = new Map(
+    stockRows.map((row) => [row.productoId, row.stockTotal]),
+  );
+
+  // Se listan todos los productos activos, tengan o no existencias, para que el
+  // reporte nunca aparezca vacio teniendo productos.
+  const productosRows = await db
     .select({
       productoId: productos.id,
       nombre: productos.nombre,
       sku: productos.sku,
       stockMinimo: productos.stockMinimo,
       costoPromedio: productos.costoPromedio,
-      stockTotal: sql<string>`COALESCE(SUM(${movimientosInventario.cantidad}), 0)`,
     })
     .from(productos)
-    .leftJoin(
-      movimientosInventario,
-      eq(movimientosInventario.productoId, productos.id),
-    )
     .where(
       and(
         eq(productos.empresaId, user.empresaId),
         eq(productos.activo, true),
         isNull(productos.eliminadoEn),
       ),
-    )
-    .groupBy(
-      productos.id,
-      productos.nombre,
-      productos.sku,
-      productos.stockMinimo,
-      productos.costoPromedio,
     );
+  const rows = productosRows.map((producto) => ({
+    ...producto,
+    stockTotal: stockPorProducto.get(producto.productoId) ?? "0",
+  }));
 
   const procesados = rows
     .map((r) => ({
@@ -82,7 +96,7 @@ export default async function ReporteInventarioPage() {
     <div>
       <PageHeader
         title="Reporte de inventario"
-        subtitle="Stock valorizado al costo promedio"
+        subtitle={`Stock valorizado al costo promedio${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link href="/reportes" className="atria-btn atria-btn-secondary atria-btn-sm">
             ← Reportes

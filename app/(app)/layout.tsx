@@ -1,12 +1,15 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, count, eq, lt } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  compras,
   empresas,
+  empleados,
   cuentasPorCobrar,
   cuentasPorPagar,
   solicitudesRrhh,
+  ventas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import {
@@ -21,6 +24,7 @@ import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { filtrarCommandItems } from "@/components/layout/nav-items";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function AppLayout({
   children,
@@ -51,6 +55,8 @@ export default async function AppLayout({
   const esDemo = access.plan.id === "demo";
   const permitidos = modulosPermitidos(access);
   const commandItems = filtrarCommandItems(permitidos);
+  const sucursalScope = await getSucursalScope(user, access);
+  const sucursalIds = selectedSucursalIds(sucursalScope);
   const puedeVerCxc = puedeAccederModulo(access, "cxc");
   const puedeVerCxp = puedeAccederModulo(access, "cxp");
   const puedeVerRrhh = puedeAccederModulo(access, "rrhh");
@@ -61,11 +67,13 @@ export default async function AppLayout({
       ? db
           .select({ n: count() })
           .from(cuentasPorCobrar)
+          .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
           .where(
             and(
               eq(cuentasPorCobrar.empresaId, user.empresaId),
               eq(cuentasPorCobrar.estado, "pendiente"),
               lt(cuentasPorCobrar.fechaVencimiento, hoy),
+              sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
             ),
           )
       : Promise.resolve([{ n: 0 }]),
@@ -73,11 +81,13 @@ export default async function AppLayout({
       ? db
           .select({ n: count() })
           .from(cuentasPorPagar)
+          .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
           .where(
             and(
               eq(cuentasPorPagar.empresaId, user.empresaId),
               eq(cuentasPorPagar.estado, "pendiente"),
               lt(cuentasPorPagar.fechaVencimiento, hoy),
+              sucursalIds ? inArray(compras.sucursalId, sucursalIds) : undefined,
             ),
           )
       : Promise.resolve([{ n: 0 }]),
@@ -85,10 +95,14 @@ export default async function AppLayout({
       ? db
           .select({ n: count() })
           .from(solicitudesRrhh)
+          .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
           .where(
             and(
               eq(solicitudesRrhh.empresaId, user.empresaId),
               eq(solicitudesRrhh.estado, "pendiente"),
+              eq(empleados.empresaId, user.empresaId),
+              isNull(empleados.eliminadoEn),
+              sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
             ),
           )
       : Promise.resolve([{ n: 0 }]),
@@ -145,6 +159,7 @@ export default async function AppLayout({
               breadcrumb={[{ label: nombreEmpresa }]}
               notificaciones={notificaciones}
               commandItems={commandItems}
+              sucursalScope={sucursalScope}
             />
             <main className="p-6">{children}</main>
           </div>

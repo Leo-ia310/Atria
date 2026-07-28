@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { empleados, asistencias } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -10,6 +10,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearFecha } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 const ESTADO_VARIANTE: Record<
   string,
@@ -52,6 +53,8 @@ export default async function HistorialAsistenciaPage({
 }) {
   const { desde, hasta, empleado } = await searchParams;
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const hoy = new Date();
   const rangoDesde =
@@ -66,16 +69,27 @@ export default async function HistorialAsistenciaPage({
       apellidos: empleados.apellidos,
     })
     .from(empleados)
-    .where(eq(empleados.empresaId, user.empresaId))
+    .where(
+      and(
+        eq(empleados.empresaId, user.empresaId),
+        isNull(empleados.eliminadoEn),
+        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(empleados.nombres);
 
   const condiciones = [
     eq(asistencias.empresaId, user.empresaId),
     gte(asistencias.fecha, rangoDesde),
     lte(asistencias.fecha, rangoHasta),
+    eq(empleados.empresaId, user.empresaId),
+    isNull(empleados.eliminadoEn),
   ];
   if (empleado && empleado !== "") {
     condiciones.push(eq(asistencias.empleadoId, empleado));
+  }
+  if (sucursalIds) {
+    condiciones.push(inArray(empleados.sucursalId, sucursalIds));
   }
 
   const registros = await db
@@ -100,7 +114,7 @@ export default async function HistorialAsistenciaPage({
       <BackLink href="/rrhh/asistencia" label="Volver a Asistencia" />
       <PageHeader
         title="Historial de asistencias"
-        subtitle={`${registros.length} registros en el rango seleccionado`}
+        subtitle={`${registros.length} registros en el rango seleccionado${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link
             href="/rrhh/asistencia"

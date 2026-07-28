@@ -7,7 +7,7 @@ import {
   Briefcase,
   CalendarClock,
 } from "lucide-react";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   empleados,
@@ -19,6 +19,7 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardBody } from "@/components/ui/Card";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 const MODULOS = [
   { href: "/rrhh/empleados", icon: UserRound, titulo: "Empleados", descripcion: "Expediente, contrato y compensación" },
@@ -32,6 +33,14 @@ const MODULOS = [
 export default async function RrhhPage() {
   const user = await requireSession();
   const hoy = new Date().toISOString().slice(0, 10);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
+  const filtroSucursalEmpleado = sucursalIds
+    ? inArray(empleados.sucursalId, sucursalIds)
+    : undefined;
+  const filtroSucursalVacante = sucursalIds
+    ? inArray(vacantes.sucursalId, sucursalIds)
+    : undefined;
 
   const [activos] = await db
     .select({ n: count() })
@@ -41,34 +50,54 @@ export default async function RrhhPage() {
         eq(empleados.empresaId, user.empresaId),
         isNull(empleados.eliminadoEn),
         sql`${empleados.estado} <> 'baja'`,
+        filtroSucursalEmpleado,
       ),
     );
 
   const [asistHoy] = await db
     .select({ n: count() })
     .from(asistencias)
-    .where(and(eq(asistencias.empresaId, user.empresaId), eq(asistencias.fecha, hoy)));
+    .innerJoin(empleados, eq(empleados.id, asistencias.empleadoId))
+    .where(
+      and(
+        eq(asistencias.empresaId, user.empresaId),
+        eq(asistencias.fecha, hoy),
+        eq(empleados.empresaId, user.empresaId),
+        isNull(empleados.eliminadoEn),
+        filtroSucursalEmpleado,
+      ),
+    );
 
   const [pendientes] = await db
     .select({ n: count() })
     .from(solicitudesRrhh)
+    .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
     .where(
       and(
         eq(solicitudesRrhh.empresaId, user.empresaId),
         eq(solicitudesRrhh.estado, "pendiente"),
+        eq(empleados.empresaId, user.empresaId),
+        isNull(empleados.eliminadoEn),
+        filtroSucursalEmpleado,
       ),
     );
 
   const [abiertas] = await db
     .select({ n: count() })
     .from(vacantes)
-    .where(and(eq(vacantes.empresaId, user.empresaId), eq(vacantes.estado, "abierta")));
+    .where(
+      and(
+        eq(vacantes.empresaId, user.empresaId),
+        eq(vacantes.estado, "abierta"),
+        filtroSucursalVacante,
+      ),
+    );
 
   return (
     <div>
       <PageHeader
         title="Recursos Humanos"
-        subtitle="Gestiona a tu equipo: asistencia, nómina, solicitudes y reclutamiento"
+        subtitle={`Gestiona a tu equipo: asistencia, nómina, solicitudes y reclutamiento${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

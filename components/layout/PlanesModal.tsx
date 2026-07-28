@@ -123,6 +123,8 @@ export function PlanesModal({
                   <LiP ok={plan.features.contabilidad}>Contabilidad</LiP>
                   <LiP ok={plan.features.modulo_nomina}>Nómina</LiP>
                   <LiP ok={plan.features.reportes_avanzados}>Reportes avanzados</LiP>
+                  <LiP ok={plan.features.multi_sucursal}>Multi-sucursal</LiP>
+                  <LiP ok={plan.features.ia_asistente}>IA integrada</LiP>
                 </ul>
                 {esActual ? (
                   <div className="mt-4 rounded-md bg-[color:var(--color-surface-2)] py-2 text-center text-small font-medium text-[color:var(--color-text-muted)]">

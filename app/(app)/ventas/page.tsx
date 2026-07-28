@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Receipt, ShoppingCart } from "lucide-react";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ventas, clientes, empresas } from "@/lib/db/schema";
+import { clientes, empresas, sucursales, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -10,12 +10,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
   numero: string;
   fecha: Date;
   cliente: string | null;
+  sucursal: string | null;
   total: string;
   esCredito: boolean;
   estado: string;
@@ -28,6 +30,8 @@ export default async function VentasPage() {
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
@@ -35,13 +39,20 @@ export default async function VentasPage() {
       numero: ventas.numero,
       fecha: ventas.fecha,
       cliente: clientes.nombre,
+      sucursal: sucursales.nombre,
       total: ventas.total,
       esCredito: ventas.esCredito,
       estado: ventas.estado,
     })
     .from(ventas)
     .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
-    .where(eq(ventas.empresaId, user.empresaId))
+    .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
+    .where(
+      and(
+        eq(ventas.empresaId, user.empresaId),
+        sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
+      ),
+    )
     .orderBy(desc(ventas.fecha))
     .limit(200);
 
@@ -66,6 +77,16 @@ export default async function VentasPage() {
           <span className="italic text-[color:var(--color-text-muted)]">Consumidor final</span>
         ),
     },
+    ...(scope.visible
+      ? [
+          {
+            key: "sucursal",
+            header: "Sucursal",
+            cell: (r: Fila) => r.sucursal ?? "Sin sucursal",
+            width: "150px",
+          } satisfies Columna<Fila>,
+        ]
+      : []),
     {
       key: "total",
       header: "Total",
@@ -116,7 +137,7 @@ export default async function VentasPage() {
     <div>
       <PageHeader
         title="Ventas"
-        subtitle={`${filas.length} ventas registradas`}
+        subtitle={`${filas.length} ventas registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <Link href="/pos" className="atria-btn atria-btn-primary atria-btn-sm">
             <ShoppingCart size={14} /> Abrir POS

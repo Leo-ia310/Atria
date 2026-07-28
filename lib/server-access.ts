@@ -186,13 +186,13 @@ function normalizarPlan(
   return {
     ...base,
     nombre: row?.planNombre ?? base.nombre,
-    maxSucursales: row ? row.maxSucursales : base.maxSucursales,
-    maxUsuarios: row ? row.maxUsuarios : base.maxUsuarios,
-    maxProductos: row ? row.maxProductos : base.maxProductos,
-    maxTransaccionesMes: row ? row.maxTransaccionesMes : base.maxTransaccionesMes,
+    maxSucursales: base.maxSucursales,
+    maxUsuarios: base.maxUsuarios,
+    maxProductos: base.maxProductos,
+    maxTransaccionesMes: base.maxTransaccionesMes,
     features: {
-      ...base.features,
       ...((row?.features ?? {}) as Partial<PlanFeatures>),
+      ...base.features,
     },
   };
 }

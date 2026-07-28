@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ventas, ventaDetalle, productos, empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -8,6 +8,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { GraficaVentas } from "@/components/reportes/GraficaVentas";
 import { Receipt, TrendingUp, ShoppingCart } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function ReporteVentasPage() {
   const user = await requireSession();
@@ -17,6 +18,11 @@ export default async function ReporteVentasPage() {
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = empresa?.pais ?? "NI";
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
+  const filtroSucursalVenta = sucursalIds
+    ? inArray(ventas.sucursalId, sucursalIds)
+    : undefined;
 
   const hace30 = new Date();
   hace30.setDate(hace30.getDate() - 30);
@@ -33,6 +39,7 @@ export default async function ReporteVentasPage() {
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
         gte(ventas.fecha, hace30),
+        filtroSucursalVenta,
       ),
     )
     .groupBy(sql`DATE(${ventas.fecha})`)
@@ -62,6 +69,7 @@ export default async function ReporteVentasPage() {
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
         gte(ventas.fecha, hace30),
+        filtroSucursalVenta,
       ),
     )
     .groupBy(productos.id, productos.nombre, productos.sku)
@@ -70,7 +78,10 @@ export default async function ReporteVentasPage() {
 
   return (
     <div>
-      <PageHeader title="Reporte de ventas" subtitle="Últimos 30 días" />
+      <PageHeader
+        title="Reporte de ventas"
+        subtitle={`Últimos 30 días${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard

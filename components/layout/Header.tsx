@@ -5,16 +5,27 @@ import { Search, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { NotificacionesBell, type Notificacion } from "./NotificacionesBell";
 import { CommandPalette } from "./CommandPalette";
+import { SucursalScopeSelector } from "./SucursalScopeSelector";
 import type { CommandItem } from "@/components/layout/nav-items";
+
+type SucursalScopeHeader = {
+  visible: boolean;
+  modo: "all" | "selected";
+  sucursales: { id: string; nombre: string }[];
+  sucursalIds: string[];
+  etiqueta: string;
+};
 
 export function Header({
   breadcrumb,
   notificaciones = [],
   commandItems,
+  sucursalScope,
 }: {
   breadcrumb: { label: string; href?: string }[];
   notificaciones?: Notificacion[];
   commandItems: CommandItem[];
+  sucursalScope?: SucursalScopeHeader;
 }) {
   const [paleta, setPaleta] = useState(false);
 
@@ -64,6 +75,7 @@ export function Header({
             ⌘K
           </kbd>
         </button>
+        {sucursalScope?.visible && <SucursalScopeSelector scope={sucursalScope} />}
         <NotificacionesBell notificaciones={notificaciones} />
         <button
           type="button"

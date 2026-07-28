@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Briefcase } from "lucide-react";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { vacantes, candidatos, empresas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda } from "@/lib/utils";
 import { VACANTE_ESTADO_LABEL, TIPO_CONTRATO_LABEL } from "@/lib/rrhh";
 import { VacanteCrearButton } from "@/components/rrhh/VacanteCrearButton";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error"> = {
   abierta: "success",
@@ -20,6 +21,8 @@ const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error"> = {
 
 export default async function ReclutamientoPage() {
   const user = await requireSession();
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const [empresa] = await db
     .select({ pais: empresas.pais })
@@ -39,12 +42,19 @@ export default async function ReclutamientoPage() {
       salarioMax: vacantes.salarioMax,
       plazas: vacantes.plazas,
       estado: vacantes.estado,
+      sucursal: sucursales.nombre,
       candidatosCount: sql<number>`count(${candidatos.id})`.mapWith(Number),
     })
     .from(vacantes)
     .leftJoin(candidatos, eq(candidatos.vacanteId, vacantes.id))
-    .where(eq(vacantes.empresaId, user.empresaId))
-    .groupBy(vacantes.id)
+    .leftJoin(sucursales, eq(sucursales.id, vacantes.sucursalId))
+    .where(
+      and(
+        eq(vacantes.empresaId, user.empresaId),
+        sucursalIds ? inArray(vacantes.sucursalId, sucursalIds) : undefined,
+      ),
+    )
+    .groupBy(vacantes.id, sucursales.nombre)
     .orderBy(desc(vacantes.creadoEn))
     .limit(100);
 
@@ -65,7 +75,7 @@ export default async function ReclutamientoPage() {
     <div>
       <PageHeader
         title="Reclutamiento"
-        subtitle={`${lista.length} vacantes · ${abiertas} abiertas`}
+        subtitle={`${lista.length} vacantes · ${abiertas} abiertas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={<VacanteCrearButton sucursales={sucs.map((s) => ({ value: s.id, label: s.nombre }))} />}
       />
 
@@ -98,6 +108,7 @@ export default async function ReclutamientoPage() {
                 </div>
                 <div className="mt-3 space-y-1 text-small text-[color:var(--color-text-muted)]">
                   <div>{TIPO_CONTRATO_LABEL[v.tipoContrato] ?? v.tipoContrato}</div>
+                  {scope.visible && <div>{v.sucursal ?? "Sin sucursal"}</div>}
                   <div>{rangoSalario(v.salarioMin, v.salarioMax)}</div>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-[color:var(--color-border)] pt-3 text-[12px]">

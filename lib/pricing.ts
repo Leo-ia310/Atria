@@ -1,7 +1,7 @@
 /**
  * Planes, precios y feature flags de ATRIA.
- * Estos valores son la fuente de verdad para el pricing y los límites en runtime.
- * Se reflejan en la tabla `planes` al seed inicial.
+ * Estos valores son la fuente de verdad para pricing, limites y acceso runtime.
+ * `asegurarPlanes` los sincroniza con la tabla `planes`.
  */
 
 export type PlanId = "demo" | "pro" | "enterprise";
@@ -26,6 +26,9 @@ export type PlanFeatures = {
   api_acceso: boolean;
   api_rest_completa: boolean;
   webhooks: boolean;
+  ia_asistente: boolean;
+  ia_reportes: boolean;
+  ia_predicciones: boolean;
   modulo_nomina: boolean;
   rol_auditor: boolean;
   soporte_chat: boolean;
@@ -77,6 +80,9 @@ const FEATURES_VACIAS: PlanFeatures = {
   api_acceso: false,
   api_rest_completa: false,
   webhooks: false,
+  ia_asistente: false,
+  ia_reportes: false,
+  ia_predicciones: false,
   modulo_nomina: false,
   rol_auditor: false,
   soporte_chat: false,
@@ -92,7 +98,7 @@ export const PLANES: Record<PlanId, Plan> = {
   demo: {
     id: "demo",
     nombre: "Demo",
-    descripcionCorta: "Para probar el sistema sin compromiso.",
+    descripcionCorta: "Prueba el POS y la facturacion basica con limites claros.",
     precioMensual: 0,
     precioAnual: 0,
     precioAnualMensualizado: 0,
@@ -115,7 +121,7 @@ export const PLANES: Record<PlanId, Plan> = {
   pro: {
     id: "pro",
     nombre: "Pro",
-    descripcionCorta: "Para negocios que ya operan en serio.",
+    descripcionCorta: "Operacion completa para una sucursal: ventas, finanzas y nomina.",
     precioMensual: 45.99,
     precioAnual: 469.09,
     precioAnualMensualizado: 39.09,
@@ -141,6 +147,8 @@ export const PLANES: Record<PlanId, Plan> = {
       modulo_gastos: true,
       cuentas_por_cobrar: true,
       reportes_avanzados: true,
+      permisos_granulares: true,
+      modulo_nomina: true,
       soporte_chat: true,
       exportacion_datos: true,
     },
@@ -148,13 +156,13 @@ export const PLANES: Record<PlanId, Plan> = {
   enterprise: {
     id: "enterprise",
     nombre: "Enterprise",
-    descripcionCorta: "Multi-sucursal con consolidación y API.",
-    precioMensual: 199.99,
-    precioAnual: 2039.9,
-    precioAnualMensualizado: 169.99,
+    descripcionCorta: "Multi-sucursal, IA integrada, API y control corporativo.",
+    precioMensual: 249.99,
+    precioAnual: 2549.9,
+    precioAnualMensualizado: 212.49,
     ahorroAnualPorcentaje: 15,
-    maxSucursales: 3,
-    maxUsuarios: 10,
+    maxSucursales: 5,
+    maxUsuarios: 20,
     maxProductos: null,
     maxTransaccionesMes: null,
     maxClientes: null,
@@ -182,6 +190,9 @@ export const PLANES: Record<PlanId, Plan> = {
       api_acceso: true,
       api_rest_completa: true,
       webhooks: true,
+      ia_asistente: true,
+      ia_reportes: true,
+      ia_predicciones: true,
       modulo_nomina: true,
       rol_auditor: true,
       soporte_chat: true,
@@ -190,6 +201,7 @@ export const PLANES: Record<PlanId, Plan> = {
       onboarding_1a1: true,
       sla_999: true,
       exportacion_datos: true,
+      white_label: true,
     },
   },
 };
@@ -206,7 +218,13 @@ export function puedeUsar(plan: Plan, feature: keyof PlanFeatures): boolean {
 
 export function dentroDeLimite(
   plan: Plan,
-  recurso: "sucursales" | "usuarios" | "productos" | "transacciones_mes" | "clientes" | "facturas_mes",
+  recurso:
+    | "sucursales"
+    | "usuarios"
+    | "productos"
+    | "transacciones_mes"
+    | "clientes"
+    | "facturas_mes",
   cantidadActual: number,
   extras = 0,
 ): { permitido: boolean; limite: number | null; usado: number } {

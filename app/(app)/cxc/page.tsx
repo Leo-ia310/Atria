@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { HandCoins } from "lucide-react";
-import { and, desc, eq, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cuentasPorCobrar, clientes, ventas, empresas } from "@/lib/db/schema";
+import { clientes, cuentasPorCobrar, empresas, sucursales, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
@@ -11,11 +11,13 @@ import { Badge } from "@/components/ui/Badge";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 type Fila = {
   id: string;
   cliente: string;
   ventaNumero: string | null;
+  sucursal: string | null;
   fechaEmision: string;
   fechaVencimiento: string;
   monto: string;
@@ -46,12 +48,15 @@ export default async function CxCPage({
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
     .select({
       id: cuentasPorCobrar.id,
       cliente: clientes.nombre,
       ventaNumero: ventas.numero,
+      sucursal: sucursales.nombre,
       fechaEmision: cuentasPorCobrar.fechaEmision,
       fechaVencimiento: cuentasPorCobrar.fechaVencimiento,
       monto: cuentasPorCobrar.monto,
@@ -61,11 +66,13 @@ export default async function CxCPage({
     .from(cuentasPorCobrar)
     .innerJoin(clientes, eq(clientes.id, cuentasPorCobrar.clienteId))
     .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
+    .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
     .where(
       and(
         eq(cuentasPorCobrar.empresaId, user.empresaId),
         notInArray(cuentasPorCobrar.estado, ["pagada", "incobrable"]),
         clienteId ? eq(cuentasPorCobrar.clienteId, clienteId) : undefined,
+        sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
       ),
     )
     .orderBy(desc(cuentasPorCobrar.fechaVencimiento))
@@ -93,6 +100,16 @@ export default async function CxCPage({
         ),
       width: "130px",
     },
+    ...(scope.visible
+      ? [
+          {
+            key: "sucursal",
+            header: "Sucursal",
+            cell: (r: Fila) => r.sucursal ?? "Sin sucursal",
+            width: "150px",
+          } satisfies Columna<Fila>,
+        ]
+      : []),
     {
       key: "emision",
       header: "Emisión",
@@ -153,7 +170,7 @@ export default async function CxCPage({
     <div className="space-y-5">
       <PageHeader
         title={clienteId ? "Cobros del cliente" : "Cuentas por cobrar"}
-        subtitle={`${filas.length} deudas activas`}
+        subtitle={`${filas.length} deudas activas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
       />
 
       {filas.length > 0 && (
