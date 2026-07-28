@@ -42,7 +42,10 @@ export default async function AppLayout({
             esDemo={esDemo}
             nombreUsuario={user.nombre}
           />
-          <div style={{ marginLeft: "var(--sidebar-width)" }}>
+          <div
+            style={{ marginLeft: "var(--sidebar-width)" }}
+            className="transition-[margin] duration-200"
+          >
             <Header breadcrumb={[{ label: nombreEmpresa }]} />
             <main className="p-6">{children}</main>
           </div>

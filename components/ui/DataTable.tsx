@@ -1,7 +1,4 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
 
 export type Columna<T> = {
   key: string;
@@ -11,17 +8,21 @@ export type Columna<T> = {
   width?: string;
 };
 
+/**
+ * Server Component: recibe funciones `cell`/`rowKey` que se ejecutan en el
+ * servidor. No marcar como `"use client"` — al pasarle funciones desde un
+ * Server Component se romperían al cruzar la frontera de serialización.
+ * Para filas navegables, usa un <Link> dentro de una celda.
+ */
 export function DataTable<T extends { id?: string }>({
   data,
   columns,
   rowKey = (r) => r.id ?? Math.random().toString(),
-  onRowClick,
   empty,
 }: {
   data: T[];
   columns: Columna<T>[];
   rowKey?: (row: T) => string;
-  onRowClick?: (row: T) => void;
   empty?: ReactNode;
 }) {
   if (data.length === 0 && empty) {
@@ -49,11 +50,7 @@ export function DataTable<T extends { id?: string }>({
             {data.map((row) => (
               <tr
                 key={rowKey(row)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn(
-                  "border-b border-[color:var(--color-border)] last:border-b-0 transition-colors",
-                  onRowClick && "cursor-pointer hover:bg-[color:var(--color-surface-2)]",
-                )}
+                className="border-b border-[color:var(--color-border)] last:border-b-0 transition-colors"
               >
                 {columns.map((c) => (
                   <td

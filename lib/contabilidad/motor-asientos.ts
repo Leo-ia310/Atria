@@ -595,3 +595,146 @@ async function cuentaAjustePorDefecto(
   }
   return encontrada.id;
 }
+
+/* =====================================================================
+ * 7. NÓMINA
+ * ===================================================================== */
+
+async function cuentaPorCodigo(tx: TX, empresaId: string, codigo: string): Promise<string> {
+  const [cuenta] = await tx
+    .select({ id: catalogoCuentas.id })
+    .from(catalogoCuentas)
+    .where(and(eq(catalogoCuentas.empresaId, empresaId), eq(catalogoCuentas.codigo, codigo)))
+    .limit(1);
+  if (!cuenta) throw new Error(`Cuenta ${codigo} no encontrada en catálogo`);
+  return cuenta.id;
+}
+
+export type RegistrarNominaDevengoInput = {
+  empresaId: string;
+  usuarioId: string;
+  nominaId: string;
+  fecha: Date;
+  numero: string;
+  totalDevengado: number;
+  totalDeducciones: number;
+  totalNeto: number;
+};
+
+/**
+ * Devengo de nómina (planilla aprobada):
+ *   DEBE   Sueldos y Salarios (6101)     totalDevengado
+ *   HABER  Retenciones por Pagar (2103)  totalDeducciones
+ *   HABER  Sueldos por Pagar (2104)      totalNeto
+ */
+export async function registrarNominaDevengo(
+  input: RegistrarNominaDevengoInput,
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const gastoSueldos = await cuentaPorCodigo(tx, input.empresaId, "6101");
+    const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
+
+    const partidas: PartidaAsiento[] = [
+      {
+        cuentaId: gastoSueldos,
+        descripcion: `Sueldos y salarios ${input.numero}`,
+        debe: dinero(input.totalDevengado),
+        haber: 0,
+      },
+    ];
+
+    if (input.totalDeducciones > 0) {
+      const retenciones = await cuentaPorCodigo(tx, input.empresaId, "2103");
+      partidas.push({
+        cuentaId: retenciones,
+        descripcion: `Deducciones nómina ${input.numero}`,
+        debe: 0,
+        haber: dinero(input.totalDeducciones),
+      });
+    }
+
+    partidas.push({
+      cuentaId: sueldosPorPagar,
+      descripcion: `Neto por pagar ${input.numero}`,
+      debe: 0,
+      haber: dinero(input.totalNeto),
+    });
+
+    return crearAsiento(tx, {
+      empresaId: input.empresaId,
+      fecha: input.fecha,
+      concepto: `Nómina ${input.numero}`,
+      origen: "nomina",
+      referenciaTabla: "nominas",
+      referenciaId: input.nominaId,
+      partidas,
+      usuarioId: input.usuarioId,
+    });
+  });
+}
+
+export type RegistrarPagoNominaInput = {
+  empresaId: string;
+  usuarioId: string;
+  nominaId: string;
+  fecha: Date;
+  numero: string;
+  monto: number;
+  cuentaFinancieraId: string;
+};
+
+/**
+ * Pago de nómina:
+ *   DEBE   Sueldos por Pagar (2104)   monto
+ *   HABER  Caja | Banco               monto
+ */
+export async function registrarPagoNomina(
+  input: RegistrarPagoNominaInput,
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
+
+    const [cf] = await tx
+      .select({
+        cuentaContableId: cuentasFinancieras.cuentaContableId,
+        nombre: cuentasFinancieras.nombre,
+      })
+      .from(cuentasFinancieras)
+      .where(
+        and(
+          eq(cuentasFinancieras.id, input.cuentaFinancieraId),
+          eq(cuentasFinancieras.empresaId, input.empresaId),
+        ),
+      )
+      .limit(1);
+    if (!cf?.cuentaContableId) {
+      throw new Error("Cuenta financiera sin cuenta contable asociada");
+    }
+
+    const partidas: PartidaAsiento[] = [
+      {
+        cuentaId: sueldosPorPagar,
+        descripcion: `Pago nómina ${input.numero}`,
+        debe: dinero(input.monto),
+        haber: 0,
+      },
+      {
+        cuentaId: cf.cuentaContableId,
+        descripcion: `Pago ${cf.nombre}`,
+        debe: 0,
+        haber: dinero(input.monto),
+      },
+    ];
+
+    return crearAsiento(tx, {
+      empresaId: input.empresaId,
+      fecha: input.fecha,
+      concepto: `Pago de nómina ${input.numero}`,
+      origen: "nomina",
+      referenciaTabla: "nominas",
+      referenciaId: input.nominaId,
+      partidas,
+      usuarioId: input.usuarioId,
+    });
+  });
+}

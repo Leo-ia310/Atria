@@ -76,10 +76,14 @@ export default async function DashboardPage({
                 <li>✓ Formas de pago (Efectivo, Tarjeta, Transferencia, Crédito)</li>
               </ul>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm">Agregar primer producto</Button>
-                <Button variant="secondary" size="sm">
-                  Configurar facturación
-                </Button>
+                <Link href="/inventario/nuevo">
+                  <Button size="sm">Agregar primer producto</Button>
+                </Link>
+                <Link href="/configuracion/facturacion">
+                  <Button variant="secondary" size="sm">
+                    Configurar facturación
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -132,9 +136,11 @@ export default async function DashboardPage({
               <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
                 Cuando hagas tu primera venta o compra, la verás aquí.
               </p>
-              <Button size="sm" className="mt-4">
-                Abrir POS
-              </Button>
+              <Link href="/pos">
+                <Button size="sm" className="mt-4">
+                  Abrir POS
+                </Button>
+              </Link>
             </div>
           </CardBody>
         </Card>

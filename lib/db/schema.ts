@@ -1524,6 +1524,323 @@ export const gastos = pgTable(
 );
 
 /* =========================================================
+ * MÓDULO 8 — RECURSOS HUMANOS (RRHH)
+ * ========================================================= */
+
+export const empleadoEstadoEnum = pgEnum("empleado_estado", [
+  "activo",
+  "vacaciones",
+  "licencia",
+  "suspendido",
+  "baja",
+]);
+export const tipoContratoEnum = pgEnum("tipo_contrato", [
+  "indefinido",
+  "temporal",
+  "por_obra",
+  "medio_tiempo",
+  "practicante",
+  "servicios",
+]);
+export const frecuenciaPagoEnum = pgEnum("frecuencia_pago", [
+  "semanal",
+  "quincenal",
+  "mensual",
+]);
+export const asistenciaEstadoEnum = pgEnum("asistencia_estado", [
+  "presente",
+  "tarde",
+  "ausente",
+  "justificado",
+  "permiso",
+  "vacaciones",
+  "incapacidad",
+  "feriado",
+  "descanso",
+]);
+export const solicitudTipoEnum = pgEnum("solicitud_rrhh_tipo", [
+  "vacaciones",
+  "permiso",
+  "incapacidad",
+  "adelanto",
+  "constancia",
+  "otro",
+]);
+export const solicitudEstadoEnum = pgEnum("solicitud_rrhh_estado", [
+  "pendiente",
+  "aprobada",
+  "rechazada",
+  "cancelada",
+]);
+export const nominaEstadoEnum = pgEnum("nomina_estado", [
+  "borrador",
+  "aprobada",
+  "pagada",
+  "anulada",
+]);
+export const vacanteEstadoEnum = pgEnum("vacante_estado", [
+  "abierta",
+  "pausada",
+  "cerrada",
+  "cancelada",
+]);
+export const candidatoEtapaEnum = pgEnum("candidato_etapa", [
+  "aplicado",
+  "preseleccion",
+  "entrevista",
+  "oferta",
+  "contratado",
+  "descartado",
+]);
+
+export const empleados = pgTable(
+  "empleados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    usuarioId: uuid("usuario_id").references(() => usuarios.id),
+    codigo: text("codigo").notNull(),
+    nombres: text("nombres").notNull(),
+    apellidos: text("apellidos").notNull(),
+    identificacion: text("identificacion"),
+    email: text("email"),
+    telefono: text("telefono"),
+    direccion: text("direccion"),
+    fechaNacimiento: date("fecha_nacimiento"),
+    genero: text("genero"),
+    puesto: text("puesto").notNull(),
+    departamento: text("departamento"),
+    tipoContrato: tipoContratoEnum("tipo_contrato").notNull().default("indefinido"),
+    fechaIngreso: date("fecha_ingreso").notNull(),
+    fechaSalida: date("fecha_salida"),
+    salarioBase: numeric("salario_base", { precision: 18, scale: 4 }).notNull().default("0"),
+    frecuenciaPago: frecuenciaPagoEnum("frecuencia_pago").notNull().default("mensual"),
+    diasVacacionesAnuales: integer("dias_vacaciones_anuales").notNull().default(12),
+    banco: text("banco"),
+    cuentaBanco: text("cuenta_banco"),
+    contactoEmergenciaNombre: text("contacto_emergencia_nombre"),
+    contactoEmergenciaTelefono: text("contacto_emergencia_telefono"),
+    estado: empleadoEstadoEnum("estado").notNull().default("activo"),
+    notas: text("notas"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+    eliminadoEn: timestamp("eliminado_en", { withTimezone: true }),
+  },
+  (t) => [
+    unique("empleados_empresa_codigo_uq").on(t.empresaId, t.codigo),
+    index("empleados_empresa_idx").on(t.empresaId),
+    index("empleados_estado_idx").on(t.estado),
+  ],
+);
+
+export const asistencias = pgTable(
+  "asistencias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    empleadoId: uuid("empleado_id")
+      .notNull()
+      .references(() => empleados.id, { onDelete: "cascade" }),
+    fecha: date("fecha").notNull(),
+    estado: asistenciaEstadoEnum("estado").notNull().default("presente"),
+    horaEntrada: timestamp("hora_entrada", { withTimezone: true }),
+    horaSalida: timestamp("hora_salida", { withTimezone: true }),
+    horasTrabajadas: numeric("horas_trabajadas", { precision: 6, scale: 2 }).notNull().default("0"),
+    horasExtra: numeric("horas_extra", { precision: 6, scale: 2 }).notNull().default("0"),
+    notas: text("notas"),
+    registradoPor: uuid("registrado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("asistencias_empleado_fecha_uq").on(t.empleadoId, t.fecha),
+    index("asistencias_empresa_idx").on(t.empresaId),
+    index("asistencias_fecha_idx").on(t.fecha),
+  ],
+);
+
+export const feriados = pgTable(
+  "feriados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    fecha: date("fecha").notNull(),
+    esNacional: boolean("es_nacional").notNull().default(true),
+    esRecurrente: boolean("es_recurrente").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("feriados_empresa_fecha_nombre_uq").on(t.empresaId, t.fecha, t.nombre),
+    index("feriados_empresa_idx").on(t.empresaId),
+    index("feriados_fecha_idx").on(t.fecha),
+  ],
+);
+
+export const nominas = pgTable(
+  "nominas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    numero: text("numero").notNull(),
+    descripcion: text("descripcion").notNull(),
+    frecuencia: frecuenciaPagoEnum("frecuencia").notNull().default("mensual"),
+    periodoInicio: date("periodo_inicio").notNull(),
+    periodoFin: date("periodo_fin").notNull(),
+    fechaPago: date("fecha_pago").notNull(),
+    estado: nominaEstadoEnum("estado").notNull().default("borrador"),
+    empleadosCount: integer("empleados_count").notNull().default(0),
+    totalDevengado: numeric("total_devengado", { precision: 18, scale: 4 }).notNull().default("0"),
+    totalDeducciones: numeric("total_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
+    totalNeto: numeric("total_neto", { precision: 18, scale: 4 }).notNull().default("0"),
+    asientoDevengoId: uuid("asiento_devengo_id"),
+    asientoPagoId: uuid("asiento_pago_id"),
+    cuentaFinancieraId: uuid("cuenta_financiera_id").references(() => cuentasFinancieras.id),
+    notas: text("notas"),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    aprobadoPor: uuid("aprobado_por").references(() => usuarios.id),
+    aprobadoEn: timestamp("aprobado_en", { withTimezone: true }),
+    pagadoEn: timestamp("pagado_en", { withTimezone: true }),
+    anuladoEn: timestamp("anulado_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("nominas_empresa_numero_uq").on(t.empresaId, t.numero),
+    index("nominas_empresa_idx").on(t.empresaId),
+    index("nominas_estado_idx").on(t.estado),
+  ],
+);
+
+export const nominaDetalles = pgTable(
+  "nomina_detalles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nominaId: uuid("nomina_id")
+      .notNull()
+      .references(() => nominas.id, { onDelete: "cascade" }),
+    empleadoId: uuid("empleado_id")
+      .notNull()
+      .references(() => empleados.id),
+    salarioBase: numeric("salario_base", { precision: 18, scale: 4 }).notNull().default("0"),
+    diasTrabajados: numeric("dias_trabajados", { precision: 6, scale: 2 }).notNull().default("0"),
+    horasExtra: numeric("horas_extra", { precision: 6, scale: 2 }).notNull().default("0"),
+    montoHorasExtra: numeric("monto_horas_extra", { precision: 18, scale: 4 }).notNull().default("0"),
+    bonificaciones: numeric("bonificaciones", { precision: 18, scale: 4 }).notNull().default("0"),
+    comisiones: numeric("comisiones", { precision: 18, scale: 4 }).notNull().default("0"),
+    totalDevengado: numeric("total_devengado", { precision: 18, scale: 4 }).notNull().default("0"),
+    deduccionSeguridadSocial: numeric("deduccion_seguridad_social", { precision: 18, scale: 4 }).notNull().default("0"),
+    deduccionRenta: numeric("deduccion_renta", { precision: 18, scale: 4 }).notNull().default("0"),
+    otrasDeducciones: numeric("otras_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
+    totalDeducciones: numeric("total_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
+    totalNeto: numeric("total_neto", { precision: 18, scale: 4 }).notNull().default("0"),
+    notas: text("notas"),
+  },
+  (t) => [
+    index("nomina_detalles_nomina_idx").on(t.nominaId),
+    index("nomina_detalles_empleado_idx").on(t.empleadoId),
+  ],
+);
+
+export const solicitudesRrhh = pgTable(
+  "solicitudes_rrhh",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    empleadoId: uuid("empleado_id")
+      .notNull()
+      .references(() => empleados.id, { onDelete: "cascade" }),
+    tipo: solicitudTipoEnum("tipo").notNull(),
+    estado: solicitudEstadoEnum("estado").notNull().default("pendiente"),
+    fechaInicio: date("fecha_inicio"),
+    fechaFin: date("fecha_fin"),
+    dias: numeric("dias", { precision: 6, scale: 2 }).notNull().default("0"),
+    monto: numeric("monto", { precision: 18, scale: 4 }),
+    motivo: text("motivo").notNull(),
+    comentarioResolucion: text("comentario_resolucion"),
+    resueltoPor: uuid("resuelto_por").references(() => usuarios.id),
+    resueltoEn: timestamp("resuelto_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("solicitudes_rrhh_empresa_idx").on(t.empresaId),
+    index("solicitudes_rrhh_empleado_idx").on(t.empleadoId),
+    index("solicitudes_rrhh_estado_idx").on(t.estado),
+  ],
+);
+
+export const vacantes = pgTable(
+  "vacantes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    codigo: text("codigo").notNull(),
+    titulo: text("titulo").notNull(),
+    departamento: text("departamento"),
+    descripcion: text("descripcion"),
+    requisitos: text("requisitos"),
+    tipoContrato: tipoContratoEnum("tipo_contrato").notNull().default("indefinido"),
+    salarioMin: numeric("salario_min", { precision: 18, scale: 4 }),
+    salarioMax: numeric("salario_max", { precision: 18, scale: 4 }),
+    plazas: integer("plazas").notNull().default(1),
+    estado: vacanteEstadoEnum("estado").notNull().default("abierta"),
+    fechaApertura: date("fecha_apertura").notNull(),
+    fechaCierre: date("fecha_cierre"),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("vacantes_empresa_codigo_uq").on(t.empresaId, t.codigo),
+    index("vacantes_empresa_idx").on(t.empresaId),
+    index("vacantes_estado_idx").on(t.estado),
+  ],
+);
+
+export const candidatos = pgTable(
+  "candidatos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    vacanteId: uuid("vacante_id")
+      .notNull()
+      .references(() => vacantes.id, { onDelete: "cascade" }),
+    nombres: text("nombres").notNull(),
+    apellidos: text("apellidos").notNull(),
+    email: text("email"),
+    telefono: text("telefono"),
+    fuente: text("fuente"),
+    cvUrl: text("cv_url"),
+    expectativaSalarial: numeric("expectativa_salarial", { precision: 18, scale: 4 }),
+    calificacion: integer("calificacion"),
+    etapa: candidatoEtapaEnum("etapa").notNull().default("aplicado"),
+    notas: text("notas"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("candidatos_empresa_idx").on(t.empresaId),
+    index("candidatos_vacante_idx").on(t.vacanteId),
+    index("candidatos_etapa_idx").on(t.etapa),
+  ],
+);
+
+/* =========================================================
  * TIPOS INFERIDOS
  * ========================================================= */
 
@@ -1542,3 +1859,12 @@ export type Suscripcion = typeof suscripciones.$inferSelect;
 export type Sucursal = typeof sucursales.$inferSelect;
 export type Cliente = typeof clientes.$inferSelect;
 export type Proveedor = typeof proveedores.$inferSelect;
+export type Empleado = typeof empleados.$inferSelect;
+export type NuevoEmpleado = typeof empleados.$inferInsert;
+export type Asistencia = typeof asistencias.$inferSelect;
+export type Feriado = typeof feriados.$inferSelect;
+export type Nomina = typeof nominas.$inferSelect;
+export type NominaDetalle = typeof nominaDetalles.$inferSelect;
+export type SolicitudRrhh = typeof solicitudesRrhh.$inferSelect;
+export type Vacante = typeof vacantes.$inferSelect;
+export type Candidato = typeof candidatos.$inferSelect;
