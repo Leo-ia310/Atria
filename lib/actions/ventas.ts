@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   ventas,
@@ -13,10 +13,11 @@ import {
   formasPago as formasPagoTable,
   clientes,
   sesionesCaja,
+  cajas,
+  almacenes,
   productos,
   facturas,
 } from "@/lib/db/schema";
-import { inArray } from "drizzle-orm";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
@@ -87,13 +88,69 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
   // Enlazar la venta a la sesión de caja abierta (se resuelve en el servidor,
   // nunca se acepta del cliente). Se prioriza la sesión del propio cajero.
+  const [almacen] = await db
+    .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
+    .from(almacenes)
+    .where(
+      and(
+        eq(almacenes.id, data.almacenId),
+        eq(almacenes.empresaId, user.empresaId),
+        eq(almacenes.activo, true),
+      ),
+    )
+    .limit(1);
+  if (!almacen) {
+    return { ok: false, error: "Almacen no valido para esta empresa" };
+  }
+  if (almacen.sucursalId !== data.sucursalId) {
+    return { ok: false, error: "La caja y el almacen deben pertenecer a la misma sucursal" };
+  }
+
+  const productoIds = [...new Set(data.items.map((item) => item.productoId))];
+  const productosVenta = await db
+    .select({ id: productos.id, tipo: productos.tipo })
+    .from(productos)
+    .where(
+      and(
+        eq(productos.empresaId, user.empresaId),
+        eq(productos.activo, true),
+        isNull(productos.eliminadoEn),
+        inArray(productos.id, productoIds),
+      ),
+    );
+  if (productosVenta.length !== productoIds.length) {
+    return { ok: false, error: "Uno o mas productos no son validos" };
+  }
+  const tipoPorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.tipo]));
+  const stockRows = await db
+    .select({ productoId: existencias.productoId, cantidad: existencias.cantidad })
+    .from(existencias)
+    .where(
+      and(
+        eq(existencias.almacenId, data.almacenId),
+        inArray(existencias.productoId, productoIds),
+      ),
+    );
+  const stockPorProducto = new Map(
+    stockRows.map((row) => [row.productoId, parseFloat(row.cantidad)]),
+  );
+  for (const item of data.items) {
+    if (tipoPorProducto.get(item.productoId) === "servicio") continue;
+    const disponible = stockPorProducto.get(item.productoId) ?? 0;
+    if (disponible < item.cantidad) {
+      return { ok: false, error: "No hay stock suficiente en la sucursal seleccionada" };
+    }
+  }
+
   const sesionesAbiertas = await db
     .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
     .from(sesionesCaja)
+    .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
     .where(
       and(
         eq(sesionesCaja.empresaId, user.empresaId),
         eq(sesionesCaja.estado, "abierta"),
+        eq(cajas.sucursalId, data.sucursalId),
       ),
     )
     .orderBy(desc(sesionesCaja.abiertaEn));
@@ -162,21 +219,26 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         })),
       );
 
-      await tx.insert(movimientosInventario).values(
-        data.items.map((it) => ({
-          empresaId: user.empresaId,
-          productoId: it.productoId,
-          almacenId: data.almacenId,
-          tipo: "salida_venta" as const,
-          cantidad: aDecimalStr(-it.cantidad),
-          costoUnitario: aDecimalStr(it.costoUnitario),
-          referenciaTabla: "ventas",
-          referenciaId: venta.id,
-          usuarioId: user.id,
-        })),
+      const itemsInventario = data.items.filter(
+        (it) => tipoPorProducto.get(it.productoId) !== "servicio",
       );
+      if (itemsInventario.length > 0) {
+        await tx.insert(movimientosInventario).values(
+          itemsInventario.map((it) => ({
+            empresaId: user.empresaId,
+            productoId: it.productoId,
+            almacenId: data.almacenId,
+            tipo: "salida_venta" as const,
+            cantidad: aDecimalStr(-it.cantidad),
+            costoUnitario: aDecimalStr(it.costoUnitario),
+            referenciaTabla: "ventas",
+            referenciaId: venta.id,
+            usuarioId: user.id,
+          })),
+        );
+      }
 
-      for (const it of data.items) {
+      for (const it of itemsInventario) {
         await tx
           .update(existencias)
           .set({

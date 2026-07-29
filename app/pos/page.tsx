@@ -1,17 +1,19 @@
 import { redirect } from "next/navigation";
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   productos,
   clientes,
   sucursales,
   almacenes,
+  existencias,
   formasPago,
   impuestos,
   empresas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { POSContenedor } from "@/components/pos/POSContenedor";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function POSPage() {
   const user = await requireSession();
@@ -22,32 +24,61 @@ export default async function POSPage() {
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
 
-  const [sucursalPrincipal] = await db
-    .select({ id: sucursales.id, nombre: sucursales.nombre })
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
+  const sucursalesActivas = await db
+    .select({ id: sucursales.id, nombre: sucursales.nombre, esPrincipal: sucursales.esPrincipal })
     .from(sucursales)
     .where(
       and(
         eq(sucursales.empresaId, user.empresaId),
-        eq(sucursales.esPrincipal, true),
+        eq(sucursales.activa, true),
         isNull(sucursales.eliminadoEn),
+        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
       ),
     )
-    .limit(1);
+    .orderBy(desc(sucursales.esPrincipal), sucursales.nombre);
 
-  if (!sucursalPrincipal) {
+  const sucursalOperativa =
+    sucursalIds?.length === 1
+      ? sucursalesActivas[0]
+      : sucursalesActivas.find((s) => s.esPrincipal) ?? sucursalesActivas[0];
+
+  if (!sucursalOperativa) {
     redirect("/configuracion/sucursales");
   }
 
-  const [almacenPrincipal] = await db
+  const [almacenOperativo] = await db
     .select({ id: almacenes.id, nombre: almacenes.nombre })
     .from(almacenes)
     .where(
       and(
         eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.esPrincipal, true),
+        eq(almacenes.sucursalId, sucursalOperativa.id),
+        eq(almacenes.activo, true),
       ),
     )
+    .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
     .limit(1);
+
+  if (!almacenOperativo) {
+    redirect("/configuracion/sucursales");
+  }
+
+  const stockRows = await db
+    .select({ productoId: existencias.productoId })
+    .from(existencias)
+    .where(
+      and(
+        eq(existencias.empresaId, user.empresaId),
+        eq(existencias.almacenId, almacenOperativo.id),
+      ),
+    );
+  const productosEnAlmacen = [...new Set(stockRows.map((row) => row.productoId))];
+  const filtroProductoOperativo =
+    productosEnAlmacen.length > 0
+      ? or(eq(productos.tipo, "servicio"), inArray(productos.id, productosEnAlmacen))
+      : eq(productos.tipo, "servicio");
 
   const productosList = await db
     .select({
@@ -65,6 +96,7 @@ export default async function POSPage() {
         eq(productos.empresaId, user.empresaId),
         eq(productos.activo, true),
         isNull(productos.eliminadoEn),
+        filtroProductoOperativo,
       ),
     )
     .orderBy(desc(productos.creadoEn))
@@ -101,9 +133,9 @@ export default async function POSPage() {
   return (
     <POSContenedor
       pais={empresa?.pais ?? "NI"}
-      sucursalId={sucursalPrincipal.id}
-      sucursalNombre={sucursalPrincipal.nombre}
-      almacenId={almacenPrincipal!.id}
+      sucursalId={sucursalOperativa.id}
+      sucursalNombre={sucursalOperativa.nombre}
+      almacenId={almacenOperativo.id}
       nombreUsuario={user.nombre}
       productos={productosList.map((p) => ({
         id: p.id,

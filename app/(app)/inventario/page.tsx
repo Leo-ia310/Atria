@@ -52,21 +52,31 @@ export default async function InventarioPage() {
   const existenciaPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.existencia)]),
   );
+  const productoIdsEnScope = sucursalIds ? stockRows.map((row) => row.productoId) : null;
 
-  const productosRows = await db
-    .select({
-      id: productos.id,
-      sku: productos.sku,
-      nombre: productos.nombre,
-      precio: productos.precioBase,
-      costo: productos.costoPromedio,
-      stockMinimo: productos.stockMinimo,
-      activo: productos.activo,
-    })
-    .from(productos)
-    .where(and(eq(productos.empresaId, user.empresaId), isNull(productos.eliminadoEn)))
-    .orderBy(desc(productos.creadoEn))
-    .limit(200);
+  const productosRows =
+    productoIdsEnScope && productoIdsEnScope.length === 0
+      ? []
+      : await db
+          .select({
+            id: productos.id,
+            sku: productos.sku,
+            nombre: productos.nombre,
+            precio: productos.precioBase,
+            costo: productos.costoPromedio,
+            stockMinimo: productos.stockMinimo,
+            activo: productos.activo,
+          })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              isNull(productos.eliminadoEn),
+              productoIdsEnScope ? inArray(productos.id, productoIdsEnScope) : undefined,
+            ),
+          )
+          .orderBy(desc(productos.creadoEn))
+          .limit(200);
   const filas: Fila[] = productosRows.map((producto) => ({
     ...producto,
     existencia: existenciaPorProducto.get(producto.id) ?? 0,
@@ -154,12 +164,16 @@ export default async function InventarioPage() {
         empty={
           <EmptyState
             icon={Package}
-            titulo="Aún no hay productos"
-            descripcion="Crea tu primer producto para empezar a vender."
+            titulo={sucursalIds ? "Sin productos en esta sucursal" : "Aun no hay productos"}
+            descripcion={
+              sucursalIds
+                ? "Registra compras o mueve inventario hacia las sucursales seleccionadas."
+                : "Crea tu primer producto para empezar a vender."
+            }
             accion={
-              <Link href="/inventario/nuevo">
+              <Link href={sucursalIds ? "/compras/nueva" : "/inventario/nuevo"}>
                 <Button size="sm">
-                  <Plus size={14} /> Crear primer producto
+                  <Plus size={14} /> {sucursalIds ? "Registrar compra" : "Crear primer producto"}
                 </Button>
               </Link>
             }

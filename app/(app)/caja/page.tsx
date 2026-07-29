@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Store, Plus } from "lucide-react";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cajas, empresas, sesionesCaja, sucursales, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AbrirSesionForm } from "@/components/caja/AbrirSesionForm";
@@ -26,6 +26,24 @@ export default async function CajaPage() {
   const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
+  const sucs = await db
+    .select({ id: sucursales.id, nombre: sucursales.nombre })
+    .from(sucursales)
+    .where(
+      and(
+        eq(sucursales.empresaId, user.empresaId),
+        eq(sucursales.activa, true),
+        isNull(sucursales.eliminadoEn),
+        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
+      ),
+    )
+    .orderBy(sucursales.nombre);
+  const defaultSucursalId =
+    scope.modo === "selected" && scope.sucursalIds.length === 1
+      ? scope.sucursalIds[0]
+      : sucs[0]?.id;
+  const sucursalOptions = sucs.map((s) => ({ value: s.id, label: s.nombre }));
+
   const cajasList = await db
     .select({ id: cajas.id, nombre: cajas.nombre, codigo: cajas.codigo })
     .from(cajas)
@@ -37,7 +55,6 @@ export default async function CajaPage() {
       ),
     );
 
-  // Find any currently open session (across all cajas of this empresa)
   const [sesionAbierta] = await db
     .select({
       id: sesionesCaja.id,
@@ -87,16 +104,15 @@ export default async function CajaPage() {
 
   const cajasDisponibles = cajasList
     .filter((c) => c.id !== sesionAbierta?.cajaId)
-    .map((c) => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }));
+    .map((c) => ({ value: c.id, label: `${c.codigo} - ${c.nombre}` }));
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sesión de caja"
-        subtitle={`Control de apertura y cierre de caja${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        title="Sesion de caja"
+        subtitle={`Control de apertura y cierre de caja${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
       />
 
-      {/* Sesión activa */}
       {sesionAbierta && (
         <div className="rounded-md border border-[color:var(--color-success)]/40 bg-[color:var(--color-success)]/8 p-4">
           <div className="flex items-center justify-between">
@@ -106,31 +122,29 @@ export default async function CajaPage() {
                 <span className="font-semibold">{sesionAbierta.cajaNombre}</span>
                 {scope.visible && sesionAbierta.sucursalNombre && (
                   <span className="text-small text-[color:var(--color-text-muted)]">
-                    · {sesionAbierta.sucursalNombre}
+                    - {sesionAbierta.sucursalNombre}
                   </span>
                 )}
               </div>
               <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-                Abierta el {new Date(sesionAbierta.abiertaEn).toLocaleString()} ·{" "}
-                Inicio: {formatearMoneda(parseFloat(sesionAbierta.montoInicial), pais)}
+                Abierta el {new Date(sesionAbierta.abiertaEn).toLocaleString()} - Inicio:{" "}
+                {formatearMoneda(parseFloat(sesionAbierta.montoInicial), pais)}
               </p>
             </div>
             <Link
               href={`/caja/${sesionAbierta.id}`}
               className="atria-btn atria-btn-primary atria-btn-sm"
             >
-              Ver sesión →
+              Ver sesion
             </Link>
           </div>
         </div>
       )}
 
-      {/* Abrir nueva sesión */}
       {!sesionAbierta && cajasList.length > 0 && (
         <AbrirSesionForm cajas={cajasDisponibles} pais={pais} />
       )}
 
-      {/* No hay cajas configuradas */}
       {cajasList.length === 0 && (
         <div className="space-y-4">
           <EmptyState
@@ -138,11 +152,10 @@ export default async function CajaPage() {
             titulo="No hay cajas configuradas"
             descripcion="Crea una caja para poder abrir sesiones y registrar ventas."
           />
-          <CrearCajaForm />
+          <CrearCajaForm sucursales={sucursalOptions} defaultSucursalId={defaultSucursalId} />
         </div>
       )}
 
-      {/* Historial */}
       {historial.length > 0 && (
         <Card>
           <CardHeader title="Historial de sesiones" />
@@ -159,13 +172,18 @@ export default async function CajaPage() {
                       <span className="text-small font-medium">{s.cajaNombre}</span>
                       {scope.visible && s.sucursalNombre && (
                         <span className="text-[12px] text-[color:var(--color-text-muted)]">
-                          · {s.sucursalNombre}
+                          - {s.sucursalNombre}
                         </span>
                       )}
                     </div>
                     <div className="mt-0.5 text-[12px] text-[color:var(--color-text-muted)]">
-                      {s.usuarioNombre} · {formatearFecha(new Date(s.abiertaEn).toISOString().slice(0, 10), pais)}
-                      {s.cerradaEn && ` → ${formatearFecha(new Date(s.cerradaEn).toISOString().slice(0, 10), pais)}`}
+                      {s.usuarioNombre} -{" "}
+                      {formatearFecha(new Date(s.abiertaEn).toISOString().slice(0, 10), pais)}
+                      {s.cerradaEn &&
+                        ` -> ${formatearFecha(
+                          new Date(s.cerradaEn).toISOString().slice(0, 10),
+                          pais,
+                        )}`}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-right">
@@ -187,7 +205,7 @@ export default async function CajaPage() {
                       href={`/caja/${s.id}`}
                       className="text-[12px] text-[color:var(--color-secondary)] hover:underline"
                     >
-                      Ver →
+                      Ver
                     </Link>
                   </div>
                 </div>
@@ -197,14 +215,13 @@ export default async function CajaPage() {
         </Card>
       )}
 
-      {/* Crear caja adicional cuando ya hay al menos una */}
       {cajasList.length > 0 && (
         <details className="group">
           <summary className="flex cursor-pointer items-center gap-1 text-[12px] text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text)] list-none">
             <Plus size={12} /> Crear otra caja
           </summary>
           <div className="mt-3">
-            <CrearCajaForm />
+            <CrearCajaForm sucursales={sucursalOptions} defaultSucursalId={defaultSucursalId} />
           </div>
         </details>
       )}

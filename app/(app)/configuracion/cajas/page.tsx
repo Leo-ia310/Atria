@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cajas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -15,28 +15,48 @@ export default async function CajasPage() {
   const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const filas = await db
-    .select({
-      id: cajas.id,
-      codigo: cajas.codigo,
-      nombre: cajas.nombre,
-      activa: cajas.activa,
-      sucursal: sucursales.nombre,
-    })
-    .from(cajas)
-    .leftJoin(sucursales, eq(sucursales.id, cajas.sucursalId))
-    .where(
-      and(
-        eq(cajas.empresaId, user.empresaId),
-        sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+  const [filas, sucs] = await Promise.all([
+    db
+      .select({
+        id: cajas.id,
+        codigo: cajas.codigo,
+        nombre: cajas.nombre,
+        activa: cajas.activa,
+        sucursal: sucursales.nombre,
+      })
+      .from(cajas)
+      .leftJoin(sucursales, eq(sucursales.id, cajas.sucursalId))
+      .where(
+        and(
+          eq(cajas.empresaId, user.empresaId),
+          sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
+        ),
       ),
-    );
+    db
+      .select({ id: sucursales.id, nombre: sucursales.nombre })
+      .from(sucursales)
+      .where(
+        and(
+          eq(sucursales.empresaId, user.empresaId),
+          eq(sucursales.activa, true),
+          isNull(sucursales.eliminadoEn),
+          sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
+        ),
+      )
+      .orderBy(sucursales.nombre),
+  ]);
+
+  const defaultSucursalId =
+    scope.modo === "selected" && scope.sucursalIds.length === 1
+      ? scope.sucursalIds[0]
+      : sucs[0]?.id;
+  const sucursalOptions = sucs.map((s) => ({ value: s.id, label: s.nombre }));
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Cajas"
-        subtitle={`${filas.length} cajas registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        subtitle={`${filas.length} cajas registradas${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
       />
 
       <Card>
@@ -60,7 +80,7 @@ export default async function CajasPage() {
                   <span className="text-small font-medium">{c.nombre}</span>
                   {c.sucursal && (
                     <span className="text-[12px] text-[color:var(--color-text-muted)]">
-                      · {c.sucursal}
+                      - {c.sucursal}
                     </span>
                   )}
                 </div>
@@ -77,7 +97,7 @@ export default async function CajasPage() {
 
       <div>
         <h2 className="text-label mb-2">Agregar caja</h2>
-        <CrearCajaForm />
+        <CrearCajaForm sucursales={sucursalOptions} defaultSucursalId={defaultSucursalId} />
       </div>
     </div>
   );

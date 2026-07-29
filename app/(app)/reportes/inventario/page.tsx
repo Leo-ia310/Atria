@@ -45,25 +45,28 @@ export default async function ReporteInventarioPage() {
   const stockPorProducto = new Map(
     stockRows.map((row) => [row.productoId, row.stockTotal]),
   );
+  const productoIdsEnScope = sucursalIds ? stockRows.map((row) => row.productoId) : null;
 
-  // Se listan todos los productos activos, tengan o no existencias, para que el
-  // reporte nunca aparezca vacio teniendo productos.
-  const productosRows = await db
-    .select({
-      productoId: productos.id,
-      nombre: productos.nombre,
-      sku: productos.sku,
-      stockMinimo: productos.stockMinimo,
-      costoPromedio: productos.costoPromedio,
-    })
-    .from(productos)
-    .where(
-      and(
-        eq(productos.empresaId, user.empresaId),
-        eq(productos.activo, true),
-        isNull(productos.eliminadoEn),
-      ),
-    );
+  const productosRows =
+    productoIdsEnScope && productoIdsEnScope.length === 0
+      ? []
+      : await db
+          .select({
+            productoId: productos.id,
+            nombre: productos.nombre,
+            sku: productos.sku,
+            stockMinimo: productos.stockMinimo,
+            costoPromedio: productos.costoPromedio,
+          })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              eq(productos.activo, true),
+              isNull(productos.eliminadoEn),
+              productoIdsEnScope ? inArray(productos.id, productoIdsEnScope) : undefined,
+            ),
+          );
   const rows = productosRows.map((producto) => ({
     ...producto,
     stockTotal: stockPorProducto.get(producto.productoId) ?? "0",

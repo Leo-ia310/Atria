@@ -1,8 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   proveedores,
   almacenes,
+  sucursales,
   cuentasFinancieras,
   productos,
   impuestos,
@@ -11,6 +12,7 @@ import {
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NuevaCompraForm } from "@/components/compras/NuevaCompraForm";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function NuevaCompraPage() {
   const user = await requireSession();
@@ -19,6 +21,8 @@ export default async function NuevaCompraPage() {
     .from(empresas)
     .where(eq(empresas.id, user.empresaId))
     .limit(1);
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
 
   const [provs, alms, cfs, prods, imps] = await Promise.all([
     db
@@ -30,9 +34,16 @@ export default async function NuevaCompraPage() {
       .from(proveedores)
       .where(and(eq(proveedores.empresaId, user.empresaId), isNull(proveedores.eliminadoEn))),
     db
-      .select({ id: almacenes.id, nombre: almacenes.nombre })
+      .select({ id: almacenes.id, nombre: almacenes.nombre, sucursal: sucursales.nombre })
       .from(almacenes)
-      .where(eq(almacenes.empresaId, user.empresaId)),
+      .leftJoin(sucursales, eq(sucursales.id, almacenes.sucursalId))
+      .where(
+        and(
+          eq(almacenes.empresaId, user.empresaId),
+          eq(almacenes.activo, true),
+          sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+        ),
+      ),
     db
       .select({ id: cuentasFinancieras.id, nombre: cuentasFinancieras.nombre })
       .from(cuentasFinancieras)
@@ -70,7 +81,7 @@ export default async function NuevaCompraPage() {
     <div>
       <PageHeader
         title="Registrar compra"
-        subtitle="Entrada de inventario + cuenta por pagar (si aplica)"
+        subtitle={`Entrada de inventario + cuenta por pagar (si aplica)${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
       />
       <NuevaCompraForm
         pais={empresa?.pais ?? "NI"}
@@ -79,7 +90,10 @@ export default async function NuevaCompraPage() {
           label: p.razonSocial,
           diasCredito: p.diasCredito,
         }))}
-        almacenes={alms.map((a) => ({ value: a.id, label: a.nombre }))}
+        almacenes={alms.map((a) => ({
+          value: a.id,
+          label: scope.visible && a.sucursal ? `${a.nombre} - ${a.sucursal}` : a.nombre,
+        }))}
         cuentasFinancieras={cfs}
         productos={prods.map((p) => ({
           id: p.id,

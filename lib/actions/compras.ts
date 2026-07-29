@@ -10,6 +10,7 @@ import {
   existencias,
   cuentasPorPagar,
   productos,
+  almacenes,
 } from "@/lib/db/schema";
 import { procesarCompraSchema } from "@/lib/validations/compras";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -33,6 +34,21 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
 
   if (!data.esCredito && !data.cuentaFinancieraId) {
     return { ok: false, error: "Compra de contado requiere cuenta financiera" };
+  }
+
+  const [almacen] = await db
+    .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
+    .from(almacenes)
+    .where(
+      and(
+        eq(almacenes.id, data.almacenId),
+        eq(almacenes.empresaId, user.empresaId),
+        eq(almacenes.activo, true),
+      ),
+    )
+    .limit(1);
+  if (!almacen) {
+    return { ok: false, error: "Almacen no valido para esta empresa" };
   }
 
   const subtotal = dinero(
@@ -61,6 +77,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
         .insert(compras)
         .values({
           empresaId: user.empresaId,
+          sucursalId: almacen.sucursalId,
           almacenId: data.almacenId,
           proveedorId: data.proveedorId,
           numeroFactura: data.numeroFactura || null,

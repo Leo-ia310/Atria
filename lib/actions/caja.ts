@@ -20,24 +20,47 @@ export async function crearCaja(input: unknown): Promise<Resultado> {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const data = parsed.data;
+  const codigo = data.codigo.trim().toUpperCase();
 
   const [sucursal] = await db
     .select({ id: sucursales.id })
     .from(sucursales)
-    .where(eq(sucursales.empresaId, user.empresaId))
+    .where(
+      and(
+        eq(sucursales.id, data.sucursalId),
+        eq(sucursales.empresaId, user.empresaId),
+        eq(sucursales.activa, true),
+        isNull(sucursales.eliminadoEn),
+      ),
+    )
     .limit(1);
-  if (!sucursal) return { ok: false, error: "No hay sucursales registradas" };
+  if (!sucursal) return { ok: false, error: "Sucursal no valida" };
 
-  await db.insert(cajas).values({
-    empresaId: user.empresaId,
-    sucursalId: sucursal.id,
-    codigo: data.codigo.toUpperCase(),
-    nombre: data.nombre,
-    activa: true,
-  });
+  const duplicada = await db
+    .select({ id: cajas.id })
+    .from(cajas)
+    .where(and(eq(cajas.empresaId, user.empresaId), eq(cajas.codigo, codigo)))
+    .limit(1);
+  if (duplicada.length > 0) {
+    return { ok: false, error: "Ya existe una caja con ese codigo" };
+  }
 
-  revalidatePath("/caja");
-  return { ok: true };
+  try {
+    await db.insert(cajas).values({
+      empresaId: user.empresaId,
+      sucursalId: sucursal.id,
+      codigo,
+      nombre: data.nombre.trim(),
+      activa: true,
+    });
+
+    revalidatePath("/caja");
+    revalidatePath("/configuracion/cajas");
+    return { ok: true };
+  } catch (err) {
+    console.error("[crearCaja]", err);
+    return { ok: false, error: "No pudimos crear la caja." };
+  }
 }
 
 export async function abrirSesion(

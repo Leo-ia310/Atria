@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const crearCajaSchema = z.object({
   nombre: z.string().min(2, "Nombre requerido").max(100),
-  codigo: z.string().min(1, "Código requerido").max(20),
+  codigo: z.string().min(1, "Codigo requerido").max(20),
+  sucursalId: z.string().uuid("Selecciona una sucursal"),
 });
 
 export const abrirSesionSchema = z.object({
