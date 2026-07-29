@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Minus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 const PREGUNTAS = [
   {
@@ -42,36 +42,51 @@ export function FAQ() {
   const [abierto, setAbierto] = useState<number | null>(0);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto flex max-w-3xl flex-col gap-3">
       {PREGUNTAS.map((p, i) => {
         const activo = abierto === i;
         return (
           <div
             key={p.q}
-            className="border-b border-[color:var(--color-border)] py-1 last:border-b-0"
+            className={`group overflow-hidden rounded-[14px] border transition-all duration-300 ${
+              activo
+                ? "border-[#a78bfa]/50 bg-[linear-gradient(160deg,rgba(124,58,237,0.16),rgba(37,99,235,0.08))] shadow-[0_18px_50px_rgba(124,58,237,0.22)]"
+                : "border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.06]"
+            }`}
           >
             <button
               type="button"
               onClick={() => setAbierto(activo ? null : i)}
-              className="flex w-full items-center justify-between gap-6 py-4 text-left"
+              className="flex w-full items-center gap-4 px-5 py-4 text-left"
             >
-              <span className="text-base font-medium text-[color:var(--color-text-primary)]">
-                {p.q}
-              </span>
               <span
-                className={`flex-shrink-0 rounded-full p-1 text-[color:var(--color-text-muted)]`}
+                className={`text-[13px] font-bold tabular-nums transition-colors ${
+                  activo ? "text-[#c4b5fd]" : "text-white/35"
+                }`}
               >
-                {activo ? <Minus size={16} /> : <Plus size={16} />}
+                0{i + 1}
+              </span>
+              <span className="flex-1 text-[15px] font-medium text-white">{p.q}</span>
+              <span
+                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                  activo
+                    ? "rotate-[135deg] bg-[linear-gradient(135deg,#7c3aed,#2563eb)] text-white"
+                    : "bg-white/10 text-white/60 group-hover:bg-white/15"
+                }`}
+              >
+                <Plus size={15} />
               </span>
             </button>
             <div
-              className={`grid overflow-hidden transition-all duration-300 ${
-                activo ? "grid-rows-[1fr] pb-4" : "grid-rows-[0fr]"
+              className={`grid transition-all duration-300 ease-out ${
+                activo ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
               }`}
             >
-              <p className="overflow-hidden text-small leading-relaxed text-[color:var(--color-text-secondary)]">
-                {p.a}
-              </p>
+              <div className="overflow-hidden">
+                <p className="px-5 pb-5 pl-[52px] text-[14px] leading-relaxed text-white/65">
+                  {p.a}
+                </p>
+              </div>
             </div>
           </div>
         );

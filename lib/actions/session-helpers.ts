@@ -1,5 +1,4 @@
-"use server";
-
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
@@ -16,8 +15,10 @@ export type SessionUser = {
  * Garantiza que hay sesión activa. Redirige a /login si no.
  * Devuelve los datos del usuario tipados — usar en server components/actions.
  */
-export async function requireSession(): Promise<SessionUser> {
-  const session = await auth();
+const getAuthSession = cache(async () => auth());
+
+export const requireSession = cache(async (): Promise<SessionUser> => {
+  const session = await getAuthSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -29,10 +30,10 @@ export async function requireSession(): Promise<SessionUser> {
     nombre: session.user.nombre,
     email: session.user.email ?? "",
   };
-}
+});
 
-export async function getSessionOrNull(): Promise<SessionUser | null> {
-  const session = await auth();
+export const getSessionOrNull = cache(async (): Promise<SessionUser | null> => {
+  const session = await getAuthSession();
   if (!session?.user?.id) return null;
   return {
     id: session.user.id,
@@ -42,4 +43,4 @@ export async function getSessionOrNull(): Promise<SessionUser | null> {
     nombre: session.user.nombre,
     email: session.user.email ?? "",
   };
-}
+});

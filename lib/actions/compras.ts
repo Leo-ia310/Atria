@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   compras,
@@ -119,20 +119,58 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
         })),
       );
 
-      // Actualizar existencias y costo promedio
-      for (const it of data.items) {
-        const [exist] = await tx
-          .select({ cantidad: existencias.cantidad })
+      const productoIds = [...new Set(data.items.map((item) => item.productoId))];
+      const [existenciasRows, productosRows] = await Promise.all([
+        tx
+          .select({
+            productoId: existencias.productoId,
+            cantidad: existencias.cantidad,
+          })
           .from(existencias)
           .where(
             and(
-              eq(existencias.productoId, it.productoId),
+              eq(existencias.empresaId, user.empresaId),
               eq(existencias.almacenId, data.almacenId),
+              inArray(existencias.productoId, productoIds),
             ),
-          )
-          .limit(1);
+          ),
+        tx
+          .select({
+            id: productos.id,
+            costoActual: productos.costoPromedio,
+            metodoCosteo: productos.metodoCosteo,
+          })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              inArray(productos.id, productoIds),
+            ),
+          ),
+      ]);
+      const stockPorProducto = new Map(
+        existenciasRows.map((row) => [
+          row.productoId,
+          { cantidad: parseFloat(row.cantidad), existe: true },
+        ]),
+      );
+      const costeoPorProducto = new Map(
+        productosRows.map((producto) => [
+          producto.id,
+          {
+            costoActual: parseFloat(producto.costoActual),
+            metodoCosteo: producto.metodoCosteo,
+          },
+        ]),
+      );
 
-        if (exist) {
+      for (const it of data.items) {
+        const stock = stockPorProducto.get(it.productoId) ?? {
+          cantidad: 0,
+          existe: false,
+        };
+
+        if (stock.existe) {
           await tx
             .update(existencias)
             .set({
@@ -141,6 +179,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
             })
             .where(
               and(
+                eq(existencias.empresaId, user.empresaId),
                 eq(existencias.productoId, it.productoId),
                 eq(existencias.almacenId, data.almacenId),
               ),
@@ -154,28 +193,27 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
           });
         }
 
-        // Costo promedio ponderado
-        const [prod] = await tx
-          .select({
-            costoActual: productos.costoPromedio,
-            metodoCosteo: productos.metodoCosteo,
-          })
-          .from(productos)
-          .where(eq(productos.id, it.productoId))
-          .limit(1);
-
+        const prod = costeoPorProducto.get(it.productoId);
         if (prod?.metodoCosteo === "promedio") {
-          const stockAnterior = parseFloat(exist?.cantidad ?? "0");
-          const costoAnterior = parseFloat(prod.costoActual);
           const nuevoCosto = dinero(
-            (stockAnterior * costoAnterior + it.cantidad * it.costoUnitario) /
-              (stockAnterior + it.cantidad),
+            (stock.cantidad * prod.costoActual + it.cantidad * it.costoUnitario) /
+              (stock.cantidad + it.cantidad),
           );
           await tx
             .update(productos)
             .set({ costoPromedio: aDecimalStr(nuevoCosto), actualizadoEn: new Date() })
-            .where(eq(productos.id, it.productoId));
+            .where(
+              and(
+                eq(productos.id, it.productoId),
+                eq(productos.empresaId, user.empresaId),
+              ),
+            );
+          prod.costoActual = nuevoCosto;
         }
+
+        stock.cantidad += it.cantidad;
+        stock.existe = true;
+        stockPorProducto.set(it.productoId, stock);
       }
 
       if (data.esCredito) {
@@ -210,7 +248,12 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
     await db
       .update(compras)
       .set({ asientoId })
-      .where(eq(compras.id, compraResult.id));
+      .where(
+        and(
+          eq(compras.id, compraResult.id),
+          eq(compras.empresaId, user.empresaId),
+        ),
+      );
 
     revalidatePath("/compras");
     revalidatePath("/inventario");

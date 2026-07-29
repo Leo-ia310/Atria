@@ -224,7 +224,10 @@ export const suscripciones = pgTable(
     notas: text("notas"),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("suscripciones_empresa_idx").on(t.empresaId)],
+  (t) => [
+    index("suscripciones_empresa_idx").on(t.empresaId),
+    index("suscripciones_empresa_creado_idx").on(t.empresaId, t.creadoEn),
+  ],
 );
 
 export const sucursales = pgTable(
@@ -246,6 +249,11 @@ export const sucursales = pgTable(
   (t) => [
     unique("sucursales_empresa_codigo_uq").on(t.empresaId, t.codigo),
     index("sucursales_empresa_idx").on(t.empresaId),
+    index("sucursales_empresa_activa_eliminado_idx").on(
+      t.empresaId,
+      t.activa,
+      t.eliminadoEn,
+    ),
   ],
 );
 
@@ -503,6 +511,12 @@ export const productos = pgTable(
     index("productos_empresa_idx").on(t.empresaId),
     index("productos_nombre_idx").on(t.nombre),
     index("productos_codigo_barras_idx").on(t.codigoBarras),
+    index("productos_empresa_activo_eliminado_creado_idx").on(
+      t.empresaId,
+      t.activo,
+      t.eliminadoEn,
+      t.creadoEn,
+    ),
   ],
 );
 
@@ -592,6 +606,11 @@ export const almacenes = pgTable(
   (t) => [
     unique("almacenes_empresa_codigo_uq").on(t.empresaId, t.codigo),
     index("almacenes_empresa_idx").on(t.empresaId),
+    index("almacenes_empresa_sucursal_activo_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.activo,
+    ),
   ],
 );
 
@@ -643,6 +662,11 @@ export const existencias = pgTable(
     unique("existencias_uq").on(t.productoId, t.almacenId, t.loteId),
     index("existencias_empresa_idx").on(t.empresaId),
     index("existencias_almacen_idx").on(t.almacenId),
+    index("existencias_empresa_almacen_producto_idx").on(
+      t.empresaId,
+      t.almacenId,
+      t.productoId,
+    ),
   ],
 );
 
@@ -679,6 +703,12 @@ export const movimientosInventario = pgTable(
     index("mov_inv_almacen_idx").on(t.almacenId),
     index("mov_inv_referencia_idx").on(t.referenciaTabla, t.referenciaId),
     index("mov_inv_creado_idx").on(t.creadoEn),
+    index("mov_inv_empresa_producto_almacen_creado_idx").on(
+      t.empresaId,
+      t.productoId,
+      t.almacenId,
+      t.creadoEn,
+    ),
   ],
 );
 
@@ -878,6 +908,11 @@ export const cuentasPorPagar = pgTable(
     index("cxp_empresa_idx").on(t.empresaId),
     index("cxp_proveedor_idx").on(t.proveedorId),
     index("cxp_vencimiento_idx").on(t.fechaVencimiento),
+    index("cxp_empresa_estado_vencimiento_idx").on(
+      t.empresaId,
+      t.estado,
+      t.fechaVencimiento,
+    ),
   ],
 );
 
@@ -957,6 +992,11 @@ export const cajas = pgTable(
   (t) => [
     unique("cajas_empresa_codigo_uq").on(t.empresaId, t.codigo),
     index("cajas_empresa_idx").on(t.empresaId),
+    index("cajas_empresa_sucursal_activa_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.activa,
+    ),
   ],
 );
 
@@ -985,6 +1025,11 @@ export const sesionesCaja = pgTable(
   (t) => [
     index("sesiones_empresa_idx").on(t.empresaId),
     index("sesiones_caja_idx").on(t.cajaId),
+    index("sesiones_empresa_estado_caja_idx").on(
+      t.empresaId,
+      t.estado,
+      t.cajaId,
+    ),
   ],
 );
 
@@ -1044,6 +1089,12 @@ export const ventas = pgTable(
     index("ventas_cliente_idx").on(t.clienteId),
     index("ventas_fecha_idx").on(t.fecha),
     index("ventas_sucursal_idx").on(t.sucursalId),
+    index("ventas_empresa_fecha_idx").on(t.empresaId, t.fecha),
+    index("ventas_empresa_sucursal_fecha_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.fecha,
+    ),
   ],
 );
 
@@ -1156,6 +1207,7 @@ export const facturas = pgTable(
     index("facturas_empresa_idx").on(t.empresaId),
     index("facturas_fecha_idx").on(t.fecha),
     index("facturas_vendedor_idx").on(t.vendedorId),
+    index("facturas_empresa_fecha_idx").on(t.empresaId, t.fecha),
   ],
 );
 
@@ -1182,6 +1234,11 @@ export const cuentasPorCobrar = pgTable(
     index("cxc_empresa_idx").on(t.empresaId),
     index("cxc_cliente_idx").on(t.clienteId),
     index("cxc_vencimiento_idx").on(t.fechaVencimiento),
+    index("cxc_empresa_estado_vencimiento_idx").on(
+      t.empresaId,
+      t.estado,
+      t.fechaVencimiento,
+    ),
   ],
 );
 
@@ -1422,6 +1479,11 @@ export const asientosContables = pgTable(
     index("asientos_periodo_idx").on(t.periodoId),
     index("asientos_fecha_idx").on(t.fecha),
     index("asientos_referencia_idx").on(t.referenciaTabla, t.referenciaId),
+    index("asientos_empresa_estado_fecha_idx").on(
+      t.empresaId,
+      t.estado,
+      t.fecha,
+    ),
   ],
 );
 
@@ -1552,6 +1614,7 @@ export const gastos = pgTable(
     index("gastos_empresa_idx").on(t.empresaId),
     index("gastos_fecha_idx").on(t.fecha),
     index("gastos_categoria_idx").on(t.categoriaId),
+    index("gastos_empresa_fecha_idx").on(t.empresaId, t.fecha),
   ],
 );
 
@@ -1665,6 +1728,11 @@ export const empleados = pgTable(
     unique("empleados_empresa_codigo_uq").on(t.empresaId, t.codigo),
     index("empleados_empresa_idx").on(t.empresaId),
     index("empleados_estado_idx").on(t.estado),
+    index("empleados_empresa_sucursal_eliminado_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.eliminadoEn,
+    ),
   ],
 );
 
@@ -1692,6 +1760,11 @@ export const asistencias = pgTable(
     unique("asistencias_empleado_fecha_uq").on(t.empleadoId, t.fecha),
     index("asistencias_empresa_idx").on(t.empresaId),
     index("asistencias_fecha_idx").on(t.fecha),
+    index("asistencias_empresa_fecha_empleado_idx").on(
+      t.empresaId,
+      t.fecha,
+      t.empleadoId,
+    ),
   ],
 );
 
@@ -1810,6 +1883,11 @@ export const solicitudesRrhh = pgTable(
     index("solicitudes_rrhh_empresa_idx").on(t.empresaId),
     index("solicitudes_rrhh_empleado_idx").on(t.empleadoId),
     index("solicitudes_rrhh_estado_idx").on(t.estado),
+    index("solicitudes_rrhh_empresa_estado_creado_idx").on(
+      t.empresaId,
+      t.estado,
+      t.creadoEn,
+    ),
   ],
 );
 
@@ -1842,6 +1920,11 @@ export const vacantes = pgTable(
     unique("vacantes_empresa_codigo_uq").on(t.empresaId, t.codigo),
     index("vacantes_empresa_idx").on(t.empresaId),
     index("vacantes_estado_idx").on(t.estado),
+    index("vacantes_empresa_estado_creado_idx").on(
+      t.empresaId,
+      t.estado,
+      t.creadoEn,
+    ),
   ],
 );
 

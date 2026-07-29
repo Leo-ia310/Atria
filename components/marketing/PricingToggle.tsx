@@ -47,17 +47,17 @@ export function PricingToggle() {
   return (
     <div>
       <div className="flex items-center justify-center gap-3">
-        <div className="inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-1">
+        <div className="inline-flex rounded-full border border-white/15 bg-[#1b0d31]/90 p-1">
           {(["mensual", "anual"] as const).map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setCiclo(c)}
               className={cn(
-                "rounded px-4 py-1.5 text-small transition",
+                "rounded-full px-5 py-1.5 text-[13px] transition",
                 ciclo === c
-                  ? "bg-[color:var(--color-primary)] font-medium text-white"
-                  : "text-[color:var(--color-text-secondary)]",
+                  ? "bg-[linear-gradient(135deg,#7c3aed,#2563eb)] font-medium text-white shadow-[0_6px_18px_rgba(124,58,237,0.4)]"
+                  : "text-white/60 hover:text-white",
               )}
             >
               {c === "mensual" ? "Mensual" : "Anual"}
@@ -65,7 +65,9 @@ export function PricingToggle() {
           ))}
         </div>
         {ciclo === "anual" && (
-          <span className="atria-badge atria-badge-success">Ahorra 15%</span>
+          <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
+            Ahorra 15%
+          </span>
         )}
       </div>
 
@@ -77,66 +79,68 @@ export function PricingToggle() {
             <div
               key={p.id}
               className={cn(
-                "flex flex-col rounded-lg border bg-[color:var(--color-surface)] p-7 transition",
-                p.destacado
-                  ? "border-[color:var(--color-primary)] shadow-[0_8px_30px_rgba(43,31,58,0.12)] ring-1 ring-[color:var(--color-primary)]/20 md:scale-105"
-                  : "border-[color:var(--color-border)]",
+                "atria-gradborder h-full transition-transform duration-500",
+                p.destacado && "fast md:scale-105",
               )}
             >
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">
-                  {p.nombre}
-                </h3>
-                {p.destacado && (
-                  <span className="atria-badge atria-badge-info">
-                    <Sparkles size={10} /> Popular
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-                {p.descripcionCorta}
-              </p>
-
-              <div className="mt-5 flex items-baseline gap-1">
-                <span className="text-display text-[color:var(--color-text-primary)]">
-                  ${precio.toFixed(precio % 1 === 0 ? 0 : 2)}
-                </span>
-                <span className="text-small text-[color:var(--color-text-muted)]">
-                  {precio === 0 ? "/siempre" : "/mes"}
-                </span>
-              </div>
-              {ciclo === "anual" && p.precioAnual > 0 && (
-                <p className="mt-1 text-[12px] text-[color:var(--color-text-muted)]">
-                  Facturado anual: ${p.precioAnual.toFixed(2)}
-                </p>
-              )}
-              {ciclo === "mensual" && p.precioMensual > 0 && (
-                <p className="mt-1 text-[12px] text-[color:var(--color-text-muted)]">
-                  Sin contrato anual
-                </p>
-              )}
-
-              <Link
-                href={`/registro?plan=${p.id}&ciclo=${ciclo}`}
+              <div
                 className={cn(
-                  "mt-6 atria-btn w-full justify-center",
-                  p.destacado ? "atria-btn-primary" : "atria-btn-secondary",
+                  "flex h-full flex-col p-7",
+                  p.destacado
+                    ? "bg-[linear-gradient(165deg,#241145,#160a2b)] shadow-[0_20px_60px_rgba(124,58,237,0.35)]"
+                    : "bg-[linear-gradient(165deg,#180d2b,#120820)]",
                 )}
               >
-                {p.id === "demo" ? "Probar gratis" : `Empezar ${p.nombre}`}
-              </Link>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[18px] font-semibold text-white">{p.nombre}</h3>
+                  {p.destacado && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[linear-gradient(135deg,#7c3aed,#2563eb)] px-2.5 py-1 text-[11px] font-semibold text-white">
+                      <Sparkles size={11} /> Popular
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[13px] text-white/55">{p.descripcionCorta}</p>
 
-              <ul className="mt-6 space-y-2.5 text-small">
-                {ventajas.map((v) => (
-                  <li key={v} className="flex items-start gap-2">
-                    <Check
-                      size={14}
-                      className="mt-0.5 flex-shrink-0 text-[color:var(--color-success)]"
-                    />
-                    <span className="text-[color:var(--color-text-secondary)]">{v}</span>
-                  </li>
-                ))}
-              </ul>
+                <div className="mt-5 flex items-baseline gap-1">
+                  <span className="text-[44px] font-bold leading-none text-white">
+                    ${precio.toFixed(precio % 1 === 0 ? 0 : 2)}
+                  </span>
+                  <span className="text-[13px] text-white/50">
+                    {precio === 0 ? "/siempre" : "/mes"}
+                  </span>
+                </div>
+                {ciclo === "anual" && p.precioAnual > 0 && (
+                  <p className="mt-1 text-[12px] text-white/45">
+                    Facturado anual: ${p.precioAnual.toFixed(2)}
+                  </p>
+                )}
+                {ciclo === "mensual" && p.precioMensual > 0 && (
+                  <p className="mt-1 text-[12px] text-white/45">Sin contrato anual</p>
+                )}
+
+                <Link
+                  href={`/registro?plan=${p.id}&ciclo=${ciclo}`}
+                  className={cn(
+                    "atria-btn atria-btn-lg mt-6 w-full justify-center transition hover:-translate-y-0.5",
+                    p.destacado
+                      ? "bg-white text-[#160827] hover:bg-[#efe7ff]"
+                      : "border border-white/20 bg-white/5 text-white hover:bg-white/12",
+                  )}
+                >
+                  {p.id === "demo" ? "Probar gratis" : `Empezar ${p.nombre}`}
+                </Link>
+
+                <ul className="mt-6 space-y-2.5 text-[13px]">
+                  {ventajas.map((v) => (
+                    <li key={v} className="flex items-start gap-2">
+                      <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#052e1b]">
+                        <Check size={11} className="text-[#34d399]" />
+                      </span>
+                      <span className="text-white/70">{v}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           );
         })}

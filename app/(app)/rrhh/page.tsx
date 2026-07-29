@@ -42,7 +42,7 @@ export default async function RrhhPage() {
     ? inArray(vacantes.sucursalId, sucursalIds)
     : undefined;
 
-  const [activos] = await db
+  const activosPromise = db
     .select({ n: count() })
     .from(empleados)
     .where(
@@ -54,7 +54,7 @@ export default async function RrhhPage() {
       ),
     );
 
-  const [asistHoy] = await db
+  const asistHoyPromise = db
     .select({ n: count() })
     .from(asistencias)
     .innerJoin(empleados, eq(empleados.id, asistencias.empleadoId))
@@ -68,7 +68,7 @@ export default async function RrhhPage() {
       ),
     );
 
-  const [pendientes] = await db
+  const pendientesPromise = db
     .select({ n: count() })
     .from(solicitudesRrhh)
     .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
@@ -82,7 +82,7 @@ export default async function RrhhPage() {
       ),
     );
 
-  const [abiertas] = await db
+  const abiertasPromise = db
     .select({ n: count() })
     .from(vacantes)
     .where(
@@ -92,6 +92,18 @@ export default async function RrhhPage() {
         filtroSucursalVacante,
       ),
     );
+
+  const [activosRows, asistHoyRows, pendientesRows, abiertasRows] =
+    await Promise.all([
+      activosPromise,
+      asistHoyPromise,
+      pendientesPromise,
+      abiertasPromise,
+    ]);
+  const activos = activosRows[0];
+  const asistHoy = asistHoyRows[0];
+  const pendientes = pendientesRows[0];
+  const abiertas = abiertasRows[0];
 
   return (
     <div>

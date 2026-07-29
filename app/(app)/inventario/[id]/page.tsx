@@ -18,11 +18,29 @@ export default async function EditarProductoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [producto] = await db
-    .select()
+    .select({
+      id: productos.id,
+      sku: productos.sku,
+      codigoBarras: productos.codigoBarras,
+      nombre: productos.nombre,
+      descripcion: productos.descripcion,
+      tipo: productos.tipo,
+      categoriaId: productos.categoriaId,
+      marcaId: productos.marcaId,
+      unidadBaseId: productos.unidadBaseId,
+      impuestoId: productos.impuestoId,
+      precioBase: productos.precioBase,
+      costoPromedio: productos.costoPromedio,
+      stockMinimo: productos.stockMinimo,
+      stockMaximo: productos.stockMaximo,
+      metodoCosteo: productos.metodoCosteo,
+      manejaLotes: productos.manejaLotes,
+      manejaSeries: productos.manejaSeries,
+      fechaVencimiento: productos.fechaVencimiento,
+    })
     .from(productos)
     .where(
       and(

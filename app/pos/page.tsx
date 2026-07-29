@@ -1,45 +1,36 @@
 import { redirect } from "next/navigation";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   productos,
   clientes,
-  sucursales,
   almacenes,
   existencias,
   formasPago,
   impuestos,
-  empresas,
   cajas,
   sesionesCaja,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { POSContenedor } from "@/components/pos/POSContenedor";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function POSPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais, moneda: empresas.moneda })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-
-  const scope = await getSucursalScope(user);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
-  const sucursalesActivas = await db
-    .select({ id: sucursales.id, nombre: sucursales.nombre, esPrincipal: sucursales.esPrincipal })
-    .from(sucursales)
-    .where(
-      and(
-        eq(sucursales.empresaId, user.empresaId),
-        eq(sucursales.activa, true),
-        isNull(sucursales.eliminadoEn),
-        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(desc(sucursales.esPrincipal), sucursales.nombre);
+  const sucursalesActivas = scope.sucursales
+    .filter((sucursal) => !sucursalIds || sucursalIds.includes(sucursal.id))
+    .sort(
+      (a, b) =>
+        Number(b.esPrincipal) - Number(a.esPrincipal) ||
+        a.nombre.localeCompare(b.nombre),
+    );
 
   const sucursalOperativa =
     sucursalIds?.length === 1
@@ -67,22 +58,18 @@ export default async function POSPage() {
     redirect("/configuracion/sucursales");
   }
 
-  const stockRows = await db
-    .select({ productoId: existencias.productoId })
-    .from(existencias)
-    .where(
-      and(
-        eq(existencias.empresaId, user.empresaId),
-        eq(existencias.almacenId, almacenOperativo.id),
-      ),
-    );
-  const productosEnAlmacen = [...new Set(stockRows.map((row) => row.productoId))];
-  const filtroProductoOperativo =
-    productosEnAlmacen.length > 0
-      ? or(eq(productos.tipo, "servicio"), inArray(productos.id, productosEnAlmacen))
-      : eq(productos.tipo, "servicio");
+  const filtroProductoOperativo = or(
+    eq(productos.tipo, "servicio"),
+    sql<boolean>`exists (
+      select 1
+      from ${existencias}
+      where ${existencias.empresaId} = ${user.empresaId}
+        and ${existencias.almacenId} = ${almacenOperativo.id}
+        and ${existencias.productoId} = ${productos.id}
+    )`,
+  );
 
-  const productosList = await db
+  const productosPromise = db
     .select({
       id: productos.id,
       sku: productos.sku,
@@ -104,13 +91,11 @@ export default async function POSPage() {
     .orderBy(desc(productos.creadoEn))
     .limit(500);
 
-  const impuestosList = await db
+  const impuestosPromise = db
     .select({ id: impuestos.id, tasa: impuestos.tasa })
     .from(impuestos)
     .where(eq(impuestos.empresaId, user.empresaId));
-  const mapaImpuestos = new Map(impuestosList.map((i) => [i.id, parseFloat(i.tasa)]));
-
-  const clientesList = await db
+  const clientesPromise = db
     .select({
       id: clientes.id,
       nombre: clientes.nombre,
@@ -122,7 +107,7 @@ export default async function POSPage() {
     .where(and(eq(clientes.empresaId, user.empresaId), isNull(clientes.eliminadoEn)))
     .limit(500);
 
-  const formasPagoList = await db
+  const formasPagoPromise = db
     .select({
       id: formasPago.id,
       codigo: formasPago.codigo,
@@ -133,7 +118,7 @@ export default async function POSPage() {
     .where(and(eq(formasPago.empresaId, user.empresaId), eq(formasPago.activa, true)));
 
   // Sesión de caja abierta para la sucursal operativa (si existe).
-  const [sesionAbierta] = await db
+  const sesionPromise = db
     .select({ id: sesionesCaja.id, cajaNombre: cajas.nombre })
     .from(sesionesCaja)
     .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
@@ -141,13 +126,14 @@ export default async function POSPage() {
       and(
         eq(sesionesCaja.empresaId, user.empresaId),
         eq(sesionesCaja.estado, "abierta"),
+        eq(cajas.empresaId, user.empresaId),
         eq(cajas.sucursalId, sucursalOperativa.id),
       ),
     )
     .limit(1);
 
   // Cajas activas de la sucursal para poder abrir sesión desde el POS.
-  const cajasSucursal = await db
+  const cajasPromise = db
     .select({ id: cajas.id, codigo: cajas.codigo, nombre: cajas.nombre })
     .from(cajas)
     .where(
@@ -157,6 +143,26 @@ export default async function POSPage() {
         eq(cajas.activa, true),
       ),
     );
+
+  const [
+    productosList,
+    impuestosList,
+    clientesList,
+    formasPagoList,
+    sesionRows,
+    cajasSucursal,
+  ] = await Promise.all([
+    productosPromise,
+    impuestosPromise,
+    clientesPromise,
+    formasPagoPromise,
+    sesionPromise,
+    cajasPromise,
+  ]);
+  const sesionAbierta = sesionRows[0];
+  const mapaImpuestos = new Map(
+    impuestosList.map((impuesto) => [impuesto.id, parseFloat(impuesto.tasa)]),
+  );
 
   return (
     <POSContenedor

@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asientosContables, empresas, periodosContables } from "@/lib/db/schema";
+import { asientosContables, periodosContables } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -20,11 +21,7 @@ const MESES_ES = [
 export default async function PeriodosPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
   const periodos = await db

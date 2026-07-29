@@ -3,12 +3,9 @@ import { BookOpen } from "lucide-react";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  asientosContables,
-  asientoPartidas,
-  catalogoCuentas,
-  empresas,
-} from "@/lib/db/schema";
+  asientosContables, asientoPartidas, catalogoCuentas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -21,11 +18,7 @@ export default async function LibroMayorPage({
 }) {
   const params = await searchParams;
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = empresa?.pais ?? "NI";
 
   const cuentas = await db

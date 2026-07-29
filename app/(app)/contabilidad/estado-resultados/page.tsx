@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { saldosPorCuenta, calcularEstadoResultados } from "@/lib/contabilidad/queries";
@@ -9,11 +10,7 @@ import { formatearMoneda } from "@/lib/utils";
 
 export default async function EstadoResultadosPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais, razonSocial: empresas.razonSocial })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = empresa?.pais ?? "NI";
 
   const saldos = await saldosPorCuenta(user.empresaId);

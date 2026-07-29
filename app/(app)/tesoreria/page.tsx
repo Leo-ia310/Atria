@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Plus, Receipt, Landmark, Wallet } from "lucide-react";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cuentasFinancieras, gastos, categoriasGasto, empresas } from "@/lib/db/schema";
+import { cuentasFinancieras, gastos, categoriasGasto } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -23,14 +24,7 @@ const LABEL_TIPO: Record<string, string> = {
 export default async function TesoreriaPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-
-  const cuentas = await db
+  const cuentasPromise = db
     .select({
       id: cuentasFinancieras.id,
       nombre: cuentasFinancieras.nombre,
@@ -42,7 +36,7 @@ export default async function TesoreriaPage() {
     .where(eq(cuentasFinancieras.empresaId, user.empresaId))
     .orderBy(cuentasFinancieras.tipo, cuentasFinancieras.nombre);
 
-  const gastosRecientes = await db
+  const gastosPromise = db
     .select({
       id: gastos.id,
       fecha: gastos.fecha,
@@ -55,6 +49,13 @@ export default async function TesoreriaPage() {
     .where(eq(gastos.empresaId, user.empresaId))
     .orderBy(desc(gastos.creadoEn))
     .limit(10);
+
+  const [empresa, cuentas, gastosRecientes] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    cuentasPromise,
+    gastosPromise,
+  ]);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
   const totalDisponible = cuentas.reduce((a, c) => a + parseFloat(c.saldoActual), 0);
 

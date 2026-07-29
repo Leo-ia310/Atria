@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { empresas, facturas, sucursales, usuarios, ventas } from "@/lib/db/schema";
+import { facturas, sucursales, usuarios, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -13,6 +13,7 @@ import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { FacturaVer } from "@/components/facturas/FacturaVer";
 import type { ReciboData } from "@/components/pos/Recibo";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function FacturasPage({
   searchParams,
@@ -25,23 +26,17 @@ export default async function FacturasPage({
     tipo?: string;
   }>;
 }) {
-  const sp = await searchParams;
-  const user = await requireSession();
-  const scope = await getSucursalScope(user);
+  const [sp, user] = await Promise.all([searchParams, requireSession()]);
+  const [scope, empresa, vendedores] = await Promise.all([
+    getSucursalScope(user),
+    getEmpresaMetadata(user.empresaId),
+    db
+      .select({ id: usuarios.id, nombre: usuarios.nombre })
+      .from(usuarios)
+      .where(eq(usuarios.empresaId, user.empresaId)),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const [empresa] = await db
-    .select({
-      pais: empresas.pais,
-      razonSocial: empresas.razonSocial,
-      nombreComercial: empresas.nombreComercial,
-      identificacionFiscal: empresas.identificacionFiscal,
-      direccion: empresas.direccion,
-      telefono: empresas.telefono,
-    })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const config = getPaisConfig(pais);
   const empresaRecibo = {
@@ -51,11 +46,6 @@ export default async function FacturasPage({
     direccion: empresa?.direccion ?? null,
     telefono: empresa?.telefono ?? null,
   };
-
-  const vendedores = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre })
-    .from(usuarios)
-    .where(eq(usuarios.empresaId, user.empresaId));
 
   const cond = [eq(facturas.empresaId, user.empresaId)];
   if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {

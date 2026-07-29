@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { and, count, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -39,75 +40,90 @@ export type RecursoLimitado =
 
 const ADMIN_ROLE = "administrador";
 
-export async function getAccessContext(user: SessionUser): Promise<AccessContext> {
-  const [usuarioActual] = await db
-    .select({
-      rolId: usuarios.rolId,
-      activo: usuarios.activo,
-      esSuperAdmin: usuarios.esSuperAdmin,
-    })
-    .from(usuarios)
-    .where(
-      and(
-        eq(usuarios.id, user.id),
-        eq(usuarios.empresaId, user.empresaId),
-        isNull(usuarios.eliminadoEn),
-      ),
-    )
-    .limit(1);
+const getAccessContextCached = cache(
+  async (
+    userId: string,
+    empresaId: string,
+    sessionRolId: string | null,
+    sessionEsSuperAdmin: boolean,
+  ): Promise<AccessContext> => {
+    const [[usuarioActual], [suscripcion]] = await Promise.all([
+      db
+        .select({
+          rolId: usuarios.rolId,
+          activo: usuarios.activo,
+          esSuperAdmin: usuarios.esSuperAdmin,
+        })
+        .from(usuarios)
+        .where(
+          and(
+            eq(usuarios.id, userId),
+            eq(usuarios.empresaId, empresaId),
+            isNull(usuarios.eliminadoEn),
+          ),
+        )
+        .limit(1),
+      db
+        .select({
+          planCodigo: planes.codigo,
+          planNombre: planes.nombre,
+          maxSucursales: planes.maxSucursales,
+          maxUsuarios: planes.maxUsuarios,
+          maxProductos: planes.maxProductos,
+          maxTransaccionesMes: planes.maxTransaccionesMes,
+          features: planes.features,
+          usuariosExtra: suscripciones.usuariosExtra,
+          sucursalesExtra: suscripciones.sucursalesExtra,
+        })
+        .from(suscripciones)
+        .innerJoin(planes, eq(planes.id, suscripciones.planId))
+        .where(eq(suscripciones.empresaId, empresaId))
+        .orderBy(desc(suscripciones.creadoEn))
+        .limit(1),
+    ]);
 
-  const rolIdActual = usuarioActual?.rolId ?? user.rolId;
-  const usuarioActivo = usuarioActual?.activo ?? true;
+    const rolIdActual = usuarioActual?.rolId ?? sessionRolId;
+    const usuarioActivo = usuarioActual?.activo ?? true;
 
-  const [rol] = rolIdActual
-    ? await db
-        .select({ id: roles.id, nombre: roles.nombre })
+    const rolRows = rolIdActual
+      ? await db
+        .select({
+          nombre: roles.nombre,
+          permiso: permisos.clave,
+        })
         .from(roles)
-        .where(and(eq(roles.id, rolIdActual), eq(roles.empresaId, user.empresaId)))
-        .limit(1)
-    : [null];
+        .leftJoin(rolPermisos, eq(rolPermisos.rolId, roles.id))
+        .leftJoin(permisos, eq(permisos.id, rolPermisos.permisoId))
+        .where(and(eq(roles.id, rolIdActual), eq(roles.empresaId, empresaId)))
+      : [];
 
-  const permisosRows = rolIdActual
-    ? await db
-        .select({ clave: permisos.clave })
-        .from(rolPermisos)
-        .innerJoin(permisos, eq(permisos.id, rolPermisos.permisoId))
-        .where(eq(rolPermisos.rolId, rolIdActual))
-    : [];
+    const plan = normalizarPlan(suscripcion);
+    const rolNombre = rolRows[0]?.nombre ?? null;
+    const esAdminEmpresa =
+      usuarioActivo &&
+      ((usuarioActual?.esSuperAdmin ?? sessionEsSuperAdmin) ||
+        rolNombre?.trim().toLowerCase() === ADMIN_ROLE);
 
-  const [suscripcion] = await db
-    .select({
-      planCodigo: planes.codigo,
-      planNombre: planes.nombre,
-      maxSucursales: planes.maxSucursales,
-      maxUsuarios: planes.maxUsuarios,
-      maxProductos: planes.maxProductos,
-      maxTransaccionesMes: planes.maxTransaccionesMes,
-      features: planes.features,
-      usuariosExtra: suscripciones.usuariosExtra,
-      sucursalesExtra: suscripciones.sucursalesExtra,
-    })
-    .from(suscripciones)
-    .innerJoin(planes, eq(planes.id, suscripciones.planId))
-    .where(eq(suscripciones.empresaId, user.empresaId))
-    .orderBy(desc(suscripciones.creadoEn))
-    .limit(1);
+    return {
+      esAdminEmpresa,
+      permisos: usuarioActivo
+        ? rolRows.flatMap((row) => (row.permiso ? [row.permiso] : []))
+        : [],
+      plan,
+      rolNombre,
+      usuariosExtra: suscripcion?.usuariosExtra ?? 0,
+      sucursalesExtra: suscripcion?.sucursalesExtra ?? 0,
+    };
+  },
+);
 
-  const plan = normalizarPlan(suscripcion);
-  const rolNombre = rol?.nombre ?? null;
-  const esAdminEmpresa =
-    usuarioActivo &&
-    ((usuarioActual?.esSuperAdmin ?? user.esSuperAdmin) ||
-      rolNombre?.trim().toLowerCase() === ADMIN_ROLE);
-
-  return {
-    esAdminEmpresa,
-    permisos: usuarioActivo ? permisosRows.map((p) => p.clave) : [],
-    plan,
-    rolNombre,
-    usuariosExtra: suscripcion?.usuariosExtra ?? 0,
-    sucursalesExtra: suscripcion?.sucursalesExtra ?? 0,
-  };
+export function getAccessContext(user: SessionUser): Promise<AccessContext> {
+  return getAccessContextCached(
+    user.id,
+    user.empresaId,
+    user.rolId,
+    user.esSuperAdmin,
+  );
 }
 
 export async function requireModulo(user: SessionUser, modulo: ModuloAcceso) {

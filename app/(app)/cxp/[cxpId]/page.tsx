@@ -3,14 +3,9 @@ import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  cuentasPorPagar,
-  proveedores,
-  compras,
-  pagosProveedor,
-  cuentasFinancieras,
-  empresas,
-} from "@/lib/db/schema";
+  cuentasPorPagar, proveedores, compras, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -23,17 +18,9 @@ export default async function CxPDetallePage({
 }: {
   params: Promise<{ cxpId: string }>;
 }) {
-  const { cxpId } = await params;
-  const user = await requireSession();
+  const [{ cxpId }, user] = await Promise.all([params, requireSession()]);
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-
-  const [cxp] = await db
+  const cxpPromise = db
     .select({
       id: cuentasPorPagar.id,
       proveedorId: cuentasPorPagar.proveedorId,
@@ -59,9 +46,7 @@ export default async function CxPDetallePage({
     )
     .limit(1);
 
-  if (!cxp) notFound();
-
-  const pagos = await db
+  const pagosPromise = db
     .select({
       id: pagosProveedor.id,
       fecha: pagosProveedor.fecha,
@@ -75,10 +60,21 @@ export default async function CxPDetallePage({
     .where(and(eq(pagosProveedor.cxpId, cxpId), eq(pagosProveedor.empresaId, user.empresaId)))
     .orderBy(desc(pagosProveedor.fecha));
 
-  const cuentasList = await db
+  const cuentasPromise = db
     .select({ id: cuentasFinancieras.id, nombre: cuentasFinancieras.nombre, tipo: cuentasFinancieras.tipo })
     .from(cuentasFinancieras)
     .where(and(eq(cuentasFinancieras.empresaId, user.empresaId), eq(cuentasFinancieras.activa, true)));
+
+  const [empresa, cxpRows, pagos, cuentasList] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    cxpPromise,
+    pagosPromise,
+    cuentasPromise,
+  ]);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const cxp = cxpRows[0];
+
+  if (!cxp) notFound();
 
   const hoy = new Date().toISOString().slice(0, 10);
   const estaVencida = cxp.estado !== "pagada" && cxp.fechaVencimiento < hoy;

@@ -11,11 +11,21 @@ export default async function EditarProveedorPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [proveedor] = await db
-    .select()
+    .select({
+      id: proveedores.id,
+      razonSocial: proveedores.razonSocial,
+      nombreComercial: proveedores.nombreComercial,
+      identificacionFiscal: proveedores.identificacionFiscal,
+      email: proveedores.email,
+      telefono: proveedores.telefono,
+      direccion: proveedores.direccion,
+      diasCredito: proveedores.diasCredito,
+      contacto: proveedores.contacto,
+      notas: proveedores.notas,
+    })
     .from(proveedores)
     .where(
       and(

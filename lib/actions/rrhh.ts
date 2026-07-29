@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { and, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  empresas,
   empleados,
   asistencias,
   feriados,
@@ -15,6 +14,7 @@ import {
   candidatos,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import {
   empleadoSchema,
   asistenciaSchema,
@@ -333,11 +333,7 @@ export async function sembrarFeriados(anio: number): Promise<ResultadoSimple> {
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
   try {
-    const [empresa] = await db
-      .select({ pais: empresas.pais })
-      .from(empresas)
-      .where(eq(empresas.id, user.empresaId))
-      .limit(1);
+    const empresa = await getEmpresaMetadata(user.empresaId);
     const pais = (empresa?.pais ?? "NI") as PaisCodigo;
     const base = FERIADOS_POR_PAIS[pais] ?? [];
     const filas = base.map((f) => ({
@@ -485,11 +481,7 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
   }
   const d = parsed.data;
   try {
-    const [empresa] = await db
-      .select({ pais: empresas.pais })
-      .from(empresas)
-      .where(eq(empresas.id, user.empresaId))
-      .limit(1);
+    const empresa = await getEmpresaMetadata(user.empresaId);
     const pais = (empresa?.pais ?? "NI") as PaisCodigo;
     const tasaSS = TASA_SEGURIDAD_SOCIAL[pais] ?? 0;
 

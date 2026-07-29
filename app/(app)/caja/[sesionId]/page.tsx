@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { sesionesCaja, cajas, usuarios, ventas, empresas } from "@/lib/db/schema";
+import { sesionesCaja, cajas, usuarios, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -17,17 +18,9 @@ export default async function SesionDetallePage({
 }: {
   params: Promise<{ sesionId: string }>;
 }) {
-  const { sesionId } = await params;
-  const user = await requireSession();
+  const [{ sesionId }, user] = await Promise.all([params, requireSession()]);
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-
-  const [sesion] = await db
+  const sesionPromise = db
     .select({
       id: sesionesCaja.id,
       estado: sesionesCaja.estado,
@@ -50,10 +43,7 @@ export default async function SesionDetallePage({
     )
     .limit(1);
 
-  if (!sesion) notFound();
-
-  // Ventas stats for this session
-  const [stats] = await db
+  const statsPromise = db
     .select({
       totalVentas: count(ventas.id),
       totalContado: sum(ventas.total),
@@ -61,11 +51,23 @@ export default async function SesionDetallePage({
     .from(ventas)
     .where(
       and(
+        eq(ventas.empresaId, user.empresaId),
         eq(ventas.sesionCajaId, sesionId),
         eq(ventas.esCredito, false),
         isNull(ventas.anuladoEn),
       ),
     );
+
+  const [empresa, sesionRows, statsRows] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    sesionPromise,
+    statsPromise,
+  ]);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const sesion = sesionRows[0];
+  const stats = statsRows[0];
+
+  if (!sesion) notFound();
 
   const montoInicial = dinero(sesion.montoInicial);
   const totalVentasContado = dinero(stats?.totalContado ?? 0);

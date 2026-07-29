@@ -36,17 +36,19 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const limiteTransacciones = await validarLimitePlan(
-    acceso.access,
-    user.empresaId,
-    "transacciones_mes",
-  );
+  const [limiteTransacciones, limiteFacturas] = await Promise.all([
+    validarLimitePlan(
+      acceso.access,
+      user.empresaId,
+      "transacciones_mes",
+    ),
+    validarLimitePlan(
+      acceso.access,
+      user.empresaId,
+      "facturas_mes",
+    ),
+  ]);
   if (!limiteTransacciones.ok) return limiteTransacciones;
-  const limiteFacturas = await validarLimitePlan(
-    acceso.access,
-    user.empresaId,
-    "facturas_mes",
-  );
   if (!limiteFacturas.ok) return limiteFacturas;
   const data = parsed.data;
 
@@ -78,7 +80,13 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     const [cliente] = await db
       .select({ limite: clientes.limiteCredito, dias: clientes.diasCredito })
       .from(clientes)
-      .where(eq(clientes.id, data.clienteId))
+      .where(
+        and(
+          eq(clientes.id, data.clienteId),
+          eq(clientes.empresaId, user.empresaId),
+          isNull(clientes.eliminadoEn),
+        ),
+      )
       .limit(1);
     if (!cliente) return { ok: false, error: "Cliente no encontrado" };
     if (parseFloat(cliente.limite) <= 0) {
@@ -107,30 +115,49 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   }
 
   const productoIds = [...new Set(data.items.map((item) => item.productoId))];
-  const productosVenta = await db
-    .select({ id: productos.id, tipo: productos.tipo })
-    .from(productos)
-    .where(
-      and(
-        eq(productos.empresaId, user.empresaId),
-        eq(productos.activo, true),
-        isNull(productos.eliminadoEn),
-        inArray(productos.id, productoIds),
+  const [productosVenta, stockRows, sesionesAbiertas] = await Promise.all([
+    db
+      .select({ id: productos.id, tipo: productos.tipo })
+      .from(productos)
+      .where(
+        and(
+          eq(productos.empresaId, user.empresaId),
+          eq(productos.activo, true),
+          isNull(productos.eliminadoEn),
+          inArray(productos.id, productoIds),
+        ),
       ),
-    );
+    db
+      .select({
+        productoId: existencias.productoId,
+        cantidad: existencias.cantidad,
+      })
+      .from(existencias)
+      .where(
+        and(
+          eq(existencias.empresaId, user.empresaId),
+          eq(existencias.almacenId, data.almacenId),
+          inArray(existencias.productoId, productoIds),
+        ),
+      ),
+    db
+      .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
+      .from(sesionesCaja)
+      .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
+      .where(
+        and(
+          eq(sesionesCaja.empresaId, user.empresaId),
+          eq(sesionesCaja.estado, "abierta"),
+          eq(cajas.empresaId, user.empresaId),
+          eq(cajas.sucursalId, data.sucursalId),
+        ),
+      )
+      .orderBy(desc(sesionesCaja.abiertaEn)),
+  ]);
   if (productosVenta.length !== productoIds.length) {
     return { ok: false, error: "Uno o mas productos no son validos" };
   }
   const tipoPorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.tipo]));
-  const stockRows = await db
-    .select({ productoId: existencias.productoId, cantidad: existencias.cantidad })
-    .from(existencias)
-    .where(
-      and(
-        eq(existencias.almacenId, data.almacenId),
-        inArray(existencias.productoId, productoIds),
-      ),
-    );
   const stockPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.cantidad)]),
   );
@@ -142,18 +169,6 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     }
   }
 
-  const sesionesAbiertas = await db
-    .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
-    .from(sesionesCaja)
-    .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
-    .where(
-      and(
-        eq(sesionesCaja.empresaId, user.empresaId),
-        eq(sesionesCaja.estado, "abierta"),
-        eq(cajas.sucursalId, data.sucursalId),
-      ),
-    )
-    .orderBy(desc(sesionesCaja.abiertaEn));
   const sesionCajaId =
     sesionesAbiertas.find((s) => s.usuarioId === user.id)?.id ??
     sesionesAbiertas[0]?.id ??
@@ -246,20 +261,30 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         );
       }
 
-      for (const it of itemsInventario) {
-        await tx
-          .update(existencias)
-          .set({
-            cantidad: sql`${existencias.cantidad} - ${it.cantidad}`,
-            actualizadoEn: new Date(),
-          })
-          .where(
-            and(
-              eq(existencias.productoId, it.productoId),
-              eq(existencias.almacenId, data.almacenId),
-            ),
-          );
+      const cantidadPorProducto = new Map<string, number>();
+      for (const item of itemsInventario) {
+        cantidadPorProducto.set(
+          item.productoId,
+          (cantidadPorProducto.get(item.productoId) ?? 0) + item.cantidad,
+        );
       }
+      await Promise.all(
+        [...cantidadPorProducto].map(([productoId, cantidad]) =>
+          tx
+            .update(existencias)
+            .set({
+              cantidad: sql`${existencias.cantidad} - ${cantidad}`,
+              actualizadoEn: new Date(),
+            })
+            .where(
+              and(
+                eq(existencias.empresaId, user.empresaId),
+                eq(existencias.productoId, productoId),
+                eq(existencias.almacenId, data.almacenId),
+              ),
+            ),
+        ),
+      );
 
       if (data.esCredito && data.clienteId) {
         await tx.insert(cuentasPorCobrar).values({
@@ -314,7 +339,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     await db
       .update(ventas)
       .set({ asientoId })
-      .where(eq(ventas.id, resultado.id));
+      .where(
+        and(
+          eq(ventas.id, resultado.id),
+          eq(ventas.empresaId, user.empresaId),
+        ),
+      );
 
     // Guardar la factura (snapshot JSON) para el repositorio de facturas y la
     // reconstrucción del documento desde plantilla. No debe tumbar la venta.
@@ -324,7 +354,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         ? await db
             .select({ id: productos.id, nombre: productos.nombre, sku: productos.sku })
             .from(productos)
-            .where(inArray(productos.id, idsProductos))
+            .where(
+              and(
+                eq(productos.empresaId, user.empresaId),
+                inArray(productos.id, idsProductos),
+              ),
+            )
         : [];
       const mapaProd = new Map(prods.map((p) => [p.id, p]));
 
@@ -333,7 +368,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         const [c] = await db
           .select({ nombre: clientes.nombre })
           .from(clientes)
-          .where(eq(clientes.id, data.clienteId))
+          .where(
+            and(
+              eq(clientes.id, data.clienteId),
+              eq(clientes.empresaId, user.empresaId),
+            ),
+          )
           .limit(1);
         if (c) clienteNombre = c.nombre;
       }

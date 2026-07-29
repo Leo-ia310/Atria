@@ -2,16 +2,9 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  ventas,
-  ventaDetalle,
-  pagosVenta,
-  productos,
-  formasPago,
-  clientes,
-  empresas,
-  usuarios,
-} from "@/lib/db/schema";
+  ventas, ventaDetalle, pagosVenta, productos, formasPago, clientes, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { requireModulo } from "@/lib/server-access";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { TicketPrint } from "@/components/pos/TicketPrint";
@@ -49,18 +42,7 @@ export default async function TicketPage({
 
   if (!venta) notFound();
 
-  const [empresa] = await db
-    .select({
-      razonSocial: empresas.razonSocial,
-      nombreComercial: empresas.nombreComercial,
-      identificacionFiscal: empresas.identificacionFiscal,
-      direccion: empresas.direccion,
-      telefono: empresas.telefono,
-      pais: empresas.pais,
-    })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const config = getPaisConfig(pais);

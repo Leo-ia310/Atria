@@ -1,7 +1,8 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { feriados, empresas } from "@/lib/db/schema";
+import { feriados } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BackLink } from "@/components/layout/BackLink";
 import { FeriadosManager } from "@/components/rrhh/FeriadosManager";
@@ -17,11 +18,7 @@ export default async function FeriadosPage({
   const year =
     anio && /^\d{4}$/.test(anio) ? parseInt(anio, 10) : new Date().getFullYear();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = empresa?.pais ?? "NI";
 
   const lista = await db

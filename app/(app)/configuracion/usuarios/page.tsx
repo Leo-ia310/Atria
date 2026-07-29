@@ -22,26 +22,32 @@ type Fila = {
 
 export default async function UsuariosPage() {
   const user = await requireSession();
-  const access = await getAccessContext(user);
 
-  const filas: Fila[] = await db
-    .select({
-      id: usuarios.id,
-      nombre: usuarios.nombre,
-      email: usuarios.email,
-      rolId: usuarios.rolId,
-      rol: roles.nombre,
-      activo: usuarios.activo,
-      ultimoLogin: usuarios.ultimoLogin,
-    })
-    .from(usuarios)
-    .leftJoin(roles, eq(roles.id, usuarios.rolId))
-    .where(and(eq(usuarios.empresaId, user.empresaId), isNull(usuarios.eliminadoEn)));
-
-  const rolesList = await db
-    .select({ id: roles.id, nombre: roles.nombre })
-    .from(roles)
-    .where(eq(roles.empresaId, user.empresaId));
+  const [access, filas, rolesList] = await Promise.all([
+    getAccessContext(user),
+    db
+      .select({
+        id: usuarios.id,
+        nombre: usuarios.nombre,
+        email: usuarios.email,
+        rolId: usuarios.rolId,
+        rol: roles.nombre,
+        activo: usuarios.activo,
+        ultimoLogin: usuarios.ultimoLogin,
+      })
+      .from(usuarios)
+      .leftJoin(roles, eq(roles.id, usuarios.rolId))
+      .where(
+        and(
+          eq(usuarios.empresaId, user.empresaId),
+          isNull(usuarios.eliminadoEn),
+        ),
+      ),
+    db
+      .select({ id: roles.id, nombre: roles.nombre })
+      .from(roles)
+      .where(eq(roles.empresaId, user.empresaId)),
+  ]);
   const rolesOptions = rolesList.map((r) => ({ value: r.id, label: r.nombre }));
   const usuariosActivos = filas.filter((f) => f.activo).length;
   const limiteUsuarios =

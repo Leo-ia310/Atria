@@ -1,29 +1,28 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { almacenes, empresas, existencias, productos } from "@/lib/db/schema";
+import { almacenes, existencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { GraficaInventario } from "@/components/reportes/GraficaInventario";
+import { GraficaInventarioDinamica } from "@/components/reportes/GraficasDinamicas";
 import { Package, TrendingDown, Coins } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function ReporteInventarioPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
   const stockRows = await db
@@ -135,7 +134,7 @@ export default async function ReporteInventarioPage() {
           <Card>
             <CardHeader title="Top 15 productos por valor en stock" />
             <CardBody>
-              <GraficaInventario data={chartData} pais={pais} />
+              <GraficaInventarioDinamica data={chartData} pais={pais} />
             </CardBody>
           </Card>
         ) : (

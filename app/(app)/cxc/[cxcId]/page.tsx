@@ -3,14 +3,9 @@ import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  cuentasPorCobrar,
-  clientes,
-  ventas,
-  abonosCliente,
-  formasPago,
-  empresas,
-} from "@/lib/db/schema";
+  cuentasPorCobrar, clientes, ventas, abonosCliente, formasPago } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -23,17 +18,9 @@ export default async function CxCDetallePage({
 }: {
   params: Promise<{ cxcId: string }>;
 }) {
-  const { cxcId } = await params;
-  const user = await requireSession();
+  const [{ cxcId }, user] = await Promise.all([params, requireSession()]);
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-
-  const [cxc] = await db
+  const cxcPromise = db
     .select({
       id: cuentasPorCobrar.id,
       clienteId: cuentasPorCobrar.clienteId,
@@ -59,9 +46,7 @@ export default async function CxCDetallePage({
     )
     .limit(1);
 
-  if (!cxc) notFound();
-
-  const abonos = await db
+  const abonosPromise = db
     .select({
       id: abonosCliente.id,
       fecha: abonosCliente.fecha,
@@ -75,10 +60,21 @@ export default async function CxCDetallePage({
     .where(and(eq(abonosCliente.cxcId, cxcId), eq(abonosCliente.empresaId, user.empresaId)))
     .orderBy(desc(abonosCliente.fecha));
 
-  const formasPagoList = await db
+  const formasPagoPromise = db
     .select({ id: formasPago.id, nombre: formasPago.nombre })
     .from(formasPago)
     .where(and(eq(formasPago.empresaId, user.empresaId), eq(formasPago.activa, true)));
+
+  const [empresa, cxcRows, abonos, formasPagoList] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    cxcPromise,
+    abonosPromise,
+    formasPagoPromise,
+  ]);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const cxc = cxcRows[0];
+
+  if (!cxc) notFound();
 
   const hoy = new Date().toISOString().slice(0, 10);
   const estaVencida = cxc.estado !== "pagada" && cxc.fechaVencimiento < hoy;

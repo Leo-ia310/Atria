@@ -15,6 +15,13 @@
       "when": 1785214715120,
       "tag": "0001_rrhh",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785344265438,
+      "tag": "0002_performance_indexes",
+      "breakpoints": true
     }
   ]
 }

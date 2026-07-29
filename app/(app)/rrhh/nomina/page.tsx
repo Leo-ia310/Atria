@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Wallet, CalendarClock } from "lucide-react";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { nominas, feriados, empresas } from "@/lib/db/schema";
+import { nominas, feriados } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,11 +35,7 @@ const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error" | "in
 
 export default async function NominaPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = empresa?.pais ?? "NI";
 
   const filas: Fila[] = await db

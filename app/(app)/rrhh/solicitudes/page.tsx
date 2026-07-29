@@ -1,21 +1,19 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { solicitudesRrhh, empleados, empresas } from "@/lib/db/schema";
+import { solicitudesRrhh, empleados } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SolicitudesPanel } from "@/components/rrhh/SolicitudesPanel";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function SolicitudesPage() {
   const user = await requireSession();
-  const scope = await getSucursalScope(user);
+  const [scope, empresa] = await Promise.all([
+    getSucursalScope(user),
+    getEmpresaMetadata(user.empresaId),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
-
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
 
   const lista = await db
     .select({

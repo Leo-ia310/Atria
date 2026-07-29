@@ -7,62 +7,60 @@ import {
   periodosContables,
   asientoPartidas,
   catalogoCuentas,
-  empresas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { formatearMoneda } from "@/lib/utils";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function ContabilidadPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = empresa?.pais ?? "NI";
-
-  const [asientosCount] = await db
-    .select({ n: count() })
-    .from(asientosContables)
-    .where(eq(asientosContables.empresaId, user.empresaId));
-
   const hoy = new Date();
-  const [periodoActual] = await db
-    .select({
-      id: periodosContables.id,
-      anio: periodosContables.anio,
-      mes: periodosContables.mes,
-      estado: periodosContables.estado,
-    })
-    .from(periodosContables)
-    .where(
-      and(
-        eq(periodosContables.empresaId, user.empresaId),
-        eq(periodosContables.anio, hoy.getFullYear()),
-        eq(periodosContables.mes, hoy.getMonth() + 1),
+  const [empresa, asientosRows, periodoRows, resumenRows] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    db
+      .select({ n: count() })
+      .from(asientosContables)
+      .where(eq(asientosContables.empresaId, user.empresaId)),
+    db
+      .select({
+        id: periodosContables.id,
+        anio: periodosContables.anio,
+        mes: periodosContables.mes,
+        estado: periodosContables.estado,
+      })
+      .from(periodosContables)
+      .where(
+        and(
+          eq(periodosContables.empresaId, user.empresaId),
+          eq(periodosContables.anio, hoy.getFullYear()),
+          eq(periodosContables.mes, hoy.getMonth() + 1),
+        ),
+      )
+      .limit(1),
+    db
+      .select({
+        debe: sum(asientoPartidas.debe),
+        haber: sum(asientoPartidas.haber),
+      })
+      .from(asientoPartidas)
+      .innerJoin(
+        asientosContables,
+        eq(asientosContables.id, asientoPartidas.asientoId),
+      )
+      .where(
+        and(
+          eq(asientosContables.empresaId, user.empresaId),
+          eq(asientosContables.estado, "registrado"),
+        ),
       ),
-    )
-    .limit(1);
-
-  const [resumen] = await db
-    .select({
-      debe: sum(asientoPartidas.debe),
-      haber: sum(asientoPartidas.haber),
-    })
-    .from(asientoPartidas)
-    .innerJoin(
-      asientosContables,
-      eq(asientosContables.id, asientoPartidas.asientoId),
-    )
-    .where(
-      and(
-        eq(asientosContables.empresaId, user.empresaId),
-        eq(asientosContables.estado, "registrado"),
-      ),
-    );
+  ]);
+  const pais = empresa?.pais ?? "NI";
+  const asientosCount = asientosRows[0];
+  const periodoActual = periodoRows[0];
+  const resumen = resumenRows[0];
 
   const totalMovimiento = parseFloat(resumen?.debe ?? "0");
   const balanceado =

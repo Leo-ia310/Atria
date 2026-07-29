@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { catalogoCuentas, empresas } from "@/lib/db/schema";
+import { catalogoCuentas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CuentaFinancieraForm } from "@/components/tesoreria/CuentaFinancieraForm";
 import type { PaisCodigo } from "@/lib/paises";
@@ -10,11 +11,7 @@ import { getPaisConfig } from "@/lib/paises";
 export default async function NuevaCuentaFinancieraPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais, moneda: empresas.moneda })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const moneda = empresa?.moneda ?? getPaisConfig(pais).moneda;
 

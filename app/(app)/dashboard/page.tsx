@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import {
   Receipt,
@@ -15,7 +14,6 @@ import { Button } from "@/components/ui/Button";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { db } from "@/lib/db";
 import {
-  empresas,
   sucursales,
   ventas,
   productos,
@@ -26,6 +24,7 @@ import { eq, and, isNull, gte, sql, sum, count, desc, inArray } from "drizzle-or
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function DashboardPage({
   searchParams,
@@ -33,18 +32,15 @@ export default async function DashboardPage({
   searchParams: Promise<{ bienvenida?: string }>;
 }) {
   const user = await requireSession();
-  const params = await searchParams;
+  const [params, empresa, scope] = await Promise.all([
+    searchParams,
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const esBienvenida = params.bienvenida === "1";
-
-  const [empresa] = await db
-    .select({ pais: empresas.pais, razonSocial: empresas.razonSocial })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
@@ -178,8 +174,7 @@ export default async function DashboardPage({
         </div>
       )}
 
-      <Suspense fallback={null}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             label="Ventas hoy"
             value={formatearMoneda(ventasHoy, pais)}
@@ -204,8 +199,7 @@ export default async function DashboardPage({
             hint={cxcPendiente > 0 ? "Saldo pendiente de cobro" : "Sin saldos pendientes"}
             icon={Wallet}
           />
-        </div>
-      </Suspense>
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

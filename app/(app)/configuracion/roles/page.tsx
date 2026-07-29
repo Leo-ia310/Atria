@@ -8,24 +8,25 @@ import { RolesManager } from "@/components/configuracion/RolesManager";
 export default async function RolesPage() {
   const user = await requireSession();
 
-  const rolesList = await db
-    .select({
-      id: roles.id,
-      nombre: roles.nombre,
-      descripcion: roles.descripcion,
-      esBase: roles.esBase,
-    })
-    .from(roles)
-    .where(eq(roles.empresaId, user.empresaId));
-
-  const permisosList = await db
-    .select({
-      id: permisos.id,
-      clave: permisos.clave,
-      modulo: permisos.modulo,
-      descripcion: permisos.descripcion,
-    })
-    .from(permisos);
+  const [rolesList, permisosList] = await Promise.all([
+    db
+      .select({
+        id: roles.id,
+        nombre: roles.nombre,
+        descripcion: roles.descripcion,
+        esBase: roles.esBase,
+      })
+      .from(roles)
+      .where(eq(roles.empresaId, user.empresaId)),
+    db
+      .select({
+        id: permisos.id,
+        clave: permisos.clave,
+        modulo: permisos.modulo,
+        descripcion: permisos.descripcion,
+      })
+      .from(permisos),
+  ]);
 
   const asignaciones =
     rolesList.length > 0

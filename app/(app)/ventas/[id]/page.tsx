@@ -10,7 +10,6 @@ import {
   productos,
   formasPago,
   clientes,
-  empresas,
   asientosContables,
   facturas,
 } from "@/lib/db/schema";
@@ -19,6 +18,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function VentaDetallePage({
   params,
@@ -50,51 +50,65 @@ export default async function VentaDetallePage({
 
   if (!venta) notFound();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const pais = empresa?.pais ?? "NI";
-
-  const items = await db
-    .select({
-      cantidad: ventaDetalle.cantidad,
-      precioUnitario: ventaDetalle.precioUnitario,
-      subtotal: ventaDetalle.subtotal,
-      impuesto: ventaDetalle.impuesto,
-      nombre: productos.nombre,
-      sku: productos.sku,
-    })
-    .from(ventaDetalle)
-    .innerJoin(productos, eq(productos.id, ventaDetalle.productoId))
-    .where(eq(ventaDetalle.ventaId, venta.id));
-
-  const pagos = await db
-    .select({
-      monto: pagosVenta.monto,
-      referencia: pagosVenta.referencia,
-      formaPago: formasPago.nombre,
-    })
-    .from(pagosVenta)
-    .innerJoin(formasPago, eq(formasPago.id, pagosVenta.formaPagoId))
-    .where(eq(pagosVenta.ventaId, venta.id));
-
-  const [factura] = await db
-    .select({ id: facturas.id })
-    .from(facturas)
-    .where(eq(facturas.ventaId, venta.id))
-    .limit(1);
-
-  const asiento = venta.asientoId
-    ? (
-        await db
+  const [empresa, items, pagos, facturaRows, asientoRows] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    db
+      .select({
+        cantidad: ventaDetalle.cantidad,
+        precioUnitario: ventaDetalle.precioUnitario,
+        subtotal: ventaDetalle.subtotal,
+        impuesto: ventaDetalle.impuesto,
+        nombre: productos.nombre,
+        sku: productos.sku,
+      })
+      .from(ventaDetalle)
+      .innerJoin(productos, eq(productos.id, ventaDetalle.productoId))
+      .where(
+        and(
+          eq(ventaDetalle.ventaId, venta.id),
+          eq(productos.empresaId, user.empresaId),
+        ),
+      ),
+    db
+      .select({
+        monto: pagosVenta.monto,
+        referencia: pagosVenta.referencia,
+        formaPago: formasPago.nombre,
+      })
+      .from(pagosVenta)
+      .innerJoin(formasPago, eq(formasPago.id, pagosVenta.formaPagoId))
+      .where(
+        and(
+          eq(pagosVenta.ventaId, venta.id),
+          eq(formasPago.empresaId, user.empresaId),
+        ),
+      ),
+    db
+      .select({ id: facturas.id })
+      .from(facturas)
+      .where(
+        and(
+          eq(facturas.ventaId, venta.id),
+          eq(facturas.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1),
+    venta.asientoId
+      ? db
           .select({ numero: asientosContables.numero, id: asientosContables.id })
           .from(asientosContables)
-          .where(eq(asientosContables.id, venta.asientoId))
+          .where(
+            and(
+              eq(asientosContables.id, venta.asientoId),
+              eq(asientosContables.empresaId, user.empresaId),
+            ),
+          )
           .limit(1)
-      )[0]
-    : null;
+      : Promise.resolve([]),
+  ]);
+  const pais = empresa?.pais ?? "NI";
+  const factura = facturaRows[0];
+  const asiento = asientoRows[0] ?? null;
 
   return (
     <div className="mx-auto max-w-4xl">

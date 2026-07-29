@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Store, Plus } from "lucide-react";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cajas, empresas, sesionesCaja, sucursales, usuarios } from "@/lib/db/schema";
+import { cajas, sesionesCaja, sucursales, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -17,34 +18,23 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 export default async function CajaPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const sucs = await db
-    .select({ id: sucursales.id, nombre: sucursales.nombre })
-    .from(sucursales)
-    .where(
-      and(
-        eq(sucursales.empresaId, user.empresaId),
-        eq(sucursales.activa, true),
-        isNull(sucursales.eliminadoEn),
-        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(sucursales.nombre);
+  const sucs = scope.sucursales.filter(
+    (sucursal) => !sucursalIds || sucursalIds.includes(sucursal.id),
+  );
   const defaultSucursalId =
     scope.modo === "selected" && scope.sucursalIds.length === 1
       ? scope.sucursalIds[0]
       : sucs[0]?.id;
   const sucursalOptions = sucs.map((s) => ({ value: s.id, label: s.nombre }));
 
-  const cajasList = await db
+  const cajasPromise = db
     .select({ id: cajas.id, nombre: cajas.nombre, codigo: cajas.codigo })
     .from(cajas)
     .where(
@@ -55,7 +45,7 @@ export default async function CajaPage() {
       ),
     );
 
-  const [sesionAbierta] = await db
+  const sesionPromise = db
     .select({
       id: sesionesCaja.id,
       cajaId: cajas.id,
@@ -71,12 +61,13 @@ export default async function CajaPage() {
       and(
         eq(sesionesCaja.empresaId, user.empresaId),
         eq(sesionesCaja.estado, "abierta"),
+        eq(cajas.empresaId, user.empresaId),
         sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
       ),
     )
     .limit(1);
 
-  const historial = await db
+  const historialPromise = db
     .select({
       id: sesionesCaja.id,
       cajaNombre: cajas.nombre,
@@ -96,11 +87,20 @@ export default async function CajaPage() {
     .where(
       and(
         eq(sesionesCaja.empresaId, user.empresaId),
+        eq(cajas.empresaId, user.empresaId),
+        eq(usuarios.empresaId, user.empresaId),
         sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
       ),
     )
     .orderBy(desc(sesionesCaja.abiertaEn))
     .limit(20);
+
+  const [cajasList, sesionRows, historial] = await Promise.all([
+    cajasPromise,
+    sesionPromise,
+    historialPromise,
+  ]);
+  const sesionAbierta = sesionRows[0];
 
   const cajasDisponibles = cajasList
     .filter((c) => c.id !== sesionAbierta?.cajaId)

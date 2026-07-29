@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AtriaLogo } from "@/components/marketing/AtriaLogo";
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -21,37 +22,24 @@ export function Nav() {
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-all duration-200",
         scrolled
-          ? "bg-[color:var(--color-surface)]/85 backdrop-blur-md border-b border-[color:var(--color-border)]"
+          ? "bg-[#0b0416]/50 shadow-[0_10px_35px_rgba(7,2,18,0.22)] backdrop-blur-xl"
           : "bg-transparent",
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--color-primary)] text-white">
-            <span className="text-base font-bold">A</span>
-          </div>
-          <span className="text-base font-semibold text-[color:var(--color-text-primary)]">
-            ATRIA
-          </span>
+          <AtriaLogo className="h-8 w-auto" eager />
+          <span className="text-base font-semibold text-white">ATRIA</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 text-small md:flex">
-          <a
-            href="#caracteristicas"
-            className="text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
-          >
+        <nav className="hidden items-center gap-7 text-small text-white/75 md:flex">
+          <a href="#caracteristicas" className="transition-colors hover:text-white">
             Características
           </a>
-          <a
-            href="#precios"
-            className="text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
-          >
+          <a href="#precios" className="transition-colors hover:text-white">
             Precios
           </a>
-          <a
-            href="#faq"
-            className="text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
-          >
+          <a href="#faq" className="transition-colors hover:text-white">
             FAQ
           </a>
         </nav>
@@ -59,28 +47,34 @@ export function Nav() {
         <div className="hidden items-center gap-2 md:flex">
           <Link
             href="/login"
-            className="atria-btn atria-btn-ghost atria-btn-sm"
+            className="atria-btn atria-btn-sm border-white/20 bg-white/10 text-white transition-colors hover:bg-white/16"
           >
             Iniciar sesión
           </Link>
-          <Link href="/registro" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link
+            href="/registro"
+            className="atria-btn atria-btn-sm bg-white text-[#160827] transition-colors hover:bg-[#efe7ff]"
+          >
             Empieza gratis
           </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setMenuAbierto((s) => !s)}
-          className="atria-btn atria-btn-ghost p-2 md:hidden"
-          aria-label="Menú"
-        >
-          {menuAbierto ? <X size={18} /> : <Menu size={18} />}
-        </button>
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuAbierto((s) => !s)}
+            className="atria-btn p-2 text-white hover:bg-white/10"
+            aria-label="Menú"
+            aria-expanded={menuAbierto}
+          >
+            {menuAbierto ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
       </div>
 
       {menuAbierto && (
-        <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-4 md:hidden">
-          <nav className="flex flex-col gap-3 text-small">
+        <div className="border-t border-white/10 bg-[#0b0416]/90 px-5 py-4 text-white backdrop-blur-xl md:hidden">
+          <nav className="flex flex-col gap-3 text-small text-white/80">
             <a href="#caracteristicas" onClick={() => setMenuAbierto(false)}>
               Características
             </a>
@@ -90,11 +84,14 @@ export function Nav() {
             <a href="#faq" onClick={() => setMenuAbierto(false)}>
               FAQ
             </a>
-            <div className="mt-2 flex flex-col gap-2 border-t border-[color:var(--color-border)] pt-3">
-              <Link href="/login" className="atria-btn atria-btn-secondary">
+            <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
+              <Link
+                href="/login"
+                className="atria-btn border-white/20 bg-white/10 text-white"
+              >
                 Iniciar sesión
               </Link>
-              <Link href="/registro" className="atria-btn atria-btn-primary">
+              <Link href="/registro" className="atria-btn bg-white text-[#160827]">
                 Empieza gratis
               </Link>
             </div>

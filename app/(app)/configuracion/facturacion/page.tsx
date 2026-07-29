@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { secuenciasFiscales, tiposDocumento, empresas } from "@/lib/db/schema";
+import { secuenciasFiscales, tiposDocumento } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -14,11 +15,7 @@ import { formatearFecha } from "@/lib/utils";
 export default async function FacturacionPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const config = getPaisConfig(pais);
 

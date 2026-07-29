@@ -1,13 +1,14 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { ventas, empresas } from "@/lib/db/schema";
+import { ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { GraficaRentabilidad } from "@/components/reportes/GraficaRentabilidad";
+import { GraficaRentabilidadDinamica } from "@/components/reportes/GraficasDinamicas";
 import { TrendingUp, Coins, Percent } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
@@ -16,13 +17,11 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
   const hace12 = new Date();
@@ -121,7 +120,7 @@ export default async function ReporteRentabilidadPage() {
           <Card>
             <CardHeader title="Ingresos vs costo de ventas por mes" />
             <CardBody>
-              <GraficaRentabilidad data={chartData} pais={pais} />
+              <GraficaRentabilidadDinamica data={chartData} pais={pais} />
             </CardBody>
           </Card>
         )}

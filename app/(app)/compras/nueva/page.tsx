@@ -1,27 +1,19 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  proveedores,
-  almacenes,
-  sucursales,
-  cuentasFinancieras,
-  productos,
-  impuestos,
-  empresas,
-} from "@/lib/db/schema";
+  proveedores, almacenes, sucursales, cuentasFinancieras, productos, impuestos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NuevaCompraForm } from "@/components/compras/NuevaCompraForm";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function NuevaCompraPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const scope = await getSucursalScope(user);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
 
   const [provs, alms, cfs, prods, imps] = await Promise.all([

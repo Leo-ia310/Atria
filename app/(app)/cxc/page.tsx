@@ -2,8 +2,9 @@ import Link from "next/link";
 import { HandCoins } from "lucide-react";
 import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { clientes, cuentasPorCobrar, empresas, sucursales, ventas } from "@/lib/db/schema";
+import { clientes, cuentasPorCobrar, sucursales, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -39,16 +40,15 @@ export default async function CxCPage({
 }: {
   searchParams: Promise<{ clienteId?: string }>;
 }) {
-  const user = await requireSession();
-  const { clienteId } = await searchParams;
-
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const [user, { clienteId }] = await Promise.all([
+    requireSession(),
+    searchParams,
+  ]);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db

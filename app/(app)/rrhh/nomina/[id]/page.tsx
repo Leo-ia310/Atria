@@ -4,14 +4,9 @@ import { ArrowLeft } from "lucide-react";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  nominas,
-  nominaDetalles,
-  empleados,
-  empresas,
-  feriados,
-  cuentasFinancieras,
-} from "@/lib/db/schema";
+  nominas, nominaDetalles, empleados, feriados, cuentasFinancieras } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Badge } from "@/components/ui/Badge";
@@ -43,11 +38,7 @@ export default async function NominaDetallePage({
     .limit(1);
   if (!nom) notFound();
 
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const money = (v: string | number) => formatearMoneda(v, pais);
 

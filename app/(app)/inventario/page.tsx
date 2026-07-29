@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Package, Plus } from "lucide-react";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { almacenes, empresas, existencias, productos } from "@/lib/db/schema";
+import { almacenes, existencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,12 +26,10 @@ type Fila = {
 
 export default async function InventarioPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const scope = await getSucursalScope(user);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
 
   const stockRows = await db

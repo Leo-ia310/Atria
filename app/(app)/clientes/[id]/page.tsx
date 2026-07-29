@@ -12,11 +12,21 @@ export default async function EditarClientePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [cliente] = await db
-    .select()
+    .select({
+      id: clientes.id,
+      nombre: clientes.nombre,
+      identificacionFiscal: clientes.identificacionFiscal,
+      email: clientes.email,
+      telefono: clientes.telefono,
+      direccion: clientes.direccion,
+      limiteCredito: clientes.limiteCredito,
+      diasCredito: clientes.diasCredito,
+      esConsumidorFinal: clientes.esConsumidorFinal,
+      notas: clientes.notas,
+    })
     .from(clientes)
     .where(
       and(

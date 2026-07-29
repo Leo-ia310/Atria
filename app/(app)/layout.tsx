@@ -1,16 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, count, eq, inArray, isNull, lt } from "drizzle-orm";
-import { db } from "@/lib/db";
-import {
-  compras,
-  empresas,
-  empleados,
-  cuentasPorCobrar,
-  cuentasPorPagar,
-  solicitudesRrhh,
-  ventas,
-} from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import {
   moduloDesdeRuta,
@@ -25,6 +14,8 @@ import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { filtrarCommandItems } from "@/components/layout/nav-items";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { getLayoutNotificationCounts } from "@/lib/layout-notifications";
 
 export default async function AppLayout({
   children,
@@ -32,86 +23,43 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireSession();
-  const access = await getAccessContext(user);
-  const pathname = (await headers()).get("x-atria-pathname") ?? "";
+  const [access, empresa, sucursalScope, headerStore] = await Promise.all([
+    getAccessContext(user),
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+    headers(),
+  ]);
+  const pathname = headerStore.get("x-atria-pathname") ?? "";
   const moduloActual = moduloDesdeRuta(pathname);
 
   if (moduloActual && !puedeAccederModulo(access, moduloActual)) {
     redirect("/dashboard?acceso=denegado");
   }
 
-  const filas = await db
-    .select({
-      nombreEmpresa: empresas.nombreComercial,
-      razonSocial: empresas.razonSocial,
-    })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-
-  const datos = filas[0];
-  const nombreEmpresa = datos?.nombreEmpresa || datos?.razonSocial || "Empresa";
+  const nombreEmpresa =
+    empresa?.nombreComercial || empresa?.razonSocial || "Empresa";
   const planNombre = access.plan.nombre;
   const esDemo = access.plan.id === "demo";
   const permitidos = modulosPermitidos(access);
   const commandItems = filtrarCommandItems(permitidos);
-  const sucursalScope = await getSucursalScope(user, access);
   const sucursalIds = selectedSucursalIds(sucursalScope);
   const puedeVerCxc = puedeAccederModulo(access, "cxc");
   const puedeVerCxp = puedeAccederModulo(access, "cxp");
   const puedeVerRrhh = puedeAccederModulo(access, "rrhh");
 
-  const hoy = new Date().toISOString().slice(0, 10);
-  const [cxcVencidas, cxpVencidas, solicitudesPendientes] = await Promise.all([
-    puedeVerCxc
-      ? db
-          .select({ n: count() })
-          .from(cuentasPorCobrar)
-          .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
-          .where(
-            and(
-              eq(cuentasPorCobrar.empresaId, user.empresaId),
-              eq(cuentasPorCobrar.estado, "pendiente"),
-              lt(cuentasPorCobrar.fechaVencimiento, hoy),
-              sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
-            ),
-          )
-      : Promise.resolve([{ n: 0 }]),
-    puedeVerCxp
-      ? db
-          .select({ n: count() })
-          .from(cuentasPorPagar)
-          .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
-          .where(
-            and(
-              eq(cuentasPorPagar.empresaId, user.empresaId),
-              eq(cuentasPorPagar.estado, "pendiente"),
-              lt(cuentasPorPagar.fechaVencimiento, hoy),
-              sucursalIds ? inArray(compras.sucursalId, sucursalIds) : undefined,
-            ),
-          )
-      : Promise.resolve([{ n: 0 }]),
-    puedeVerRrhh
-      ? db
-          .select({ n: count() })
-          .from(solicitudesRrhh)
-          .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
-          .where(
-            and(
-              eq(solicitudesRrhh.empresaId, user.empresaId),
-              eq(solicitudesRrhh.estado, "pendiente"),
-              eq(empleados.empresaId, user.empresaId),
-              isNull(empleados.eliminadoEn),
-              sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
-            ),
-          )
-      : Promise.resolve([{ n: 0 }]),
-  ]);
+  const {
+    cxcVencidas: nCxc,
+    cxpVencidas: nCxp,
+    solicitudesPendientes: nSol,
+  } = await getLayoutNotificationCounts(
+    user.empresaId,
+    sucursalIds,
+    puedeVerCxc,
+    puedeVerCxp,
+    puedeVerRrhh,
+  );
 
   const notificaciones: Notificacion[] = [];
-  const nCxc = cxcVencidas[0]?.n ?? 0;
-  const nCxp = cxpVencidas[0]?.n ?? 0;
-  const nSol = solicitudesPendientes[0]?.n ?? 0;
   if (nCxc > 0) {
     notificaciones.push({
       id: "cxc-vencidas",

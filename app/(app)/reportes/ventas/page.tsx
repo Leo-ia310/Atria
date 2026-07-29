@@ -1,24 +1,23 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ventas, ventaDetalle, productos, empresas } from "@/lib/db/schema";
+import { ventas, ventaDetalle, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { GraficaVentas } from "@/components/reportes/GraficaVentas";
+import { GraficaVentasDinamica } from "@/components/reportes/GraficasDinamicas";
 import { Receipt, TrendingUp, ShoppingCart } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 
 export default async function ReporteVentasPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = empresa?.pais ?? "NI";
-  const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
@@ -27,7 +26,7 @@ export default async function ReporteVentasPage() {
   const hace30 = new Date();
   hace30.setDate(hace30.getDate() - 30);
 
-  const ventasUlt30 = await db
+  const ventasUlt30Promise = db
     .select({
       fecha: sql<string>`DATE(${ventas.fecha})`,
       total: sql<string>`SUM(${ventas.total})`,
@@ -45,16 +44,7 @@ export default async function ReporteVentasPage() {
     .groupBy(sql`DATE(${ventas.fecha})`)
     .orderBy(sql`DATE(${ventas.fecha})`);
 
-  const dataDiaria = ventasUlt30.map((d) => ({
-    label: new Date(d.fecha).toLocaleDateString("es", { day: "2-digit", month: "short" }),
-    total: parseFloat(d.total),
-  }));
-
-  const totalMes = ventasUlt30.reduce((a, v) => a + parseFloat(v.total), 0);
-  const cantVentas = ventasUlt30.reduce((a, v) => a + parseInt(v.count, 10), 0);
-  const ticketPromedio = cantVentas > 0 ? totalMes / cantVentas : 0;
-
-  const topProductos = await db
+  const topProductosPromise = db
     .select({
       nombre: productos.nombre,
       sku: productos.sku,
@@ -75,6 +65,22 @@ export default async function ReporteVentasPage() {
     .groupBy(productos.id, productos.nombre, productos.sku)
     .orderBy(sql`SUM(${ventaDetalle.subtotal}) DESC`)
     .limit(10);
+
+  const [ventasUlt30, topProductos] = await Promise.all([
+    ventasUlt30Promise,
+    topProductosPromise,
+  ]);
+  const dataDiaria = ventasUlt30.map((d) => ({
+    label: new Date(d.fecha).toLocaleDateString("es", {
+      day: "2-digit",
+      month: "short",
+    }),
+    total: parseFloat(d.total),
+  }));
+
+  const totalMes = ventasUlt30.reduce((a, v) => a + parseFloat(v.total), 0);
+  const cantVentas = ventasUlt30.reduce((a, v) => a + parseInt(v.count, 10), 0);
+  const ticketPromedio = cantVentas > 0 ? totalMes / cantVentas : 0;
 
   return (
     <div>
@@ -110,7 +116,7 @@ export default async function ReporteVentasPage() {
                 Aún no hay ventas en los últimos 30 días
               </p>
             ) : (
-              <GraficaVentas data={dataDiaria} pais={pais} />
+              <GraficaVentasDinamica data={dataDiaria} pais={pais} />
             )}
           </CardBody>
         </Card>

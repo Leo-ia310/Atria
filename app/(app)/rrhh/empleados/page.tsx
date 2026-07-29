@@ -2,8 +2,9 @@ import Link from "next/link";
 import { UserRound, Plus } from "lucide-react";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { empleados, empresas, sucursales } from "@/lib/db/schema";
+import { empleados, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -44,12 +45,10 @@ const VARIANTE_ESTADO: Record<
 
 export default async function EmpleadosPage() {
   const user = await requireSession();
-  const [empresa] = await db
-    .select({ pais: empresas.pais })
-    .from(empresas)
-    .where(eq(empresas.id, user.empresaId))
-    .limit(1);
-  const scope = await getSucursalScope(user);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
