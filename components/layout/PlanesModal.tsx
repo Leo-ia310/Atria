@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { X, Check } from "lucide-react";
-import { PLANES_ARRAY } from "@/lib/pricing";
+import { cambiarPlan } from "@/lib/actions/planes";
+import { PLANES_ARRAY, type PlanId } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
 
 export function PlanesModal({
   abierto,
@@ -14,7 +17,10 @@ export function PlanesModal({
   onCerrar: () => void;
   planActual: string;
 }) {
+  const router = useRouter();
+  const { mostrar } = useToast();
   const [anual, setAnual] = useState(false);
+  const [seleccionando, setSeleccionando] = useState<PlanId | null>(null);
 
   useEffect(() => {
     function esc(e: KeyboardEvent) {
@@ -31,6 +37,21 @@ export function PlanesModal({
   }, [abierto, onCerrar]);
 
   if (!abierto) return null;
+
+  async function elegirPlan(planId: PlanId) {
+    setSeleccionando(planId);
+    const res = await cambiarPlan(planId, anual ? "anual" : "mensual");
+    setSeleccionando(null);
+
+    if (!res.ok) {
+      mostrar("error", res.error);
+      return;
+    }
+
+    mostrar("success", `Plan actualizado a ${res.plan}`);
+    onCerrar();
+    router.refresh();
+  }
 
   return (
     <div
@@ -131,12 +152,14 @@ export function PlanesModal({
                     Plan actual
                   </div>
                 ) : (
-                  <a
-                    href={`mailto:ventatormenta@gmail.com?subject=Cambio de plan a ${plan.nombre}`}
+                  <button
+                    type="button"
+                    onClick={() => elegirPlan(plan.id)}
+                    disabled={seleccionando !== null}
                     className="atria-btn atria-btn-primary mt-4 w-full justify-center"
                   >
-                    Elegir {plan.nombre}
-                  </a>
+                    {seleccionando === plan.id ? "Cambiando..." : `Elegir ${plan.nombre}`}
+                  </button>
                 )}
               </div>
             );
