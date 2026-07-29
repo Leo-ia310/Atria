@@ -12,6 +12,20 @@ export const crearUsuarioSchema = z.object({
 });
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
 
+export const crearSucursalSchema = z.object({
+  codigo: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(2, "Codigo requerido")
+    .max(20, "Maximo 20 caracteres")
+    .regex(/^[A-Z0-9_]+$/, "Solo letras, numeros y guion bajo"),
+  nombre: z.string().trim().min(2, "Nombre requerido").max(120),
+  direccion: z.string().trim().max(200).optional().or(z.literal("")),
+  telefono: z.string().trim().max(50).optional().or(z.literal("")),
+});
+export type CrearSucursalInput = z.infer<typeof crearSucursalSchema>;
+
 export const actualizarUsuarioSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   email: z.string().trim().toLowerCase().email("Correo no valido"),

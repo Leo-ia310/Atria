@@ -1,11 +1,12 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
-import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { CrearSucursalButton } from "@/components/configuracion/CrearSucursalButton";
+import { getAccessContext } from "@/lib/server-access";
 
 type Fila = {
   id: string;
@@ -18,8 +19,7 @@ type Fila = {
 
 export default async function SucursalesPage() {
   const user = await requireSession();
-  const scope = await getSucursalScope(user);
-  const sucursalIds = selectedSucursalIds(scope);
+  const access = await getAccessContext(user);
 
   const filas: Fila[] = await db
     .select({
@@ -31,18 +31,23 @@ export default async function SucursalesPage() {
       activa: sucursales.activa,
     })
     .from(sucursales)
-    .where(
-      and(
-        eq(sucursales.empresaId, user.empresaId),
-        isNull(sucursales.eliminadoEn),
-        sucursalIds ? inArray(sucursales.id, sucursalIds) : undefined,
-      ),
-    );
+    .where(and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn)));
+
+  const activas = filas.filter((fila) => fila.activa).length;
+  const limite =
+    access.plan.maxSucursales === null
+      ? null
+      : access.plan.maxSucursales + access.sucursalesExtra;
+  const limiteAlcanzado = limite !== null && activas >= limite;
+  const limiteTexto =
+    limite === null
+      ? `${activas} sucursales activas - plan ${access.plan.nombre} sin limite`
+      : `${activas}/${limite} sucursales activas - plan ${access.plan.nombre}`;
 
   const columnas: Columna<Fila>[] = [
     {
       key: "codigo",
-      header: "Código",
+      header: "Codigo",
       cell: (r) => <span className="font-mono text-[12px]">{r.codigo}</span>,
       width: "100px",
     },
@@ -56,7 +61,7 @@ export default async function SucursalesPage() {
         </span>
       ),
     },
-    { key: "direccion", header: "Dirección", cell: (r) => r.direccion ?? "—" },
+    { key: "direccion", header: "Direccion", cell: (r) => r.direccion ?? "-" },
     {
       key: "estado",
       header: "Estado",
@@ -70,7 +75,19 @@ export default async function SucursalesPage() {
     <div>
       <PageHeader
         title="Sucursales"
-        subtitle={`${filas.length} sucursales · plan actual limita las disponibles${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        subtitle={limiteTexto}
+        actions={
+          access.esAdminEmpresa ? (
+            <CrearSucursalButton
+              puedeCrear={!limiteAlcanzado}
+              limiteTexto={
+                limite === null
+                  ? undefined
+                  : `Tu plan ${access.plan.nombre} permite ${limite} sucursales activas. Ya tienes ${activas}.`
+              }
+            />
+          ) : null
+        }
       />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />
     </div>

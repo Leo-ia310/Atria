@@ -13,9 +13,12 @@ import {
   cuentasFinancieras,
   secuenciasFiscales,
   tiposDocumento,
+  sucursales,
+  almacenes,
 } from "@/lib/db/schema";
 import {
   crearUsuarioSchema,
+  crearSucursalSchema,
   actualizarUsuarioSchema,
   formaPagoSchema,
   impuestoSchema,
@@ -29,6 +32,81 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 
 type Resultado = { ok: true; id?: string } | { ok: false; error: string };
+
+/* ------------------------------ Sucursales ------------------------------ */
+
+export async function crearSucursal(input: unknown): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
+
+  const parsed = crearSucursalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const limite = await validarLimitePlan(acceso.access, user.empresaId, "sucursales");
+  if (!limite.ok) return limite;
+
+  const d = parsed.data;
+
+  try {
+    const yaExiste = await db
+      .select({ id: sucursales.id })
+      .from(sucursales)
+      .where(and(eq(sucursales.empresaId, user.empresaId), eq(sucursales.codigo, d.codigo)))
+      .limit(1);
+    if (yaExiste.length > 0) {
+      return { ok: false, error: "Ya existe una sucursal con ese codigo" };
+    }
+
+    const creada = await db.transaction(async (tx) => {
+      const [sucursal] = await tx
+        .insert(sucursales)
+        .values({
+          empresaId: user.empresaId,
+          codigo: d.codigo,
+          nombre: d.nombre,
+          direccion: d.direccion || null,
+          telefono: d.telefono || null,
+          esPrincipal: false,
+          activa: true,
+        })
+        .returning({ id: sucursales.id });
+
+      const codigoAlmacenBase = `ALM_${d.codigo}`;
+      const [almacenExistente] = await tx
+        .select({ id: almacenes.id })
+        .from(almacenes)
+        .where(
+          and(eq(almacenes.empresaId, user.empresaId), eq(almacenes.codigo, codigoAlmacenBase)),
+        )
+        .limit(1);
+
+      await tx.insert(almacenes).values({
+        empresaId: user.empresaId,
+        sucursalId: sucursal.id,
+        codigo: almacenExistente
+          ? `${codigoAlmacenBase}_${sucursal.id.slice(0, 4).toUpperCase()}`
+          : codigoAlmacenBase,
+        nombre: `Almacen ${d.nombre}`,
+        esPrincipal: false,
+        activo: true,
+      });
+
+      return sucursal;
+    });
+
+    revalidatePath("/configuracion/sucursales");
+    revalidatePath("/configuracion/cajas");
+    revalidatePath("/inventario");
+    revalidatePath("/dashboard");
+    return { ok: true, id: creada.id };
+  } catch (err) {
+    console.error("[crearSucursal]", err);
+    return { ok: false, error: "No pudimos crear la sucursal." };
+  }
+}
 
 /* ------------------------------- Usuarios ------------------------------- */
 
