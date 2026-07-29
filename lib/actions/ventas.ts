@@ -159,6 +159,14 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     sesionesAbiertas[0]?.id ??
     null;
 
+  // Sin caja abierta no se registran ventas ni se genera factura.
+  if (!sesionCajaId) {
+    return {
+      ok: false,
+      error: "No hay una caja abierta. Abre una caja para registrar ventas.",
+    };
+  }
+
   try {
     const fechaVenta = new Date();
     const fechaVencimiento = data.esCredito

@@ -10,6 +10,8 @@ import {
   formasPago,
   impuestos,
   empresas,
+  cajas,
+  sesionesCaja,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { POSContenedor } from "@/components/pos/POSContenedor";
@@ -130,6 +132,32 @@ export default async function POSPage() {
     .from(formasPago)
     .where(and(eq(formasPago.empresaId, user.empresaId), eq(formasPago.activa, true)));
 
+  // Sesión de caja abierta para la sucursal operativa (si existe).
+  const [sesionAbierta] = await db
+    .select({ id: sesionesCaja.id, cajaNombre: cajas.nombre })
+    .from(sesionesCaja)
+    .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
+    .where(
+      and(
+        eq(sesionesCaja.empresaId, user.empresaId),
+        eq(sesionesCaja.estado, "abierta"),
+        eq(cajas.sucursalId, sucursalOperativa.id),
+      ),
+    )
+    .limit(1);
+
+  // Cajas activas de la sucursal para poder abrir sesión desde el POS.
+  const cajasSucursal = await db
+    .select({ id: cajas.id, codigo: cajas.codigo, nombre: cajas.nombre })
+    .from(cajas)
+    .where(
+      and(
+        eq(cajas.empresaId, user.empresaId),
+        eq(cajas.sucursalId, sucursalOperativa.id),
+        eq(cajas.activa, true),
+      ),
+    );
+
   return (
     <POSContenedor
       pais={empresa?.pais ?? "NI"}
@@ -137,6 +165,11 @@ export default async function POSPage() {
       sucursalNombre={sucursalOperativa.nombre}
       almacenId={almacenOperativo.id}
       nombreUsuario={user.nombre}
+      hayCajaAbierta={!!sesionAbierta}
+      cajas={cajasSucursal.map((c) => ({
+        value: c.id,
+        label: `${c.codigo} — ${c.nombre}`,
+      }))}
       productos={productosList.map((p) => ({
         id: p.id,
         sku: p.sku,

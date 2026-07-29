@@ -14,6 +14,8 @@ import {
   X,
   Check,
   Loader2,
+  TriangleAlert,
+  Store,
 } from "lucide-react";
 import { cn, formatearMoneda } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { procesarVenta } from "@/lib/actions/ventas";
+import { abrirSesion } from "@/lib/actions/caja";
 import type { PaisCodigo } from "@/lib/paises";
 
 type ProductoPOS = {
@@ -64,6 +67,8 @@ export function POSContenedor({
   productos,
   clientes,
   formasPago,
+  hayCajaAbierta,
+  cajas,
 }: {
   pais: PaisCodigo;
   sucursalId: string;
@@ -73,6 +78,8 @@ export function POSContenedor({
   productos: ProductoPOS[];
   clientes: ClientePOS[];
   formasPago: FormaPagoPOS[];
+  hayCajaAbierta: boolean;
+  cajas: { value: string; label: string }[];
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -82,6 +89,8 @@ export function POSContenedor({
   const [modalPago, setModalPago] = useState(false);
   const [procesando, setProcesando] = useState(false);
   const [ventaExito, setVentaExito] = useState<{ id: string; numero: string } | null>(null);
+  const [cajaAbierta, setCajaAbierta] = useState(hayCajaAbierta);
+  const [modalCaja, setModalCaja] = useState(!hayCajaAbierta);
   const buscadorRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,12 +105,22 @@ export function POSContenedor({
       }
       if (e.key === "F12" && carrito.length > 0 && !modalPago) {
         e.preventDefault();
-        setModalPago(true);
+        intentarCobrar();
       }
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [carrito.length, modalPago]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carrito.length, modalPago, cajaAbierta]);
+
+  // Sin caja abierta no se puede cobrar: se reabre el aviso de abrir caja.
+  function intentarCobrar() {
+    if (!cajaAbierta) {
+      setModalCaja(true);
+      return;
+    }
+    setModalPago(true);
+  }
 
   const productosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return productos.slice(0, 50);
@@ -171,6 +190,21 @@ export function POSContenedor({
 
   return (
     <div className="flex h-screen flex-col bg-[color:var(--color-neutral)]">
+      {/* Aviso de entorno de prueba (sin caja abierta) */}
+      {!cajaAbierta && (
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-[color:var(--color-warning)]/15 px-4 py-1.5 text-center text-[12px] font-medium text-[color:var(--color-warning)]">
+          <TriangleAlert size={14} />
+          Entorno de prueba — no se guardará ningún dato.
+          <button
+            type="button"
+            onClick={() => setModalCaja(true)}
+            className="font-semibold text-[color:var(--color-primary)] underline"
+          >
+            Abrir caja
+          </button>
+        </div>
+      )}
+
       {/* Header POS */}
       <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3">
         <div className="flex items-center gap-4">
@@ -191,6 +225,20 @@ export function POSContenedor({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {cajaAbierta ? (
+            <span className="atria-badge atria-badge-success">
+              <Store size={12} /> Caja abierta
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setModalCaja(true)}
+              className="atria-badge atria-badge-warning"
+              title="Abrir caja"
+            >
+              <Store size={12} /> Sin caja
+            </button>
+          )}
           <span className="atria-badge atria-badge-success">
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             En línea
@@ -359,7 +407,7 @@ export function POSContenedor({
               </span>
             </div>
             <Button
-              onClick={() => setModalPago(true)}
+              onClick={intentarCobrar}
               disabled={carrito.length === 0 || procesando}
               className="mt-3 w-full"
               size="lg"
@@ -446,11 +494,110 @@ export function POSContenedor({
               <Check size={28} />
             </div>
             <p className="text-small text-[color:var(--color-text-muted)]">
-              Se imprimen dos copias: una para el cliente y otra para el negocio.
+              La factura quedó guardada. Puedes imprimir la copia del negocio.
             </p>
           </div>
         </Modal>
       )}
+
+      {modalCaja && (
+        <ModalAbrirCaja
+          cajas={cajas}
+          onMasTarde={() => setModalCaja(false)}
+          onAbierta={() => {
+            setCajaAbierta(true);
+            setModalCaja(false);
+            mostrar("success", "Caja abierta. Ya puedes registrar ventas.");
+            router.refresh();
+          }}
+          onError={(msg) => mostrar("error", msg)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalAbrirCaja({
+  cajas,
+  onMasTarde,
+  onAbierta,
+  onError,
+}: {
+  cajas: { value: string; label: string }[];
+  onMasTarde: () => void;
+  onAbierta: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [cajaId, setCajaId] = useState(cajas[0]?.value ?? "");
+  const [montoStr, setMontoStr] = useState("0");
+  const [abriendo, setAbriendo] = useState(false);
+
+  async function abrir() {
+    if (!cajaId) return;
+    setAbriendo(true);
+    const res = await abrirSesion({
+      cajaId,
+      montoInicial: parseFloat(montoStr) || 0,
+    });
+    setAbriendo(false);
+    if (!res.ok) {
+      onError(res.error);
+      return;
+    }
+    onAbierta();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-md">
+      <div className="w-full max-w-md rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 text-[color:var(--color-text-primary)] shadow-2xl">
+        <div className="mb-1 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[color:var(--color-tertiary)]/15 text-[color:var(--color-primary)]">
+            <Store size={18} />
+          </div>
+          <h2 className="text-lg font-semibold">Abrir caja</h2>
+        </div>
+        <p className="mb-4 text-small text-[color:var(--color-text-muted)]">
+          Para registrar ventas y generar facturas necesitas una caja abierta.
+        </p>
+
+        {cajas.length === 0 ? (
+          <div className="rounded-md bg-[color:var(--color-warning)]/10 p-3 text-small">
+            No hay cajas configuradas.{" "}
+            <Link href="/configuracion/cajas" className="font-medium text-[color:var(--color-primary)] underline">
+              Crear una caja
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Select
+              label="Caja"
+              value={cajaId}
+              onChange={(e) => setCajaId(e.target.value)}
+              options={cajas}
+            />
+            <Input
+              label="Monto inicial en caja"
+              type="text"
+              inputMode="decimal"
+              value={montoStr}
+              onChange={(e) => setMontoStr(e.target.value.replace(/[^0-9.]/g, ""))}
+              onFocus={(e) => e.target.select()}
+              hint="Efectivo con el que abres la caja"
+            />
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-between gap-2">
+          <Button variant="ghost" onClick={onMasTarde} disabled={abriendo}>
+            Abrir más tarde
+          </Button>
+          {cajas.length > 0 && (
+            <Button onClick={abrir} loading={abriendo} disabled={!cajaId}>
+              <Store size={14} /> Abrir caja
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
