@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   },
   description:
     "Punto de venta, inventario y contabilidad en un solo motor. Para negocios reales de Latinoamérica.",
+  icons: {
+    icon: "/Favicon.ico",
+    shortcut: "/Favicon.ico",
+  },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   ),
