@@ -61,7 +61,7 @@ export function CrearSucursalButton({
         type="button"
         onClick={() => setAbierto(true)}
         title={!puedeCrear ? limiteTexto : undefined}
-        className="atria-btn atria-btn-primary atria-btn-sm"
+        className="arca-btn arca-btn-primary arca-btn-sm"
       >
         <Plus size={14} /> Nueva sucursal
       </button>

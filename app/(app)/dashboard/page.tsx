@@ -130,7 +130,7 @@ export default async function DashboardPage({
         title="Operaciones del día"
         subtitle={`Bienvenido, ${user.nombre}. Sistema sincronizado.`}
         actions={
-          <span className="atria-badge atria-badge-success">
+          <span className="arca-badge arca-badge-success">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
             En línea
           </span>
@@ -138,14 +138,14 @@ export default async function DashboardPage({
       />
 
       {esBienvenida && (
-        <div className="mb-6 atria-card overflow-hidden border-[color:var(--color-tertiary)]/40 bg-gradient-to-br from-[color:var(--color-tertiary-light)]/30 to-[color:var(--color-surface)]">
+        <div className="mb-6 arca-card overflow-hidden border-[color:var(--color-tertiary)]/40 bg-gradient-to-br from-[color:var(--color-tertiary-light)]/30 to-[color:var(--color-surface)]">
           <div className="flex items-start gap-4 p-5">
             <div className="rounded-md bg-[color:var(--color-primary)] p-2.5 text-white">
               <Sparkles size={20} />
             </div>
             <div className="flex-1">
               <h2 className="text-lg text-[color:var(--color-text-primary)]">
-                Bienvenido a ATRIA, {user.nombre.split(" ")[0]}
+                Bienvenido a ARCA, {user.nombre.split(" ")[0]}
               </h2>
               <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
                 Tu empresa <strong>{empresa?.razonSocial}</strong> está lista.

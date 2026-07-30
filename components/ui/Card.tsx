@@ -7,7 +7,7 @@ export function Card({
   ...rest
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("atria-card", className)} {...rest}>
+    <div className={cn("arca-card", className)} {...rest}>
       {children}
     </div>
   );

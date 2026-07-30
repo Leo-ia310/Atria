@@ -171,7 +171,7 @@ export default async function EmpleadosPage() {
         title="Empleados"
         subtitle={`${filas.length} empleados · ${activos} activos${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/rrhh/empleados/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link href="/rrhh/empleados/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nuevo empleado
           </Link>
         }

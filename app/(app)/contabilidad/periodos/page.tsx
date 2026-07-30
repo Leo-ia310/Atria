@@ -85,7 +85,7 @@ export default async function PeriodosPage() {
         actions={
           <div className="flex items-center gap-2">
             <CrearProximoPeriodo anio={nextAnio} mes={nextMes} label={nextLabel} />
-            <Link href="/contabilidad" className="atria-btn atria-btn-secondary atria-btn-sm">
+            <Link href="/contabilidad" className="arca-btn arca-btn-secondary arca-btn-sm">
               ← Contabilidad
             </Link>
           </div>

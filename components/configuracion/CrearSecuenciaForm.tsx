@@ -55,7 +55,7 @@ export function CrearSecuenciaForm({ idFiscalNombre }: { idFiscalNombre: string 
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="atria-btn atria-btn-primary atria-btn-sm"
+        className="arca-btn arca-btn-primary arca-btn-sm"
       >
         <Plus size={14} /> Nueva secuencia
       </button>

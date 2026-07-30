@@ -23,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
         ref={ref}
         id={inputId}
         className={cn(
-          "atria-input",
+          "arca-input",
           error && "border-[color:var(--color-error)] focus:border-[color:var(--color-error)]",
           className,
         )}

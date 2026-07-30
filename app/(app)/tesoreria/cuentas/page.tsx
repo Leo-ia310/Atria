@@ -59,7 +59,7 @@ export default async function CuentasFinancierasPage() {
         actions={
           <Link
             href="/tesoreria/cuentas/nueva"
-            className="atria-btn atria-btn-primary atria-btn-sm"
+            className="arca-btn arca-btn-primary arca-btn-sm"
           >
             <Plus size={14} /> Nueva cuenta
           </Link>
@@ -76,7 +76,7 @@ export default async function CuentasFinancierasPage() {
               accion={
                 <Link
                   href="/tesoreria/cuentas/nueva"
-                  className="atria-btn atria-btn-primary atria-btn-sm"
+                  className="arca-btn arca-btn-primary arca-btn-sm"
                 >
                   <Plus size={14} /> Crear primera cuenta
                 </Link>

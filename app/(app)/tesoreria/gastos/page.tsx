@@ -118,7 +118,7 @@ export default async function GastosPage() {
         title="Gastos"
         subtitle={`${filas.length} gastos registrados`}
         actions={
-          <Link href="/tesoreria/gastos/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nuevo gasto
           </Link>
         }
@@ -133,7 +133,7 @@ export default async function GastosPage() {
             titulo="Sin gastos registrados"
             descripcion="Registra alquiler, servicios, sueldos y otros gastos operativos."
             accion={
-              <Link href="/tesoreria/gastos/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
+              <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
                 <Plus size={14} /> Registrar primer gasto
               </Link>
             }

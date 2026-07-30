@@ -107,7 +107,7 @@ export default async function ClientesPage() {
         title="Clientes"
         subtitle={`${filas.length} clientes registrados`}
         actions={
-          <Link href="/clientes/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link href="/clientes/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nuevo cliente
           </Link>
         }

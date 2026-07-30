@@ -133,7 +133,7 @@ export default async function CajaPage() {
             </div>
             <Link
               href={`/caja/${sesionAbierta.id}`}
-              className="atria-btn atria-btn-primary atria-btn-sm"
+              className="arca-btn arca-btn-primary arca-btn-sm"
             >
               Ver sesion
             </Link>

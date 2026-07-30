@@ -204,6 +204,19 @@ export const vacanteSchema = z
   );
 export type VacanteInput = z.infer<typeof vacanteSchema>;
 
+export const tipoDeduccionSchema = z.object({
+  nombre: z.string().trim().min(2, "Nombre requerido").max(60),
+});
+export type TipoDeduccionInput = z.infer<typeof tipoDeduccionSchema>;
+
+export const deduccionVariableSchema = z.object({
+  nominaDetalleId: z.string().uuid("Empleado inválido"),
+  tipoDeduccionId: z.string().uuid("Selecciona un tipo de deducción"),
+  monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
+  nota: z.string().trim().max(200).optional().or(z.literal("")),
+});
+export type DeduccionVariableInput = z.infer<typeof deduccionVariableSchema>;
+
 export const candidatoSchema = z
   .object({
     vacanteId: z.string().uuid("Vacante inválida"),

@@ -219,7 +219,7 @@ export function NuevaCompraForm({
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar producto por SKU o nombre..."
-              className="atria-input pl-9"
+              className="arca-input pl-9"
             />
             {productosFiltrados.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
@@ -276,7 +276,7 @@ export function NuevaCompraForm({
                             onChange={(e) =>
                               actualizarLinea(l.id, { cantidad: parseFloat(e.target.value) || 0 })
                             }
-                            className="atria-input w-20 text-right"
+                            className="arca-input w-20 text-right"
                           />
                         </td>
                         <td className="px-2 py-1">
@@ -289,7 +289,7 @@ export function NuevaCompraForm({
                                 costoUnitario: parseFloat(e.target.value) || 0,
                               })
                             }
-                            className="atria-input w-28 text-right"
+                            className="arca-input w-28 text-right"
                           />
                         </td>
                         <td className="px-2 py-2 text-right text-[color:var(--color-text-muted)]">

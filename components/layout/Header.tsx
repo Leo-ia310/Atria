@@ -80,7 +80,7 @@ export function Header({
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="atria-btn atria-btn-ghost"
+          className="arca-btn arca-btn-ghost"
         >
           <LogOut size={14} />
           Salir

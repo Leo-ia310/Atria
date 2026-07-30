@@ -86,7 +86,7 @@ export default async function LibroMayorPage({
         actions={
           <Link
             href="/contabilidad/libro-diario"
-            className="atria-btn atria-btn-secondary atria-btn-sm"
+            className="arca-btn arca-btn-secondary arca-btn-sm"
           >
             Ver libro diario →
           </Link>

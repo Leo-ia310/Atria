@@ -77,7 +77,7 @@ export default async function ReporteRentabilidadPage() {
         title="Rentabilidad"
         subtitle={`Ingresos vs costo de ventas — últimos 12 meses${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/reportes" className="atria-btn atria-btn-secondary atria-btn-sm">
+          <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
             ← Reportes
           </Link>
         }

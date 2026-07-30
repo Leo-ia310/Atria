@@ -29,7 +29,7 @@ export default async function AppLayout({
     getSucursalScope(user),
     headers(),
   ]);
-  const pathname = headerStore.get("x-atria-pathname") ?? "";
+  const pathname = headerStore.get("x-arca-pathname") ?? "";
   const moduloActual = moduloDesdeRuta(pathname);
 
   if (moduloActual && !puedeAccederModulo(access, moduloActual)) {

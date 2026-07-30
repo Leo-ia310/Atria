@@ -1,5 +1,5 @@
 /**
- * ATRIA — Schema completo (Drizzle ORM + PostgreSQL)
+ * ARCA — Schema completo (Drizzle ORM + PostgreSQL)
  *
  * Convenciones:
  *   - Toda tabla de negocio incluye empresa_id (multi-tenant).
@@ -1802,6 +1802,8 @@ export const nominas = pgTable(
     periodoFin: date("periodo_fin").notNull(),
     fechaPago: date("fecha_pago").notNull(),
     estado: nominaEstadoEnum("estado").notNull().default("borrador"),
+    // Flujo de verificación en 3 pasos: 0 recién creada → 3 verificada (se bloquea).
+    nivelVerificacion: integer("nivel_verificacion").notNull().default(0),
     empleadosCount: integer("empleados_count").notNull().default(0),
     totalDevengado: numeric("total_devengado", { precision: 18, scale: 4 }).notNull().default("0"),
     totalDeducciones: numeric("total_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
@@ -1849,11 +1851,56 @@ export const nominaDetalles = pgTable(
     otrasDeducciones: numeric("otras_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
     totalDeducciones: numeric("total_deducciones", { precision: 18, scale: 4 }).notNull().default("0"),
     totalNeto: numeric("total_neto", { precision: 18, scale: 4 }).notNull().default("0"),
+    estadoPago: text("estado_pago").notNull().default("pendiente"),
+    pagadoEn: timestamp("pagado_en", { withTimezone: true }),
     notas: text("notas"),
   },
   (t) => [
     index("nomina_detalles_nomina_idx").on(t.nominaId),
     index("nomina_detalles_empleado_idx").on(t.empleadoId),
+  ],
+);
+
+// Catálogo de tipos de deducción NO fijas (gasolina, transporte, comida, etc.).
+// Las fijas (INSS/IR) se calculan aparte en el motor de nómina.
+export const tiposDeduccion = pgTable(
+  "tipos_deduccion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("tipos_deduccion_empresa_nombre_uq").on(t.empresaId, t.nombre),
+    index("tipos_deduccion_empresa_idx").on(t.empresaId),
+  ],
+);
+
+// Deducciones variables aplicadas al recibo de un empleado en una nómina.
+export const nominaDeducciones = pgTable(
+  "nomina_deducciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nominaDetalleId: uuid("nomina_detalle_id")
+      .notNull()
+      .references(() => nominaDetalles.id, { onDelete: "cascade" }),
+    tipoDeduccionId: uuid("tipo_deduccion_id")
+      .notNull()
+      .references(() => tiposDeduccion.id),
+    monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    nota: text("nota"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("nomina_deducciones_detalle_idx").on(t.nominaDetalleId),
+    index("nomina_deducciones_empresa_idx").on(t.empresaId),
   ],
 );
 

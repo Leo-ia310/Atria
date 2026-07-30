@@ -1,4 +1,4 @@
-# ATRIA
+# ARCA
 
 **Sistema operativo para el comercio.** SaaS multi-tenant que conecta el punto de venta, el inventario y la contabilidad en un solo motor — diseñado para pequeñas y medianas empresas de Latinoamérica.
 

@@ -63,14 +63,14 @@ export function FacturaVer({ data }: { data: ReciboData }) {
                 <button
                   type="button"
                   onClick={imprimirRecibo}
-                  className="atria-btn atria-btn-primary atria-btn-sm"
+                  className="arca-btn arca-btn-primary arca-btn-sm"
                 >
                   <Printer size={14} /> Imprimir
                 </button>
                 <button
                   type="button"
                   onClick={() => setAbierto(false)}
-                  className="atria-btn atria-btn-secondary atria-btn-sm"
+                  className="arca-btn arca-btn-secondary arca-btn-sm"
                 >
                   <X size={14} /> Cerrar
                 </button>

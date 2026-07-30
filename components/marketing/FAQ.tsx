@@ -6,8 +6,8 @@ import { DESCUENTO_ANUAL_PORCENTAJE } from "@/lib/pricing";
 
 const PREGUNTAS = [
   {
-    q: "¿Necesito conocimientos de contabilidad para usar ATRIA?",
-    a: "No. ATRIA genera los asientos contables automáticamente con cada venta, compra o gasto. Tú vendes — el sistema cuadra. Tu contador puede revisar el libro diario cuando lo necesite.",
+    q: "¿Necesito conocimientos de contabilidad para usar ARCA?",
+    a: "No. ARCA genera los asientos contables automáticamente con cada venta, compra o gasto. Tú vendes — el sistema cuadra. Tu contador puede revisar el libro diario cuando lo necesite.",
   },
   {
     q: "¿Funciona sin internet?",
@@ -18,7 +18,7 @@ const PREGUNTAS = [
     a: "Sí. Soportamos importación de productos, clientes y proveedores desde CSV/Excel. En el plan Enterprise incluimos onboarding 1-a-1 donde te ayudamos con la migración.",
   },
   {
-    q: "¿Para qué países está hecho ATRIA?",
+    q: "¿Para qué países está hecho ARCA?",
     a: "Estamos diseñados para Latinoamérica: Honduras, Nicaragua, Guatemala, Costa Rica y El Salvador. Cada país tiene su moneda, impuesto, formato de identificación fiscal y catálogo de cuentas base.",
   },
   {

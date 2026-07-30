@@ -54,7 +54,7 @@ export default async function TenantsPage() {
         <div>
           <h1 className="text-2xl">Tenants</h1>
           <p className="mt-1 text-small text-white/60">
-            {filas.length} empresas registradas en ATRIA
+            {filas.length} empresas registradas en ARCA
           </p>
         </div>
         <Link

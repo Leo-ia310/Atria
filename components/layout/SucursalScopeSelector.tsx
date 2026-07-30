@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Building2, Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COOKIE_NAME = "atria:sucursal-scope";
+const COOKIE_NAME = "arca:sucursal-scope";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 type SucursalOption = {

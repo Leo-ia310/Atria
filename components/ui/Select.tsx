@@ -27,7 +27,7 @@ export const Select = forwardRef<HTMLSelectElement, Props>(function Select(
           ref={ref}
           id={inputId}
           className={cn(
-            "atria-input appearance-none pr-9",
+            "arca-input appearance-none pr-9",
             error && "border-[color:var(--color-error)]",
             className,
           )}

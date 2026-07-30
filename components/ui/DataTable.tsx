@@ -26,11 +26,11 @@ export function DataTable<T extends { id?: string }>({
   empty?: ReactNode;
 }) {
   if (data.length === 0 && empty) {
-    return <div className="atria-card p-8">{empty}</div>;
+    return <div className="arca-card p-8">{empty}</div>;
   }
 
   return (
-    <div className="atria-card overflow-hidden">
+    <div className="arca-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-small">
           <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">

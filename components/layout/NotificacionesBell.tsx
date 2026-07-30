@@ -42,7 +42,7 @@ export function NotificacionesBell({
         type="button"
         onClick={() => setAbierto((v) => !v)}
         className={cn(
-          "atria-btn atria-btn-ghost relative p-2",
+          "arca-btn arca-btn-ghost relative p-2",
           hay && "text-[color:var(--color-primary)]",
         )}
         aria-label={hay ? `${notificaciones.length} notificaciones` : "Notificaciones"}

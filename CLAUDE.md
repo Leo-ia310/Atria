@@ -1,12 +1,12 @@
-# ATRIA — Contexto para Claude Code
+# ARCA — Contexto para Claude Code
 
-> **Lee este archivo completo antes de tocar código.** Es la fuente de verdad sobre qué es ATRIA, cómo está estructurado, y qué reglas son innegociables.
+> **Lee este archivo completo antes de tocar código.** Es la fuente de verdad sobre qué es ARCA, cómo está estructurado, y qué reglas son innegociables.
 
 ---
 
-## 1. Qué es ATRIA
+## 1. Qué es ARCA
 
-**ATRIA es un SaaS multi-tenant de gestión comercial para pequeñas y medianas empresas de Latinoamérica.** Reemplaza Excel + cuaderno de fiado + sistemas desconectados con una plataforma única que conecta el **punto de venta**, el **inventario** y la **contabilidad** en un solo motor.
+**ARCA es un SaaS multi-tenant de gestión comercial para pequeñas y medianas empresas de Latinoamérica.** Reemplaza Excel + cuaderno de fiado + sistemas desconectados con una plataforma única que conecta el **punto de venta**, el **inventario** y la **contabilidad** en un solo motor.
 
 **La idea central:** cada evento del negocio (venta, compra, gasto, ajuste) genera **automáticamente su asiento contable de partida doble**. El cajero ve "venta → cobrar → ticket". El contador ve el asiento en el libro diario. Nadie tiene que cuadrar nada a mano.
 
@@ -52,7 +52,7 @@
 ## 4. Estructura de archivos
 
 ```
-atria/
+arca/
 ├── auth.ts                       NextAuth completo (Node-only, importa db)
 ├── auth.config.ts                NextAuth edge-safe + type augmentations
 ├── middleware.ts                 Usa auth.config.ts (edge runtime)
@@ -105,7 +105,7 @@ atria/
 ### UI
 - Solo CSS variables del design system (`var(--color-primary)`, etc.). **No usar paleta de Tailwind por defecto** para colores de marca.
 - Tipografía: clases utilitarias `.text-display`, `.text-2xl`, `.text-xl`, `.text-lg`, `.text-base`, `.text-small`, `.text-label`.
-- Componentes utilitarios pre-armados: `.atria-card`, `.atria-input`, `.atria-btn` (+ variantes `primary`/`secondary`/`ghost`/`danger`), `.atria-badge` (+ semáforo).
+- Componentes utilitarios pre-armados: `.arca-card`, `.arca-input`, `.arca-btn` (+ variantes `primary`/`secondary`/`ghost`/`danger`), `.arca-badge` (+ semáforo).
 - Iconos: **Lucide React**, tamaño `14–20px`.
 
 ### Comentarios
@@ -287,7 +287,7 @@ npm run db:generate  # crear migración a partir del schema
 
 | Término | Significado |
 |---|---|
-| **Tenant / Empresa** | Cada cliente de ATRIA. Un tenant = una `empresas` row + todos sus datos aislados. |
+| **Tenant / Empresa** | Cada cliente de ARCA. Un tenant = una `empresas` row + todos sus datos aislados. |
 | **CAI** | Código de Autorización de Impresión (Honduras). Va en `secuencias_fiscales.autorizacion`. |
 | **CxC / CxP** | Cuentas por Cobrar / por Pagar. |
 | **Partida doble** | Por cada asiento, lo que entra a una cuenta sale de otra (Debe = Haber). |

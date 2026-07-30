@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, sql, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   empleados,
@@ -9,6 +9,8 @@ import {
   feriados,
   nominas,
   nominaDetalles,
+  nominaDeducciones,
+  tiposDeduccion,
   solicitudesRrhh,
   vacantes,
   candidatos,
@@ -24,6 +26,8 @@ import {
   nominaGenerarSchema,
   vacanteSchema,
   candidatoSchema,
+  tipoDeduccionSchema,
+  deduccionVariableSchema,
 } from "@/lib/validations/rrhh";
 import {
   registrarNominaDevengo,
@@ -772,6 +776,346 @@ export async function eliminarNominaBorrador(id: string): Promise<ResultadoSimpl
   } catch (err) {
     console.error("[eliminarNominaBorrador]", err);
     return { ok: false, error: "No pudimos eliminar la nómina." };
+  }
+}
+
+/* =====================  Deducciones variables y verificación  ===================== */
+
+const VERIFICACIONES_REQUERIDAS = 3;
+
+// Recalcula 'otras deducciones' del recibo (suma de deducciones variables) y los
+// totales del recibo y de la nómina completa.
+async function recalcularDeduccionesDetalle(detalleId: string): Promise<string | null> {
+  const [{ otras }] = await db
+    .select({ otras: sum(nominaDeducciones.monto) })
+    .from(nominaDeducciones)
+    .where(eq(nominaDeducciones.nominaDetalleId, detalleId));
+  const [det] = await db
+    .select({
+      nominaId: nominaDetalles.nominaId,
+      totalDevengado: nominaDetalles.totalDevengado,
+      ss: nominaDetalles.deduccionSeguridadSocial,
+      ir: nominaDetalles.deduccionRenta,
+    })
+    .from(nominaDetalles)
+    .where(eq(nominaDetalles.id, detalleId))
+    .limit(1);
+  if (!det) return null;
+
+  const otrasN = num(otras ?? 0);
+  const totalDed = num(det.ss) + num(det.ir) + otrasN;
+  const neto = num(det.totalDevengado) - totalDed;
+  await db
+    .update(nominaDetalles)
+    .set({
+      otrasDeducciones: dec(otrasN),
+      totalDeducciones: dec(totalDed),
+      totalNeto: dec(neto),
+    })
+    .where(eq(nominaDetalles.id, detalleId));
+
+  const [tot] = await db
+    .select({
+      ded: sum(nominaDetalles.totalDeducciones),
+      neto: sum(nominaDetalles.totalNeto),
+    })
+    .from(nominaDetalles)
+    .where(eq(nominaDetalles.nominaId, det.nominaId));
+  await db
+    .update(nominas)
+    .set({
+      totalDeducciones: dec(num(tot?.ded ?? 0)),
+      totalNeto: dec(num(tot?.neto ?? 0)),
+    })
+    .where(eq(nominas.id, det.nominaId));
+
+  return det.nominaId;
+}
+
+export async function crearTipoDeduccion(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  const parsed = tipoDeduccionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const nombre = parsed.data.nombre.trim();
+  try {
+    const yaExiste = await db
+      .select({ id: tiposDeduccion.id, nombre: tiposDeduccion.nombre })
+      .from(tiposDeduccion)
+      .where(and(eq(tiposDeduccion.empresaId, user.empresaId), eq(tiposDeduccion.nombre, nombre)))
+      .limit(1);
+    if (yaExiste.length > 0) {
+      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
+    }
+    const [creado] = await db
+      .insert(tiposDeduccion)
+      .values({ empresaId: user.empresaId, nombre })
+      .returning({ id: tiposDeduccion.id, nombre: tiposDeduccion.nombre });
+    revalidatePath("/rrhh/deducciones");
+    return { ok: true, id: creado.id, nombre: creado.nombre };
+  } catch (err) {
+    console.error("[crearTipoDeduccion]", err);
+    return { ok: false, error: "No pudimos crear el tipo de deducción." };
+  }
+}
+
+export async function agregarDeduccionVariable(input: unknown): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  const parsed = deduccionVariableSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  try {
+    const [det] = await db
+      .select({ id: nominaDetalles.id, estado: nominas.estado, nominaId: nominas.id })
+      .from(nominaDetalles)
+      .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+      .where(
+        and(
+          eq(nominaDetalles.id, d.nominaDetalleId),
+          eq(nominaDetalles.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1);
+    if (!det) return { ok: false, error: "Recibo no encontrado." };
+    if (det.estado !== "borrador") {
+      return { ok: false, error: "La nómina ya está verificada; no se pueden agregar deducciones." };
+    }
+    const [tipo] = await db
+      .select({ id: tiposDeduccion.id })
+      .from(tiposDeduccion)
+      .where(and(eq(tiposDeduccion.id, d.tipoDeduccionId), eq(tiposDeduccion.empresaId, user.empresaId)))
+      .limit(1);
+    if (!tipo) return { ok: false, error: "Tipo de deducción inválido." };
+
+    await db.insert(nominaDeducciones).values({
+      empresaId: user.empresaId,
+      nominaDetalleId: d.nominaDetalleId,
+      tipoDeduccionId: d.tipoDeduccionId,
+      monto: dec(d.monto),
+      nota: d.nota || null,
+    });
+    await recalcularDeduccionesDetalle(d.nominaDetalleId);
+    revalidatePath("/rrhh/deducciones");
+    revalidatePath(`/rrhh/nomina/${det.nominaId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[agregarDeduccionVariable]", err);
+    return { ok: false, error: "No pudimos agregar la deducción." };
+  }
+}
+
+export async function eliminarDeduccionVariable(id: string): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  try {
+    const [ded] = await db
+      .select({
+        id: nominaDeducciones.id,
+        detalleId: nominaDeducciones.nominaDetalleId,
+        estado: nominas.estado,
+        nominaId: nominas.id,
+      })
+      .from(nominaDeducciones)
+      .innerJoin(nominaDetalles, eq(nominaDetalles.id, nominaDeducciones.nominaDetalleId))
+      .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+      .where(
+        and(eq(nominaDeducciones.id, id), eq(nominaDeducciones.empresaId, user.empresaId)),
+      )
+      .limit(1);
+    if (!ded) return { ok: false, error: "Deducción no encontrada." };
+    if (ded.estado !== "borrador") {
+      return { ok: false, error: "La nómina ya está verificada; no se pueden quitar deducciones." };
+    }
+    await db.delete(nominaDeducciones).where(eq(nominaDeducciones.id, id));
+    await recalcularDeduccionesDetalle(ded.detalleId);
+    revalidatePath("/rrhh/deducciones");
+    revalidatePath(`/rrhh/nomina/${ded.nominaId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[eliminarDeduccionVariable]", err);
+    return { ok: false, error: "No pudimos quitar la deducción." };
+  }
+}
+
+// Verificación en 3 pasos. En el paso 3 se bloquea la nómina y se genera el
+// asiento de devengo (reutiliza la misma lógica contable que aprobarNomina).
+export async function verificarNomina(
+  id: string,
+): Promise<{ ok: true; nivel: number; bloqueada: boolean } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  try {
+    const [nom] = await db
+      .select()
+      .from(nominas)
+      .where(and(eq(nominas.id, id), eq(nominas.empresaId, user.empresaId)))
+      .limit(1);
+    if (!nom) return { ok: false, error: "Nómina no encontrada." };
+    if (nom.estado !== "borrador") {
+      return { ok: false, error: "La nómina ya está verificada." };
+    }
+
+    const nuevoNivel = Math.min(nom.nivelVerificacion + 1, VERIFICACIONES_REQUERIDAS);
+
+    if (nuevoNivel < VERIFICACIONES_REQUERIDAS) {
+      await db
+        .update(nominas)
+        .set({ nivelVerificacion: nuevoNivel })
+        .where(and(eq(nominas.id, id), eq(nominas.empresaId, user.empresaId)));
+      revalidatePath(`/rrhh/nomina/${id}`);
+      revalidatePath("/rrhh/nomina");
+      revalidatePath("/rrhh/deducciones");
+      return { ok: true, nivel: nuevoNivel, bloqueada: false };
+    }
+
+    // Tercera verificación: bloquear + generar devengo contable.
+    const asientoId = await registrarNominaDevengo({
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      nominaId: nom.id,
+      fecha: fechaMediodia(nom.fechaPago),
+      numero: nom.numero,
+      totalDevengado: num(nom.totalDevengado),
+      totalDeducciones: num(nom.totalDeducciones),
+      totalNeto: num(nom.totalNeto),
+    });
+
+    await db
+      .update(nominas)
+      .set({
+        nivelVerificacion: VERIFICACIONES_REQUERIDAS,
+        estado: "aprobada",
+        asientoDevengoId: asientoId,
+        aprobadoPor: user.id,
+        aprobadoEn: new Date(),
+      })
+      .where(and(eq(nominas.id, id), eq(nominas.empresaId, user.empresaId)));
+
+    revalidatePath(`/rrhh/nomina/${id}`);
+    revalidatePath("/rrhh/nomina");
+    revalidatePath("/rrhh/deducciones");
+    revalidatePath("/contabilidad/libro-diario");
+    return { ok: true, nivel: VERIFICACIONES_REQUERIDAS, bloqueada: true };
+  } catch (err) {
+    const msg =
+      err instanceof Error && err.name === "PeriodoCerradoError"
+        ? "El período contable de la fecha de pago está cerrado."
+        : "No pudimos verificar la nómina.";
+    console.error("[verificarNomina]", err);
+    return { ok: false, error: msg };
+  }
+}
+
+// Marca el pago de un recibo individual (operativo, sin asiento). El asiento de
+// pago consolidado se genera al finalizar (finalizarPagoNomina).
+export async function pagarDetalleNomina(
+  detalleId: string,
+  pagar: boolean,
+): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  try {
+    const [det] = await db
+      .select({ id: nominaDetalles.id, estado: nominas.estado, nominaId: nominas.id })
+      .from(nominaDetalles)
+      .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+      .where(
+        and(eq(nominaDetalles.id, detalleId), eq(nominaDetalles.empresaId, user.empresaId)),
+      )
+      .limit(1);
+    if (!det) return { ok: false, error: "Recibo no encontrado." };
+    if (det.estado !== "aprobada") {
+      return {
+        ok: false,
+        error: "La nómina debe estar verificada (3/3) para registrar pagos.",
+      };
+    }
+    await db
+      .update(nominaDetalles)
+      .set({
+        estadoPago: pagar ? "pagado" : "pendiente",
+        pagadoEn: pagar ? new Date() : null,
+      })
+      .where(eq(nominaDetalles.id, detalleId));
+    revalidatePath(`/rrhh/nomina/${det.nominaId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[pagarDetalleNomina]", err);
+    return { ok: false, error: "No pudimos actualizar el pago." };
+  }
+}
+
+// Paga a todos y finaliza: marca todos los recibos como pagados, genera el
+// asiento de pago consolidado y deja la nómina como pagada.
+export async function finalizarPagoNomina(
+  id: string,
+  cuentaFinancieraId: string,
+): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  if (!cuentaFinancieraId) {
+    return { ok: false, error: "Selecciona la cuenta de pago." };
+  }
+  try {
+    const [nom] = await db
+      .select()
+      .from(nominas)
+      .where(and(eq(nominas.id, id), eq(nominas.empresaId, user.empresaId)))
+      .limit(1);
+    if (!nom) return { ok: false, error: "Nómina no encontrada." };
+    if (nom.estado !== "aprobada") {
+      return { ok: false, error: "Solo se puede pagar una nómina verificada (3/3)." };
+    }
+
+    const asientoId = await registrarPagoNomina({
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      nominaId: nom.id,
+      fecha: fechaMediodia(nom.fechaPago),
+      numero: nom.numero,
+      monto: num(nom.totalNeto),
+      cuentaFinancieraId,
+    });
+
+    await db
+      .update(nominaDetalles)
+      .set({ estadoPago: "pagado", pagadoEn: new Date() })
+      .where(eq(nominaDetalles.nominaId, id));
+
+    await db
+      .update(nominas)
+      .set({
+        estado: "pagada",
+        asientoPagoId: asientoId,
+        cuentaFinancieraId,
+        pagadoEn: new Date(),
+      })
+      .where(and(eq(nominas.id, id), eq(nominas.empresaId, user.empresaId)));
+
+    revalidatePath("/rrhh/nomina");
+    revalidatePath(`/rrhh/nomina/${id}`);
+    revalidatePath("/contabilidad/libro-diario");
+    return { ok: true };
+  } catch (err) {
+    const msg =
+      err instanceof Error && err.name === "PeriodoCerradoError"
+        ? "El período contable de la fecha de pago está cerrado."
+        : "No pudimos pagar la nómina.";
+    console.error("[finalizarPagoNomina]", err);
+    return { ok: false, error: msg };
   }
 }
 

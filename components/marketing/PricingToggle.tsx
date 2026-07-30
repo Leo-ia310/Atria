@@ -79,7 +79,7 @@ export function PricingToggle() {
             <div
               key={p.id}
               className={cn(
-                "atria-gradborder h-full transition-transform duration-500",
+                "arca-gradborder h-full transition-transform duration-500",
                 p.destacado && "fast md:scale-105",
               )}
             >
@@ -121,7 +121,7 @@ export function PricingToggle() {
                 <Link
                   href={`/registro?plan=${p.id}&ciclo=${ciclo}`}
                   className={cn(
-                    "atria-btn atria-btn-lg mt-6 w-full justify-center transition hover:-translate-y-0.5",
+                    "arca-btn arca-btn-lg mt-6 w-full justify-center transition hover:-translate-y-0.5",
                     p.destacado
                       ? "bg-white text-[#160827] hover:bg-[#efe7ff]"
                       : "border border-white/20 bg-white/5 text-white hover:bg-white/12",

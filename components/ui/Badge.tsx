@@ -13,7 +13,7 @@ export function Badge({
   className?: string;
 }) {
   return (
-    <span className={cn("atria-badge", `atria-badge-${variant}`, className)}>
+    <span className={cn("arca-badge", `arca-badge-${variant}`, className)}>
       {children}
     </span>
   );

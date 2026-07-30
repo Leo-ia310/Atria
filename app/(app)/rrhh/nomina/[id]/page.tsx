@@ -14,6 +14,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import { SEGURIDAD_SOCIAL_NOMBRE } from "@/lib/rrhh";
 import { NominaAcciones } from "@/components/rrhh/NominaAcciones";
+import { PagoDetalleControl } from "@/components/rrhh/PagoDetalleControl";
 import type { PaisCodigo } from "@/lib/paises";
 
 const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error" | "info"> = {
@@ -58,6 +59,7 @@ export default async function NominaDetallePage({
       otrasDeducciones: nominaDetalles.otrasDeducciones,
       totalDeducciones: nominaDetalles.totalDeducciones,
       totalNeto: nominaDetalles.totalNeto,
+      estadoPago: nominaDetalles.estadoPago,
     })
     .from(nominaDetalles)
     .leftJoin(empleados, eq(empleados.id, nominaDetalles.empleadoId))
@@ -85,6 +87,8 @@ export default async function NominaDetallePage({
       : [];
 
   const ssNombre = SEGURIDAD_SOCIAL_NOMBRE[pais];
+  const mostrarPago = nom.estado === "aprobada" || nom.estado === "pagada";
+  const bloqueadoPagado = nom.estado === "pagada";
 
   return (
     <div>
@@ -103,6 +107,7 @@ export default async function NominaDetallePage({
             <NominaAcciones
               nominaId={nom.id}
               estado={nom.estado}
+              nivelVerificacion={nom.nivelVerificacion}
               cuentas={cuentas.map((c) => ({ value: c.id, label: c.nombre }))}
             />
           </div>
@@ -115,6 +120,25 @@ export default async function NominaDetallePage({
         <KpiCard label="Deducciones" value={money(nom.totalDeducciones)} />
         <KpiCard label="Neto a pagar" value={money(nom.totalNeto)} />
       </div>
+
+      {nom.estado === "borrador" && (
+        <div className="mb-6 rounded-md border border-[color:var(--color-secondary)]/30 bg-[color:var(--color-secondary)]/8 p-4 text-small">
+          <p className="font-medium text-[color:var(--color-text-primary)]">
+            Flujo de verificación (3 pasos) · vas en {nom.nivelVerificacion}/3
+          </p>
+          <ol className="mt-1 list-decimal pl-5 text-[color:var(--color-text-muted)]">
+            <li>Verifica la nómina recién creada.</li>
+            <li>
+              Agrega las deducciones no fijas en{" "}
+              <Link href="/rrhh/deducciones" className="text-[color:var(--color-secondary)] underline">
+                Deducciones
+              </Link>{" "}
+              y verifica de nuevo.
+            </li>
+            <li>Verificación final: la nómina se bloquea y solo se registran pagos.</li>
+          </ol>
+        </div>
+      )}
 
       {feriadosPeriodo.length > 0 && (
         <Card className="mb-6">
@@ -145,6 +169,9 @@ export default async function NominaDetallePage({
                 <th className="text-label px-4 py-3 text-right font-semibold">IR</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Deducciones</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Neto</th>
+                {mostrarPago && (
+                  <th className="text-label px-4 py-3 text-center font-semibold">Pago</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -169,6 +196,15 @@ export default async function NominaDetallePage({
                     {money(d.totalDeducciones)}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">{money(d.totalNeto)}</td>
+                  {mostrarPago && (
+                    <td className="px-4 py-3 text-center">
+                      <PagoDetalleControl
+                        detalleId={d.id}
+                        estadoPago={d.estadoPago}
+                        bloqueadoPagado={bloqueadoPagado}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -182,6 +218,7 @@ export default async function NominaDetallePage({
                 <td></td>
                 <td className="px-4 py-3 text-right">{money(nom.totalDeducciones)}</td>
                 <td className="px-4 py-3 text-right">{money(nom.totalNeto)}</td>
+                {mostrarPago && <td></td>}
               </tr>
             </tfoot>
           </table>

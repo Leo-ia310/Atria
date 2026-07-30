@@ -84,7 +84,7 @@ export default async function VacanteDetallePage({
         vac.salarioMax ||
         vac.experienciaAnios != null ||
         (vac.habilidades && vac.habilidades.length > 0)) && (
-        <div className="atria-card mb-6 p-5 space-y-3">
+        <div className="arca-card mb-6 p-5 space-y-3">
           {(vac.salarioMin || vac.salarioMax) && (
             <div className="text-small">
               <span className="text-label">Rango salarial: </span>

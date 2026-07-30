@@ -117,10 +117,10 @@ export default async function ComprasPage() {
         subtitle={`${filas.length} compras registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex gap-2">
-            <Link href="/compras/proveedores" className="atria-btn atria-btn-secondary atria-btn-sm">
+            <Link href="/compras/proveedores" className="arca-btn arca-btn-secondary arca-btn-sm">
               <Truck size={14} /> Proveedores
             </Link>
-            <Link href="/compras/nueva" className="atria-btn atria-btn-primary atria-btn-sm">
+            <Link href="/compras/nueva" className="arca-btn arca-btn-primary arca-btn-sm">
               <Plus size={14} /> Nueva compra
             </Link>
           </div>

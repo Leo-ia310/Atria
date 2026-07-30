@@ -92,14 +92,14 @@ export default async function AsistenciaPage({
         actions={
           <Link
             href="/rrhh/asistencia/historial"
-            className="atria-btn atria-btn-secondary atria-btn-sm"
+            className="arca-btn arca-btn-secondary arca-btn-sm"
           >
             <History size={14} /> Ver historial
           </Link>
         }
       />
       {activos.length === 0 ? (
-        <div className="atria-card p-8">
+        <div className="arca-card p-8">
           <EmptyState
             icon={CalendarCheck}
             titulo="No hay empleados activos"

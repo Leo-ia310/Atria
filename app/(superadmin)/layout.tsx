@@ -16,9 +16,9 @@ export default async function SuperAdminLayout({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-base font-semibold">
-              ATRIA
+              ARCA
             </Link>
-            <span className="atria-badge atria-badge-warning">SuperAdmin</span>
+            <span className="arca-badge arca-badge-warning">SuperAdmin</span>
           </div>
           <Link
             href="/dashboard"

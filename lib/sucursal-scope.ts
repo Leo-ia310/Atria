@@ -4,7 +4,7 @@ import type { SessionUser } from "@/lib/actions/session-helpers";
 import { getAccessContext } from "@/lib/server-access";
 import { getSucursalesActivas } from "@/lib/tenant-data";
 
-export const SUCURSAL_SCOPE_COOKIE = "atria:sucursal-scope";
+export const SUCURSAL_SCOPE_COOKIE = "arca:sucursal-scope";
 
 export type SucursalOption = {
   id: string;

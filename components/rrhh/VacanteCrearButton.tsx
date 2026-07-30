@@ -85,7 +85,7 @@ export function VacanteCrearButton({
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="atria-btn atria-btn-primary atria-btn-sm"
+        className="arca-btn arca-btn-primary arca-btn-sm"
       >
         <Plus size={14} /> Nueva vacante
       </button>
@@ -148,7 +148,7 @@ export function VacanteCrearButton({
                   }
                 }}
                 placeholder="Ej. Excel, Atención al cliente…"
-                className="atria-input flex-1"
+                className="arca-input flex-1"
               />
               <Button type="button" variant="secondary" onClick={agregarHabilidad}>
                 <Plus size={16} />

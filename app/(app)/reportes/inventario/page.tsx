@@ -100,7 +100,7 @@ export default async function ReporteInventarioPage() {
         title="Reporte de inventario"
         subtitle={`Stock valorizado al costo promedio${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/reportes" className="atria-btn atria-btn-secondary atria-btn-sm">
+          <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
             ← Reportes
           </Link>
         }

@@ -98,7 +98,7 @@ export default async function SesionDetallePage({
             <Badge variant={estaAbierta ? "success" : "neutral"}>
               {estaAbierta ? "Abierta" : "Cerrada"}
             </Badge>
-            <Link href="/caja" className="atria-btn atria-btn-secondary atria-btn-sm">
+            <Link href="/caja" className="arca-btn arca-btn-secondary arca-btn-sm">
               ← Volver
             </Link>
           </div>

@@ -107,14 +107,14 @@ export function SolicitudesPanel({
           type="button"
           onClick={() => setAbierto(true)}
           disabled={empleados.length === 0}
-          className="atria-btn atria-btn-primary atria-btn-sm"
+          className="arca-btn arca-btn-primary arca-btn-sm"
         >
           <Plus size={14} /> Nueva solicitud
         </button>
       </div>
 
       {solicitudes.length === 0 ? (
-        <div className="atria-card p-8">
+        <div className="arca-card p-8">
           <EmptyState
             icon={Inbox}
             titulo="No hay solicitudes"
@@ -124,7 +124,7 @@ export function SolicitudesPanel({
       ) : (
         <div className="space-y-3">
           {solicitudes.map((s) => (
-            <div key={s.id} className="atria-card p-4">
+            <div key={s.id} className="arca-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">

@@ -52,14 +52,14 @@ export function AsistenciaTablero({
 
   return (
     <div className="space-y-4">
-      <div className="atria-card flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="arca-card flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-[color:var(--color-secondary)]" />
           <input
             type="date"
             value={fecha}
             onChange={(e) => cambiarFecha(e.target.value)}
-            className="atria-input w-44"
+            className="arca-input w-44"
           />
         </div>
         {feriado && (
@@ -67,7 +67,7 @@ export function AsistenciaTablero({
         )}
       </div>
 
-      <div className="atria-card overflow-hidden">
+      <div className="arca-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-small">
             <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
@@ -154,7 +154,7 @@ function FilaAsistencia({
         <select
           value={estado}
           onChange={(e) => setEstado(e.target.value)}
-          className="atria-input w-40"
+          className="arca-input w-40"
         >
           {ESTADOS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -169,7 +169,7 @@ function FilaAsistencia({
           step="0.5"
           value={horas}
           onChange={(e) => setHoras(e.target.value)}
-          className="atria-input w-20 text-right"
+          className="arca-input w-20 text-right"
         />
       </td>
       <td className="px-4 py-2 text-right">
@@ -178,7 +178,7 @@ function FilaAsistencia({
           step="0.5"
           value={extra}
           onChange={(e) => setExtra(e.target.value)}
-          className="atria-input w-20 text-right"
+          className="arca-input w-20 text-right"
         />
       </td>
       <td className="px-4 py-2 text-right">
@@ -186,7 +186,7 @@ function FilaAsistencia({
           type="button"
           onClick={guardar}
           disabled={pending}
-          className="atria-btn atria-btn-secondary atria-btn-sm"
+          className="arca-btn arca-btn-secondary arca-btn-sm"
         >
           {yaGuardado ? <Check size={14} /> : null}
           {yaGuardado ? "Actualizar" : "Guardar"}

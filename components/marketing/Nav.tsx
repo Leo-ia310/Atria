@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AtriaLogo } from "@/components/marketing/AtriaLogo";
+import { ArcaLogo } from "@/components/marketing/ArcaLogo";
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -28,8 +28,8 @@ export function Nav() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <AtriaLogo className="h-8 w-auto" eager />
-          <span className="text-base font-semibold text-white">ATRIA</span>
+          <ArcaLogo className="h-8 w-auto" eager />
+          <span className="text-base font-semibold text-white">ARCA</span>
         </Link>
 
         <nav className="hidden items-center gap-7 text-small text-white/75 md:flex">
@@ -47,13 +47,13 @@ export function Nav() {
         <div className="hidden items-center gap-2 md:flex">
           <Link
             href="/login"
-            className="atria-btn atria-btn-sm border-white/20 bg-white/10 text-white transition-colors hover:bg-white/16"
+            className="arca-btn arca-btn-sm border-white/20 bg-white/10 text-white transition-colors hover:bg-white/16"
           >
             Iniciar sesión
           </Link>
           <Link
             href="/registro"
-            className="atria-btn atria-btn-sm bg-white text-[#160827] transition-colors hover:bg-[#efe7ff]"
+            className="arca-btn arca-btn-sm bg-white text-[#160827] transition-colors hover:bg-[#efe7ff]"
           >
             Empieza gratis
           </Link>
@@ -63,7 +63,7 @@ export function Nav() {
           <button
             type="button"
             onClick={() => setMenuAbierto((s) => !s)}
-            className="atria-btn p-2 text-white hover:bg-white/10"
+            className="arca-btn p-2 text-white hover:bg-white/10"
             aria-label="Menú"
             aria-expanded={menuAbierto}
           >
@@ -87,11 +87,11 @@ export function Nav() {
             <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
               <Link
                 href="/login"
-                className="atria-btn border-white/20 bg-white/10 text-white"
+                className="arca-btn border-white/20 bg-white/10 text-white"
               >
                 Iniciar sesión
               </Link>
-              <Link href="/registro" className="atria-btn bg-white text-[#160827]">
+              <Link href="/registro" className="arca-btn bg-white text-[#160827]">
                 Empieza gratis
               </Link>
             </div>

@@ -1,12 +1,12 @@
-type AtriaLogoProps = {
+type ArcaLogoProps = {
   className?: string;
   eager?: boolean;
 };
 
-export function AtriaLogo({ className, eager = false }: AtriaLogoProps) {
+export function ArcaLogo({ className, eager = false }: ArcaLogoProps) {
   return (
     <img
-      src="/atria-logo.webp"
+      src="/arca-logo.webp"
       width={640}
       height={530}
       alt=""

@@ -126,15 +126,15 @@ export default async function FacturasPage({
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div>
               <label className="text-label mb-1.5 block">Desde</label>
-              <input type="date" name="desde" defaultValue={sp.desde ?? ""} className="atria-input w-44" />
+              <input type="date" name="desde" defaultValue={sp.desde ?? ""} className="arca-input w-44" />
             </div>
             <div>
               <label className="text-label mb-1.5 block">Hasta</label>
-              <input type="date" name="hasta" defaultValue={sp.hasta ?? ""} className="atria-input w-44" />
+              <input type="date" name="hasta" defaultValue={sp.hasta ?? ""} className="arca-input w-44" />
             </div>
             <div>
               <label className="text-label mb-1.5 block">Vendedor</label>
-              <select name="vendedor" defaultValue={sp.vendedor ?? ""} className="atria-input w-48">
+              <select name="vendedor" defaultValue={sp.vendedor ?? ""} className="arca-input w-48">
                 <option value="">Todos</option>
                 {vendedores.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -150,21 +150,21 @@ export default async function FacturasPage({
                 name="forma"
                 defaultValue={sp.forma ?? ""}
                 placeholder="Efectivo, Tarjeta…"
-                className="atria-input w-44"
+                className="arca-input w-44"
               />
             </div>
             <div>
               <label className="text-label mb-1.5 block">Tipo</label>
-              <select name="tipo" defaultValue={sp.tipo ?? ""} className="atria-input w-36">
+              <select name="tipo" defaultValue={sp.tipo ?? ""} className="arca-input w-36">
                 <option value="">Todos</option>
                 <option value="contado">Contado</option>
                 <option value="credito">Crédito</option>
               </select>
             </div>
-            <button type="submit" className="atria-btn atria-btn-primary">
+            <button type="submit" className="arca-btn arca-btn-primary">
               Filtrar
             </button>
-            <Link href="/facturas" className="atria-btn atria-btn-ghost atria-btn-sm">
+            <Link href="/facturas" className="arca-btn arca-btn-ghost arca-btn-sm">
               Limpiar
             </Link>
           </form>

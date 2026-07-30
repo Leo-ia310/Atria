@@ -11,7 +11,7 @@ import type { ModuloAcceso } from "@/lib/access-control";
 
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
-const STORAGE_KEY = "atria:sidebar-colapsado";
+const STORAGE_KEY = "arca:sidebar-colapsado";
 
 export function Sidebar({
   nombreEmpresa,
@@ -72,7 +72,7 @@ export function Sidebar({
           </div>
           {!colapsado && (
             <div className="min-w-0">
-              <div className="text-base font-semibold leading-tight">ATRIA</div>
+              <div className="text-base font-semibold leading-tight">ARCA</div>
               <div className="truncate text-[10px] uppercase tracking-wider text-white/50 leading-tight">
                 {nombreEmpresa}
               </div>

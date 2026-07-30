@@ -118,7 +118,7 @@ export default async function HistorialAsistenciaPage({
         actions={
           <Link
             href="/rrhh/asistencia"
-            className="atria-btn atria-btn-secondary atria-btn-sm"
+            className="arca-btn arca-btn-secondary arca-btn-sm"
           >
             Registro diario
           </Link>
@@ -134,7 +134,7 @@ export default async function HistorialAsistenciaPage({
                 type="date"
                 name="desde"
                 defaultValue={rangoDesde}
-                className="atria-input w-44"
+                className="arca-input w-44"
               />
             </div>
             <div>
@@ -143,7 +143,7 @@ export default async function HistorialAsistenciaPage({
                 type="date"
                 name="hasta"
                 defaultValue={rangoHasta}
-                className="atria-input w-44"
+                className="arca-input w-44"
               />
             </div>
             <div>
@@ -151,7 +151,7 @@ export default async function HistorialAsistenciaPage({
               <select
                 name="empleado"
                 defaultValue={empleado ?? ""}
-                className="atria-input w-56"
+                className="arca-input w-56"
               >
                 <option value="">Todos</option>
                 {listaEmpleados.map((e) => (
@@ -161,7 +161,7 @@ export default async function HistorialAsistenciaPage({
                 ))}
               </select>
             </div>
-            <button type="submit" className="atria-btn atria-btn-primary">
+            <button type="submit" className="arca-btn arca-btn-primary">
               Filtrar
             </button>
           </form>

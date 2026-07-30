@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================
- * ATRIA — Design system tokens
+ * ARCA — Design system tokens
  * ============================================ */
 
 @theme {
@@ -148,14 +148,14 @@ textarea:focus {
  * Componentes utilitarios
  * ============================================ */
 
-.atria-card {
+.arca-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
 
-.atria-input {
+.arca-input {
   width: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -166,22 +166,22 @@ textarea:focus {
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.atria-input::placeholder {
+.arca-input::placeholder {
   color: var(--color-text-muted);
 }
 
-.atria-input:focus {
+.arca-input:focus {
   border-color: var(--color-tertiary);
   box-shadow: 0 0 0 3px rgba(161, 139, 207, 0.20);
 }
 
-.atria-input:disabled {
+.arca-input:disabled {
   background: var(--color-surface-2);
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
-.atria-btn {
+.arca-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -196,61 +196,61 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.atria-btn:disabled {
+.arca-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.atria-btn-primary {
+.arca-btn-primary {
   background: var(--color-primary);
   color: var(--color-text-on-primary);
 }
 
-.atria-btn-primary:hover:not(:disabled) {
+.arca-btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
 }
 
-.atria-btn-secondary {
+.arca-btn-secondary {
   background: var(--color-surface);
   color: var(--color-secondary);
   border-color: var(--color-border-strong);
 }
 
-.atria-btn-secondary:hover:not(:disabled) {
+.arca-btn-secondary:hover:not(:disabled) {
   background: var(--color-surface-2);
   border-color: var(--color-secondary);
 }
 
-.atria-btn-ghost {
+.arca-btn-ghost {
   background: transparent;
   color: var(--color-text-secondary);
 }
 
-.atria-btn-ghost:hover:not(:disabled) {
+.arca-btn-ghost:hover:not(:disabled) {
   background: var(--color-surface-2);
   color: var(--color-text-primary);
 }
 
-.atria-btn-danger {
+.arca-btn-danger {
   background: var(--color-error);
   color: white;
 }
 
-.atria-btn-danger:hover:not(:disabled) {
+.arca-btn-danger:hover:not(:disabled) {
   background: #b91c1c;
 }
 
-.atria-btn-lg {
+.arca-btn-lg {
   padding: 12px 22px;
   font-size: 15px;
 }
 
-.atria-btn-sm {
+.arca-btn-sm {
   padding: 6px 12px;
   font-size: 13px;
 }
 
-.atria-badge {
+.arca-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -262,27 +262,27 @@ textarea:focus {
   border-radius: var(--radius-sm);
 }
 
-.atria-badge-success {
+.arca-badge-success {
   background: var(--color-success-bg);
   color: var(--color-success);
 }
 
-.atria-badge-warning {
+.arca-badge-warning {
   background: var(--color-warning-bg);
   color: var(--color-warning);
 }
 
-.atria-badge-error {
+.arca-badge-error {
   background: var(--color-error-bg);
   color: var(--color-error);
 }
 
-.atria-badge-info {
+.arca-badge-info {
   background: var(--color-info-bg);
   color: var(--color-info);
 }
 
-.atria-badge-neutral {
+.arca-badge-neutral {
   background: var(--color-surface-2);
   color: var(--color-text-secondary);
 }

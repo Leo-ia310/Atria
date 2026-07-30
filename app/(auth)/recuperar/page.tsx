@@ -10,7 +10,7 @@ export default function RecuperarPage() {
 
   return (
     <div className="w-full max-w-[420px]">
-      <div className="atria-card p-8">
+      <div className="arca-card p-8">
         <h1 className="text-xl text-[color:var(--color-text-primary)]">
           Recuperar contraseña
         </h1>

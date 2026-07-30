@@ -150,7 +150,7 @@ export default async function InventarioPage() {
         title="Inventario"
         subtitle={`${filas.length} productos en el catálogo${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/inventario/nuevo" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link href="/inventario/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nuevo producto
           </Link>
         }

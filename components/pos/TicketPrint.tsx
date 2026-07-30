@@ -67,13 +67,13 @@ export function TicketPrint(props: TicketData) {
   return (
     <div className="min-h-screen bg-[color:var(--color-neutral)] py-8 print:bg-white print:py-0">
       <div className="mx-auto mb-4 flex w-[340px] max-w-full items-center justify-between px-1 print:hidden">
-        <Link href="/pos" className="atria-btn atria-btn-ghost atria-btn-sm">
+        <Link href="/pos" className="arca-btn arca-btn-ghost arca-btn-sm">
           <ArrowLeft size={14} /> Volver al POS
         </Link>
         <button
           type="button"
           onClick={imprimirRecibo}
-          className="atria-btn atria-btn-primary atria-btn-sm"
+          className="arca-btn arca-btn-primary arca-btn-sm"
         >
           <Printer size={14} /> Imprimir
         </button>

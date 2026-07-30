@@ -138,7 +138,7 @@ export default async function VentasPage() {
         title="Ventas"
         subtitle={`${filas.length} ventas registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/pos" className="atria-btn atria-btn-primary atria-btn-sm">
+          <Link href="/pos" className="arca-btn arca-btn-primary arca-btn-sm">
             <ShoppingCart size={14} /> Abrir POS
           </Link>
         }

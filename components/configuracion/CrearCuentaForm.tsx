@@ -70,7 +70,7 @@ export function CrearCuentaForm({ monedaDefault }: { monedaDefault: string }) {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="atria-btn atria-btn-primary atria-btn-sm"
+        className="arca-btn arca-btn-primary arca-btn-sm"
       >
         <Plus size={14} /> Nueva cuenta
       </button>

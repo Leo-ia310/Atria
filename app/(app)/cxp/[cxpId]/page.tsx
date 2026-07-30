@@ -102,7 +102,7 @@ export default async function CxPDetallePage({
         actions={
           <div className="flex items-center gap-2">
             {estadoBadge()}
-            <Link href="/cxp" className="atria-btn atria-btn-secondary atria-btn-sm">
+            <Link href="/cxp" className="arca-btn arca-btn-secondary arca-btn-sm">
               ← Volver
             </Link>
           </div>

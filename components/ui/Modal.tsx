@@ -50,7 +50,7 @@ export function Modal({
     >
       <div
         className={cn(
-          "atria-card w-full overflow-hidden bg-[color:var(--color-surface)]",
+          "arca-card w-full overflow-hidden bg-[color:var(--color-surface)]",
           anchoClase,
         )}
         onClick={(e) => e.stopPropagation()}

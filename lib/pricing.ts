@@ -1,5 +1,5 @@
 /**
- * Planes, precios y feature flags de ATRIA.
+ * Planes, precios y feature flags de ARCA.
  * Estos valores son la fuente de verdad para pricing, limites y acceso runtime.
  * `asegurarPlanes` los sincroniza con la tabla `planes`.
  */

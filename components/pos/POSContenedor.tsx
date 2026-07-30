@@ -210,7 +210,7 @@ export function POSContenedor({
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="atria-btn atria-btn-ghost atria-btn-sm"
+            className="arca-btn arca-btn-ghost arca-btn-sm"
             title="Volver al dashboard"
           >
             <ArrowLeft size={14} /> Salir POS
@@ -226,20 +226,20 @@ export function POSContenedor({
         </div>
         <div className="flex items-center gap-2">
           {cajaAbierta ? (
-            <span className="atria-badge atria-badge-success">
+            <span className="arca-badge arca-badge-success">
               <Store size={12} /> Caja abierta
             </span>
           ) : (
             <button
               type="button"
               onClick={() => setModalCaja(true)}
-              className="atria-badge atria-badge-warning"
+              className="arca-badge arca-badge-warning"
               title="Abrir caja"
             >
               <Store size={12} /> Sin caja
             </button>
           )}
-          <span className="atria-badge atria-badge-success">
+          <span className="arca-badge arca-badge-success">
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             En línea
           </span>
@@ -248,7 +248,7 @@ export function POSContenedor({
 
       <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-12">
         {/* Productos */}
-        <section className="lg:col-span-7 atria-card flex flex-col overflow-hidden">
+        <section className="lg:col-span-7 arca-card flex flex-col overflow-hidden">
           <div className="border-b border-[color:var(--color-border)] p-3">
             <div className="relative">
               <Search
@@ -261,7 +261,7 @@ export function POSContenedor({
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Escanear código o buscar por nombre/SKU (F2)"
-                className="atria-input pl-9 text-base"
+                className="arca-input pl-9 text-base"
                 autoFocus
               />
             </div>
@@ -303,7 +303,7 @@ export function POSContenedor({
         </section>
 
         {/* Carrito */}
-        <section className="lg:col-span-5 atria-card flex flex-col overflow-hidden">
+        <section className="lg:col-span-5 arca-card flex flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-[color:var(--color-border)] p-3">
             <div>
               <div className="text-base font-semibold text-[color:var(--color-text-primary)]">
@@ -324,7 +324,7 @@ export function POSContenedor({
               type="button"
               onClick={vaciarCarrito}
               disabled={carrito.length === 0}
-              className="atria-btn atria-btn-ghost atria-btn-sm disabled:opacity-30"
+              className="arca-btn arca-btn-ghost arca-btn-sm disabled:opacity-30"
               title="Vaciar"
             >
               <X size={14} />

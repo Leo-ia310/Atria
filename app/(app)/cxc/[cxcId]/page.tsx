@@ -104,7 +104,7 @@ export default async function CxCDetallePage({
             {estadoBadge()}
             <Link
               href="/cxc"
-              className="atria-btn atria-btn-secondary atria-btn-sm"
+              className="arca-btn arca-btn-secondary arca-btn-sm"
             >
               ← Volver
             </Link>

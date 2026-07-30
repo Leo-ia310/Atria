@@ -86,7 +86,7 @@ export default async function ProveedoresPage() {
         actions={
           <Link
             href="/compras/proveedores/nuevo"
-            className="atria-btn atria-btn-primary atria-btn-sm"
+            className="arca-btn arca-btn-primary arca-btn-sm"
           >
             <Plus size={14} /> Nuevo proveedor
           </Link>

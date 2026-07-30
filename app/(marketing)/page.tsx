@@ -33,7 +33,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Nav } from "@/components/marketing/Nav";
-import { AtriaLogo } from "@/components/marketing/AtriaLogo";
+import { ArcaLogo } from "@/components/marketing/ArcaLogo";
 import { PricingToggle } from "@/components/marketing/PricingToggle";
 import { FAQ } from "@/components/marketing/FAQ";
 
@@ -41,17 +41,17 @@ const REDES_SOCIALES = [
   {
     nombre: "Instagram",
     href:
-      process.env.NEXT_PUBLIC_ATRIA_INSTAGRAM_URL || "https://www.instagram.com/",
+      process.env.NEXT_PUBLIC_ARCA_INSTAGRAM_URL || "https://www.instagram.com/",
     icono: Instagram,
   },
   {
     nombre: "Facebook",
-    href: process.env.NEXT_PUBLIC_ATRIA_FACEBOOK_URL || "https://www.facebook.com/",
+    href: process.env.NEXT_PUBLIC_ARCA_FACEBOOK_URL || "https://www.facebook.com/",
     icono: Facebook,
   },
   {
     nombre: "LinkedIn",
-    href: process.env.NEXT_PUBLIC_ATRIA_LINKEDIN_URL || "https://www.linkedin.com/",
+    href: process.env.NEXT_PUBLIC_ARCA_LINKEDIN_URL || "https://www.linkedin.com/",
     icono: Linkedin,
   },
 ] as const;
@@ -128,7 +128,7 @@ const viaje = [
     etapa: "Crecimiento",
     titulo: "Escalamos contigo",
     texto:
-      "Cuando abres otra sucursal o agregas más equipo, ATRIA mantiene permisos, auditoría y reportes consolidados.",
+      "Cuando abres otra sucursal o agregas más equipo, ARCA mantiene permisos, auditoría y reportes consolidados.",
     icon: Users,
   },
 ];
@@ -203,7 +203,7 @@ const testimonios: Testimonio[] = [
     nombre: "Miguel Herrera",
     puesto: "Director Operativo",
     texto:
-      "Buscábamos una plataforma moderna y estable. Atria nos permitió organizar procesos que antes dependían completamente de hojas de cálculo.",
+      "Buscábamos una plataforma moderna y estable. Arca nos permitió organizar procesos que antes dependían completamente de hojas de cálculo.",
     foto: "https://randomuser.me/api/portraits/men/11.jpg",
     rating: 5,
   },
@@ -293,69 +293,69 @@ const landingStyles = `
 
   [data-reveal]{opacity:1;transform:none;}
 
-  @keyframes atria-spin{to{transform:rotate(360deg)}}
-  @keyframes atria-bar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-  @keyframes atria-twinkle{0%,100%{opacity:.15}50%{opacity:.9}}
-  @keyframes atria-scan{0%{transform:translate3d(0,-120%,0)}100%{transform:translate3d(0,560%,0)}}
-  @keyframes atria-floatY{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-12px,0)}}
-  @keyframes atria-marquee-l{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
-  @keyframes atria-marquee-r{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
-  @keyframes atria-pulse{0%{transform:scale(.85);opacity:.6}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
-  @keyframes atria-gradient-flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  @keyframes arca-spin{to{transform:rotate(360deg)}}
+  @keyframes arca-bar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  @keyframes arca-twinkle{0%,100%{opacity:.15}50%{opacity:.9}}
+  @keyframes arca-scan{0%{transform:translate3d(0,-120%,0)}100%{transform:translate3d(0,560%,0)}}
+  @keyframes arca-floatY{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-12px,0)}}
+  @keyframes arca-marquee-l{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+  @keyframes arca-marquee-r{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
+  @keyframes arca-pulse{0%{transform:scale(.85);opacity:.6}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+  @keyframes arca-gradient-flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 
-  @keyframes atria-orb-a{0%,100%{transform:translate3d(-8vw,-4vh,0) scale(1)}50%{transform:translate3d(34vw,20vh,0) scale(1.12)}}
-  @keyframes atria-orb-b{0%,100%{transform:translate3d(8vw,-8vh,0) scale(1.05)}50%{transform:translate3d(-32vw,28vh,0) scale(.92)}}
-  @keyframes atria-orb-c{0%,100%{transform:translate3d(-6vw,8vh,0) scale(.95)}50%{transform:translate3d(24vw,-30vh,0) scale(1.08)}}
+  @keyframes arca-orb-a{0%,100%{transform:translate3d(-8vw,-4vh,0) scale(1)}50%{transform:translate3d(34vw,20vh,0) scale(1.12)}}
+  @keyframes arca-orb-b{0%,100%{transform:translate3d(8vw,-8vh,0) scale(1.05)}50%{transform:translate3d(-32vw,28vh,0) scale(.92)}}
+  @keyframes arca-orb-c{0%,100%{transform:translate3d(-6vw,8vh,0) scale(.95)}50%{transform:translate3d(24vw,-30vh,0) scale(1.08)}}
 
-  @keyframes atria-wavecard{
+  @keyframes arca-wavecard{
     0%,100%{transform:translate3d(0,0,0);}
     50%{transform:translate3d(0,-10px,0);}
   }
 
-  .atria-rainbow,.atria-grad-text{background:linear-gradient(90deg,#c4b5fd,#60a5fa,#e9d5ff,#a78bfa,#c4b5fd);background-size:240% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:atria-gradient-flow 6s ease-in-out infinite;}
+  .arca-rainbow,.arca-grad-text{background:linear-gradient(90deg,#c4b5fd,#60a5fa,#e9d5ff,#a78bfa,#c4b5fd);background-size:240% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:arca-gradient-flow 6s ease-in-out infinite;}
 
-  .atria-orb{position:absolute;border-radius:9999px;contain:strict;backface-visibility:hidden;will-change:transform;pointer-events:none;}
-  .atria-orb-a{left:-12vmin;top:-8vmin;width:58vmin;height:58vmin;background:radial-gradient(circle,rgba(168,85,247,.92) 0%,rgba(124,58,237,.52) 42%,rgba(124,58,237,0) 72%);animation:atria-orb-a 18s ease-in-out infinite;}
-  .atria-orb-b{right:-14vmin;top:10vh;width:64vmin;height:64vmin;background:radial-gradient(circle,rgba(37,99,235,.9) 0%,rgba(79,70,229,.48) 44%,rgba(37,99,235,0) 72%);animation:atria-orb-b 23s ease-in-out infinite;}
-  .atria-orb-c{left:22vw;bottom:-24vmin;width:60vmin;height:60vmin;background:radial-gradient(circle,rgba(192,38,211,.78) 0%,rgba(109,40,217,.44) 43%,rgba(109,40,217,0) 72%);animation:atria-orb-c 27s ease-in-out infinite;}
+  .arca-orb{position:absolute;border-radius:9999px;contain:strict;backface-visibility:hidden;will-change:transform;pointer-events:none;}
+  .arca-orb-a{left:-12vmin;top:-8vmin;width:58vmin;height:58vmin;background:radial-gradient(circle,rgba(168,85,247,.92) 0%,rgba(124,58,237,.52) 42%,rgba(124,58,237,0) 72%);animation:arca-orb-a 18s ease-in-out infinite;}
+  .arca-orb-b{right:-14vmin;top:10vh;width:64vmin;height:64vmin;background:radial-gradient(circle,rgba(37,99,235,.9) 0%,rgba(79,70,229,.48) 44%,rgba(37,99,235,0) 72%);animation:arca-orb-b 23s ease-in-out infinite;}
+  .arca-orb-c{left:22vw;bottom:-24vmin;width:60vmin;height:60vmin;background:radial-gradient(circle,rgba(192,38,211,.78) 0%,rgba(109,40,217,.44) 43%,rgba(109,40,217,0) 72%);animation:arca-orb-c 27s ease-in-out infinite;}
 
-  .atria-bar{transform-origin:bottom;animation:atria-bar .9s cubic-bezier(.16,1,.3,1) both;}
-  .atria-scanline{position:absolute;left:0;right:0;top:0;height:34%;background:linear-gradient(180deg,transparent,rgba(167,139,250,.16),transparent);animation:atria-scan 6s ease-in-out infinite;pointer-events:none;z-index:20;}
+  .arca-bar{transform-origin:bottom;animation:arca-bar .9s cubic-bezier(.16,1,.3,1) both;}
+  .arca-scanline{position:absolute;left:0;right:0;top:0;height:34%;background:linear-gradient(180deg,transparent,rgba(167,139,250,.16),transparent);animation:arca-scan 6s ease-in-out infinite;pointer-events:none;z-index:20;}
 
-  .atria-wavecard{background:rgba(255,255,255,.07);color:#fff;border-color:rgba(255,255,255,.14);animation:atria-wavecard 4.6s ease-in-out infinite;}
+  .arca-wavecard{background:rgba(255,255,255,.07);color:#fff;border-color:rgba(255,255,255,.14);animation:arca-wavecard 4.6s ease-in-out infinite;}
 
-  .atria-marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
-  .atria-marquee{display:flex;gap:1rem;width:max-content;will-change:transform;animation:atria-marquee-l 60s linear infinite;}
-  .atria-marquee.rev{animation-name:atria-marquee-r;animation-duration:72s;}
-  .atria-marquee-wrap:hover .atria-marquee{animation-play-state:paused;}
+  .arca-marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
+  .arca-marquee{display:flex;gap:1rem;width:max-content;will-change:transform;animation:arca-marquee-l 60s linear infinite;}
+  .arca-marquee.rev{animation-name:arca-marquee-r;animation-duration:72s;}
+  .arca-marquee-wrap:hover .arca-marquee{animation-play-state:paused;}
 
-  .atria-tilt{transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .5s cubic-bezier(.16,1,.3,1),border-color .5s ease,background-color .5s ease;}
-  .atria-tilt:hover{transform:translateY(-6px);}
+  .arca-tilt{transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .5s cubic-bezier(.16,1,.3,1),border-color .5s ease,background-color .5s ease;}
+  .arca-tilt:hover{transform:translateY(-6px);}
 
-  .atria-gradborder{position:relative;padding:1.5px;border-radius:18px;overflow:hidden;}
-  .atria-gradborder::before{content:"";position:absolute;inset:-150%;background:conic-gradient(from 0deg,#7c3aed,#2563eb,#22d3ee,#a855f7,#ec4899,#7c3aed);animation:atria-spin 7s linear infinite;}
-  .atria-gradborder.fast::before{animation-duration:4.5s;}
-  .atria-gradborder>*{position:relative;border-radius:16.5px;height:100%;}
+  .arca-gradborder{position:relative;padding:1.5px;border-radius:18px;overflow:hidden;}
+  .arca-gradborder::before{content:"";position:absolute;inset:-150%;background:conic-gradient(from 0deg,#7c3aed,#2563eb,#22d3ee,#a855f7,#ec4899,#7c3aed);animation:arca-spin 7s linear infinite;}
+  .arca-gradborder.fast::before{animation-duration:4.5s;}
+  .arca-gradborder>*{position:relative;border-radius:16.5px;height:100%;}
 
   @media (max-width:767px){
-    .atria-orb-a{width:82vmin;height:82vmin;}
-    .atria-orb-b{width:88vmin;height:88vmin;}
-    .atria-orb-c{display:none;}
+    .arca-orb-a{width:82vmin;height:82vmin;}
+    .arca-orb-b{width:88vmin;height:88vmin;}
+    .arca-orb-c{display:none;}
   }
 
   @media (prefers-reduced-motion: reduce){
     [data-reveal]{opacity:1 !important;transform:none !important;transition:none !important;}
-    .atria-rainbow,.atria-grad-text,.atria-orb,.atria-bar,.atria-scanline,.atria-marquee,.atria-wavecard,.atria-gradborder::before{animation:none !important;}
-    .atria-marquee{transform:none !important;}
+    .arca-rainbow,.arca-grad-text,.arca-orb,.arca-bar,.arca-scanline,.arca-marquee,.arca-wavecard,.arca-gradborder::before{animation:none !important;}
+    .arca-marquee{transform:none !important;}
   }
 `;
 
 function FloatingOrbs() {
   return (
     <div aria-hidden className="fixed inset-0 z-0 overflow-hidden bg-[#0b0416]">
-      <div className="atria-orb atria-orb-a" />
-      <div className="atria-orb atria-orb-b" />
-      <div className="atria-orb atria-orb-c" />
+      <div className="arca-orb arca-orb-a" />
+      <div className="arca-orb arca-orb-b" />
+      <div className="arca-orb arca-orb-c" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
     </div>
   );
@@ -402,7 +402,7 @@ function Avatar({ nombre, foto }: { nombre: string; foto: string }) {
 
 function TestimonioCard({ testimonio }: { testimonio: Testimonio }) {
   return (
-    <figure className="atria-tilt flex min-h-[224px] w-[330px] flex-shrink-0 flex-col rounded-[14px] border border-white/12 bg-[#190c2d]/95 p-6 hover:border-[#a78bfa]/50 hover:shadow-[0_24px_60px_rgba(124,58,237,0.28)] sm:w-[360px]">
+    <figure className="arca-tilt flex min-h-[224px] w-[330px] flex-shrink-0 flex-col rounded-[14px] border border-white/12 bg-[#190c2d]/95 p-6 hover:border-[#a78bfa]/50 hover:shadow-[0_24px_60px_rgba(124,58,237,0.28)] sm:w-[360px]">
       <div className="flex items-center justify-between">
         <Stars rating={testimonio.rating} />
         <Quote size={26} className="text-[#a78bfa]/35" />
@@ -448,7 +448,7 @@ function PantallaDashboard() {
             {[48, 64, 42, 78, 56, 88, 72].map((height, index) => (
               <div key={index} className="flex flex-1 flex-col items-center gap-1">
                 <div
-                  className="atria-bar w-full rounded-t-[5px] bg-[linear-gradient(180deg,#a78bfa_0%,#2563eb_100%)]"
+                  className="arca-bar w-full rounded-t-[5px] bg-[linear-gradient(180deg,#a78bfa_0%,#2563eb_100%)]"
                   style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }}
                 />
               </div>
@@ -607,13 +607,13 @@ function LivePreview() {
 
   return (
     <div
-      className="relative animate-[atria-floatY_9s_ease-in-out_infinite]"
+      className="relative animate-[arca-floatY_9s_ease-in-out_infinite]"
       onMouseEnter={() => setPausa(true)}
       onMouseLeave={() => setPausa(false)}
     >
       <div className="absolute inset-x-6 -bottom-6 h-12 bg-[linear-gradient(90deg,rgba(124,58,237,0.45),rgba(37,99,235,0.42),rgba(168,85,247,0.40))] blur-2xl" />
       <div className="relative overflow-hidden rounded-[14px] border border-white/20 bg-[#0c0518]/95 shadow-[0_40px_110px_rgba(9,4,20,0.7)]">
-        <div className="atria-scanline" />
+        <div className="arca-scanline" />
         <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#160827] px-4 py-2.5">
           <div className="hidden items-center gap-2 sm:flex">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ea4335]" />
@@ -638,7 +638,7 @@ function LivePreview() {
           </div>
           <div className="hidden items-center gap-1.5 text-[11px] font-medium text-[#34d399] sm:flex">
             <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-[#34d399] opacity-75 [animation:atria-pulse_2s_ease-out_infinite]" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-[#34d399] opacity-75 [animation:arca-pulse_2s_ease-out_infinite]" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#34d399]" />
             </span>
             En vivo
@@ -686,11 +686,11 @@ function SynchronizedSection() {
       <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
           <h2 className="text-[34px] font-semibold leading-tight sm:text-[42px]">
-            Cada módulo se mueve con el <span className="atria-grad-text">mismo ritmo</span>.
+            Cada módulo se mueve con el <span className="arca-grad-text">mismo ritmo</span>.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-7 text-white/68">
             Una acción en caja actualiza inventario, documentos, cuentas y reportes.
-            ATRIA mantiene el negocio alineado sin perseguir hojas ni cerrar el día a
+            ARCA mantiene el negocio alineado sin perseguir hojas ni cerrar el día a
             mano.
           </p>
         </div>
@@ -700,7 +700,7 @@ function SynchronizedSection() {
             {flujo.map(({ icon: Icon, label }, index) => (
               <div
                 key={label}
-                className="atria-wavecard flex min-h-[132px] flex-col items-center justify-center rounded-[12px] border p-4 text-center"
+                className="arca-wavecard flex min-h-[132px] flex-col items-center justify-center rounded-[12px] border p-4 text-center"
                 style={{ animationDelay: `${index * 0.42}s` }}
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-white text-[#3b0f70] shadow-[0_8px_20px_rgba(167,139,250,0.4)] ring-1 ring-black/5">
@@ -717,7 +717,7 @@ function SynchronizedSection() {
           {seguridad.map(({ icon: Icon, texto }) => (
             <div
               key={texto}
-              className="atria-tilt flex items-center gap-3 rounded-[10px] border border-white/12 bg-[#1b0d31]/90 p-4 hover:border-[#a78bfa]/50"
+              className="arca-tilt flex items-center gap-3 rounded-[10px] border border-white/12 bg-[#1b0d31]/90 p-4 hover:border-[#a78bfa]/50"
               data-reveal
             >
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-white text-[#4c1d95]">
@@ -744,7 +744,7 @@ function TestimoniosSection() {
             Confianza
           </span>
           <h2 className="mt-3 text-[36px] font-semibold leading-tight">
-            Negocios reales que ya trabajan con <span className="atria-grad-text">ATRIA</span>.
+            Negocios reales que ya trabajan con <span className="arca-grad-text">ARCA</span>.
           </h2>
           <p className="mt-4 text-[16px] leading-7 text-white/62">
             Equipos que dejaron atrás las hojas de cálculo y hoy operan con orden,
@@ -753,15 +753,15 @@ function TestimoniosSection() {
         </div>
 
         <div className="mt-12 space-y-4" data-reveal>
-          <div className="atria-marquee-wrap">
-            <div className="atria-marquee">
+          <div className="arca-marquee-wrap">
+            <div className="arca-marquee">
               {[...fila1, ...fila1].map((testimonio, index) => (
                 <TestimonioCard key={`${testimonio.nombre}-${index}`} testimonio={testimonio} />
               ))}
             </div>
           </div>
-          <div className="atria-marquee-wrap">
-            <div className="atria-marquee rev">
+          <div className="arca-marquee-wrap">
+            <div className="arca-marquee rev">
               {[...fila2, ...fila2].map((testimonio, index) => (
                 <TestimonioCard key={`${testimonio.nombre}-${index}`} testimonio={testimonio} />
               ))}
@@ -789,11 +789,11 @@ function CookieNotice() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    setVisible(window.localStorage.getItem("atria_cookie_consent") !== "accepted");
+    setVisible(window.localStorage.getItem("arca_cookie_consent") !== "accepted");
   }, []);
 
   const aceptar = () => {
-    window.localStorage.setItem("atria_cookie_consent", "accepted");
+    window.localStorage.setItem("arca_cookie_consent", "accepted");
     setVisible(false);
   };
 
@@ -807,7 +807,7 @@ function CookieNotice() {
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="max-w-3xl">
-          <p className="text-[14px] font-semibold">Cookies en ATRIA</p>
+          <p className="text-[14px] font-semibold">Cookies en ARCA</p>
           <p className="mt-1 text-[13px] leading-relaxed text-white/60">
             Usamos cookies necesarias para que el sitio funcione y medición básica para
             entender qué información ayuda mejor a los negocios que nos visitan.
@@ -817,21 +817,21 @@ function CookieNotice() {
           <button
             type="button"
             onClick={aceptar}
-            className="atria-btn border-white/20 bg-white/10 text-white hover:bg-white/16"
+            className="arca-btn border-white/20 bg-white/10 text-white hover:bg-white/16"
           >
             Solo necesarias
           </button>
           <button
             type="button"
             onClick={aceptar}
-            className="atria-btn bg-white text-[#160827] hover:bg-[#efe7ff]"
+            className="arca-btn bg-white text-[#160827] hover:bg-[#efe7ff]"
           >
             Aceptar
           </button>
           <button
             type="button"
             onClick={aceptar}
-            className="atria-btn p-2 text-white/60 hover:bg-white/10"
+            className="arca-btn p-2 text-white/60 hover:bg-white/10"
             aria-label="Cerrar aviso de cookies"
           >
             <X size={16} />
@@ -857,7 +857,7 @@ export default function LandingPage() {
                 className="mx-auto max-w-4xl text-[44px] font-semibold leading-[1.03] text-white sm:text-[62px] lg:text-[72px]"
                 data-reveal
               >
-                <span className="atria-rainbow">ATRIA</span> acompaña todo el viaje de tu
+                <span className="arca-rainbow">ARCA</span> acompaña todo el viaje de tu
                 negocio.
               </h1>
               <p
@@ -874,7 +874,7 @@ export default function LandingPage() {
               >
                 <Link
                   href="/registro"
-                  className="atria-btn atria-btn-lg group bg-white text-[#160827] shadow-[0_18px_40px_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
+                  className="arca-btn arca-btn-lg group bg-white text-[#160827] shadow-[0_18px_40px_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
                 >
                   Empezar prueba gratis
                   <ArrowRight
@@ -884,9 +884,9 @@ export default function LandingPage() {
                 </Link>
                 <a
                   href="#caracteristicas"
-                  className="atria-btn atria-btn-lg border-white/18 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/16"
+                  className="arca-btn arca-btn-lg border-white/18 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/16"
                 >
-                  Conocer ATRIA
+                  Conocer ARCA
                 </a>
               </div>
             </div>
@@ -895,7 +895,7 @@ export default function LandingPage() {
               {metricas.map((metrica) => (
                 <div
                   key={metrica.etiqueta}
-                  className="atria-tilt rounded-[10px] border border-white/12 bg-[#1b0d31]/85 p-4 text-center hover:border-[#a78bfa]/50"
+                  className="arca-tilt rounded-[10px] border border-white/12 bg-[#1b0d31]/85 p-4 text-center hover:border-[#a78bfa]/50"
                   data-reveal
                 >
                   <p className="text-[21px] font-semibold text-white">{metrica.valor}</p>
@@ -917,14 +917,14 @@ export default function LandingPage() {
           <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
             <div className="max-w-3xl" data-reveal>
               <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#c4b5fd]">
-                Qué es ATRIA
+                Qué es ARCA
               </span>
               <h2 className="mt-3 text-[36px] font-semibold leading-tight text-white">
                 Un centro de control para vender, administrar y decidir con datos
                 confiables.
               </h2>
               <p className="mt-4 text-[16px] leading-7 text-white/65">
-                ATRIA une las áreas que normalmente viven separadas. Cuando algo pasa
+                ARCA une las áreas que normalmente viven separadas. Cuando algo pasa
                 en caja, inventario, compras o contabilidad, el resto del negocio se
                 actualiza sin perseguir archivos ni duplicar trabajo.
               </p>
@@ -934,7 +934,7 @@ export default function LandingPage() {
               {modulos.map(({ icon: Icon, titulo, texto }) => (
                 <div
                   key={titulo}
-                  className="atria-tilt group rounded-[14px] border border-white/10 bg-[linear-gradient(160deg,rgba(51,24,88,0.94),rgba(18,20,63,0.92))] p-6 hover:border-[#a78bfa]/50 hover:shadow-[0_24px_60px_rgba(124,58,237,0.28)]"
+                  className="arca-tilt group rounded-[14px] border border-white/10 bg-[linear-gradient(160deg,rgba(51,24,88,0.94),rgba(18,20,63,0.92))] p-6 hover:border-[#a78bfa]/50 hover:shadow-[0_24px_60px_rgba(124,58,237,0.28)]"
                   data-reveal
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#7c3aed,#2563eb)] text-white shadow-[0_10px_24px_rgba(124,58,237,0.4)] transition group-hover:scale-110">
@@ -953,11 +953,11 @@ export default function LandingPage() {
             <div className="grid gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
               <div data-reveal>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#c4b5fd]">
-                  Tu viaje con ATRIA
+                  Tu viaje con ARCA
                 </span>
                 <h2 className="mt-3 text-[36px] font-semibold leading-tight">
                   No solo te damos software. Te acompañamos mientras el negocio se
-                  ordena, opera y <span className="atria-grad-text">escala</span>.
+                  ordena, opera y <span className="arca-grad-text">escala</span>.
                 </h2>
                 <p className="mt-4 text-[16px] leading-7 text-white/65">
                   La meta no es llenar otra pantalla. La meta es que tu equipo tenga un
@@ -980,7 +980,7 @@ export default function LandingPage() {
                 {viaje.map(({ icon: Icon, etapa, titulo, texto }) => (
                   <div
                     key={etapa}
-                    className="atria-tilt rounded-[14px] border border-white/12 bg-[#1b0d31]/90 p-5 hover:border-[#a78bfa]/50 hover:bg-[#24123f]"
+                    className="arca-tilt rounded-[14px] border border-white/12 bg-[#1b0d31]/90 p-5 hover:border-[#a78bfa]/50 hover:bg-[#24123f]"
                     data-reveal
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -1007,11 +1007,11 @@ export default function LandingPage() {
                 Automatización operativa
               </span>
               <h2 className="mt-3 text-[36px] font-semibold leading-tight">
-                Una venta. <span className="atria-grad-text">Seis procesos</span>{" "}
+                Una venta. <span className="arca-grad-text">Seis procesos</span>{" "}
                 actualizados.
               </h2>
               <p className="mt-4 text-[16px] leading-7 text-white/65">
-                ATRIA conecta la acción de caja con inventario, documentos, cuentas y
+                ARCA conecta la acción de caja con inventario, documentos, cuentas y
                 reportes. Menos trabajo repetido, más control para decidir.
               </p>
             </div>
@@ -1022,7 +1022,7 @@ export default function LandingPage() {
                   key={label}
                   data-reveal
                 >
-                  <div className="atria-tilt flex h-full flex-col items-center rounded-[12px] border border-white/12 bg-[#1b0d31]/90 p-4 text-center hover:border-[#a78bfa]/50 hover:bg-[#24123f]">
+                  <div className="arca-tilt flex h-full flex-col items-center rounded-[12px] border border-white/12 bg-[#1b0d31]/90 p-4 text-center hover:border-[#a78bfa]/50 hover:bg-[#24123f]">
                     <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-white text-[#4c1d95] shadow-[0_8px_20px_rgba(167,139,250,0.4)]">
                       <Icon size={20} />
                     </div>
@@ -1053,7 +1053,7 @@ export default function LandingPage() {
               ].map(({ icon: Icon, titulo, texto }) => (
                 <div
                   key={titulo}
-                  className="atria-tilt rounded-[12px] border border-white/12 bg-white/[0.06] p-5 hover:border-[#a78bfa]/50"
+                  className="arca-tilt rounded-[12px] border border-white/12 bg-white/[0.06] p-5 hover:border-[#a78bfa]/50"
                   data-reveal
                 >
                   <Icon size={20} className="text-[#c4b5fd]" />
@@ -1117,7 +1117,7 @@ export default function LandingPage() {
                   Siguiente paso
                 </span>
                 <h2 className="mt-3 max-w-3xl text-[38px] font-semibold leading-tight">
-                  Deja de administrar tu negocio <span className="atria-grad-text">a ciegas</span>.
+                  Deja de administrar tu negocio <span className="arca-grad-text">a ciegas</span>.
                 </h2>
                 <p className="mt-4 max-w-2xl text-[16px] leading-7 text-white/65">
                   Une operación, finanzas y decisiones en una plataforma que acompaña a
@@ -1138,14 +1138,14 @@ export default function LandingPage() {
               >
                 <Link
                   href="/registro"
-                  className="atria-btn atria-btn-lg bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
+                  className="arca-btn arca-btn-lg bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
                 >
                   Empezar prueba gratis
                   <ArrowRight size={16} />
                 </Link>
                 <Link
                   href="#precios"
-                  className="atria-btn atria-btn-lg border border-white/25 bg-transparent text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                  className="arca-btn arca-btn-lg border border-white/25 bg-transparent text-white transition hover:-translate-y-0.5 hover:bg-white/10"
                 >
                   Ver planes
                 </Link>
@@ -1160,8 +1160,8 @@ export default function LandingPage() {
           <div className="grid gap-12 pb-14 lg:grid-cols-[1.05fr_1.35fr] lg:gap-20">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <AtriaLogo className="h-11 w-auto" />
-                <span className="text-[20px] font-semibold tracking-[-0.02em]">ATRIA</span>
+                <ArcaLogo className="h-11 w-auto" />
+                <span className="text-[20px] font-semibold tracking-[-0.02em]">ARCA</span>
               </Link>
 
               <p className="mt-6 max-w-md text-[18px] font-medium leading-7 text-white/88">
@@ -1183,7 +1183,7 @@ export default function LandingPage() {
                       href={href}
                       target="_blank"
                       rel="noreferrer"
-                      aria-label={`${nombre} de ATRIA`}
+                      aria-label={`${nombre} de ARCA`}
                       title={nombre}
                       className="group flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.04] text-white/55 transition duration-300 hover:-translate-y-0.5 hover:border-[#a78bfa]/55 hover:bg-white/[0.09] hover:text-white hover:shadow-[0_10px_28px_rgba(124,58,237,0.24)]"
                     >
@@ -1205,7 +1205,7 @@ export default function LandingPage() {
                 </p>
                 <div className="mt-5 flex flex-col gap-3.5">
                   {[
-                    ["Qué es ATRIA", "#caracteristicas"],
+                    ["Qué es ARCA", "#caracteristicas"],
                     ["Tu viaje", "#viaje"],
                     ["Precios", "#precios"],
                     ["Preguntas frecuentes", "#faq"],
@@ -1271,7 +1271,7 @@ export default function LandingPage() {
           <div className="h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent)]" />
 
           <div className="flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
-            <span>© {new Date().getFullYear()} ATRIA. Todos los derechos reservados.</span>
+            <span>© {new Date().getFullYear()} ARCA. Todos los derechos reservados.</span>
             <span className="max-w-xl sm:text-right">
               Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador
             </span>

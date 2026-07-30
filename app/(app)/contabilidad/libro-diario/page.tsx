@@ -53,7 +53,7 @@ export default async function LibroDiarioPage({
           type="date"
           name="desde"
           defaultValue={params.desde ?? ""}
-          className="atria-input py-1.5 text-small"
+          className="arca-input py-1.5 text-small"
         />
       </label>
       <label className="flex flex-col gap-0.5">
@@ -62,14 +62,14 @@ export default async function LibroDiarioPage({
           type="date"
           name="hasta"
           defaultValue={params.hasta ?? ""}
-          className="atria-input py-1.5 text-small"
+          className="arca-input py-1.5 text-small"
         />
       </label>
-      <button type="submit" className="atria-btn atria-btn-secondary atria-btn-sm">
+      <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm">
         Filtrar
       </button>
       {filtroActivo && (
-        <Link href="/contabilidad/libro-diario" className="atria-btn atria-btn-ghost atria-btn-sm">
+        <Link href="/contabilidad/libro-diario" className="arca-btn arca-btn-ghost arca-btn-sm">
           Limpiar
         </Link>
       )}
@@ -85,7 +85,7 @@ export default async function LibroDiarioPage({
           {filterBar}
           <Link
             href="/contabilidad/libro-mayor"
-            className="atria-btn atria-btn-secondary atria-btn-sm"
+            className="arca-btn arca-btn-secondary arca-btn-sm"
           >
             Libro mayor →
           </Link>
@@ -144,7 +144,7 @@ export default async function LibroDiarioPage({
         {asientos.map((a) => {
           const ps = (partidasPorAsiento.get(a.id) ?? []).sort((x, y) => x.orden - y.orden);
           return (
-            <div key={a.id} className="atria-card overflow-hidden">
+            <div key={a.id} className="arca-card overflow-hidden">
               <div className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-4 py-3">
                 <div>
                   <div className="flex items-center gap-2">

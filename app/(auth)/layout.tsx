@@ -13,7 +13,7 @@ export default function AuthLayout({
             <span className="text-base font-bold">A</span>
           </div>
           <span className="text-base font-semibold text-[color:var(--color-text-primary)]">
-            ATRIA
+            ARCA
           </span>
         </Link>
         <Link

@@ -19,10 +19,10 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "atria-btn",
-        `atria-btn-${variant}`,
-        size === "sm" && "atria-btn-sm",
-        size === "lg" && "atria-btn-lg",
+        "arca-btn",
+        `arca-btn-${variant}`,
+        size === "sm" && "arca-btn-sm",
+        size === "lg" && "arca-btn-lg",
         className,
       )}
       {...rest}

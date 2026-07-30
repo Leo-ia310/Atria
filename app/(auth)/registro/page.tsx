@@ -95,7 +95,7 @@ export default function RegistroPage() {
 
   return (
     <div className="w-full max-w-[540px]">
-      <div className="atria-card p-8">
+      <div className="arca-card p-8">
         <ol className="mb-7 flex items-center gap-3">
           {PASOS.map((p, i) => {
             const completo = paso > p.num;
@@ -320,7 +320,7 @@ export default function RegistroPage() {
                             {p.nombre}
                           </span>
                           {p.destacado && (
-                            <span className="atria-badge atria-badge-info">Popular</span>
+                            <span className="arca-badge arca-badge-info">Popular</span>
                           )}
                         </div>
                         <p className="mt-0.5 text-small text-[color:var(--color-text-muted)]">

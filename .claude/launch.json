@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "atria-dev",
+      "name": "arca-dev",
       "url": "http://localhost:3000"
     }
   ]

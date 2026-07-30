@@ -73,7 +73,7 @@ export function PlanesModal({
 
         <div className="mb-5 text-center">
           <h2 className="text-xl font-bold text-[color:var(--color-text-primary)]">
-            Planes de ATRIA
+            Planes de ARCA
           </h2>
           <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
             Tu plan actual es <strong>{planActual}</strong>. Escala cuando lo necesites.
@@ -156,7 +156,7 @@ export function PlanesModal({
                     type="button"
                     onClick={() => elegirPlan(plan.id)}
                     disabled={seleccionando !== null}
-                    className="atria-btn atria-btn-primary mt-4 w-full justify-center"
+                    className="arca-btn arca-btn-primary mt-4 w-full justify-center"
                   >
                     {seleccionando === plan.id ? "Cambiando..." : `Elegir ${plan.nombre}`}
                   </button>

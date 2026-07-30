@@ -42,12 +42,12 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-[420px]">
-      <div className="atria-card p-8">
+      <div className="arca-card p-8">
         <h1 className="text-xl text-[color:var(--color-text-primary)]">
           Inicia sesión
         </h1>
         <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-          Bienvenido de vuelta a ATRIA.
+          Bienvenido de vuelta a ARCA.
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">

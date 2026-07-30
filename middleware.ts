@@ -8,7 +8,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
   const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-atria-pathname", pathname);
+  requestHeaders.set("x-arca-pathname", pathname);
   const continuar = () =>
     NextResponse.next({
       request: {

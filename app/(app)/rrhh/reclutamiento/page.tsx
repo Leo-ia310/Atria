@@ -78,7 +78,7 @@ export default async function ReclutamientoPage() {
       />
 
       {lista.length === 0 ? (
-        <div className="atria-card p-8">
+        <div className="arca-card p-8">
           <EmptyState
             icon={Briefcase}
             titulo="No hay vacantes"
@@ -89,7 +89,7 @@ export default async function ReclutamientoPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {lista.map((v) => (
             <Link key={v.id} href={`/rrhh/reclutamiento/${v.id}`} className="group">
-              <div className="atria-card h-full p-5 transition hover:border-[color:var(--color-tertiary)] hover:shadow-md">
+              <div className="arca-card h-full p-5 transition hover:border-[color:var(--color-tertiary)] hover:shadow-md">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-base font-semibold text-[color:var(--color-text-primary)]">

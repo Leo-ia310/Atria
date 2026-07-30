@@ -10,8 +10,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "ATRIA — Sistema operativo para el comercio",
-    template: "%s · ATRIA",
+    default: "ARCA — Sistema operativo para el comercio",
+    template: "%s · ARCA",
   },
   description:
     "Punto de venta, inventario y contabilidad en un solo motor. Para negocios reales de Latinoamérica.",

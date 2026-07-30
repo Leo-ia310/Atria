@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Banknote, Trash2 } from "lucide-react";
+import { ShieldCheck, Banknote, Trash2, Lock } from "lucide-react";
 import {
-  aprobarNomina,
-  pagarNomina,
+  verificarNomina,
+  finalizarPagoNomina,
   eliminarNominaBorrador,
 } from "@/lib/actions/rrhh";
 import { Modal } from "@/components/ui/Modal";
@@ -16,10 +16,12 @@ import { useToast } from "@/components/ui/Toast";
 export function NominaAcciones({
   nominaId,
   estado,
+  nivelVerificacion,
   cuentas,
 }: {
   nominaId: string;
   estado: string;
+  nivelVerificacion: number;
   cuentas: { value: string; label: string }[];
 }) {
   const router = useRouter();
@@ -28,21 +30,28 @@ export function NominaAcciones({
   const [modalPago, setModalPago] = useState(false);
   const [cuentaId, setCuentaId] = useState(cuentas[0]?.value ?? "");
 
-  function aprobar() {
+  function verificar() {
     startTransition(async () => {
-      const res = await aprobarNomina(nominaId);
+      const res = await verificarNomina(nominaId);
       if (!res.ok) return mostrar("error", res.error);
-      mostrar("success", "Nómina aprobada · asiento contable generado");
+      if (res.bloqueada) {
+        mostrar("success", "Verificación 3/3 · nómina bloqueada y asiento generado");
+      } else {
+        mostrar(
+          "success",
+          `Verificación ${res.nivel}/3 registrada${res.nivel === 1 ? " · ahora agrega deducciones si aplica" : ""}`,
+        );
+      }
       router.refresh();
     });
   }
 
-  function pagar() {
+  function pagarTodos() {
     if (!cuentaId) return mostrar("error", "Selecciona la cuenta de pago");
     startTransition(async () => {
-      const res = await pagarNomina(nominaId, cuentaId);
+      const res = await finalizarPagoNomina(nominaId, cuentaId);
       if (!res.ok) return mostrar("error", res.error);
-      mostrar("success", "Nómina pagada · asiento de pago generado");
+      mostrar("success", "Nómina pagada a todos · asiento de pago generado");
       setModalPago(false);
       router.refresh();
     });
@@ -64,8 +73,8 @@ export function NominaAcciones({
         <Button variant="ghost" size="sm" onClick={eliminar} disabled={pending}>
           <Trash2 size={14} /> Eliminar
         </Button>
-        <Button size="sm" onClick={aprobar} loading={pending}>
-          <CheckCircle2 size={14} /> Aprobar
+        <Button size="sm" onClick={verificar} loading={pending}>
+          <ShieldCheck size={14} /> Verificar ({nivelVerificacion}/3)
         </Button>
       </div>
     );
@@ -74,20 +83,23 @@ export function NominaAcciones({
   if (estado === "aprobada") {
     return (
       <>
+        <span className="inline-flex items-center gap-1 text-[12px] text-[color:var(--color-text-muted)]">
+          <Lock size={12} /> Bloqueada
+        </span>
         <Button size="sm" onClick={() => setModalPago(true)} disabled={pending}>
-          <Banknote size={14} /> Registrar pago
+          <Banknote size={14} /> Pagar a todos
         </Button>
         <Modal
           abierto={modalPago}
           onCerrar={() => setModalPago(false)}
-          titulo="Pagar nómina"
-          descripcion="Genera el asiento de pago desde la cuenta seleccionada"
+          titulo="Pagar nómina a todos"
+          descripcion="Marca todos los recibos como pagados y genera el asiento de pago"
           footer={
             <>
               <Button variant="ghost" onClick={() => setModalPago(false)} disabled={pending}>
                 Cancelar
               </Button>
-              <Button onClick={pagar} loading={pending}>
+              <Button onClick={pagarTodos} loading={pending}>
                 Confirmar pago
               </Button>
             </>
