@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { DESCUENTO_ANUAL_PORCENTAJE } from "@/lib/pricing";
 
 const PREGUNTAS = [
   {
@@ -26,7 +27,7 @@ const PREGUNTAS = [
   },
   {
     q: "¿Cómo cobran? ¿Qué métodos de pago aceptan?",
-    a: "Cobramos mes a mes o anual (con 15% de descuento). Aceptamos tarjeta de crédito/débito y transferencia bancaria. Puedes cancelar en cualquier momento.",
+    a: `Cobramos mes a mes o anual (con ${DESCUENTO_ANUAL_PORCENTAJE}% de descuento). Aceptamos tarjeta de crédito/débito y transferencia bancaria. Puedes cancelar en cualquier momento.`,
   },
   {
     q: "¿Mis datos están seguros?",

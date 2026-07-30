@@ -132,8 +132,8 @@ atria/
 | Plan | Mensual | Anual mensualizado | Sucursales | Usuarios | Contabilidad |
 |---|---|---|---|---|---|
 | **Demo** | Gratis | — | 1 | 1 | ✗ |
-| **Pro** | $45.99 | $39.09 | 1 | 5 (+$5/extra) | ✓ |
-| **Enterprise** | $199.99 | $169.99 | 3 (+$30/extra) | 10 (+$5/extra) | ✓ multi-sucursal |
+| **Pro** | $45.99 | $32.19 | 1 | 5 (+$5/extra) | ✓ |
+| **Enterprise** | $199.00 | $139.30 | 3 (+$30/extra) | 10 (+$5/extra) | ✓ multi-sucursal |
 
 Limites Demo: 10 productos, 50 transacciones/mes, 10 clientes, 5 facturas/mes.
 

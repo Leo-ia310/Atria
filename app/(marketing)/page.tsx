@@ -12,9 +12,12 @@ import {
   ClipboardList,
   CreditCard,
   Database,
+  Facebook,
   FileCheck2,
   Headphones,
+  Instagram,
   LineChart,
+  Linkedin,
   LockKeyhole,
   Package,
   Quote,
@@ -33,6 +36,25 @@ import { Nav } from "@/components/marketing/Nav";
 import { AtriaLogo } from "@/components/marketing/AtriaLogo";
 import { PricingToggle } from "@/components/marketing/PricingToggle";
 import { FAQ } from "@/components/marketing/FAQ";
+
+const REDES_SOCIALES = [
+  {
+    nombre: "Instagram",
+    href:
+      process.env.NEXT_PUBLIC_ATRIA_INSTAGRAM_URL || "https://www.instagram.com/",
+    icono: Instagram,
+  },
+  {
+    nombre: "Facebook",
+    href: process.env.NEXT_PUBLIC_ATRIA_FACEBOOK_URL || "https://www.facebook.com/",
+    icono: Facebook,
+  },
+  {
+    nombre: "LinkedIn",
+    href: process.env.NEXT_PUBLIC_ATRIA_LINKEDIN_URL || "https://www.linkedin.com/",
+    icono: Linkedin,
+  },
+] as const;
 
 const metricas = [
   { valor: "10 min", etiqueta: "para empezar a vender" },
@@ -254,6 +276,7 @@ const landingStyles = `
   @keyframes atria-marquee-l{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
   @keyframes atria-marquee-r{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
   @keyframes atria-pulse{0%{transform:scale(.85);opacity:.6}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+  @keyframes atria-gradient-flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 
   @keyframes atria-orb-a{0%,100%{transform:translate3d(-8vw,-4vh,0) scale(1)}50%{transform:translate3d(34vw,20vh,0) scale(1.12)}}
   @keyframes atria-orb-b{0%,100%{transform:translate3d(8vw,-8vh,0) scale(1.05)}50%{transform:translate3d(-32vw,28vh,0) scale(.92)}}
@@ -264,8 +287,7 @@ const landingStyles = `
     50%{transform:translate3d(0,-10px,0);}
   }
 
-  .atria-rainbow{background:linear-gradient(90deg,#a855f7,#6366f1,#3b82f6,#06b6d4,#22c55e,#eab308,#f97316,#ef4444,#ec4899);background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
-  .atria-grad-text{background:linear-gradient(90deg,#c4b5fd,#60a5fa,#e9d5ff,#a78bfa);background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
+  .atria-rainbow,.atria-grad-text{background:linear-gradient(90deg,#c4b5fd,#60a5fa,#e9d5ff,#a78bfa,#c4b5fd);background-size:240% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:atria-gradient-flow 6s ease-in-out infinite;}
 
   .atria-orb{position:absolute;border-radius:9999px;contain:strict;backface-visibility:hidden;will-change:transform;pointer-events:none;}
   .atria-orb-a{left:-12vmin;top:-8vmin;width:58vmin;height:58vmin;background:radial-gradient(circle,rgba(168,85,247,.92) 0%,rgba(124,58,237,.52) 42%,rgba(124,58,237,0) 72%);animation:atria-orb-a 18s ease-in-out infinite;}
@@ -298,7 +320,7 @@ const landingStyles = `
 
   @media (prefers-reduced-motion: reduce){
     [data-reveal]{opacity:1 !important;transform:none !important;transition:none !important;}
-    .atria-orb,.atria-bar,.atria-scanline,.atria-marquee,.atria-wavecard,.atria-gradborder::before{animation:none !important;}
+    .atria-rainbow,.atria-grad-text,.atria-orb,.atria-bar,.atria-scanline,.atria-marquee,.atria-wavecard,.atria-gradborder::before{animation:none !important;}
     .atria-marquee{transform:none !important;}
   }
 `;
@@ -901,7 +923,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden py-24 text-white">
+        <section id="viaje" className="relative overflow-hidden py-24 text-white">
           <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
             <div className="grid gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
               <div data-reveal>
@@ -1108,25 +1130,126 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-white/10 bg-[#0b0416]/85 py-12 text-white">
-        <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <div className="flex flex-col items-start justify-between gap-6 sm:flex-row">
-            <Link href="/" className="flex items-center gap-2">
-              <AtriaLogo className="h-9 w-auto" />
-              <span className="text-base font-semibold text-white">ATRIA</span>
-            </Link>
-            <nav className="flex flex-wrap gap-x-6 gap-y-2 text-small text-white/60">
-              <a href="#caracteristicas" className="hover:text-white">Qué es ATRIA</a>
-              <a href="#precios" className="hover:text-white">Precios</a>
-              <a href="#faq" className="hover:text-white">FAQ</a>
-              <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
-            </nav>
+      <footer className="relative z-10 -mt-20 overflow-hidden bg-[linear-gradient(180deg,rgba(11,4,22,0)_0%,rgba(8,3,17,0.72)_24%,#080311_58%,#07020f_100%)] pt-36 text-white">
+        <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+          <div className="grid gap-12 pb-14 lg:grid-cols-[1.05fr_1.35fr] lg:gap-20">
+            <div>
+              <Link href="/" className="inline-flex items-center gap-3">
+                <AtriaLogo className="h-11 w-auto" />
+                <span className="text-[20px] font-semibold tracking-[-0.02em]">ATRIA</span>
+              </Link>
+
+              <p className="mt-6 max-w-md text-[18px] font-medium leading-7 text-white/88">
+                Un sistema para operar, controlar y hacer crecer tu negocio con claridad.
+              </p>
+              <p className="mt-3 max-w-md text-[14px] leading-6 text-white/50">
+                Ventas, inventario, facturación y contabilidad conectados para que tu
+                equipo trabaje con la misma información.
+              </p>
+
+              <div className="mt-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Síguenos
+                </p>
+                <div className="mt-3 flex items-center gap-2.5">
+                  {REDES_SOCIALES.map(({ nombre, href, icono: Icono }) => (
+                    <a
+                      key={nombre}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`${nombre} de ATRIA`}
+                      title={nombre}
+                      className="group flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.04] text-white/55 transition duration-300 hover:-translate-y-0.5 hover:border-[#a78bfa]/55 hover:bg-white/[0.09] hover:text-white hover:shadow-[0_10px_28px_rgba(124,58,237,0.24)]"
+                    >
+                      <Icono
+                        size={17}
+                        strokeWidth={1.8}
+                        className="transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+              <nav aria-label="Producto">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Producto
+                </p>
+                <div className="mt-5 flex flex-col gap-3.5">
+                  {[
+                    ["Qué es ATRIA", "#caracteristicas"],
+                    ["Tu viaje", "#viaje"],
+                    ["Precios", "#precios"],
+                    ["Preguntas frecuentes", "#faq"],
+                  ].map(([label, href]) => (
+                    <a
+                      key={href}
+                      href={href}
+                      className="group inline-flex w-fit items-center gap-1.5 text-[13px] text-white/58 transition-colors hover:text-white"
+                    >
+                      {label}
+                      <ChevronRight
+                        size={13}
+                        className="opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </nav>
+
+              <nav aria-label="Cuenta">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Cuenta
+                </p>
+                <div className="mt-5 flex flex-col gap-3.5">
+                  {[
+                    ["Crear cuenta", "/registro"],
+                    ["Iniciar sesión", "/login"],
+                    ["Recuperar acceso", "/recuperar"],
+                  ].map(([label, href]) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="group inline-flex w-fit items-center gap-1.5 text-[13px] text-white/58 transition-colors hover:text-white"
+                    >
+                      {label}
+                      <ChevronRight
+                        size={13}
+                        className="opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+                      />
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+
+              <div className="col-span-2 sm:col-span-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Confianza
+                </p>
+                <ul className="mt-5 flex flex-col gap-3.5 text-[13px] text-white/58">
+                  {["Roles y permisos", "Copias de seguridad", "Soporte en español"].map(
+                    (item) => (
+                      <li key={item} className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-[#a78bfa]" />
+                        {item}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            </div>
           </div>
-          <div className="mt-8 flex flex-col justify-between gap-3 border-t border-white/10 pt-6 text-[12px] text-white/45 sm:flex-row">
-            <span>
-              Hecho para negocios latinoamericanos. © {new Date().getFullYear()} ATRIA.
+
+          <div className="h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent)]" />
+
+          <div className="flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
+            <span>© {new Date().getFullYear()} ATRIA. Todos los derechos reservados.</span>
+            <span className="max-w-xl sm:text-right">
+              Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador
             </span>
-            <span>Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador</span>
           </div>
         </div>
       </footer>

@@ -6,7 +6,7 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { registrarEmpresa } from "@/lib/actions/registro";
-import { PLANES_ARRAY } from "@/lib/pricing";
+import { DESCUENTO_ANUAL_PORCENTAJE, PLANES_ARRAY } from "@/lib/pricing";
 import { PAISES_ARRAY, PAIS_DEFAULT, type PaisCodigo, getPaisConfig } from "@/lib/paises";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -290,7 +290,9 @@ export default function RegistroPage() {
                       : "text-[color:var(--color-text-muted)]",
                   )}
                 >
-                  {c === "mensual" ? "Mensual" : "Anual (-15%)"}
+                  {c === "mensual"
+                    ? "Mensual"
+                    : `Anual (-${DESCUENTO_ANUAL_PORCENTAJE}%)`}
                 </button>
               ))}
             </div>

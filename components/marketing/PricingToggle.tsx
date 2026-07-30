@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
-import { PLANES_ARRAY } from "@/lib/pricing";
+import { DESCUENTO_ANUAL_PORCENTAJE, PLANES_ARRAY } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 const VENTAJAS_POR_PLAN: Record<string, string[]> = {
@@ -66,7 +66,7 @@ export function PricingToggle() {
         </div>
         {ciclo === "anual" && (
           <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
-            Ahorra 15%
+            Ahorra {DESCUENTO_ANUAL_PORCENTAJE}%
           </span>
         )}
       </div>
@@ -103,7 +103,7 @@ export function PricingToggle() {
 
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-[44px] font-bold leading-none text-white">
-                    ${precio.toFixed(precio % 1 === 0 ? 0 : 2)}
+                    ${precio === 0 ? "0" : precio.toFixed(2)}
                   </span>
                   <span className="text-[13px] text-white/50">
                     {precio === 0 ? "/siempre" : "/mes"}

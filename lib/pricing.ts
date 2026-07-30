@@ -6,6 +6,8 @@
 
 export type PlanId = "demo" | "pro" | "enterprise";
 
+export const DESCUENTO_ANUAL_PORCENTAJE = 30;
+
 export type PlanFeatures = {
   pos: boolean;
   inventario_basico: boolean;
@@ -123,9 +125,9 @@ export const PLANES: Record<PlanId, Plan> = {
     nombre: "Pro",
     descripcionCorta: "Operacion completa para una sucursal: ventas, finanzas y nomina.",
     precioMensual: 45.99,
-    precioAnual: 469.09,
-    precioAnualMensualizado: 39.09,
-    ahorroAnualPorcentaje: 15,
+    precioAnual: 386.32,
+    precioAnualMensualizado: 32.19,
+    ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 1,
     maxUsuarios: 5,
     maxProductos: null,
@@ -157,10 +159,10 @@ export const PLANES: Record<PlanId, Plan> = {
     id: "enterprise",
     nombre: "Enterprise",
     descripcionCorta: "Multi-sucursal, IA integrada, API y control corporativo.",
-    precioMensual: 249.99,
-    precioAnual: 2549.9,
-    precioAnualMensualizado: 212.49,
-    ahorroAnualPorcentaje: 15,
+    precioMensual: 199,
+    precioAnual: 1671.6,
+    precioAnualMensualizado: 139.3,
+    ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 5,
     maxUsuarios: 20,
     maxProductos: null,
