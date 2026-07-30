@@ -266,6 +266,31 @@ const testimonios: Testimonio[] = [
 ];
 
 const landingStyles = `
+  html{
+    scrollbar-width:thin;
+    scrollbar-color:rgba(124,58,237,.46) #0b0416;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar{
+    width:7px;
+    height:7px;
+  }
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track{
+    background:#0b0416;
+  }
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb{
+    min-height:48px;
+    border:2px solid #0b0416;
+    border-radius:999px;
+    background:linear-gradient(180deg,rgba(139,92,246,.34),rgba(37,99,235,.44));
+  }
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg,rgba(167,139,250,.72),rgba(59,130,246,.76));
+  }
+
   [data-reveal]{opacity:1;transform:none;}
 
   @keyframes atria-spin{to{transform:rotate(360deg)}}
