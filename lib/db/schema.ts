@@ -1704,6 +1704,12 @@ export const empleados = pgTable(
     email: text("email"),
     telefono: text("telefono"),
     direccion: text("direccion"),
+    ciudad: text("ciudad"),
+    municipio: text("municipio"),
+    estadoCivil: text("estado_civil"),
+    nacionalidad: text("nacionalidad"),
+    profesionOficio: text("profesion_oficio"),
+    dependientes: integer("dependientes").notNull().default(0),
     fechaNacimiento: date("fecha_nacimiento"),
     genero: text("genero"),
     puesto: text("puesto").notNull(),
@@ -1733,6 +1739,29 @@ export const empleados = pgTable(
       t.sucursalId,
       t.eliminadoEn,
     ),
+  ],
+);
+
+export const productoAdvertencias = pgTable(
+  "producto_advertencias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "cascade" }),
+    filaExcel: integer("fila_excel"),
+    campo: text("campo").notNull(),
+    mensaje: text("mensaje").notNull(),
+    valorOriginal: text("valor_original"),
+    resuelta: boolean("resuelta").notNull().default(false),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("producto_advertencias_empresa_resuelta_idx").on(t.empresaId, t.resuelta),
+    index("producto_advertencias_producto_idx").on(t.productoId),
   ],
 );
 
@@ -1895,12 +1924,82 @@ export const nominaDeducciones = pgTable(
       .notNull()
       .references(() => tiposDeduccion.id),
     monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    semana: text("semana").notNull().default("periodo"),
     nota: text("nota"),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("nomina_deducciones_detalle_idx").on(t.nominaDetalleId),
     index("nomina_deducciones_empresa_idx").on(t.empresaId),
+  ],
+);
+
+export const tiposIngreso = pgTable(
+  "tipos_ingreso",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("tipos_ingreso_empresa_nombre_uq").on(t.empresaId, t.nombre),
+    index("tipos_ingreso_empresa_idx").on(t.empresaId),
+  ],
+);
+
+export const nominaIngresos = pgTable(
+  "nomina_ingresos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nominaDetalleId: uuid("nomina_detalle_id")
+      .notNull()
+      .references(() => nominaDetalles.id, { onDelete: "cascade" }),
+    tipoIngresoId: uuid("tipo_ingreso_id")
+      .notNull()
+      .references(() => tiposIngreso.id),
+    monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    semana: text("semana").notNull().default("periodo"),
+    nota: text("nota"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("nomina_ingresos_detalle_idx").on(t.nominaDetalleId),
+    index("nomina_ingresos_empresa_idx").on(t.empresaId),
+  ],
+);
+
+export const nominaColillas = pgTable(
+  "nomina_colillas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nominaId: uuid("nomina_id")
+      .notNull()
+      .references(() => nominas.id, { onDelete: "cascade" }),
+    nominaDetalleId: uuid("nomina_detalle_id")
+      .notNull()
+      .references(() => nominaDetalles.id, { onDelete: "cascade" }),
+    empleadoId: uuid("empleado_id")
+      .notNull()
+      .references(() => empleados.id),
+    numero: text("numero").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    generadoEn: timestamp("generado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("nomina_colillas_detalle_uq").on(t.nominaDetalleId),
+    index("nomina_colillas_nomina_idx").on(t.nominaId),
+    index("nomina_colillas_empleado_idx").on(t.empleadoId),
   ],
 );
 
@@ -2013,6 +2112,7 @@ export type NuevaEmpresa = typeof empresas.$inferInsert;
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
 export type Producto = typeof productos.$inferSelect;
+export type ProductoAdvertencia = typeof productoAdvertencias.$inferSelect;
 export type Venta = typeof ventas.$inferSelect;
 export type Compra = typeof compras.$inferSelect;
 export type AsientoContable = typeof asientosContables.$inferSelect;
@@ -2029,6 +2129,7 @@ export type Asistencia = typeof asistencias.$inferSelect;
 export type Feriado = typeof feriados.$inferSelect;
 export type Nomina = typeof nominas.$inferSelect;
 export type NominaDetalle = typeof nominaDetalles.$inferSelect;
+export type NominaColilla = typeof nominaColillas.$inferSelect;
 export type SolicitudRrhh = typeof solicitudesRrhh.$inferSelect;
 export type Vacante = typeof vacantes.$inferSelect;
 export type Candidato = typeof candidatos.$inferSelect;

@@ -24,6 +24,14 @@ export const empleadoSchema = z
       .or(z.literal("")),
     telefono: opt(50),
     direccion: opt(300),
+    ciudad: opt(120),
+    municipio: opt(120),
+    estadoCivil: z
+      .enum(["soltero", "casado", "union_libre", "divorciado", "viudo", ""])
+      .optional(),
+    nacionalidad: opt(80),
+    profesionOficio: opt(120),
+    dependientes: z.coerce.number().int().min(0).max(50).default(0),
     fechaNacimiento: opt(20),
     genero: z.enum(["masculino", "femenino", "otro", ""]).optional(),
     puesto: z.string().min(2, "Indica el puesto").max(120),
@@ -213,9 +221,24 @@ export const deduccionVariableSchema = z.object({
   nominaDetalleId: z.string().uuid("Empleado inválido"),
   tipoDeduccionId: z.string().uuid("Selecciona un tipo de deducción"),
   monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
+  semana: z.enum(["semana_1", "semana_2", "periodo"]).default("periodo"),
   nota: z.string().trim().max(200).optional().or(z.literal("")),
 });
 export type DeduccionVariableInput = z.infer<typeof deduccionVariableSchema>;
+
+export const tipoIngresoSchema = z.object({
+  nombre: z.string().trim().min(2, "Nombre requerido").max(60),
+});
+export type TipoIngresoInput = z.infer<typeof tipoIngresoSchema>;
+
+export const ingresoVariableSchema = z.object({
+  nominaDetalleId: z.string().uuid("Empleado invalido"),
+  tipoIngresoId: z.string().uuid("Selecciona un tipo de ingreso"),
+  monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
+  semana: z.enum(["semana_1", "semana_2", "periodo"]).default("periodo"),
+  nota: z.string().trim().max(200).optional().or(z.literal("")),
+});
+export type IngresoVariableInput = z.infer<typeof ingresoVariableSchema>;
 
 export const candidatoSchema = z
   .object({

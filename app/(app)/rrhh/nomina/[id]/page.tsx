@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  nominas, nominaDetalles, empleados, feriados, cuentasFinancieras } from "@/lib/db/schema";
+  nominas,
+  nominaDetalles,
+  empleados,
+  feriados,
+  cuentasFinancieras,
+  nominaDeducciones,
+  tiposDeduccion,
+  nominaColillas,
+} from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,6 +23,12 @@ import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import { SEGURIDAD_SOCIAL_NOMBRE } from "@/lib/rrhh";
 import { NominaAcciones } from "@/components/rrhh/NominaAcciones";
 import { PagoDetalleControl } from "@/components/rrhh/PagoDetalleControl";
+import {
+  HorasExtraDetalle,
+  DeduccionesDetalle,
+  ColillaPagoVer,
+  type ColillaSnapshot,
+} from "@/components/rrhh/NominaTrazabilidad";
 import type { PaisCodigo } from "@/lib/paises";
 
 const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error" | "info"> = {
@@ -49,6 +63,7 @@ export default async function NominaDetallePage({
       nombres: empleados.nombres,
       apellidos: empleados.apellidos,
       puesto: empleados.puesto,
+      codigo: empleados.codigo,
       salarioBase: nominaDetalles.salarioBase,
       diasTrabajados: nominaDetalles.diasTrabajados,
       horasExtra: nominaDetalles.horasExtra,
@@ -65,6 +80,47 @@ export default async function NominaDetallePage({
     .leftJoin(empleados, eq(empleados.id, nominaDetalles.empleadoId))
     .where(eq(nominaDetalles.nominaId, nom.id))
     .orderBy(empleados.nombres);
+  const detalleIds = detalles.map((d) => d.id);
+  const [deduccionesVariables, colillas] = await Promise.all([
+    detalleIds.length
+      ? db
+          .select({
+            detalleId: nominaDeducciones.nominaDetalleId,
+            tipo: tiposDeduccion.nombre,
+            monto: nominaDeducciones.monto,
+            nota: nominaDeducciones.nota,
+            semana: nominaDeducciones.semana,
+          })
+          .from(nominaDeducciones)
+          .innerJoin(tiposDeduccion, eq(tiposDeduccion.id, nominaDeducciones.tipoDeduccionId))
+          .where(inArray(nominaDeducciones.nominaDetalleId, detalleIds))
+      : [],
+    detalleIds.length
+      ? db
+          .select({
+            detalleId: nominaColillas.nominaDetalleId,
+            snapshot: nominaColillas.snapshot,
+          })
+          .from(nominaColillas)
+          .where(inArray(nominaColillas.nominaDetalleId, detalleIds))
+      : [],
+  ]);
+  const deduccionesPorDetalle = new Map(
+    detalles.map((d) => [
+      d.id,
+      deduccionesVariables
+        .filter((x) => x.detalleId === d.id)
+        .map((x) => ({
+          concepto: x.tipo,
+          monto: Number(x.monto),
+          nota: x.nota,
+          semana: x.semana,
+        })),
+    ]),
+  );
+  const colillaPorDetalle = new Map(
+    colillas.map((c) => [c.detalleId, c.snapshot as Record<string, unknown>]),
+  );
 
   const feriadosPeriodo = await db
     .select({ id: feriados.id, nombre: feriados.nombre, fecha: feriados.fecha })
@@ -172,41 +228,77 @@ export default async function NominaDetallePage({
                 {mostrarPago && (
                   <th className="text-label px-4 py-3 text-center font-semibold">Pago</th>
                 )}
+                {mostrarPago && (
+                  <th className="text-label px-4 py-3 text-center font-semibold">Colilla</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {detalles.map((d) => (
-                <tr key={d.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">
-                      {d.nombres} {d.apellidos}
-                    </div>
-                    <div className="text-[11px] text-[color:var(--color-text-muted)]">{d.puesto}</div>
-                  </td>
-                  <td className="px-4 py-3 text-right">{Number(d.diasTrabajados)}</td>
-                  <td className="px-4 py-3 text-right">{Number(d.horasExtra)}</td>
-                  <td className="px-4 py-3 text-right">{money(d.totalDevengado)}</td>
-                  <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
-                    {money(d.deduccionSeguridadSocial)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
-                    {money(d.deduccionRenta)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
-                    {money(d.totalDeducciones)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold">{money(d.totalNeto)}</td>
-                  {mostrarPago && (
-                    <td className="px-4 py-3 text-center">
-                      <PagoDetalleControl
-                        detalleId={d.id}
-                        estadoPago={d.estadoPago}
-                        bloqueadoPagado={bloqueadoPagado}
+              {detalles.map((d) => {
+                const variables = deduccionesPorDetalle.get(d.id) ?? [];
+                const fijas = [
+                  {
+                    concepto: ssNombre,
+                    monto: Number(d.deduccionSeguridadSocial),
+                    nota: "Deduccion fija",
+                  },
+                  ...(Number(d.deduccionRenta) > 0
+                    ? [{ concepto: "IR", monto: Number(d.deduccionRenta), nota: "Deduccion fija" }]
+                    : []),
+                ];
+                const colilla = colillaPorDetalle.get(d.id) ?? null;
+                return (
+                  <tr key={d.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">
+                        {d.nombres} {d.apellidos}
+                      </div>
+                      <div className="text-[11px] text-[color:var(--color-text-muted)]">
+                        {d.codigo} - {d.puesto}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">{Number(d.diasTrabajados)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <HorasExtraDetalle
+                        pais={pais}
+                        horas={Number(d.horasExtra)}
+                        monto={Number(d.montoHorasExtra)}
+                        salarioMensual={Number(d.salarioBase)}
                       />
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-4 py-3 text-right">{money(d.totalDevengado)}</td>
+                    <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
+                      {money(d.deduccionSeguridadSocial)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-[color:var(--color-text-muted)]">
+                      {money(d.deduccionRenta)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <DeduccionesDetalle
+                        pais={pais}
+                        total={Number(d.totalDeducciones)}
+                        fijas={fijas}
+                        variables={variables}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold">{money(d.totalNeto)}</td>
+                    {mostrarPago && (
+                      <td className="px-4 py-3 text-center">
+                        <PagoDetalleControl
+                          detalleId={d.id}
+                          estadoPago={d.estadoPago}
+                          bloqueadoPagado={bloqueadoPagado}
+                        />
+                      </td>
+                    )}
+                    {mostrarPago && (
+                      <td className="px-4 py-3 text-center">
+                        <ColillaPagoVer pais={pais} snapshot={colilla as ColillaSnapshot | null} />
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] font-semibold">
@@ -218,6 +310,7 @@ export default async function NominaDetallePage({
                 <td></td>
                 <td className="px-4 py-3 text-right">{money(nom.totalDeducciones)}</td>
                 <td className="px-4 py-3 text-right">{money(nom.totalNeto)}</td>
+                {mostrarPago && <td></td>}
                 {mostrarPago && <td></td>}
               </tr>
             </tfoot>

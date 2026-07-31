@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import {
-  agregarDeduccionVariable,
-  eliminarDeduccionVariable,
-  crearTipoDeduccion,
+  agregarIngresoVariable,
+  eliminarIngresoVariable,
+  crearTipoIngreso,
 } from "@/lib/actions/rrhh";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -23,17 +23,17 @@ const SEMANAS = [
   { value: "semana_2", label: "Semana 2" },
 ];
 
-type Deduccion = { id: string; tipo: string; monto: number; nota: string | null; semana: string };
+type Ingreso = { id: string; tipo: string; monto: number; nota: string | null; semana: string };
 type Empleado = {
   detalleId: string;
   nombre: string;
   totalDevengado: number;
-  otras: number;
+  ingresos: number;
   totalNeto: number;
-  deducciones: Deduccion[];
+  registros: Ingreso[];
 };
 
-export function DeduccionesManager({
+export function IngresosManager({
   pais,
   tipos: tiposIniciales,
   empleados,
@@ -56,7 +56,7 @@ export function DeduccionesManager({
     const nombre = nombreTipo.trim();
     if (nombre.length < 2) return mostrar("error", "Escribe el nombre del tipo");
     setGuardandoTipo(true);
-    const res = await crearTipoDeduccion({ nombre });
+    const res = await crearTipoIngreso({ nombre });
     setGuardandoTipo(false);
     if (!res.ok) return mostrar("error", res.error);
     setTipos((prev) =>
@@ -70,11 +70,11 @@ export function DeduccionesManager({
   return (
     <Card>
       <CardHeader
-        title="Deducciones por empleado"
+        title="Ingresos por empleado"
         subtitle={
           editable
-            ? "Deducciones no fijas mientras la nomina esta en borrador."
-            : "Historial de deducciones registradas en esta nomina."
+            ? "Ingresos extra mientras la nomina esta en borrador."
+            : "Historial de ingresos extra registrados en esta nomina."
         }
         actions={
           editable ? (
@@ -106,7 +106,7 @@ export function DeduccionesManager({
       <Modal
         abierto={nuevoTipo}
         onCerrar={() => setNuevoTipo(false)}
-        titulo="Nuevo tipo de deduccion"
+        titulo="Nuevo tipo de ingreso"
         ancho="sm"
         footer={
           <>
@@ -123,7 +123,7 @@ export function DeduccionesManager({
           label="Nombre"
           value={nombreTipo}
           onChange={(e) => setNombreTipo(e.target.value)}
-          placeholder="Ej. Herramienta, multa"
+          placeholder="Ej. Bono, comision"
           autoFocus
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -163,9 +163,9 @@ function FilaEmpleado({
     if (!tipoId) return mostrar("error", "Selecciona un tipo");
     if (!m || m <= 0) return mostrar("error", "Ingresa un monto valido");
     setGuardando(true);
-    const res = await agregarDeduccionVariable({
+    const res = await agregarIngresoVariable({
       nominaDetalleId: empleado.detalleId,
-      tipoDeduccionId: tipoId,
+      tipoIngresoId: tipoId,
       monto: m,
       semana,
       nota,
@@ -174,14 +174,14 @@ function FilaEmpleado({
     if (!res.ok) return mostrar("error", res.error);
     setMonto("");
     setNota("");
-    mostrar("success", "Deduccion agregada");
+    mostrar("success", "Ingreso agregado");
     onCambio();
   }
 
   async function quitar(id: string) {
-    const res = await eliminarDeduccionVariable(id);
+    const res = await eliminarIngresoVariable(id);
     if (!res.ok) return mostrar("error", res.error);
-    mostrar("success", "Deduccion quitada");
+    mostrar("success", "Ingreso quitado");
     onCambio();
   }
 
@@ -191,24 +191,24 @@ function FilaEmpleado({
         <span className="text-small font-medium">{empleado.nombre}</span>
         <div className="flex gap-4 text-[12px] text-[color:var(--color-text-muted)]">
           <span>Devengado: {formatearMoneda(empleado.totalDevengado, pais)}</span>
-          <span>Otras ded.: {formatearMoneda(empleado.otras, pais)}</span>
+          <span>Ingresos: {formatearMoneda(empleado.ingresos, pais)}</span>
           <span className="font-semibold text-[color:var(--color-text-primary)]">
             Neto: {formatearMoneda(empleado.totalNeto, pais)}
           </span>
         </div>
       </div>
 
-      {empleado.deducciones.length > 0 && (
+      {empleado.registros.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {empleado.deducciones.map((d) => (
+          {empleado.registros.map((d) => (
             <span
               key={d.id}
               className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-surface-2)] px-2.5 py-1 text-[12px]"
               title={d.nota ?? undefined}
             >
               <span className="font-medium">{d.tipo}</span>
-              <span className="text-[color:var(--color-error)]">
-                - {formatearMoneda(d.monto, pais)}
+              <span className="text-[color:var(--color-success)]">
+                + {formatearMoneda(d.monto, pais)}
               </span>
               <span className="text-[color:var(--color-text-muted)]">
                 {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}

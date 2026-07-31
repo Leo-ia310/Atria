@@ -22,6 +22,13 @@
       "when": 1785344265438,
       "tag": "0002_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785472320332,
+      "tag": "0003_glorious_morbius",
+      "breakpoints": true
     }
   ]
 }

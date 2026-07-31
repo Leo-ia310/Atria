@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { FileText } from "lucide-react";
 import { db } from "@/lib/db";
 import { facturas, sucursales, usuarios, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -7,18 +8,19 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FileText } from "lucide-react";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { FacturaVer } from "@/components/facturas/FacturaVer";
-import type { ReciboData } from "@/components/pos/Recibo";
+import { ImprimirFacturasLote } from "@/components/facturas/ImprimirFacturasLote";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { reciboDesdeSnapshot } from "@/lib/facturas";
 
 export default async function FacturasPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    numero?: string;
     desde?: string;
     hasta?: string;
     vendedor?: string;
@@ -48,6 +50,7 @@ export default async function FacturasPage({
   };
 
   const cond = [eq(facturas.empresaId, user.empresaId)];
+  if (sp.numero) cond.push(ilike(facturas.numero, `%${sp.numero}%`));
   if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {
     cond.push(sql`${facturas.fecha}::date >= ${sp.desde}`);
   }
@@ -82,59 +85,69 @@ export default async function FacturasPage({
     .limit(500);
 
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
-
-  function reciboDe(snap: Record<string, unknown>): ReciboData {
-    const items = Array.isArray(snap.items) ? (snap.items as Record<string, number>[]) : [];
-    const pagos = Array.isArray(snap.pagos) ? (snap.pagos as Record<string, unknown>[]) : [];
-    return {
+  const recibos = filas.map((f) =>
+    reciboDesdeSnapshot({
+      snapshot: f.snapshot as Record<string, unknown>,
       pais,
       empresa: empresaRecibo,
-      numero: String(snap.numero ?? ""),
-      fecha: String(snap.fecha ?? new Date().toISOString()),
-      cajero: (snap.cajero as string) ?? null,
-      cliente: String(snap.cliente ?? "Consumidor final"),
-      esCredito: Boolean(snap.esCredito),
       impuestoNombre: config.impuestoNombre,
-      items: items.map((it) => ({
-        nombre: String(it.nombre ?? "Producto"),
-        sku: it.sku != null ? String(it.sku) : "",
-        cantidad: Number(it.cantidad ?? 0),
-        precioUnitario: Number(it.precioUnitario ?? 0),
-        subtotal: Number(it.subtotal ?? 0),
-      })),
-      pagos: pagos.map((p) => ({
-        formaPago: String(p.formaPago ?? "Otro"),
-        monto: Number(p.monto ?? 0),
-        referencia: (p.referencia as string) ?? null,
-      })),
-      subtotal: Number(snap.subtotal ?? 0),
-      descuento: Number(snap.descuento ?? 0),
-      impuesto: Number(snap.impuesto ?? 0),
-      total: Number(snap.total ?? 0),
-    };
-  }
+    }),
+  );
+  const hayFiltro = Boolean(
+    sp.numero || sp.desde || sp.hasta || sp.vendedor || sp.forma || sp.tipo,
+  );
 
   return (
     <div>
       <PageHeader
         title="Facturas"
-        subtitle={`${filas.length} facturas · ${formatearMoneda(totalFiltrado, pais)}${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        subtitle={`${filas.length} facturas - ${formatearMoneda(totalFiltrado, pais)}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
+        actions={
+          <ImprimirFacturasLote
+            recibos={recibos}
+            label={hayFiltro ? "Imprimir filtradas" : "Imprimir todas"}
+          />
+        }
       />
 
       <Card className="mb-4">
         <CardBody>
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div>
+              <label className="text-label mb-1.5 block">Factura</label>
+              <input
+                type="text"
+                name="numero"
+                defaultValue={sp.numero ?? ""}
+                placeholder="Numero"
+                className="arca-input w-36"
+              />
+            </div>
+            <div>
               <label className="text-label mb-1.5 block">Desde</label>
-              <input type="date" name="desde" defaultValue={sp.desde ?? ""} className="arca-input w-44" />
+              <input
+                type="date"
+                name="desde"
+                defaultValue={sp.desde ?? ""}
+                className="arca-input w-44"
+              />
             </div>
             <div>
               <label className="text-label mb-1.5 block">Hasta</label>
-              <input type="date" name="hasta" defaultValue={sp.hasta ?? ""} className="arca-input w-44" />
+              <input
+                type="date"
+                name="hasta"
+                defaultValue={sp.hasta ?? ""}
+                className="arca-input w-44"
+              />
             </div>
             <div>
               <label className="text-label mb-1.5 block">Vendedor</label>
-              <select name="vendedor" defaultValue={sp.vendedor ?? ""} className="arca-input w-48">
+              <select
+                name="vendedor"
+                defaultValue={sp.vendedor ?? ""}
+                className="arca-input w-48"
+              >
                 <option value="">Todos</option>
                 {vendedores.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -149,7 +162,7 @@ export default async function FacturasPage({
                 type="text"
                 name="forma"
                 defaultValue={sp.forma ?? ""}
-                placeholder="Efectivo, Tarjeta…"
+                placeholder="Efectivo, tarjeta"
                 className="arca-input w-44"
               />
             </div>
@@ -158,7 +171,7 @@ export default async function FacturasPage({
               <select name="tipo" defaultValue={sp.tipo ?? ""} className="arca-input w-36">
                 <option value="">Todos</option>
                 <option value="contado">Contado</option>
-                <option value="credito">Crédito</option>
+                <option value="credito">Credito</option>
               </select>
             </div>
             <button type="submit" className="arca-btn arca-btn-primary">
@@ -177,7 +190,7 @@ export default async function FacturasPage({
             <EmptyState
               icon={FileText}
               titulo="Sin facturas"
-              descripcion="Las facturas se guardan automáticamente al registrar ventas en el POS."
+              descripcion="Las facturas se guardan automaticamente al registrar ventas en el POS."
             />
           </CardBody>
         ) : (
@@ -198,35 +211,43 @@ export default async function FacturasPage({
                 </tr>
               </thead>
               <tbody>
-                {filas.map((f) => (
-                  <tr key={f.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
-                    <td className="px-4 py-2 font-medium">
-                      <Link href={`/ventas/${f.ventaId}`} className="hover:underline">
-                        {f.numero}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-[color:var(--color-text-muted)]">
-                      {formatearFechaHora(f.fecha)}
-                    </td>
-                    <td className="px-4 py-2">{f.cliente ?? "Consumidor final"}</td>
-                    {scope.visible && (
-                      <td className="px-4 py-2">{f.sucursal ?? "Sin sucursal"}</td>
-                    )}
-                    <td className="px-4 py-2">{f.vendedor ?? "—"}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span>{f.formasPago ?? "—"}</span>
-                        {f.esCredito && <Badge variant="warning">Crédito</Badge>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 text-right font-semibold">
-                      {formatearMoneda(parseFloat(f.total), pais)}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <FacturaVer data={reciboDe(f.snapshot as Record<string, unknown>)} />
-                    </td>
-                  </tr>
-                ))}
+                {filas.map((f) => {
+                  const recibo = reciboDesdeSnapshot({
+                    snapshot: f.snapshot as Record<string, unknown>,
+                    pais,
+                    empresa: empresaRecibo,
+                    impuestoNombre: config.impuestoNombre,
+                  });
+                  return (
+                    <tr key={f.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                      <td className="px-4 py-2 font-medium">
+                        <Link href={`/facturas/${f.id}`} className="hover:underline">
+                          {f.numero}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-[color:var(--color-text-muted)]">
+                        {formatearFechaHora(f.fecha)}
+                      </td>
+                      <td className="px-4 py-2">{f.cliente ?? "Consumidor final"}</td>
+                      {scope.visible && (
+                        <td className="px-4 py-2">{f.sucursal ?? "Sin sucursal"}</td>
+                      )}
+                      <td className="px-4 py-2">{f.vendedor ?? "-"}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <span>{f.formasPago ?? "-"}</span>
+                          {f.esCredito && <Badge variant="warning">Credito</Badge>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold">
+                        {formatearMoneda(parseFloat(f.total), pais)}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <FacturaVer data={recibo} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -324,6 +324,48 @@ textarea:focus {
     display: flex;
     justify-content: center;
   }
+
+  body.imprimiendo-recibos-lote * {
+    visibility: hidden !important;
+  }
+  body.imprimiendo-recibos-lote .recibos-lote-imprimible,
+  body.imprimiendo-recibos-lote .recibos-lote-imprimible * {
+    visibility: visible !important;
+  }
+  body.imprimiendo-recibos-lote .recibos-lote-imprimible {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+  }
+  body.imprimiendo-recibos-lote .recibo-lote-pagina {
+    display: flex;
+    justify-content: center;
+    break-after: page;
+    page-break-after: always;
+    padding: 0;
+  }
+  body.imprimiendo-recibos-lote .recibo-lote-pagina:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  body.imprimiendo-colilla * {
+    visibility: hidden !important;
+  }
+  body.imprimiendo-colilla .colilla-imprimible,
+  body.imprimiendo-colilla .colilla-imprimible * {
+    visibility: visible !important;
+  }
+  body.imprimiendo-colilla .colilla-imprimible {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
 }
 
 /* Animación de campana de notificaciones */

@@ -11,6 +11,9 @@ import {
   nominaDetalles,
   nominaDeducciones,
   tiposDeduccion,
+  nominaIngresos,
+  tiposIngreso,
+  nominaColillas,
   solicitudesRrhh,
   vacantes,
   candidatos,
@@ -28,6 +31,8 @@ import {
   candidatoSchema,
   tipoDeduccionSchema,
   deduccionVariableSchema,
+  tipoIngresoSchema,
+  ingresoVariableSchema,
 } from "@/lib/validations/rrhh";
 import {
   registrarNominaDevengo,
@@ -40,6 +45,7 @@ import {
   diasDelPeriodo,
   calcularIRMensual,
   SOLICITUD_TIPO_LABEL,
+  SEGURIDAD_SOCIAL_NOMBRE,
 } from "@/lib/rrhh";
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { validarAccion } from "@/lib/server-access";
@@ -113,6 +119,12 @@ export async function crearEmpleado(input: unknown): Promise<Resultado> {
         email: d.email || null,
         telefono: d.telefono || null,
         direccion: d.direccion || null,
+        ciudad: d.ciudad || null,
+        municipio: d.municipio || null,
+        estadoCivil: d.estadoCivil || null,
+        nacionalidad: d.nacionalidad || null,
+        profesionOficio: d.profesionOficio || null,
+        dependientes: d.dependientes,
         fechaNacimiento: d.fechaNacimiento || null,
         genero: d.genero || null,
         puesto: d.puesto,
@@ -158,6 +170,12 @@ export async function actualizarEmpleado(id: string, input: unknown): Promise<Re
         email: d.email || null,
         telefono: d.telefono || null,
         direccion: d.direccion || null,
+        ciudad: d.ciudad || null,
+        municipio: d.municipio || null,
+        estadoCivil: d.estadoCivil || null,
+        nacionalidad: d.nacionalidad || null,
+        profesionOficio: d.profesionOficio || null,
+        dependientes: d.dependientes,
         fechaNacimiento: d.fechaNacimiento || null,
         genero: d.genero || null,
         puesto: d.puesto,
@@ -783,6 +801,25 @@ export async function eliminarNominaBorrador(id: string): Promise<ResultadoSimpl
 
 const VERIFICACIONES_REQUERIDAS = 3;
 
+async function recalcularTotalesNomina(nominaId: string) {
+  const [tot] = await db
+    .select({
+      dev: sum(nominaDetalles.totalDevengado),
+      ded: sum(nominaDetalles.totalDeducciones),
+      neto: sum(nominaDetalles.totalNeto),
+    })
+    .from(nominaDetalles)
+    .where(eq(nominaDetalles.nominaId, nominaId));
+  await db
+    .update(nominas)
+    .set({
+      totalDevengado: dec(num(tot?.dev ?? 0)),
+      totalDeducciones: dec(num(tot?.ded ?? 0)),
+      totalNeto: dec(num(tot?.neto ?? 0)),
+    })
+    .where(eq(nominas.id, nominaId));
+}
+
 // Recalcula 'otras deducciones' del recibo (suma de deducciones variables) y los
 // totales del recibo y de la nómina completa.
 async function recalcularDeduccionesDetalle(detalleId: string): Promise<string | null> {
@@ -814,21 +851,43 @@ async function recalcularDeduccionesDetalle(detalleId: string): Promise<string |
     })
     .where(eq(nominaDetalles.id, detalleId));
 
-  const [tot] = await db
+  await recalcularTotalesNomina(det.nominaId);
+
+  return det.nominaId;
+}
+
+async function recalcularIngresosDetalle(detalleId: string): Promise<string | null> {
+  const [{ ingresos }] = await db
+    .select({ ingresos: sum(nominaIngresos.monto) })
+    .from(nominaIngresos)
+    .where(eq(nominaIngresos.nominaDetalleId, detalleId));
+  const [det] = await db
     .select({
-      ded: sum(nominaDetalles.totalDeducciones),
-      neto: sum(nominaDetalles.totalNeto),
+      nominaId: nominaDetalles.nominaId,
+      totalDevengado: nominaDetalles.totalDevengado,
+      bonificaciones: nominaDetalles.bonificaciones,
+      comisiones: nominaDetalles.comisiones,
+      totalDeducciones: nominaDetalles.totalDeducciones,
     })
     .from(nominaDetalles)
-    .where(eq(nominaDetalles.nominaId, det.nominaId));
-  await db
-    .update(nominas)
-    .set({
-      totalDeducciones: dec(num(tot?.ded ?? 0)),
-      totalNeto: dec(num(tot?.neto ?? 0)),
-    })
-    .where(eq(nominas.id, det.nominaId));
+    .where(eq(nominaDetalles.id, detalleId))
+    .limit(1);
+  if (!det) return null;
 
+  const ingresosN = num(ingresos ?? 0);
+  const baseDevengado =
+    num(det.totalDevengado) - num(det.bonificaciones) - num(det.comisiones);
+  const totalDevengado = baseDevengado + ingresosN + num(det.comisiones);
+  const neto = totalDevengado - num(det.totalDeducciones);
+  await db
+    .update(nominaDetalles)
+    .set({
+      bonificaciones: dec(ingresosN),
+      totalDevengado: dec(totalDevengado),
+      totalNeto: dec(neto),
+    })
+    .where(eq(nominaDetalles.id, detalleId));
+  await recalcularTotalesNomina(det.nominaId);
   return det.nominaId;
 }
 
@@ -901,6 +960,7 @@ export async function agregarDeduccionVariable(input: unknown): Promise<Resultad
       nominaDetalleId: d.nominaDetalleId,
       tipoDeduccionId: d.tipoDeduccionId,
       monto: dec(d.monto),
+      semana: d.semana,
       nota: d.nota || null,
     });
     await recalcularDeduccionesDetalle(d.nominaDetalleId);
@@ -949,6 +1009,120 @@ export async function eliminarDeduccionVariable(id: string): Promise<ResultadoSi
 
 // Verificación en 3 pasos. En el paso 3 se bloquea la nómina y se genera el
 // asiento de devengo (reutiliza la misma lógica contable que aprobarNomina).
+export async function crearTipoIngreso(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  const parsed = tipoIngresoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const nombre = parsed.data.nombre.trim();
+  try {
+    const yaExiste = await db
+      .select({ id: tiposIngreso.id, nombre: tiposIngreso.nombre })
+      .from(tiposIngreso)
+      .where(and(eq(tiposIngreso.empresaId, user.empresaId), eq(tiposIngreso.nombre, nombre)))
+      .limit(1);
+    if (yaExiste.length > 0) {
+      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
+    }
+    const [creado] = await db
+      .insert(tiposIngreso)
+      .values({ empresaId: user.empresaId, nombre })
+      .returning({ id: tiposIngreso.id, nombre: tiposIngreso.nombre });
+    revalidatePath("/rrhh/ingresos");
+    return { ok: true, id: creado.id, nombre: creado.nombre };
+  } catch (err) {
+    console.error("[crearTipoIngreso]", err);
+    return { ok: false, error: "No pudimos crear el tipo de ingreso." };
+  }
+}
+
+export async function agregarIngresoVariable(input: unknown): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  const parsed = ingresoVariableSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const d = parsed.data;
+  try {
+    const [det] = await db
+      .select({ id: nominaDetalles.id, estado: nominas.estado, nominaId: nominas.id })
+      .from(nominaDetalles)
+      .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+      .where(
+        and(
+          eq(nominaDetalles.id, d.nominaDetalleId),
+          eq(nominaDetalles.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1);
+    if (!det) return { ok: false, error: "Recibo no encontrado." };
+    if (det.estado !== "borrador") {
+      return { ok: false, error: "La nomina ya esta verificada; no se pueden agregar ingresos." };
+    }
+    const [tipo] = await db
+      .select({ id: tiposIngreso.id })
+      .from(tiposIngreso)
+      .where(and(eq(tiposIngreso.id, d.tipoIngresoId), eq(tiposIngreso.empresaId, user.empresaId)))
+      .limit(1);
+    if (!tipo) return { ok: false, error: "Tipo de ingreso invalido." };
+
+    await db.insert(nominaIngresos).values({
+      empresaId: user.empresaId,
+      nominaDetalleId: d.nominaDetalleId,
+      tipoIngresoId: d.tipoIngresoId,
+      monto: dec(d.monto),
+      semana: d.semana,
+      nota: d.nota || null,
+    });
+    await recalcularIngresosDetalle(d.nominaDetalleId);
+    revalidatePath("/rrhh/ingresos");
+    revalidatePath(`/rrhh/nomina/${det.nominaId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[agregarIngresoVariable]", err);
+    return { ok: false, error: "No pudimos agregar el ingreso." };
+  }
+}
+
+export async function eliminarIngresoVariable(id: string): Promise<ResultadoSimple> {
+  const user = await requireSession();
+  const acceso = await validarAccesoRrhh(user);
+  if (!acceso.ok) return acceso;
+  try {
+    const [ing] = await db
+      .select({
+        id: nominaIngresos.id,
+        detalleId: nominaIngresos.nominaDetalleId,
+        estado: nominas.estado,
+        nominaId: nominas.id,
+      })
+      .from(nominaIngresos)
+      .innerJoin(nominaDetalles, eq(nominaDetalles.id, nominaIngresos.nominaDetalleId))
+      .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+      .where(and(eq(nominaIngresos.id, id), eq(nominaIngresos.empresaId, user.empresaId)))
+      .limit(1);
+    if (!ing) return { ok: false, error: "Ingreso no encontrado." };
+    if (ing.estado !== "borrador") {
+      return { ok: false, error: "La nomina ya esta verificada; no se pueden quitar ingresos." };
+    }
+    await db.delete(nominaIngresos).where(eq(nominaIngresos.id, id));
+    await recalcularIngresosDetalle(ing.detalleId);
+    revalidatePath("/rrhh/ingresos");
+    revalidatePath(`/rrhh/nomina/${ing.nominaId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[eliminarIngresoVariable]", err);
+    return { ok: false, error: "No pudimos quitar el ingreso." };
+  }
+}
+
 export async function verificarNomina(
   id: string,
 ): Promise<{ ok: true; nivel: number; bloqueada: boolean } | { ok: false; error: string }> {
@@ -976,6 +1150,7 @@ export async function verificarNomina(
       revalidatePath(`/rrhh/nomina/${id}`);
       revalidatePath("/rrhh/nomina");
       revalidatePath("/rrhh/deducciones");
+      revalidatePath("/rrhh/ingresos");
       return { ok: true, nivel: nuevoNivel, bloqueada: false };
     }
 
@@ -1005,6 +1180,7 @@ export async function verificarNomina(
     revalidatePath(`/rrhh/nomina/${id}`);
     revalidatePath("/rrhh/nomina");
     revalidatePath("/rrhh/deducciones");
+    revalidatePath("/rrhh/ingresos");
     revalidatePath("/contabilidad/libro-diario");
     return { ok: true, nivel: VERIFICACIONES_REQUERIDAS, bloqueada: true };
   } catch (err) {
@@ -1015,6 +1191,273 @@ export async function verificarNomina(
     console.error("[verificarNomina]", err);
     return { ok: false, error: msg };
   }
+}
+
+type LineaColilla = { concepto: string; monto: number; nota?: string | null };
+
+function sumarLineas(lineas: LineaColilla[]): number {
+  return lineas.reduce((acc, linea) => acc + linea.monto, 0);
+}
+
+function crearSemanasPeriodo(inicioIso: string, finIso: string) {
+  const inicio = fechaMediodia(inicioIso);
+  const fin = fechaMediodia(finIso);
+  const diasTotal = Math.max(1, Math.round((fin.getTime() - inicio.getTime()) / 86400000) + 1);
+  const diasSemana1 = Math.ceil(diasTotal / 2);
+  const finSemana1 = new Date(inicio);
+  finSemana1.setDate(inicio.getDate() + diasSemana1 - 1);
+  return [
+    {
+      clave: "semana_1",
+      label: "Semana 1",
+      inicio,
+      fin: finSemana1 > fin ? fin : finSemana1,
+      factor: diasSemana1 / diasTotal,
+      ingresos: [] as LineaColilla[],
+      deducciones: [] as LineaColilla[],
+    },
+    {
+      clave: "semana_2",
+      label: "Semana 2",
+      inicio: new Date(finSemana1.getTime() + 86400000),
+      fin,
+      factor: Math.max(diasTotal - diasSemana1, 0) / diasTotal,
+      ingresos: [] as LineaColilla[],
+      deducciones: [] as LineaColilla[],
+    },
+  ];
+}
+
+function agregarVariablePorSemana(
+  semanas: ReturnType<typeof crearSemanasPeriodo>,
+  semana: string,
+  linea: LineaColilla,
+  tipo: "ingresos" | "deducciones",
+) {
+  if (semana === "semana_1" || semana === "semana_2") {
+    semanas.find((s) => s.clave === semana)?.[tipo].push(linea);
+    return;
+  }
+  const mitad = linea.monto / 2;
+  semanas[0][tipo].push({ ...linea, monto: mitad });
+  semanas[1][tipo].push({ ...linea, monto: linea.monto - mitad });
+}
+
+async function guardarColillaDetalle(detalleId: string) {
+  const [row] = await db
+    .select({
+      detalleId: nominaDetalles.id,
+      nominaId: nominas.id,
+      empresaId: nominas.empresaId,
+      numeroNomina: nominas.numero,
+      descripcion: nominas.descripcion,
+      frecuencia: nominas.frecuencia,
+      periodoInicio: nominas.periodoInicio,
+      periodoFin: nominas.periodoFin,
+      fechaPago: nominas.fechaPago,
+      empleadoId: empleados.id,
+      codigo: empleados.codigo,
+      nombres: empleados.nombres,
+      apellidos: empleados.apellidos,
+      puesto: empleados.puesto,
+      departamento: empleados.departamento,
+      salarioMensual: nominaDetalles.salarioBase,
+      diasTrabajados: nominaDetalles.diasTrabajados,
+      horasExtra: nominaDetalles.horasExtra,
+      montoHorasExtra: nominaDetalles.montoHorasExtra,
+      bonificaciones: nominaDetalles.bonificaciones,
+      comisiones: nominaDetalles.comisiones,
+      deduccionSS: nominaDetalles.deduccionSeguridadSocial,
+      deduccionRenta: nominaDetalles.deduccionRenta,
+      otrasDeducciones: nominaDetalles.otrasDeducciones,
+      totalDevengado: nominaDetalles.totalDevengado,
+      totalDeducciones: nominaDetalles.totalDeducciones,
+      totalNeto: nominaDetalles.totalNeto,
+    })
+    .from(nominaDetalles)
+    .innerJoin(nominas, eq(nominas.id, nominaDetalles.nominaId))
+    .innerJoin(empleados, eq(empleados.id, nominaDetalles.empleadoId))
+    .where(eq(nominaDetalles.id, detalleId))
+    .limit(1);
+  if (!row) return;
+
+  const empresa = await getEmpresaMetadata(row.empresaId);
+  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const ssNombre = SEGURIDAD_SOCIAL_NOMBRE[pais];
+  const semanas = crearSemanasPeriodo(row.periodoInicio, row.periodoFin);
+  const salarioPeriodo =
+    num(row.totalDevengado) -
+    num(row.montoHorasExtra) -
+    num(row.bonificaciones) -
+    num(row.comisiones);
+  const salarioHora = num(row.salarioMensual) / 240;
+
+  semanas.forEach((semana) => {
+    if (semana.factor <= 0) return;
+    semana.ingresos.push({
+      concepto: "Salario",
+      monto: salarioPeriodo * semana.factor,
+      nota: `${num(row.diasTrabajados).toFixed(2)} dias del periodo`,
+    });
+    semana.deducciones.push({
+      concepto: ssNombre,
+      monto: num(row.deduccionSS) * semana.factor,
+      nota: "Deduccion fija",
+    });
+    if (num(row.deduccionRenta) > 0) {
+      semana.deducciones.push({
+        concepto: "IR",
+        monto: num(row.deduccionRenta) * semana.factor,
+        nota: "Deduccion fija",
+      });
+    }
+  });
+
+  const asistPeriodo = await db
+    .select({ fecha: asistencias.fecha, horasExtra: asistencias.horasExtra })
+    .from(asistencias)
+    .where(
+      and(
+        eq(asistencias.empresaId, row.empresaId),
+        eq(asistencias.empleadoId, row.empleadoId),
+        gte(asistencias.fecha, row.periodoInicio),
+        lte(asistencias.fecha, row.periodoFin),
+      ),
+    );
+  const extrasCalculadas = asistPeriodo.reduce((acc, a) => acc + num(a.horasExtra), 0);
+  if (extrasCalculadas > 0) {
+    for (const asistencia of asistPeriodo) {
+      const horas = num(asistencia.horasExtra);
+      if (horas <= 0) continue;
+      const fecha = fechaMediodia(asistencia.fecha);
+      const semana =
+        fecha <= semanas[0].fin || semanas[1].factor <= 0 ? semanas[0] : semanas[1];
+      semana.ingresos.push({
+        concepto: "Horas extra",
+        monto: horas * salarioHora * 1.5,
+        nota: `${horas.toFixed(2)} horas el ${asistencia.fecha}`,
+      });
+    }
+  } else if (num(row.montoHorasExtra) > 0) {
+    agregarVariablePorSemana(
+      semanas,
+      "periodo",
+      {
+        concepto: "Horas extra",
+        monto: num(row.montoHorasExtra),
+        nota: `${num(row.horasExtra).toFixed(2)} horas`,
+      },
+      "ingresos",
+    );
+  }
+
+  const [ingresosRows, deduccionesRows] = await Promise.all([
+    db
+      .select({
+        tipo: tiposIngreso.nombre,
+        monto: nominaIngresos.monto,
+        nota: nominaIngresos.nota,
+        semana: nominaIngresos.semana,
+      })
+      .from(nominaIngresos)
+      .innerJoin(tiposIngreso, eq(tiposIngreso.id, nominaIngresos.tipoIngresoId))
+      .where(eq(nominaIngresos.nominaDetalleId, detalleId)),
+    db
+      .select({
+        tipo: tiposDeduccion.nombre,
+        monto: nominaDeducciones.monto,
+        nota: nominaDeducciones.nota,
+        semana: nominaDeducciones.semana,
+      })
+      .from(nominaDeducciones)
+      .innerJoin(tiposDeduccion, eq(tiposDeduccion.id, nominaDeducciones.tipoDeduccionId))
+      .where(eq(nominaDeducciones.nominaDetalleId, detalleId)),
+  ]);
+
+  for (const ingreso of ingresosRows) {
+    agregarVariablePorSemana(
+      semanas,
+      ingreso.semana,
+      { concepto: ingreso.tipo, monto: num(ingreso.monto), nota: ingreso.nota },
+      "ingresos",
+    );
+  }
+  for (const deduccion of deduccionesRows) {
+    agregarVariablePorSemana(
+      semanas,
+      deduccion.semana,
+      { concepto: deduccion.tipo, monto: num(deduccion.monto), nota: deduccion.nota },
+      "deducciones",
+    );
+  }
+
+  const semanasSnapshot = semanas.map((semana) => {
+    const totalIngresos = sumarLineas(semana.ingresos);
+    const totalDeducciones = sumarLineas(semana.deducciones);
+    return {
+      clave: semana.clave,
+      label: semana.label,
+      inicio: semana.inicio.toISOString().slice(0, 10),
+      fin: semana.fin.toISOString().slice(0, 10),
+      ingresos: semana.ingresos,
+      deducciones: semana.deducciones,
+      totalIngresos,
+      totalDeducciones,
+      neto: totalIngresos - totalDeducciones,
+    };
+  });
+
+  const snapshot = {
+    empresa: {
+      nombre: empresa?.nombreComercial || empresa?.razonSocial || "Mi Empresa",
+      identificacionFiscal: empresa?.identificacionFiscal ?? "",
+      direccion: empresa?.direccion ?? null,
+      telefono: empresa?.telefono ?? null,
+      pais,
+    },
+    periodo: {
+      nomina: row.numeroNomina,
+      descripcion: row.descripcion,
+      frecuencia: row.frecuencia,
+      inicio: row.periodoInicio,
+      fin: row.periodoFin,
+      fechaPago: row.fechaPago,
+    },
+    empleado: {
+      id: row.empleadoId,
+      codigo: row.codigo,
+      nombre: `${row.nombres} ${row.apellidos}`,
+      salarioMensual: num(row.salarioMensual),
+      departamento: row.departamento,
+      equipo: row.puesto,
+      puesto: row.puesto,
+    },
+    semanas: semanasSnapshot,
+    totales: {
+      totalIngresos: num(row.totalDevengado),
+      totalDeducciones: num(row.totalDeducciones),
+      pagoNeto: num(row.totalNeto),
+    },
+    generadoEn: new Date().toISOString(),
+  };
+
+  await db
+    .insert(nominaColillas)
+    .values({
+      empresaId: row.empresaId,
+      nominaId: row.nominaId,
+      nominaDetalleId: row.detalleId,
+      empleadoId: row.empleadoId,
+      numero: `COL-${row.numeroNomina}-${row.codigo}`,
+      snapshot,
+    })
+    .onConflictDoUpdate({
+      target: nominaColillas.nominaDetalleId,
+      set: {
+        snapshot,
+        actualizadoEn: new Date(),
+      },
+    });
 }
 
 // Marca el pago de un recibo individual (operativo, sin asiento). El asiento de
@@ -1049,6 +1492,9 @@ export async function pagarDetalleNomina(
         pagadoEn: pagar ? new Date() : null,
       })
       .where(eq(nominaDetalles.id, detalleId));
+    if (pagar) {
+      await guardarColillaDetalle(detalleId);
+    }
     revalidatePath(`/rrhh/nomina/${det.nominaId}`);
     return { ok: true };
   } catch (err) {
@@ -1094,6 +1540,14 @@ export async function finalizarPagoNomina(
       .update(nominaDetalles)
       .set({ estadoPago: "pagado", pagadoEn: new Date() })
       .where(eq(nominaDetalles.nominaId, id));
+
+    const detalles = await db
+      .select({ id: nominaDetalles.id })
+      .from(nominaDetalles)
+      .where(eq(nominaDetalles.nominaId, id));
+    for (const detalle of detalles) {
+      await guardarColillaDetalle(detalle.id);
+    }
 
     await db
       .update(nominas)

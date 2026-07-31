@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Package, Plus } from "lucide-react";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { almacenes, existencias, productos } from "@/lib/db/schema";
+import { almacenes, existencias, productoAdvertencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatearMoneda, desdeDecimal } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { InventarioImportador } from "@/components/productos/InventarioImportador";
+import { InventarioAdvertencias } from "@/components/productos/InventarioAdvertencias";
 
 type Fila = {
   id: string;
@@ -80,6 +82,29 @@ export default async function InventarioPage() {
     ...producto,
     existencia: existenciaPorProducto.get(producto.id) ?? 0,
   }));
+  const advertencias = await db
+    .select({
+      id: productoAdvertencias.id,
+      productoId: productoAdvertencias.productoId,
+      producto: productos.nombre,
+      sku: productos.sku,
+      filaExcel: productoAdvertencias.filaExcel,
+      campo: productoAdvertencias.campo,
+      mensaje: productoAdvertencias.mensaje,
+      valorOriginal: productoAdvertencias.valorOriginal,
+    })
+    .from(productoAdvertencias)
+    .innerJoin(productos, eq(productos.id, productoAdvertencias.productoId))
+    .where(
+      and(
+        eq(productoAdvertencias.empresaId, user.empresaId),
+        eq(productoAdvertencias.resuelta, false),
+        eq(productos.empresaId, user.empresaId),
+        isNull(productos.eliminadoEn),
+      ),
+    )
+    .orderBy(desc(productoAdvertencias.creadoEn))
+    .limit(100);
 
   const columnas: Columna<Fila>[] = [
     { key: "sku", header: "SKU", cell: (r) => <span className="font-mono text-[12px]">{r.sku}</span>, width: "120px" },
@@ -150,9 +175,13 @@ export default async function InventarioPage() {
         title="Inventario"
         subtitle={`${filas.length} productos en el catálogo${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/inventario/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
-            <Plus size={14} /> Nuevo producto
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <InventarioAdvertencias advertencias={advertencias} />
+            <InventarioImportador pais={empresa?.pais ?? "NI"} />
+            <Link href="/inventario/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+              <Plus size={14} /> Nuevo producto
+            </Link>
+          </div>
         }
       />
 

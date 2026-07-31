@@ -32,4 +32,32 @@ export const crearCategoriaSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido").max(80),
 });
 
+export const productoImportadoSchema = z.object({
+  fila: z.coerce.number().int().min(1),
+  sku: z.string().trim().min(1, "SKU requerido").max(50),
+  codigoBarras: z.string().trim().max(50).optional().or(z.literal("")),
+  nombre: z.string().trim().min(1, "Nombre requerido").max(200),
+  descripcion: z.string().trim().max(500).optional().or(z.literal("")),
+  precioBase: z.coerce.number().min(0).default(0),
+  costoPromedio: z.coerce.number().min(0).default(0),
+  stockMinimo: z.coerce.number().min(0).default(0),
+  stockMaximo: z.coerce.number().min(0).optional(),
+  existenciaInicial: z.coerce.number().min(0).default(0),
+  advertencias: z
+    .array(
+      z.object({
+        campo: z.string().trim().min(1).max(60),
+        mensaje: z.string().trim().min(1).max(240),
+        valorOriginal: z.string().trim().max(240).optional(),
+      }),
+    )
+    .default([]),
+});
+
+export const importarProductosSchema = z.object({
+  filas: z.array(productoImportadoSchema).min(1, "No hay productos validos").max(1000),
+});
+
 export type ProductoInput = z.infer<typeof productoSchema>;
+export type ProductoImportadoInput = z.infer<typeof productoImportadoSchema>;
+export type ImportarProductosInput = z.infer<typeof importarProductosSchema>;

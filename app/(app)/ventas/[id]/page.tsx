@@ -84,7 +84,7 @@ export default async function VentaDetallePage({
         ),
       ),
     db
-      .select({ id: facturas.id })
+      .select({ id: facturas.id, numero: facturas.numero })
       .from(facturas)
       .where(
         and(
@@ -222,7 +222,16 @@ export default async function VentaDetallePage({
           <CardBody className="space-y-3 text-small">
             <div className="flex items-center gap-2 text-[color:var(--color-text-muted)]">
               <FileText size={14} />
-              <span>{factura ? `Factura ${venta.numero}` : `Documento: ${venta.numero}`}</span>
+              {factura ? (
+                <Link
+                  href={`/facturas/${factura.id}`}
+                  className="text-[color:var(--color-secondary)] hover:underline"
+                >
+                  Factura {factura.numero}
+                </Link>
+              ) : (
+                <span>{`Documento: ${venta.numero}`}</span>
+              )}
             </div>
             {asiento ? (
               <Link

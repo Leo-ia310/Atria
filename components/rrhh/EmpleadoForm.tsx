@@ -31,6 +31,14 @@ const GENEROS = [
   { value: "femenino", label: "Femenino" },
   { value: "otro", label: "Otro" },
 ];
+const ESTADOS_CIVILES = [
+  { value: "", label: "No especificado" },
+  { value: "soltero", label: "Soltero/a" },
+  { value: "casado", label: "Casado/a" },
+  { value: "union_libre", label: "Union libre" },
+  { value: "divorciado", label: "Divorciado/a" },
+  { value: "viudo", label: "Viudo/a" },
+];
 
 export function EmpleadoForm({
   empleadoId,
@@ -59,6 +67,12 @@ export function EmpleadoForm({
       email: defaults?.email ?? "",
       telefono: defaults?.telefono ?? "",
       direccion: defaults?.direccion ?? "",
+      ciudad: defaults?.ciudad ?? "",
+      municipio: defaults?.municipio ?? "",
+      estadoCivil: defaults?.estadoCivil ?? "",
+      nacionalidad: defaults?.nacionalidad ?? "",
+      profesionOficio: defaults?.profesionOficio ?? "",
+      dependientes: defaults?.dependientes ?? 0,
       fechaNacimiento: defaults?.fechaNacimiento ?? "",
       genero: defaults?.genero ?? "",
       puesto: defaults?.puesto ?? "",
@@ -116,8 +130,20 @@ export function EmpleadoForm({
             <Input label="Correo" type="email" error={errors.email?.message} {...register("email")} />
             <Input label="Teléfono" {...register("telefono")} />
           </div>
-          <Input label="Dirección" {...register("direccion")} />
-          <Select label="Género" options={GENEROS} {...register("genero")} />
+          <Input label="Direccion" {...register("direccion")} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input label="Ciudad" {...register("ciudad")} />
+            <Input label="Municipio" {...register("municipio")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select label="Genero" options={GENEROS} {...register("genero")} />
+            <Select label="Estado civil" options={ESTADOS_CIVILES} {...register("estadoCivil")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Input label="Nacionalidad" {...register("nacionalidad")} />
+            <Input label="Profesion u oficio" {...register("profesionOficio")} />
+            <Input label="Dependientes" type="number" min={0} {...register("dependientes")} />
+          </div>
         </CardBody>
       </Card>
 
