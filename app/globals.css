@@ -366,6 +366,33 @@ textarea:focus {
     margin: 0 auto !important;
     box-shadow: none !important;
   }
+
+  body.imprimiendo-colillas-lote * {
+    visibility: hidden !important;
+  }
+  body.imprimiendo-colillas-lote .colillas-lote-imprimible,
+  body.imprimiendo-colillas-lote .colillas-lote-imprimible * {
+    visibility: visible !important;
+  }
+  body.imprimiendo-colillas-lote .colillas-lote-imprimible {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+  }
+  body.imprimiendo-colillas-lote .colilla-lote-pagina {
+    break-after: page;
+    page-break-after: always;
+    padding: 0;
+  }
+  body.imprimiendo-colillas-lote .colilla-lote-pagina:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  body.imprimiendo-colillas-lote .colilla-documento {
+    box-shadow: none !important;
+  }
 }
 
 /* Animación de campana de notificaciones */

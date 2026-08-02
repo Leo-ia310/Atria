@@ -158,59 +158,141 @@ export function ColillaPagoVer({
           </>
         }
       >
-        <div className="colilla-imprimible mx-auto max-w-3xl rounded-md border border-[color:var(--color-border)] bg-white p-6 text-[13px] text-[color:var(--color-text-primary)]">
-          <div className="text-center">
-            <div className="text-lg font-bold uppercase">{snapshot.empresa.nombre}</div>
-            <div className="text-small font-semibold">Colilla de pago</div>
-            <div className="text-[12px] text-[color:var(--color-text-muted)]">
-              Periodo {formatearFecha(snapshot.periodo.inicio)} - {formatearFecha(snapshot.periodo.fin)}
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Fila label="Empleado" value={snapshot.empleado.nombre} />
-            <Fila label="Codigo" value={snapshot.empleado.codigo} />
-            <Fila label="Salario mensual" value={formatearMoneda(snapshot.empleado.salarioMensual, pais)} />
-            <Fila label="Departamento" value={snapshot.empleado.departamento ?? "-"} />
-            <Fila label="Equipo" value={snapshot.empleado.equipo ?? snapshot.empleado.puesto ?? "-"} />
-            <Fila label="Nomina" value={snapshot.periodo.nomina} />
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {snapshot.semanas.map((semana) => (
-              <div key={semana.label} className="rounded-md border border-[color:var(--color-border)] p-3">
-                <div className="mb-2 font-semibold">
-                  {semana.label} - {formatearFecha(semana.inicio)} al {formatearFecha(semana.fin)}
-                </div>
-                <BloqueLineas titulo="Ingresos" pais={pais} lineas={semana.ingresos} />
-                <div className="my-3 border-t border-[color:var(--color-border)]" />
-                <BloqueLineas titulo="Deducciones" pais={pais} lineas={semana.deducciones} />
-                <div className="mt-3 space-y-1 border-t border-[color:var(--color-border)] pt-2">
-                  <Fila label="Total ingresos" value={formatearMoneda(semana.totalIngresos, pais)} />
-                  <Fila label="Total deducciones" value={formatearMoneda(semana.totalDeducciones, pais)} />
-                  <Fila label="Neto" value={formatearMoneda(semana.neto, pais)} fuerte />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-md bg-[color:var(--color-surface-2)] p-3">
-            <Fila label="Total ingresos" value={formatearMoneda(snapshot.totales.totalIngresos, pais)} />
-            <Fila label="Total deducciones" value={formatearMoneda(snapshot.totales.totalDeducciones, pais)} />
-            <Fila label="Pago neto" value={formatearMoneda(snapshot.totales.pagoNeto, pais)} fuerte />
-          </div>
-
-          <details className="mt-4 print:hidden">
-            <summary className="cursor-pointer text-small text-[color:var(--color-secondary)]">
-              JSON
-            </summary>
-            <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-[color:var(--color-dark-bg)] p-3 text-[11px] text-white">
-              {JSON.stringify(snapshot, null, 2)}
-            </pre>
-          </details>
+        <div className="colilla-imprimible">
+          <ColillaDocumento pais={pais} snapshot={snapshot} mostrarJson />
         </div>
       </Modal>
     </>
+  );
+}
+
+export function ImprimirColillasLote({
+  pais,
+  snapshots,
+  totalEmpleados,
+}: {
+  pais: PaisCodigo;
+  snapshots: ColillaSnapshot[];
+  totalEmpleados: number;
+}) {
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const faltantes = Math.max(totalEmpleados - snapshots.length, 0);
+  const disabled = totalEmpleados === 0 || snapshots.length === 0 || faltantes > 0 || imprimiendo;
+
+  function imprimir() {
+    if (disabled) return;
+    setImprimiendo(true);
+    document.body.classList.add("imprimiendo-colillas-lote");
+    const cleanup = () => {
+      document.body.classList.remove("imprimiendo-colillas-lote");
+      window.removeEventListener("afterprint", cleanup);
+      setImprimiendo(false);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.setTimeout(() => window.print(), 80);
+    window.setTimeout(cleanup, 1500);
+  }
+
+  const title =
+    totalEmpleados === 0
+      ? "La nomina no tiene empleados"
+      : faltantes > 0
+        ? faltantes === 1
+          ? "Falta 1 colilla por generar. Registra todos los pagos primero."
+          : `Faltan ${faltantes} colillas por generar. Registra todos los pagos primero.`
+        : undefined;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={imprimir}
+        disabled={disabled}
+        className="arca-btn arca-btn-secondary arca-btn-sm"
+        title={title}
+      >
+        <Printer size={14} /> {imprimiendo ? "Preparando..." : "Imprimir todas las colillas"}
+      </button>
+      <div
+        className="colillas-lote-imprimible pointer-events-none fixed left-[-10000px] top-0 w-full"
+        aria-hidden="true"
+      >
+        {snapshots.map((snapshot) => (
+          <div
+            key={`${snapshot.periodo.nomina}-${snapshot.empleado.codigo}`}
+            className="colilla-lote-pagina"
+          >
+            <ColillaDocumento pais={pais} snapshot={snapshot} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ColillaDocumento({
+  pais,
+  snapshot,
+  mostrarJson = false,
+}: {
+  pais: PaisCodigo;
+  snapshot: ColillaSnapshot;
+  mostrarJson?: boolean;
+}) {
+  return (
+    <div className="colilla-documento mx-auto max-w-3xl rounded-md border border-[color:var(--color-border)] bg-white p-6 text-[13px] text-[color:var(--color-text-primary)]">
+      <div className="text-center">
+        <div className="text-lg font-bold uppercase">{snapshot.empresa.nombre}</div>
+        <div className="text-small font-semibold">Colilla de pago</div>
+        <div className="text-[12px] text-[color:var(--color-text-muted)]">
+          Periodo {formatearFecha(snapshot.periodo.inicio)} - {formatearFecha(snapshot.periodo.fin)}
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Fila label="Empleado" value={snapshot.empleado.nombre} />
+        <Fila label="Codigo" value={snapshot.empleado.codigo} />
+        <Fila label="Salario mensual" value={formatearMoneda(snapshot.empleado.salarioMensual, pais)} />
+        <Fila label="Departamento" value={snapshot.empleado.departamento ?? "-"} />
+        <Fila label="Equipo" value={snapshot.empleado.equipo ?? snapshot.empleado.puesto ?? "-"} />
+        <Fila label="Nomina" value={snapshot.periodo.nomina} />
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {snapshot.semanas.map((semana) => (
+          <div key={semana.label} className="rounded-md border border-[color:var(--color-border)] p-3">
+            <div className="mb-2 font-semibold">
+              {semana.label} - {formatearFecha(semana.inicio)} al {formatearFecha(semana.fin)}
+            </div>
+            <BloqueLineas titulo="Ingresos" pais={pais} lineas={semana.ingresos} />
+            <div className="my-3 border-t border-[color:var(--color-border)]" />
+            <BloqueLineas titulo="Deducciones" pais={pais} lineas={semana.deducciones} />
+            <div className="mt-3 space-y-1 border-t border-[color:var(--color-border)] pt-2">
+              <Fila label="Total ingresos" value={formatearMoneda(semana.totalIngresos, pais)} />
+              <Fila label="Total deducciones" value={formatearMoneda(semana.totalDeducciones, pais)} />
+              <Fila label="Neto" value={formatearMoneda(semana.neto, pais)} fuerte />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 rounded-md bg-[color:var(--color-surface-2)] p-3">
+        <Fila label="Total ingresos" value={formatearMoneda(snapshot.totales.totalIngresos, pais)} />
+        <Fila label="Total deducciones" value={formatearMoneda(snapshot.totales.totalDeducciones, pais)} />
+        <Fila label="Pago neto" value={formatearMoneda(snapshot.totales.pagoNeto, pais)} fuerte />
+      </div>
+
+      {mostrarJson && (
+        <details className="mt-4 print:hidden">
+          <summary className="cursor-pointer text-small text-[color:var(--color-secondary)]">
+            JSON
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-[color:var(--color-dark-bg)] p-3 text-[11px] text-white">
+            {JSON.stringify(snapshot, null, 2)}
+          </pre>
+        </details>
+      )}
+    </div>
   );
 }
 

@@ -27,6 +27,7 @@ import {
   HorasExtraDetalle,
   DeduccionesDetalle,
   ColillaPagoVer,
+  ImprimirColillasLote,
   type ColillaSnapshot,
 } from "@/components/rrhh/NominaTrazabilidad";
 import type { PaisCodigo } from "@/lib/paises";
@@ -121,6 +122,10 @@ export default async function NominaDetallePage({
   const colillaPorDetalle = new Map(
     colillas.map((c) => [c.detalleId, c.snapshot as Record<string, unknown>]),
   );
+  const colillasLote = detalles.flatMap((detalle) => {
+    const snapshot = colillaPorDetalle.get(detalle.id);
+    return snapshot ? [snapshot as ColillaSnapshot] : [];
+  });
 
   const feriadosPeriodo = await db
     .select({ id: feriados.id, nombre: feriados.nombre, fecha: feriados.fecha })
@@ -158,7 +163,12 @@ export default async function NominaDetallePage({
         title={nom.numero}
         subtitle={`${nom.descripcion} · pago ${formatearFecha(nom.fechaPago)}`}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <ImprimirColillasLote
+              pais={pais}
+              snapshots={colillasLote}
+              totalEmpleados={detalles.length}
+            />
             <Badge variant={VARIANTE[nom.estado] ?? "neutral"}>{nom.estado}</Badge>
             <NominaAcciones
               nominaId={nom.id}
