@@ -35,6 +35,7 @@ export function GastoForm({
   const [referencia, setReferencia] = useState("");
   const [subtotal, setSubtotal] = useState<number | "">("");
   const [aplicaIva, setAplicaIva] = useState(false);
+  const [recurrenteMensual, setRecurrenteMensual] = useState(false);
 
   const subtotalNum = typeof subtotal === "number" ? subtotal : 0;
   const impuesto = aplicaIva ? Math.round(subtotalNum * tasaImpuesto * 10000) / 10000 : 0;
@@ -58,6 +59,7 @@ export function GastoForm({
       referencia: referencia.trim() || undefined,
       subtotal: subtotalNum,
       impuesto,
+      recurrenteMensual,
     });
     setEnviando(false);
     if (!res.ok) {
@@ -129,6 +131,20 @@ export function GastoForm({
               className="h-4 w-4"
             />
             Incluye {pais === "HN" ? "ISV" : "IVA"} ({(tasaImpuesto * 100).toFixed(0)}%)
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-[color:var(--color-border)] p-3 text-small">
+            <input
+              type="checkbox"
+              checked={recurrenteMensual}
+              onChange={(e) => setRecurrenteMensual(e.target.checked)}
+              className="mt-0.5 h-4 w-4"
+            />
+            <span>
+              <span className="block font-medium">Se cobrará automáticamente todos los meses</span>
+              <span className="mt-0.5 block text-[12px] text-[color:var(--color-text-muted)]">
+                Se repetirá el mismo día de cada mes. El monto y la próxima fecha se pueden modificar en Gastos recurrentes.
+              </span>
+            </span>
           </label>
 
           {subtotalNum > 0 && (

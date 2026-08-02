@@ -1585,6 +1585,37 @@ export const categoriasGasto = pgTable(
   (t) => [index("cat_gasto_empresa_idx").on(t.empresaId)],
 );
 
+export const gastosRecurrentes = pgTable(
+  "gastos_recurrentes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    categoriaId: uuid("categoria_id")
+      .notNull()
+      .references(() => categoriasGasto.id),
+    cuentaFinancieraId: uuid("cuenta_financiera_id")
+      .notNull()
+      .references(() => cuentasFinancieras.id),
+    descripcion: text("descripcion").notNull(),
+    referencia: text("referencia"),
+    subtotal: numeric("subtotal", { precision: 18, scale: 4 }).notNull(),
+    impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull().default("0"),
+    diaMes: integer("dia_mes").notNull(),
+    proximaFecha: date("proxima_fecha").notNull(),
+    activa: boolean("activa").notNull().default(true),
+    ultimoGeneradoEn: timestamp("ultimo_generado_en", { withTimezone: true }),
+    usuarioId: uuid("usuario_id").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("gastos_recurrentes_empresa_idx").on(t.empresaId),
+    index("gastos_recurrentes_proxima_idx").on(t.activa, t.proximaFecha),
+  ],
+);
+
 export const gastos = pgTable(
   "gastos",
   {
@@ -1597,6 +1628,10 @@ export const gastos = pgTable(
       .notNull()
       .references(() => categoriasGasto.id),
     proveedorId: uuid("proveedor_id").references(() => proveedores.id),
+    recurrenteId: uuid("recurrente_id").references(() => gastosRecurrentes.id, {
+      onDelete: "set null",
+    }),
+    periodoRecurrente: date("periodo_recurrente"),
     cuentaFinancieraId: uuid("cuenta_financiera_id").references(
       () => cuentasFinancieras.id,
     ),
@@ -1615,6 +1650,7 @@ export const gastos = pgTable(
     index("gastos_fecha_idx").on(t.fecha),
     index("gastos_categoria_idx").on(t.categoriaId),
     index("gastos_empresa_fecha_idx").on(t.empresaId, t.fecha),
+    unique("gastos_recurrente_periodo_uq").on(t.recurrenteId, t.periodoRecurrente),
   ],
 );
 

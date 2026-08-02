@@ -105,6 +105,8 @@ export const COMMAND_ITEMS: CommandItem[] = [
   { label: "Balance General", href: "/contabilidad/balance-general", grupo: "Finanzas", modulo: "contabilidad" },
   { label: "Tesorería", href: "/tesoreria", grupo: "Finanzas", modulo: "tesoreria", keywords: "bancos gastos" },
   { label: "Gastos", href: "/tesoreria/gastos", grupo: "Finanzas", modulo: "tesoreria" },
+  { label: "Gastos recurrentes", href: "/tesoreria/gastos/recurrentes", grupo: "Finanzas", modulo: "tesoreria", keywords: "mensuales automáticos" },
+  { label: "Cuentas de tesorería", href: "/tesoreria/cuentas", grupo: "Finanzas", modulo: "tesoreria", keywords: "bancos efectivo" },
   { label: "Panel RRHH", href: "/rrhh", grupo: "Recursos Humanos", modulo: "rrhh" },
   { label: "Empleados", href: "/rrhh/empleados", grupo: "Recursos Humanos", modulo: "rrhh" },
   { label: "Asistencia", href: "/rrhh/asistencia", grupo: "Recursos Humanos", modulo: "rrhh" },

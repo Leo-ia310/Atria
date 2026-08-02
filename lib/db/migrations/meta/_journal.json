@@ -29,6 +29,13 @@
       "when": 1785472320332,
       "tag": "0003_glorious_morbius",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785696702404,
+      "tag": "0004_gastos_recurrentes",
+      "breakpoints": true
     }
   ]
 }

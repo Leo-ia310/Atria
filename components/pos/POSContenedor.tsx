@@ -40,6 +40,9 @@ type ProductoPOS = {
 type ClientePOS = {
   id: string;
   nombre: string;
+  identificacionFiscal: string | null;
+  telefono: string | null;
+  email: string | null;
   tieneCredito: boolean;
   diasCredito: number;
   esConsumidorFinal: boolean;
@@ -91,6 +94,8 @@ export function POSContenedor({
   const [ventaExito, setVentaExito] = useState<{ id: string; numero: string } | null>(null);
   const [cajaAbierta, setCajaAbierta] = useState(hayCajaAbierta);
   const [modalCaja, setModalCaja] = useState(!hayCajaAbierta);
+  const [selectorClienteSignal, setSelectorClienteSignal] = useState(0);
+  const [selectorClienteAbierto, setSelectorClienteAbierto] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,11 +104,27 @@ export function POSContenedor({
 
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
-      if (e.key === "F2") {
+      if (e.key === "F2" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
         buscadorRef.current?.focus();
       }
-      if (e.key === "F12" && carrito.length > 0 && !modalPago) {
+      if (e.key === "F4" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+        e.preventDefault();
+        setSelectorClienteSignal((signal) => signal + 1);
+      }
+      if (e.key === "F6" && !cajaAbierta && !modalCaja) {
+        e.preventDefault();
+        setModalCaja(true);
+      }
+      if (e.key === "F8" && carrito.length > 0 && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+        e.preventDefault();
+        vaciarCarrito();
+      }
+      if (e.key === "F10" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+        e.preventDefault();
+        router.push("/dashboard");
+      }
+      if (e.key === "F12" && carrito.length > 0 && !modalPago && !selectorClienteAbierto) {
         e.preventDefault();
         intentarCobrar();
       }
@@ -111,7 +132,7 @@ export function POSContenedor({
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carrito.length, modalPago, cajaAbierta]);
+  }, [carrito.length, modalPago, modalCaja, ventaExito, cajaAbierta, selectorClienteAbierto, router]);
 
   // Sin caja abierta no se puede cobrar: se reabre el aviso de abrir caja.
   function intentarCobrar() {
@@ -200,7 +221,7 @@ export function POSContenedor({
             onClick={() => setModalCaja(true)}
             className="font-semibold text-[color:var(--color-primary)] underline"
           >
-            Abrir caja
+            Abrir caja (F6)
           </button>
         </div>
       )}
@@ -211,9 +232,9 @@ export function POSContenedor({
           <Link
             href="/dashboard"
             className="arca-btn arca-btn-ghost arca-btn-sm"
-            title="Volver al dashboard"
+            title="Volver al dashboard (F10)"
           >
-            <ArrowLeft size={14} /> Salir POS
+            <ArrowLeft size={14} /> Salir POS (F10)
           </Link>
           <div className="hidden sm:block">
             <div className="text-base font-semibold text-[color:var(--color-text-primary)]">
@@ -234,9 +255,9 @@ export function POSContenedor({
               type="button"
               onClick={() => setModalCaja(true)}
               className="arca-badge arca-badge-warning"
-              title="Abrir caja"
+              title="Abrir caja (F6)"
             >
-              <Store size={12} /> Sin caja
+              <Store size={12} /> Sin caja (F6)
             </button>
           )}
           <span className="arca-badge arca-badge-success">
@@ -312,12 +333,12 @@ export function POSContenedor({
               <button
                 type="button"
                 onClick={() => {
-                  /* abrir selector cliente */
+                  setSelectorClienteSignal((signal) => signal + 1);
                 }}
                 className="mt-0.5 flex items-center gap-1 text-small text-[color:var(--color-secondary)] hover:underline"
               >
                 <User size={12} />
-                {cliente?.nombre ?? "Consumidor final"}
+                {cliente?.nombre ?? "Consumidor final"} (F4)
               </button>
             </div>
             <button
@@ -325,9 +346,9 @@ export function POSContenedor({
               onClick={vaciarCarrito}
               disabled={carrito.length === 0}
               className="arca-btn arca-btn-ghost arca-btn-sm disabled:opacity-30"
-              title="Vaciar"
+              title="Vaciar ticket (F8)"
             >
-              <X size={14} />
+              <X size={14} /> <span className="hidden xl:inline">F8</span>
             </button>
           </div>
 
@@ -335,6 +356,8 @@ export function POSContenedor({
             clientes={clientes}
             clienteId={clienteId}
             onChange={setClienteId}
+            abrirSignal={selectorClienteSignal}
+            onAbiertoChange={setSelectorClienteAbierto}
           />
 
           <div className="flex-1 overflow-y-auto">
@@ -611,17 +634,75 @@ function Fila({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+function normalizarBusqueda(valor: string): string {
+  return valor
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 function SelectorCliente({
   clientes,
   clienteId,
   onChange,
+  abrirSignal,
+  onAbiertoChange,
 }: {
   clientes: ClientePOS[];
   clienteId: string;
   onChange: (id: string) => void;
+  abrirSignal: number;
+  onAbiertoChange: (abierto: boolean) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const busquedaRef = useRef<HTMLInputElement>(null);
   const cliente = clientes.find((c) => c.id === clienteId);
+
+  useEffect(() => {
+    onAbiertoChange(abierto);
+  }, [abierto, onAbiertoChange]);
+
+  useEffect(() => {
+    if (abrirSignal === 0) return;
+    setAbierto(true);
+    setBusqueda("");
+    window.setTimeout(() => busquedaRef.current?.focus(), 0);
+  }, [abrirSignal]);
+
+  const clientesFiltrados = useMemo(() => {
+    const candidatos = clientes.filter((c) => !c.esConsumidorFinal);
+    const consulta = normalizarBusqueda(busqueda);
+    if (!consulta) return candidatos.sort((a, b) => a.nombre.localeCompare(b.nombre)).slice(0, 60);
+    const tokens = consulta.split(/\s+/).filter(Boolean);
+    return candidatos
+      .map((c) => {
+        const nombre = normalizarBusqueda(c.nombre);
+        const identificacion = normalizarBusqueda(c.identificacionFiscal ?? "");
+        const telefono = normalizarBusqueda(c.telefono ?? "");
+        const email = normalizarBusqueda(c.email ?? "");
+        const conjunto = `${nombre} ${identificacion} ${telefono} ${email}`;
+        if (!tokens.every((token) => conjunto.includes(token))) return null;
+        let puntaje = 0;
+        if (nombre === consulta || identificacion === consulta) puntaje += 100;
+        if (nombre.startsWith(consulta)) puntaje += 50;
+        if (identificacion.startsWith(consulta) || telefono.startsWith(consulta)) puntaje += 35;
+        if (email.startsWith(consulta)) puntaje += 20;
+        return { cliente: c, puntaje };
+      })
+      .filter((resultado): resultado is { cliente: ClientePOS; puntaje: number } => Boolean(resultado))
+      .sort((a, b) => b.puntaje - a.puntaje || a.cliente.nombre.localeCompare(b.cliente.nombre))
+      .slice(0, 60)
+      .map((resultado) => resultado.cliente);
+  }, [busqueda, clientes]);
+
+  function seleccionar(id: string) {
+    onChange(id);
+    setAbierto(false);
+    setBusqueda("");
+  }
+
   return (
     <div className="border-b border-[color:var(--color-border)] p-3">
       <button
@@ -633,21 +714,36 @@ function SelectorCliente({
           <User size={14} className="text-[color:var(--color-text-muted)]" />
           {cliente?.nombre ?? "Consumidor final"}
         </span>
-        <span className="text-[color:var(--color-text-muted)]">Cambiar →</span>
+        <span className="text-[color:var(--color-text-muted)]">Cambiar (F4) →</span>
       </button>
       <Modal
         abierto={abierto}
-        onCerrar={() => setAbierto(false)}
+        onCerrar={() => {
+          setAbierto(false);
+          setBusqueda("");
+        }}
         titulo="Seleccionar cliente"
-        descripcion="Elige un cliente registrado o continúa como consumidor final."
+        descripcion="Busca por nombre, identificación fiscal, teléfono o correo."
+        ancho="lg"
       >
-        <div className="space-y-1">
+        <div className="space-y-3">
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
+            />
+            <input
+              ref={busquedaRef}
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Nombre, RUC, cédula, teléfono o correo..."
+              className="arca-input pl-9"
+            />
+          </div>
           <button
             type="button"
-            onClick={() => {
-              onChange("");
-              setAbierto(false);
-            }}
+            onClick={() => seleccionar("")}
             className={cn(
               "w-full rounded-md border p-3 text-left transition",
               clienteId === ""
@@ -660,27 +756,38 @@ function SelectorCliente({
               Sin datos fiscales · Solo contado
             </div>
           </button>
-          {clientes.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                onChange(c.id);
-                setAbierto(false);
-              }}
-              className={cn(
-                "w-full rounded-md border p-3 text-left transition",
-                clienteId === c.id
-                  ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)]"
-                  : "border-[color:var(--color-border)] hover:border-[color:var(--color-border-strong)]",
-              )}
-            >
-              <div className="font-medium">{c.nombre}</div>
-              <div className="text-[12px] text-[color:var(--color-text-muted)]">
-                {c.tieneCredito ? `Crédito ${c.diasCredito} días` : "Solo contado"}
+          <div className="max-h-[44vh] space-y-1 overflow-y-auto pr-1">
+            {clientesFiltrados.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => seleccionar(c.id)}
+                className={cn(
+                  "w-full rounded-md border p-3 text-left transition",
+                  clienteId === c.id
+                    ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)]"
+                    : "border-[color:var(--color-border)] hover:border-[color:var(--color-border-strong)]",
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{c.nombre}</span>
+                  <span className="text-[12px] text-[color:var(--color-text-muted)]">
+                    {c.tieneCredito ? `Crédito ${c.diasCredito} días` : "Solo contado"}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--color-text-muted)]">
+                  {c.identificacionFiscal && <span>{c.identificacionFiscal}</span>}
+                  {c.telefono && <span>{c.telefono}</span>}
+                  {c.email && <span>{c.email}</span>}
+                </div>
+              </button>
+            ))}
+            {clientesFiltrados.length === 0 && (
+              <div className="py-6 text-center text-small text-[color:var(--color-text-muted)]">
+                No encontramos clientes con todos esos datos.
               </div>
-            </button>
-          ))}
+            )}
+          </div>
         </div>
       </Modal>
     </div>
@@ -719,6 +826,7 @@ function ModalPago({
   const [montoEfectivoStr, setMontoEfectivoStr] = useState<string>(total.toFixed(2));
   const [montoMixto, setMontoMixto] = useState<Record<string, string>>({});
   const [referencias, setReferencias] = useState<Record<string, string>>({});
+  const confirmarRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     setMontoEfectivoStr(total.toFixed(2));
@@ -730,6 +838,7 @@ function ModalPago({
   const cambio = Math.max(0, montoEfectivo - total);
 
   function confirmar() {
+    if (procesando) return;
     if (modo === "contado") {
       if (formaUnica === efectivo?.id && montoEfectivo < total) {
         return;
@@ -764,6 +873,17 @@ function ModalPago({
       });
     }
   }
+  confirmarRef.current = confirmar;
+
+  useEffect(() => {
+    const handle = (event: KeyboardEvent) => {
+      if (event.key !== "F12") return;
+      event.preventDefault();
+      confirmarRef.current();
+    };
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
+  }, []);
 
   return (
     <Modal
@@ -784,7 +904,7 @@ function ModalPago({
               </>
             ) : (
               <>
-                <Check size={14} /> Confirmar venta
+                <Check size={14} /> Confirmar venta (F12)
               </>
             )}
           </Button>

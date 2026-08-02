@@ -85,17 +85,14 @@ export default async function FacturasPage({
     .limit(500);
 
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
-  const recibos = filas.map((f) =>
-    reciboDesdeSnapshot({
-      snapshot: f.snapshot as Record<string, unknown>,
-      pais,
-      empresa: empresaRecibo,
-      impuestoNombre: config.impuestoNombre,
-    }),
-  );
   const hayFiltro = Boolean(
     sp.numero || sp.desde || sp.hasta || sp.vendedor || sp.forma || sp.tipo,
   );
+  const parametrosImpresion = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(sp)) {
+    if (valor) parametrosImpresion.set(clave, valor);
+  }
+  const imprimirHref = `/facturas/imprimir${parametrosImpresion.size > 0 ? `?${parametrosImpresion}` : ""}`;
 
   return (
     <div>
@@ -104,7 +101,8 @@ export default async function FacturasPage({
         subtitle={`${filas.length} facturas - ${formatearMoneda(totalFiltrado, pais)}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
           <ImprimirFacturasLote
-            recibos={recibos}
+            href={imprimirHref}
+            total={filas.length}
             label={hayFiltro ? "Imprimir filtradas" : "Imprimir todas"}
           />
         }

@@ -23,6 +23,7 @@ export default auth((req) => {
     pathname.startsWith("/registro") ||
     pathname.startsWith("/recuperar") ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
     pathname.startsWith("/_next") ||
     pathname.includes(".");
 

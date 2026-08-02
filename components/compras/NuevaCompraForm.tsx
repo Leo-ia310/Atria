@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Pencil, Plus, Trash2, Search, X } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -56,6 +56,8 @@ export function NuevaCompraForm({
   const [cuentaFinId, setCuentaFinId] = useState(cuentasFinancieras[0]?.id ?? "");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [lineaAReemplazar, setLineaAReemplazar] = useState<string | null>(null);
+  const buscadorRef = useRef<HTMLInputElement>(null);
 
   const productosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return [];
@@ -69,6 +71,23 @@ export function NuevaCompraForm({
   }, [productos, busqueda]);
 
   function agregarProducto(p: ProductoOpcion) {
+    if (lineaAReemplazar) {
+      setLineas((ls) =>
+        ls.map((linea) =>
+          linea.id === lineaAReemplazar
+            ? {
+                ...linea,
+                productoId: p.id,
+                costoUnitario: p.costoActual,
+                impuesto: linea.cantidad * p.costoActual * p.impuestoTasa,
+              }
+            : linea,
+        ),
+      );
+      setLineaAReemplazar(null);
+      setBusqueda("");
+      return;
+    }
     setLineas((ls) => [
       ...ls,
       {
@@ -80,6 +99,12 @@ export function NuevaCompraForm({
       },
     ]);
     setBusqueda("");
+  }
+
+  function iniciarReemplazo(lineaId: string) {
+    setLineaAReemplazar(lineaId);
+    setBusqueda("");
+    window.setTimeout(() => buscadorRef.current?.focus(), 0);
   }
 
   function actualizarLinea(id: string, cambios: Partial<Linea>) {
@@ -99,6 +124,7 @@ export function NuevaCompraForm({
 
   function quitarLinea(id: string) {
     setLineas((ls) => ls.filter((l) => l.id !== id));
+    if (lineaAReemplazar === id) setLineaAReemplazar(null);
   }
 
   const subtotal = lineas.reduce((acc, l) => acc + l.cantidad * l.costoUnitario, 0);
@@ -206,19 +232,33 @@ export function NuevaCompraForm({
       <Card>
         <CardHeader
           title="Productos comprados"
-          subtitle="Busca y agrega productos al detalle"
+          subtitle={lineaAReemplazar ? "Busca el producto que reemplazará la línea seleccionada" : "Busca y agrega productos al detalle"}
         />
         <CardBody>
+          {lineaAReemplazar && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-md bg-[color:var(--color-warning-bg)] px-3 py-2 text-small">
+              <span>Selecciona un producto para modificar la línea.</span>
+              <button
+                type="button"
+                onClick={() => setLineaAReemplazar(null)}
+                className="rounded p-1 text-[color:var(--color-text-muted)] hover:bg-white"
+                title="Cancelar cambio"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
           <div className="relative mb-4">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
             />
             <input
+              ref={buscadorRef}
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar producto por SKU o nombre..."
+              placeholder={lineaAReemplazar ? "Buscar producto de reemplazo..." : "Buscar producto por SKU o nombre..."}
               className="arca-input pl-9"
             />
             {productosFiltrados.length > 0 && (
@@ -267,7 +307,22 @@ export function NuevaCompraForm({
                     const p = productos.find((pp) => pp.id === l.productoId);
                     return (
                       <tr key={l.id} className="border-b border-[color:var(--color-border)]">
-                        <td className="px-2 py-2">{p?.nombre}</td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium">{p?.nombre}</div>
+                              <div className="text-[11px] text-[color:var(--color-text-muted)]">{p?.sku}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => iniciarReemplazo(l.id)}
+                              className="rounded p-1.5 text-[color:var(--color-secondary)] hover:bg-[color:var(--color-surface-2)]"
+                              title="Cambiar producto"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </div>
+                        </td>
                         <td className="px-2 py-1">
                           <input
                             type="number"
@@ -303,6 +358,7 @@ export function NuevaCompraForm({
                             type="button"
                             onClick={() => quitarLinea(l.id)}
                             className="rounded p-1 text-[color:var(--color-error)] hover:bg-[color:var(--color-error-bg)]"
+                            title="Quitar producto"
                           >
                             <Trash2 size={14} />
                           </button>

@@ -3,16 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cuentasFinancieras, categoriasGasto, gastos } from "@/lib/db/schema";
+import { cuentasFinancieras, categoriasGasto, gastosRecurrentes } from "@/lib/db/schema";
 import {
   crearCuentaFinancieraSchema,
   crearCategoriaGastoSchema,
   crearGastoSchema,
+  actualizarGastoRecurrenteSchema,
 } from "@/lib/validations/tesoreria";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
-import { registrarGasto } from "@/lib/contabilidad/motor-asientos";
-import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
+import { aDecimalStr } from "@/lib/contabilidad/helpers";
+import {
+  registrarGastoEnTransaccion,
+  siguienteFechaMensual,
+} from "@/lib/tesoreria/gastos-recurrentes";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -91,52 +95,47 @@ export async function crearGasto(
     .limit(1);
   if (!cuenta) return { ok: false, error: "Cuenta financiera no encontrada" };
 
-  const subtotal = dinero(data.subtotal);
-  const impuesto = dinero(data.impuesto);
-  const total = dinero(subtotal + impuesto);
-  // Noon UTC to avoid timezone date-shift
-  const fecha = new Date(data.fecha + "T12:00:00Z");
-
   try {
     const gastoId = await db.transaction(async (tx) => {
-      const [gasto] = await tx
-        .insert(gastos)
-        .values({
-          empresaId: user.empresaId,
-          categoriaId: data.categoriaId,
-          cuentaFinancieraId: data.cuentaFinancieraId,
-          fecha: data.fecha,
-          descripcion: data.descripcion,
-          referencia: data.referencia || null,
-          subtotal: aDecimalStr(subtotal),
-          impuesto: aDecimalStr(impuesto),
-          total: aDecimalStr(total),
-          usuarioId: user.id,
-        })
-        .returning({ id: gastos.id });
+      let recurrenteId: string | null = null;
+      if (data.recurrenteMensual) {
+        const diaMes = Number(data.fecha.slice(8, 10));
+        const [recurrente] = await tx
+          .insert(gastosRecurrentes)
+          .values({
+            empresaId: user.empresaId,
+            categoriaId: data.categoriaId,
+            cuentaFinancieraId: data.cuentaFinancieraId,
+            descripcion: data.descripcion,
+            referencia: data.referencia || null,
+            subtotal: aDecimalStr(data.subtotal),
+            impuesto: aDecimalStr(data.impuesto),
+            diaMes,
+            proximaFecha: siguienteFechaMensual(data.fecha, diaMes),
+            usuarioId: user.id,
+          })
+          .returning({ id: gastosRecurrentes.id });
+        recurrenteId = recurrente.id;
+      }
 
-      const asientoId = await registrarGasto(
-        {
-          empresaId: user.empresaId,
-          usuarioId: user.id,
-          gastoId: gasto.id,
-          categoriaGastoId: data.categoriaId,
-          cuentaFinancieraId: data.cuentaFinancieraId,
-          fecha,
-          descripcion: data.descripcion,
-          subtotal,
-          impuesto,
-          total,
-        },
-        tx,
-      );
-
-      await tx.update(gastos).set({ asientoId }).where(eq(gastos.id, gasto.id));
-      return gasto.id;
+      return registrarGastoEnTransaccion(tx, {
+        empresaId: user.empresaId,
+        usuarioId: user.id,
+        categoriaId: data.categoriaId,
+        cuentaFinancieraId: data.cuentaFinancieraId,
+        fecha: data.fecha,
+        descripcion: data.descripcion,
+        referencia: data.referencia,
+        subtotal: data.subtotal,
+        impuesto: data.impuesto,
+        recurrenteId,
+        periodoRecurrente: recurrenteId ? data.fecha : null,
+      });
     });
 
     revalidatePath("/tesoreria");
     revalidatePath("/tesoreria/gastos");
+    revalidatePath("/tesoreria/gastos/recurrentes");
     return { ok: true, gastoId };
   } catch (err) {
     return {
@@ -144,4 +143,62 @@ export async function crearGasto(
       error: err instanceof Error ? err.message : "Error al registrar gasto",
     };
   }
+}
+
+export async function actualizarGastoRecurrente(input: unknown): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { modulo: "tesoreria", permisos: "tesoreria.ver" });
+  if (!acceso.ok) return acceso;
+  const parsed = actualizarGastoRecurrenteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const data = parsed.data;
+
+  const [categoria, cuenta, recurrente] = await Promise.all([
+    db
+      .select({ id: categoriasGasto.id })
+      .from(categoriasGasto)
+      .where(and(eq(categoriasGasto.id, data.categoriaId), eq(categoriasGasto.empresaId, user.empresaId)))
+      .limit(1),
+    db
+      .select({ id: cuentasFinancieras.id })
+      .from(cuentasFinancieras)
+      .where(and(eq(cuentasFinancieras.id, data.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, user.empresaId)))
+      .limit(1),
+    db
+      .select({ id: gastosRecurrentes.id })
+      .from(gastosRecurrentes)
+      .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId)))
+      .limit(1),
+  ]);
+  if (!categoria[0]) return { ok: false, error: "Categoría de gasto no encontrada" };
+  if (!cuenta[0]) return { ok: false, error: "Cuenta financiera no encontrada" };
+  if (!recurrente[0]) return { ok: false, error: "Gasto recurrente no encontrado" };
+
+  try {
+    await db
+      .update(gastosRecurrentes)
+      .set({
+        categoriaId: data.categoriaId,
+        cuentaFinancieraId: data.cuentaFinancieraId,
+        descripcion: data.descripcion,
+        referencia: data.referencia || null,
+        subtotal: aDecimalStr(data.subtotal),
+        impuesto: aDecimalStr(data.impuesto),
+        diaMes: data.diaMes,
+        proximaFecha: data.proximaFecha,
+        activa: data.activa,
+        actualizadoEn: new Date(),
+      })
+      .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId)));
+  } catch (error) {
+    console.error(`[gasto-recurrente:${data.id}] No se pudo actualizar`, error);
+    return { ok: false, error: "No se pudo actualizar el gasto recurrente" };
+  }
+
+  revalidatePath("/tesoreria");
+  revalidatePath("/tesoreria/gastos");
+  revalidatePath("/tesoreria/gastos/recurrentes");
+  return { ok: true };
 }

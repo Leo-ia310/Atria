@@ -22,6 +22,7 @@ type Fila = {
   subtotal: string;
   impuesto: string;
   total: string;
+  recurrente: boolean;
 };
 
 export default async function GastosPage() {
@@ -41,13 +42,15 @@ export default async function GastosPage() {
       subtotal: gastos.subtotal,
       impuesto: gastos.impuesto,
       total: gastos.total,
+      recurrenteId: gastos.recurrenteId,
     })
     .from(gastos)
     .innerJoin(categoriasGasto, eq(categoriasGasto.id, gastos.categoriaId))
     .innerJoin(cuentasFinancieras, eq(cuentasFinancieras.id, gastos.cuentaFinancieraId))
     .where(eq(gastos.empresaId, user.empresaId))
     .orderBy(desc(gastos.fecha), desc(gastos.creadoEn))
-    .limit(500);
+    .limit(500)
+    .then((rows) => rows.map((row) => ({ ...row, recurrente: Boolean(row.recurrenteId) })));
 
   const columnas: Columna<Fila>[] = [
     {
@@ -65,6 +68,7 @@ export default async function GastosPage() {
           {r.referencia && (
             <div className="text-[11px] text-[color:var(--color-text-muted)]">{r.referencia}</div>
           )}
+          {r.recurrente && <Badge variant="info">Mensual</Badge>}
         </div>
       ),
     },

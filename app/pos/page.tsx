@@ -99,6 +99,9 @@ export default async function POSPage() {
     .select({
       id: clientes.id,
       nombre: clientes.nombre,
+      identificacionFiscal: clientes.identificacionFiscal,
+      telefono: clientes.telefono,
+      email: clientes.email,
       limiteCredito: clientes.limiteCredito,
       diasCredito: clientes.diasCredito,
       esConsumidorFinal: clientes.esConsumidorFinal,
@@ -188,6 +191,9 @@ export default async function POSPage() {
       clientes={clientesList.map((c) => ({
         id: c.id,
         nombre: c.nombre,
+        identificacionFiscal: c.identificacionFiscal,
+        telefono: c.telefono,
+        email: c.email,
         tieneCredito: parseFloat(c.limiteCredito) > 0,
         diasCredito: c.diasCredito,
         esConsumidorFinal: c.esConsumidorFinal,

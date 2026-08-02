@@ -13,8 +13,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
-import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
-import { reciboDesdeSnapshot } from "@/lib/facturas";
+import type { PaisCodigo } from "@/lib/paises";
 import { ImprimirFacturasLote } from "@/components/facturas/ImprimirFacturasLote";
 
 type Fila = {
@@ -26,7 +25,7 @@ type Fila = {
   total: string;
   esCredito: boolean;
   estado: string;
-  facturaSnapshot: unknown;
+  facturaId: string | null;
 };
 
 export default async function VentasPage({
@@ -78,7 +77,7 @@ export default async function VentasPage({
       total: ventas.total,
       esCredito: ventas.esCredito,
       estado: ventas.estado,
-      facturaSnapshot: facturas.snapshot,
+      facturaId: facturas.id,
     })
     .from(ventas)
     .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
@@ -89,27 +88,13 @@ export default async function VentasPage({
     .limit(300);
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-  const config = getPaisConfig(pais);
-  const empresaRecibo = {
-    nombre: empresa?.nombreComercial || empresa?.razonSocial || "Mi Empresa",
-    idFiscalNombre: config.idFiscalNombre,
-    identificacionFiscal: empresa?.identificacionFiscal ?? "",
-    direccion: empresa?.direccion ?? null,
-    telefono: empresa?.telefono ?? null,
-  };
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
-  const recibos = filas.flatMap((f) => {
-    if (!f.facturaSnapshot || typeof f.facturaSnapshot !== "object") return [];
-    return [
-      reciboDesdeSnapshot({
-        snapshot: f.facturaSnapshot as Record<string, unknown>,
-        pais,
-        empresa: empresaRecibo,
-        impuestoNombre: config.impuestoNombre,
-      }),
-    ];
-  });
+  const totalFacturas = filas.filter((fila) => fila.facturaId).length;
   const hayFiltro = Boolean(sp.q || sp.desde || sp.hasta || sp.tipo || sp.estado);
+  const parametrosImpresion = new URLSearchParams({ origen: "ventas" });
+  for (const [clave, valor] of Object.entries(sp)) {
+    if (valor) parametrosImpresion.set(clave, valor);
+  }
 
   const columnas: Columna<Fila>[] = [
     {
@@ -196,7 +181,8 @@ export default async function VentasPage({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ImprimirFacturasLote
-              recibos={recibos}
+              href={`/facturas/imprimir?${parametrosImpresion}`}
+              total={totalFacturas}
               label={hayFiltro ? "Imprimir filtradas" : "Imprimir todo"}
             />
             <Link href="/pos" className="arca-btn arca-btn-primary arca-btn-sm">
