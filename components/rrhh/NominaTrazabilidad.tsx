@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, FileJson, ListChecks, Printer } from "lucide-react";
+import { CircleDollarSign, Clock, FileJson, ListChecks, Printer } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { formatearMoneda, formatearFecha } from "@/lib/utils";
+import { formatearMoneda, formatearFecha, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
-type Linea = { concepto: string; monto: number; nota?: string | null };
+type Linea = { concepto: string; monto: number; nota?: string | null; meta?: string };
+type LineaTrazable = Linea & { semana: string; creadoEn: string };
 type SemanaColilla = {
   label: string;
   inicio: string;
@@ -77,7 +78,7 @@ export function DeduccionesDetalle({
   pais: PaisCodigo;
   total: number;
   fijas: Linea[];
-  variables: (Linea & { semana: string })[];
+  variables: LineaTrazable[];
 }) {
   const [abierto, setAbierto] = useState(false);
   return (
@@ -98,11 +99,53 @@ export function DeduccionesDetalle({
             lineas={variables.map((v) => ({
               concepto: `${v.concepto} (${labelSemana(v.semana)})`,
               monto: v.monto,
-              nota: v.nota,
+              nota: v.nota ? `Motivo: ${v.nota}` : "Motivo: sin registrar",
+              meta: `Registrada ${formatearFechaHora(v.creadoEn)}`,
             }))}
           />
           <div className="border-t border-[color:var(--color-border)] pt-2">
             <Fila label="Total deducciones" value={formatearMoneda(total, pais)} fuerte />
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+export function IngresosDetalle({
+  pais,
+  total,
+  variables,
+}: {
+  pais: PaisCodigo;
+  total: number;
+  variables: LineaTrazable[];
+}) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        title="Ver trazabilidad de ingresos extra"
+        className="inline-flex items-center justify-end gap-1 text-[color:var(--color-success)] hover:underline"
+      >
+        <CircleDollarSign size={13} /> {formatearMoneda(total, pais)}
+      </button>
+      <Modal abierto={abierto} onCerrar={() => setAbierto(false)} titulo="Detalle de ingresos extra" ancho="md">
+        <div className="space-y-4 text-small">
+          <BloqueLineas
+            titulo="Ingresos registrados"
+            pais={pais}
+            lineas={variables.map((v) => ({
+              concepto: `${v.concepto} (${labelSemana(v.semana)})`,
+              monto: v.monto,
+              nota: v.nota ? `Motivo: ${v.nota}` : "Motivo: sin registrar",
+              meta: `Registrado ${formatearFechaHora(v.creadoEn)}`,
+            }))}
+          />
+          <div className="border-t border-[color:var(--color-border)] pt-2">
+            <Fila label="Total ingresos extra" value={formatearMoneda(total, pais)} fuerte />
           </div>
         </div>
       </Modal>
@@ -319,6 +362,9 @@ function BloqueLineas({
               <Fila label={linea.concepto} value={formatearMoneda(linea.monto, pais)} />
               {linea.nota && (
                 <div className="text-[11px] text-[color:var(--color-text-muted)]">{linea.nota}</div>
+              )}
+              {linea.meta && (
+                <div className="text-[11px] text-[color:var(--color-text-muted)]">{linea.meta}</div>
               )}
             </div>
           ))}

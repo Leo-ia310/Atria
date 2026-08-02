@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { formatearMoneda } from "@/lib/utils";
+import { formatearFechaHora, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
 const SEMANAS = [
@@ -23,7 +23,14 @@ const SEMANAS = [
   { value: "semana_2", label: "Semana 2" },
 ];
 
-type Ingreso = { id: string; tipo: string; monto: number; nota: string | null; semana: string };
+type Ingreso = {
+  id: string;
+  tipo: string;
+  monto: number;
+  nota: string | null;
+  semana: string;
+  creadoEn: string;
+};
 type Empleado = {
   detalleId: string;
   nombre: string;
@@ -212,6 +219,9 @@ function FilaEmpleado({
               </span>
               <span className="text-[color:var(--color-text-muted)]">
                 {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}
+              </span>
+              <span className="text-[color:var(--color-text-muted)]">
+                {formatearFechaHora(d.creadoEn)}
               </span>
               {editable && (
                 <button

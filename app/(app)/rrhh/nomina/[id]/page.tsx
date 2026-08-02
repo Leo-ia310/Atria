@@ -9,6 +9,8 @@ import {
   empleados,
   feriados,
   cuentasFinancieras,
+  nominaIngresos,
+  tiposIngreso,
   nominaDeducciones,
   tiposDeduccion,
   nominaColillas,
@@ -25,6 +27,7 @@ import { NominaAcciones } from "@/components/rrhh/NominaAcciones";
 import { PagoDetalleControl } from "@/components/rrhh/PagoDetalleControl";
 import {
   HorasExtraDetalle,
+  IngresosDetalle,
   DeduccionesDetalle,
   ColillaPagoVer,
   ImprimirColillasLote,
@@ -69,6 +72,7 @@ export default async function NominaDetallePage({
       diasTrabajados: nominaDetalles.diasTrabajados,
       horasExtra: nominaDetalles.horasExtra,
       montoHorasExtra: nominaDetalles.montoHorasExtra,
+      bonificaciones: nominaDetalles.bonificaciones,
       totalDevengado: nominaDetalles.totalDevengado,
       deduccionSeguridadSocial: nominaDetalles.deduccionSeguridadSocial,
       deduccionRenta: nominaDetalles.deduccionRenta,
@@ -82,7 +86,22 @@ export default async function NominaDetallePage({
     .where(eq(nominaDetalles.nominaId, nom.id))
     .orderBy(empleados.nombres);
   const detalleIds = detalles.map((d) => d.id);
-  const [deduccionesVariables, colillas] = await Promise.all([
+  const [ingresosVariables, deduccionesVariables, colillas] = await Promise.all([
+    detalleIds.length
+      ? db
+          .select({
+            detalleId: nominaIngresos.nominaDetalleId,
+            tipo: tiposIngreso.nombre,
+            monto: nominaIngresos.monto,
+            nota: nominaIngresos.nota,
+            semana: nominaIngresos.semana,
+            creadoEn: nominaIngresos.creadoEn,
+          })
+          .from(nominaIngresos)
+          .innerJoin(tiposIngreso, eq(tiposIngreso.id, nominaIngresos.tipoIngresoId))
+          .where(inArray(nominaIngresos.nominaDetalleId, detalleIds))
+          .orderBy(nominaIngresos.creadoEn)
+      : [],
     detalleIds.length
       ? db
           .select({
@@ -91,10 +110,12 @@ export default async function NominaDetallePage({
             monto: nominaDeducciones.monto,
             nota: nominaDeducciones.nota,
             semana: nominaDeducciones.semana,
+            creadoEn: nominaDeducciones.creadoEn,
           })
           .from(nominaDeducciones)
           .innerJoin(tiposDeduccion, eq(tiposDeduccion.id, nominaDeducciones.tipoDeduccionId))
           .where(inArray(nominaDeducciones.nominaDetalleId, detalleIds))
+          .orderBy(nominaDeducciones.creadoEn)
       : [],
     detalleIds.length
       ? db
@@ -106,6 +127,20 @@ export default async function NominaDetallePage({
           .where(inArray(nominaColillas.nominaDetalleId, detalleIds))
       : [],
   ]);
+  const ingresosPorDetalle = new Map(
+    detalles.map((d) => [
+      d.id,
+      ingresosVariables
+        .filter((x) => x.detalleId === d.id)
+        .map((x) => ({
+          concepto: x.tipo,
+          monto: Number(x.monto),
+          nota: x.nota,
+          semana: x.semana,
+          creadoEn: x.creadoEn.toISOString(),
+        })),
+    ]),
+  );
   const deduccionesPorDetalle = new Map(
     detalles.map((d) => [
       d.id,
@@ -116,6 +151,7 @@ export default async function NominaDetallePage({
           monto: Number(x.monto),
           nota: x.nota,
           semana: x.semana,
+          creadoEn: x.creadoEn.toISOString(),
         })),
     ]),
   );
@@ -126,6 +162,10 @@ export default async function NominaDetallePage({
     const snapshot = colillaPorDetalle.get(detalle.id);
     return snapshot ? [snapshot as ColillaSnapshot] : [];
   });
+  const totalIngresosExtra = detalles.reduce(
+    (total, detalle) => total + Number(detalle.bonificaciones),
+    0,
+  );
 
   const feriadosPeriodo = await db
     .select({ id: feriados.id, nombre: feriados.nombre, fecha: feriados.fecha })
@@ -180,8 +220,9 @@ export default async function NominaDetallePage({
         }
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard label="Empleados" value={String(nom.empleadosCount)} />
+        <KpiCard label="Ingresos extra" value={money(totalIngresosExtra)} />
         <KpiCard label="Total devengado" value={money(nom.totalDevengado)} />
         <KpiCard label="Deducciones" value={money(nom.totalDeducciones)} />
         <KpiCard label="Neto a pagar" value={money(nom.totalNeto)} />
@@ -195,8 +236,18 @@ export default async function NominaDetallePage({
           <ol className="mt-1 list-decimal pl-5 text-[color:var(--color-text-muted)]">
             <li>Verifica la nómina recién creada.</li>
             <li>
-              Agrega las deducciones no fijas en{" "}
-              <Link href="/rrhh/deducciones" className="text-[color:var(--color-secondary)] underline">
+              Agrega los ingresos extra en{" "}
+              <Link
+                href={`/rrhh/ingresos?nomina=${nom.id}`}
+                className="text-[color:var(--color-secondary)] underline"
+              >
+                Ingresos
+              </Link>{" "}
+              y las deducciones no fijas en{" "}
+              <Link
+                href={`/rrhh/deducciones?nomina=${nom.id}`}
+                className="text-[color:var(--color-secondary)] underline"
+              >
                 Deducciones
               </Link>{" "}
               y verifica de nuevo.
@@ -230,6 +281,7 @@ export default async function NominaDetallePage({
                 <th className="text-label px-4 py-3 text-left font-semibold">Empleado</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Días</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">H. Extra</th>
+                <th className="text-label px-4 py-3 text-right font-semibold">Ingresos extra</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">Devengado</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">{ssNombre}</th>
                 <th className="text-label px-4 py-3 text-right font-semibold">IR</th>
@@ -245,6 +297,7 @@ export default async function NominaDetallePage({
             </thead>
             <tbody>
               {detalles.map((d) => {
+                const ingresos = ingresosPorDetalle.get(d.id) ?? [];
                 const variables = deduccionesPorDetalle.get(d.id) ?? [];
                 const fijas = [
                   {
@@ -274,6 +327,13 @@ export default async function NominaDetallePage({
                         horas={Number(d.horasExtra)}
                         monto={Number(d.montoHorasExtra)}
                         salarioMensual={Number(d.salarioBase)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <IngresosDetalle
+                        pais={pais}
+                        total={Number(d.bonificaciones)}
+                        variables={ingresos}
                       />
                     </td>
                     <td className="px-4 py-3 text-right">{money(d.totalDevengado)}</td>
@@ -315,6 +375,7 @@ export default async function NominaDetallePage({
                 <td className="px-4 py-3">Totales</td>
                 <td></td>
                 <td></td>
+                <td className="px-4 py-3 text-right">{money(totalIngresosExtra)}</td>
                 <td className="px-4 py-3 text-right">{money(nom.totalDevengado)}</td>
                 <td></td>
                 <td></td>

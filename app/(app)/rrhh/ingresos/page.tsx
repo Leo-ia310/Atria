@@ -73,7 +73,14 @@ export default async function IngresosPage({
     totalDevengado: number;
     ingresos: number;
     totalNeto: number;
-    registros: { id: string; tipo: string; monto: number; nota: string | null; semana: string }[];
+    registros: {
+      id: string;
+      tipo: string;
+      monto: number;
+      nota: string | null;
+      semana: string;
+      creadoEn: string;
+    }[];
   }[] = [];
 
   if (seleccionada) {
@@ -100,11 +107,13 @@ export default async function IngresosPage({
             monto: nominaIngresos.monto,
             nota: nominaIngresos.nota,
             semana: nominaIngresos.semana,
+            creadoEn: nominaIngresos.creadoEn,
             tipo: tiposIngreso.nombre,
           })
           .from(nominaIngresos)
           .innerJoin(tiposIngreso, eq(tiposIngreso.id, nominaIngresos.tipoIngresoId))
           .where(inArray(nominaIngresos.nominaDetalleId, detIds))
+          .orderBy(nominaIngresos.creadoEn)
       : [];
 
     empleadosData = detalles.map((d) => ({
@@ -121,6 +130,7 @@ export default async function IngresosPage({
           monto: parseFloat(x.monto),
           nota: x.nota,
           semana: x.semana,
+          creadoEn: x.creadoEn.toISOString(),
         })),
     }));
   }
