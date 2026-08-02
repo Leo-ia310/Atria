@@ -274,7 +274,7 @@ export function POSContenedor({
             <div className="relative">
               <Search
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
               />
               <input
                 ref={buscadorRef}
@@ -282,7 +282,7 @@ export function POSContenedor({
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Escanear código o buscar por nombre/SKU (F2)"
-                className="arca-input pl-9 text-base"
+                className="arca-input arca-input-con-icono text-base"
                 autoFocus
               />
             </div>
@@ -730,7 +730,7 @@ function SelectorCliente({
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
             />
             <input
               ref={busquedaRef}
@@ -738,7 +738,7 @@ function SelectorCliente({
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Nombre, RUC, cédula, teléfono o correo..."
-              className="arca-input pl-9"
+              className="arca-input arca-input-con-icono"
             />
           </div>
           <button

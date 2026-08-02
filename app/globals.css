@@ -166,6 +166,10 @@ textarea:focus {
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
+.arca-input-con-icono {
+  padding-left: 2.5rem;
+}
+
 .arca-input::placeholder {
   color: var(--color-text-muted);
 }

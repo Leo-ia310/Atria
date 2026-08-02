@@ -251,7 +251,7 @@ export function NuevaCompraForm({
           <div className="relative mb-4">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
             />
             <input
               ref={buscadorRef}
@@ -259,7 +259,7 @@ export function NuevaCompraForm({
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder={lineaAReemplazar ? "Buscar producto de reemplazo..." : "Buscar producto por SKU o nombre..."}
-              className="arca-input pl-9"
+              className="arca-input arca-input-con-icono"
             />
             {productosFiltrados.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
