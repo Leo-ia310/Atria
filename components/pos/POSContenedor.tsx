@@ -71,6 +71,10 @@ type CantidadEscaneoPendiente = {
   expiraEn: number;
 };
 
+function dineroPos(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
+
 function normalizarCodigoBarras(valor: string): string {
   return valor.replace(/[\s\r\n\t]/g, "").trim();
 }
@@ -365,6 +369,39 @@ export function POSContenedor({
   const total = subtotal + impuesto;
 
   const cliente = clientes.find((c) => c.id === clienteId);
+
+  function cerrarVentaCompletada() {
+    setVentaExito(null);
+    window.setTimeout(() => buscadorRef.current?.focus(), 0);
+  }
+
+  function imprimirVentaCompletada(copias: 1 | 2) {
+    if (!ventaExito) return;
+    window.open(`/ticket/${ventaExito.id}?print=1&copies=${copias}`, "_blank");
+  }
+
+  useEffect(() => {
+    if (!ventaExito) return;
+    const handle = (event: KeyboardEvent) => {
+      if (event.key === "F2") {
+        event.preventDefault();
+        cerrarVentaCompletada();
+        return;
+      }
+      if (event.key === "F7") {
+        event.preventDefault();
+        imprimirVentaCompletada(1);
+        return;
+      }
+      if (event.key === "F8") {
+        event.preventDefault();
+        imprimirVentaCompletada(2);
+      }
+    };
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventaExito]);
 
   return (
     <div className="flex h-screen flex-col bg-[color:var(--color-neutral)]">
@@ -669,15 +706,17 @@ export function POSContenedor({
           ancho="sm"
           footer={
             <>
-              <Button variant="ghost" onClick={() => setVentaExito(null)}>
-                Nueva venta
+              <Button variant="ghost" onClick={cerrarVentaCompletada}>
+                Nueva venta (F2)
               </Button>
               <Button
-                onClick={() =>
-                  window.open(`/ticket/${ventaExito.id}?print=1`, "_blank")
-                }
+                variant="secondary"
+                onClick={() => imprimirVentaCompletada(1)}
               >
-                <Receipt size={14} /> Imprimir factura
+                <Receipt size={14} /> Imprimir 1 (F7)
+              </Button>
+              <Button onClick={() => imprimirVentaCompletada(2)}>
+                <Receipt size={14} /> Imprimir 2 (F8)
               </Button>
             </>
           }
@@ -687,7 +726,7 @@ export function POSContenedor({
               <Check size={28} />
             </div>
             <p className="text-small text-[color:var(--color-text-muted)]">
-              La factura quedó guardada. Puedes imprimir la copia del negocio.
+              La factura quedó guardada. Puedes imprimir una o dos copias.
             </p>
           </div>
         </Modal>
@@ -997,20 +1036,23 @@ function ModalPago({
   const [montoMixto, setMontoMixto] = useState<Record<string, string>>({});
   const [referencias, setReferencias] = useState<Record<string, string>>({});
   const confirmarRef = useRef<() => void>(() => {});
+  const totalCobro = dineroPos(total);
 
   useEffect(() => {
-    setMontoEfectivoStr(total.toFixed(2));
-  }, [total]);
+    setMontoEfectivoStr(totalCobro.toFixed(2));
+  }, [totalCobro]);
 
   void carrito; // referenciado para tipo
 
-  const montoEfectivo = parseFloat(montoEfectivoStr) || 0;
-  const cambio = Math.max(0, montoEfectivo - total);
+  const montoEfectivoRaw =
+    montoEfectivoStr.trim() === "" ? totalCobro : parseFloat(montoEfectivoStr);
+  const montoEfectivo = dineroPos(Number.isFinite(montoEfectivoRaw) ? montoEfectivoRaw : 0);
+  const cambio = Math.max(0, dineroPos(montoEfectivo - totalCobro));
 
   function confirmar() {
     if (procesando) return;
     if (modo === "contado") {
-      if (formaUnica === efectivo?.id && montoEfectivo < total) {
+      if (formaUnica === efectivo?.id && montoEfectivo + 0.001 < totalCobro) {
         return;
       }
       const forma = formasPago.find((f) => f.id === formaUnica);
@@ -1018,7 +1060,7 @@ function ModalPago({
         pagos: [
           {
             formaPagoId: formaUnica,
-            monto: forma?.codigo === "EFE" ? total : total,
+            monto: totalCobro,
             referencia: referencias[formaUnica],
           },
         ],
@@ -1028,17 +1070,17 @@ function ModalPago({
       const pagos = Object.entries(montoMixto)
         .map(([id, monto]) => ({
           formaPagoId: id,
-          monto: parseFloat(monto) || 0,
+          monto: dineroPos(parseFloat(monto) || 0),
           referencia: referencias[id],
         }))
         .filter((p) => p.monto > 0);
       const sumaTotal = pagos.reduce((a, p) => a + p.monto, 0);
-      if (Math.abs(sumaTotal - total) > 0.01) return;
+      if (Math.abs(dineroPos(sumaTotal) - totalCobro) > 0.01) return;
       onConfirmar({ pagos, esCredito: false });
     } else {
       if (!cliente || !cliente.tieneCredito || !credito) return;
       onConfirmar({
-        pagos: [{ formaPagoId: credito.id, monto: total }],
+        pagos: [{ formaPagoId: credito.id, monto: totalCobro }],
         esCredito: true,
       });
     }

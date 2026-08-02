@@ -36,6 +36,7 @@ export type ReciboData = {
   descuento: number;
   impuesto: number;
   total: number;
+  copiaNombre?: string;
 };
 
 /**
@@ -64,7 +65,7 @@ export function Recibo({ data }: { data: ReciboData }) {
 
       <div className="my-3 flex items-center justify-between rounded-md bg-[color:var(--color-surface-2)] px-3 py-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--color-text-muted)]">
-          Copia · Negocio
+          Copia · {data.copiaNombre ?? "Negocio"}
         </span>
         <span className="text-[12px] font-bold">{data.numero}</span>
       </div>

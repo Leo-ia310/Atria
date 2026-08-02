@@ -42,12 +42,14 @@ export type TicketData = {
   total: number;
   impuestoNombre: string;
   autoPrint?: boolean;
+  copies?: 1 | 2;
 };
 
-export function imprimirRecibo() {
-  document.body.classList.add("imprimiendo-recibo");
+export function imprimirRecibo(modo?: "simple" | "lote" | unknown) {
+  const clase = modo === "lote" ? "imprimiendo-recibos-lote" : "imprimiendo-recibo";
+  document.body.classList.add(clase);
   const cleanup = () => {
-    document.body.classList.remove("imprimiendo-recibo");
+    document.body.classList.remove(clase);
     window.removeEventListener("afterprint", cleanup);
   };
   window.addEventListener("afterprint", cleanup);
@@ -55,14 +57,19 @@ export function imprimirRecibo() {
 }
 
 export function TicketPrint(props: TicketData) {
+  const copies = props.copies === 2 ? 2 : 1;
   useEffect(() => {
     if (props.autoPrint) {
-      const t = setTimeout(() => imprimirRecibo(), 350);
+      const t = setTimeout(
+        () => imprimirRecibo(copies === 2 ? "lote" : "simple"),
+        350,
+      );
       return () => clearTimeout(t);
     }
-  }, [props.autoPrint]);
+  }, [props.autoPrint, copies]);
 
   const data: ReciboData = { ...props };
+  const labels = copies === 2 ? (["Negocio", "Cliente"] as const) : (["Negocio"] as const);
 
   return (
     <div className="min-h-screen bg-[color:var(--color-neutral)] py-8 print:bg-white print:py-0">
@@ -72,16 +79,26 @@ export function TicketPrint(props: TicketData) {
         </Link>
         <button
           type="button"
-          onClick={imprimirRecibo}
+          onClick={() => imprimirRecibo(copies === 2 ? "lote" : "simple")}
           className="arca-btn arca-btn-primary arca-btn-sm"
         >
-          <Printer size={14} /> Imprimir
+          <Printer size={14} /> Imprimir {copies}
         </button>
       </div>
 
-      <div className="recibo-imprimible">
-        <Recibo data={data} />
-      </div>
+      {copies === 1 ? (
+        <div className="recibo-imprimible">
+          <Recibo data={{ ...data, copiaNombre: "Negocio" }} />
+        </div>
+      ) : (
+        <div className="recibos-lote-imprimible">
+          {labels.map((label) => (
+            <div key={label} className="recibo-lote-pagina">
+              <Recibo data={{ ...data, copiaNombre: label }} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

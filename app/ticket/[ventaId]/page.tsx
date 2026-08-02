@@ -14,10 +14,11 @@ export default async function TicketPage({
   searchParams,
 }: {
   params: Promise<{ ventaId: string }>;
-  searchParams: Promise<{ print?: string }>;
+  searchParams: Promise<{ print?: string; copies?: string }>;
 }) {
   const { ventaId } = await params;
-  const { print } = await searchParams;
+  const { print, copies } = await searchParams;
+  const copias = copies === "2" ? 2 : 1;
   const user = await requireSession();
   await requireModulo(user, "ventas");
 
@@ -73,6 +74,7 @@ export default async function TicketPage({
     <TicketPrint
       pais={pais}
       autoPrint={print === "1"}
+      copies={copias}
       empresa={{
         nombre: empresa?.nombreComercial || empresa?.razonSocial || "Mi Empresa",
         idFiscalNombre: config.idFiscalNombre,
