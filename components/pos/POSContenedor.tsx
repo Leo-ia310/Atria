@@ -16,6 +16,7 @@ import {
   Loader2,
   TriangleAlert,
   Store,
+  Barcode,
 } from "lucide-react";
 import { cn, formatearMoneda } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
@@ -23,6 +24,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { useBarcodeScanner } from "@/components/dispositivos/useBarcodeScanner";
 import { procesarVenta } from "@/lib/actions/ventas";
 import { abrirSesion } from "@/lib/actions/caja";
 import type { PaisCodigo } from "@/lib/paises";
@@ -61,6 +63,25 @@ type ItemCarrito = {
   descuento: number;
 };
 
+type CantidadEscaneoPendiente = {
+  productoId: string;
+  nombre: string;
+  cantidadTexto: string;
+  cantidadAplicada: number;
+  expiraEn: number;
+};
+
+function normalizarCodigoBarras(valor: string): string {
+  return valor.replace(/[\s\r\n\t]/g, "").trim();
+}
+
+function prioridadClickable(a: { producto: ProductoPOS; index: number }, b: { producto: ProductoPOS; index: number }) {
+  const aTieneCodigo = normalizarCodigoBarras(a.producto.codigoBarras).length > 0;
+  const bTieneCodigo = normalizarCodigoBarras(b.producto.codigoBarras).length > 0;
+  if (aTieneCodigo !== bTieneCodigo) return aTieneCodigo ? 1 : -1;
+  return a.index - b.index;
+}
+
 export function POSContenedor({
   pais,
   sucursalId,
@@ -96,11 +117,18 @@ export function POSContenedor({
   const [modalCaja, setModalCaja] = useState(!hayCajaAbierta);
   const [selectorClienteSignal, setSelectorClienteSignal] = useState(0);
   const [selectorClienteAbierto, setSelectorClienteAbierto] = useState(false);
+  const [cantidadEscaneo, setCantidadEscaneo] =
+    useState<CantidadEscaneoPendiente | null>(null);
   const buscadorRef = useRef<HTMLInputElement>(null);
+  const cantidadEscaneoRef = useRef<CantidadEscaneoPendiente | null>(null);
 
   useEffect(() => {
     buscadorRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    cantidadEscaneoRef.current = cantidadEscaneo;
+  }, [cantidadEscaneo]);
 
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
@@ -134,6 +162,61 @@ export function POSContenedor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carrito.length, modalPago, modalCaja, ventaExito, cajaAbierta, selectorClienteAbierto, router]);
 
+  useEffect(() => {
+    if (modalPago || modalCaja || ventaExito || selectorClienteAbierto) {
+      setCantidadEscaneo(null);
+    }
+  }, [modalPago, modalCaja, ventaExito, selectorClienteAbierto]);
+
+  useEffect(() => {
+    function capturarCantidad(event: KeyboardEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    }
+
+    const handle = (event: KeyboardEvent) => {
+      const pendiente = cantidadEscaneoRef.current;
+      if (!pendiente) return;
+      if (modalPago || modalCaja || ventaExito || selectorClienteAbierto) return;
+      if (Date.now() > pendiente.expiraEn) {
+        setCantidadEscaneo(null);
+        return;
+      }
+
+      if (/^\d$/.test(event.key)) {
+        capturarCantidad(event);
+        actualizarCantidadEscaneada((texto) =>
+          (texto + event.key).replace(/^0+(?=\d)/, ""),
+        );
+        return;
+      }
+
+      if (event.key === "Backspace") {
+        capturarCantidad(event);
+        actualizarCantidadEscaneada((texto) => texto.slice(0, -1));
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === "Tab") {
+        capturarCantidad(event);
+        setCantidadEscaneo(null);
+        buscadorRef.current?.focus();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        capturarCantidad(event);
+        setCantidadEscaneo(null);
+        buscadorRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handle, true);
+    return () => window.removeEventListener("keydown", handle, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalPago, modalCaja, ventaExito, selectorClienteAbierto]);
+
   // Sin caja abierta no se puede cobrar: se reabre el aviso de abrir caja.
   function intentarCobrar() {
     if (!cajaAbierta) {
@@ -143,30 +226,104 @@ export function POSContenedor({
     setModalPago(true);
   }
 
+  const productosPorCodigo = useMemo(() => {
+    const mapa = new Map<string, ProductoPOS[]>();
+    for (const producto of productos) {
+      const codigo = normalizarCodigoBarras(producto.codigoBarras);
+      if (!codigo) continue;
+      const lista = mapa.get(codigo) ?? [];
+      lista.push(producto);
+      mapa.set(codigo, lista);
+    }
+    return mapa;
+  }, [productos]);
+
   const productosFiltrados = useMemo(() => {
-    if (!busqueda.trim()) return productos.slice(0, 50);
     const q = busqueda.trim().toLowerCase();
     return productos
+      .map((producto, index) => ({ producto, index }))
       .filter(
-        (p) =>
-          p.sku.toLowerCase().includes(q) ||
-          p.nombre.toLowerCase().includes(q) ||
-          (p.codigoBarras && p.codigoBarras.toLowerCase().includes(q)),
+        ({ producto }) =>
+          !q ||
+          producto.sku.toLowerCase().includes(q) ||
+          producto.nombre.toLowerCase().includes(q) ||
+          (producto.codigoBarras && producto.codigoBarras.toLowerCase().includes(q)),
       )
+      .sort(prioridadClickable)
+      .map(({ producto }) => producto)
       .slice(0, 50);
   }, [productos, busqueda]);
 
-  function agregarAlCarrito(producto: ProductoPOS) {
+  useBarcodeScanner({
+    enabled: !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto,
+    onScan: (codigo) => {
+      const normalizado = normalizarCodigoBarras(codigo);
+      const encontrados = productosPorCodigo.get(normalizado) ?? [];
+      if (encontrados.length === 0) {
+        setBusqueda("");
+        mostrar("warning", `Codigo ${normalizado} no registrado en inventario`);
+        buscadorRef.current?.focus();
+        return;
+      }
+      if (encontrados.length > 1) {
+        setBusqueda("");
+        mostrar("error", "Ese codigo esta repetido en varios productos");
+        buscadorRef.current?.focus();
+        return;
+      }
+      const producto = encontrados[0];
+      agregarAlCarrito(producto, 1);
+      setCantidadEscaneo({
+        productoId: producto.id,
+        nombre: producto.nombre,
+        cantidadTexto: "",
+        cantidadAplicada: 1,
+        expiraEn: Date.now() + 5000,
+      });
+    },
+  });
+
+  function sumarCantidadProducto(productoId: string, delta: number) {
+    if (delta === 0) return;
+    setCarrito((c) =>
+      c
+        .map((it) =>
+          it.producto.id === productoId
+            ? { ...it, cantidad: Math.max(0, it.cantidad + delta) }
+            : it,
+        )
+        .filter((it) => it.cantidad > 0),
+    );
+  }
+
+  function actualizarCantidadEscaneada(transformar: (texto: string) => string) {
+    const actual = cantidadEscaneoRef.current;
+    if (!actual) return;
+    const texto = transformar(actual.cantidadTexto).slice(0, 6);
+    const cantidad = texto ? Math.max(1, parseInt(texto, 10) || 1) : 1;
+    const delta = cantidad - actual.cantidadAplicada;
+    const siguiente = {
+      ...actual,
+      cantidadTexto: texto,
+      cantidadAplicada: cantidad,
+      expiraEn: Date.now() + 5000,
+    };
+    cantidadEscaneoRef.current = siguiente;
+    sumarCantidadProducto(actual.productoId, delta);
+    setCantidadEscaneo(siguiente);
+  }
+
+  function agregarAlCarrito(producto: ProductoPOS, cantidad = 1) {
     setCarrito((c) => {
       const existente = c.find((it) => it.producto.id === producto.id);
       if (existente) {
         return c.map((it) =>
           it.producto.id === producto.id
-            ? { ...it, cantidad: it.cantidad + 1 }
+            ? { ...it, cantidad: it.cantidad + cantidad }
             : it,
         );
       }
-      return [...c, { producto, cantidad: 1, descuento: 0 }];
+      return [...c, { producto, cantidad, descuento: 0 }];
     });
     setBusqueda("");
     buscadorRef.current?.focus();
@@ -271,6 +428,7 @@ export function POSContenedor({
         {/* Productos */}
         <section className="lg:col-span-7 arca-card flex flex-col overflow-hidden">
           <div className="border-b border-[color:var(--color-border)] p-3">
+            <div className="space-y-2">
             <div className="relative">
               <Search
                 size={16}
@@ -285,6 +443,18 @@ export function POSContenedor({
                 className="arca-input arca-input-con-icono text-base"
                 autoFocus
               />
+            </div>
+            {cantidadEscaneo && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[color:var(--color-tertiary)]/40 bg-[color:var(--color-tertiary)]/10 px-3 py-2 text-small">
+                <span className="flex min-w-0 items-center gap-2 text-[color:var(--color-text-primary)]">
+                  <Barcode size={14} className="shrink-0 text-[color:var(--color-secondary)]" />
+                  <span className="truncate">{cantidadEscaneo.nombre}</span>
+                </span>
+                <span className="font-semibold text-[color:var(--color-primary)]">
+                  x{cantidadEscaneo.cantidadTexto || "1"}
+                </span>
+              </div>
+            )}
             </div>
           </div>
 

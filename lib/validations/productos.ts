@@ -58,6 +58,23 @@ export const importarProductosSchema = z.object({
   filas: z.array(productoImportadoSchema).min(1, "No hay productos validos").max(1000),
 });
 
+export const entradaInventarioLectorSchema = z.object({
+  productoId: z.string().uuid("Producto invalido"),
+  almacenId: z.string().uuid("Almacen invalido"),
+  codigoBarras: z.string().trim().min(1, "Codigo de barras requerido").max(80),
+  cantidad: z.coerce.number().positive("La cantidad debe ser mayor que cero"),
+  fechaVencimiento: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha invalida")
+    .optional()
+    .or(z.literal("")),
+  precioBase: z.coerce.number().min(0, "El precio no puede ser negativo"),
+  costoPromedio: z.coerce.number().min(0, "El costo no puede ser negativo"),
+});
+
 export type ProductoInput = z.infer<typeof productoSchema>;
 export type ProductoImportadoInput = z.infer<typeof productoImportadoSchema>;
 export type ImportarProductosInput = z.infer<typeof importarProductosSchema>;
+export type EntradaInventarioLectorInput = z.infer<
+  typeof entradaInventarioLectorSchema
+>;

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   productos,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/schema";
 import {
   productoSchema,
+  entradaInventarioLectorSchema,
   crearMarcaSchema,
   crearCategoriaSchema,
   importarProductosSchema,
@@ -34,6 +35,9 @@ type ResultadoImportacion =
       stockAjustado: number;
       mensajes: string[];
     }
+  | { ok: false; error: string };
+type ResultadoEntradaLector =
+  | { ok: true; productoId: string; existencia: number }
   | { ok: false; error: string };
 
 function dec(n: number): string {
@@ -78,13 +82,30 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
     if (yaExiste.length > 0) {
       return { ok: false, error: "Ya existe un producto con ese SKU" };
     }
+    const codigoBarras = String(datos.codigoBarras ?? "").trim();
+    if (codigoBarras) {
+      const duplicado = await db
+        .select({ id: productos.id })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.empresaId, user.empresaId),
+            eq(productos.codigoBarras, codigoBarras),
+            isNull(productos.eliminadoEn),
+          ),
+        )
+        .limit(1);
+      if (duplicado.length > 0) {
+        return { ok: false, error: "Ya existe un producto con ese codigo de barras" };
+      }
+    }
 
     const [creado] = await db
       .insert(productos)
       .values({
         empresaId: user.empresaId,
         sku: datos.sku,
-        codigoBarras: datos.codigoBarras as string | null,
+        codigoBarras: codigoBarras || null,
         nombre: datos.nombre,
         descripcion: datos.descripcion as string | null,
         tipo: datos.tipo,
@@ -137,12 +158,30 @@ export async function actualizarProducto(
     if (existente.length === 0) {
       return { ok: false, error: "Producto no encontrado" };
     }
+    const codigoBarras = String(datos.codigoBarras ?? "").trim();
+    if (codigoBarras) {
+      const duplicado = await db
+        .select({ id: productos.id })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.empresaId, user.empresaId),
+            eq(productos.codigoBarras, codigoBarras),
+            ne(productos.id, id),
+            isNull(productos.eliminadoEn),
+          ),
+        )
+        .limit(1);
+      if (duplicado.length > 0) {
+        return { ok: false, error: "Ya existe otro producto con ese codigo de barras" };
+      }
+    }
 
     await db
       .update(productos)
       .set({
         sku: datos.sku,
-        codigoBarras: datos.codigoBarras as string | null,
+        codigoBarras: codigoBarras || null,
         nombre: datos.nombre,
         descripcion: datos.descripcion as string | null,
         tipo: datos.tipo,
@@ -352,6 +391,139 @@ export async function importarProductosInventario(
   } catch (err) {
     console.error("[importarProductosInventario]", err);
     return { ok: false, error: "No pudimos importar el inventario." };
+  }
+}
+
+export async function registrarEntradaInventarioPorLector(
+  input: unknown,
+): Promise<ResultadoEntradaLector> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
+  const parsed = entradaInventarioLectorSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const data = parsed.data;
+  const codigoBarras = data.codigoBarras.trim();
+
+  try {
+    const [[producto], [almacen]] = await Promise.all([
+      db
+        .select({
+          id: productos.id,
+          nombre: productos.nombre,
+          codigoBarras: productos.codigoBarras,
+          tipo: productos.tipo,
+        })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.id, data.productoId),
+            eq(productos.empresaId, user.empresaId),
+            isNull(productos.eliminadoEn),
+          ),
+        )
+        .limit(1),
+      db
+        .select({ id: almacenes.id })
+        .from(almacenes)
+        .where(
+          and(
+            eq(almacenes.id, data.almacenId),
+            eq(almacenes.empresaId, user.empresaId),
+            eq(almacenes.activo, true),
+          ),
+        )
+        .limit(1),
+    ]);
+
+    if (!producto) return { ok: false, error: "Producto no encontrado" };
+    if (!almacen) return { ok: false, error: "Almacen no disponible" };
+    if (producto.tipo === "servicio") {
+      return { ok: false, error: "Los servicios no manejan existencia" };
+    }
+    if ((producto.codigoBarras ?? "").trim() !== codigoBarras) {
+      return {
+        ok: false,
+        error: "El codigo escaneado ya no coincide con este producto",
+      };
+    }
+
+    const existenciaFinal = await db.transaction(async (tx) => {
+      const [existencia] = await tx
+        .select({ id: existencias.id, cantidad: existencias.cantidad })
+        .from(existencias)
+        .where(
+          and(
+            eq(existencias.empresaId, user.empresaId),
+            eq(existencias.productoId, producto.id),
+            eq(existencias.almacenId, almacen.id),
+            isNull(existencias.loteId),
+          ),
+        )
+        .limit(1);
+
+      const actual = existencia ? parseFloat(existencia.cantidad) : 0;
+      const siguiente = actual + data.cantidad;
+      if (existencia) {
+        await tx
+          .update(existencias)
+          .set({
+            cantidad: dec(siguiente),
+            actualizadoEn: new Date(),
+          })
+          .where(eq(existencias.id, existencia.id));
+      } else {
+        await tx.insert(existencias).values({
+          empresaId: user.empresaId,
+          productoId: producto.id,
+          almacenId: almacen.id,
+          cantidad: dec(data.cantidad),
+        });
+      }
+
+      await tx.insert(movimientosInventario).values({
+        empresaId: user.empresaId,
+        productoId: producto.id,
+        almacenId: almacen.id,
+        tipo: "ajuste_entrada",
+        cantidad: dec(data.cantidad),
+        costoUnitario: dec(data.costoPromedio),
+        referenciaTabla: "lector_codigo_barras",
+        notas: [
+          `Entrada por lector: ${codigoBarras}`,
+          data.fechaVencimiento ? `vence ${data.fechaVencimiento}` : "",
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        usuarioId: user.id,
+      });
+
+      await tx
+        .update(productos)
+        .set({
+          precioBase: dec(data.precioBase),
+          costoPromedio: dec(data.costoPromedio),
+          fechaVencimiento: data.fechaVencimiento || null,
+          actualizadoEn: new Date(),
+        })
+        .where(
+          and(eq(productos.id, producto.id), eq(productos.empresaId, user.empresaId)),
+        );
+
+      return siguiente;
+    });
+
+    revalidatePath("/inventario");
+    revalidatePath("/pos");
+    return { ok: true, productoId: producto.id, existencia: existenciaFinal };
+  } catch (err) {
+    console.error("[registrarEntradaInventarioPorLector]", err);
+    return { ok: false, error: "No pudimos registrar la entrada por lector." };
   }
 }
 

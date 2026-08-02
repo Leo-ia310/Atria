@@ -7,6 +7,7 @@ import {
   Receipt,
   Lock,
   Wallet,
+  MonitorCog,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -18,6 +19,7 @@ const MODULOS = [
   { href: "/configuracion/cajas", icon: Receipt, titulo: "Cajas", descripcion: "Cajas físicas por sucursal" },
   { href: "/configuracion/impuestos", icon: Percent, titulo: "Impuestos", descripcion: "Tasas aplicables por país" },
   { href: "/configuracion/formas-pago", icon: CreditCard, titulo: "Formas de pago", descripcion: "Métodos aceptados en el POS" },
+  { href: "/configuracion/dispositivos", icon: MonitorCog, titulo: "Dispositivos", descripcion: "Lector, impresora y caja" },
   { href: "/configuracion/cuentas-financieras", icon: Wallet, titulo: "Cuentas financieras", descripcion: "Caja, bancos y tarjetas" },
   { href: "/configuracion/facturacion", icon: Receipt, titulo: "Facturación fiscal", descripcion: "Secuencias y CAI / autorización" },
 ];

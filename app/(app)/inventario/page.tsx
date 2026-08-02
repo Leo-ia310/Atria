@@ -14,6 +14,7 @@ import { formatearMoneda, desdeDecimal } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { InventarioImportador } from "@/components/productos/InventarioImportador";
 import { InventarioAdvertencias } from "@/components/productos/InventarioAdvertencias";
+import { InventarioLectorBarras } from "@/components/productos/InventarioLectorBarras";
 
 type Fila = {
   id: string;
@@ -50,6 +51,40 @@ export default async function InventarioPage() {
       ),
     )
     .groupBy(existencias.productoId);
+
+  const [almacenEntrada] = await db
+    .select({ id: almacenes.id, nombre: almacenes.nombre })
+    .from(almacenes)
+    .where(
+      and(
+        eq(almacenes.empresaId, user.empresaId),
+        eq(almacenes.activo, true),
+        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+      ),
+    )
+    .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
+    .limit(1);
+
+  const productosLector = await db
+    .select({
+      id: productos.id,
+      sku: productos.sku,
+      codigoBarras: productos.codigoBarras,
+      nombre: productos.nombre,
+      precioBase: productos.precioBase,
+      costoPromedio: productos.costoPromedio,
+    })
+    .from(productos)
+    .where(
+      and(
+        eq(productos.empresaId, user.empresaId),
+        eq(productos.activo, true),
+        isNull(productos.eliminadoEn),
+        sql<boolean>`${productos.codigoBarras} IS NOT NULL AND ${productos.codigoBarras} <> ''`,
+      ),
+    )
+    .limit(5000);
+
   const existenciaPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.existencia)]),
   );
@@ -177,6 +212,18 @@ export default async function InventarioPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <InventarioAdvertencias advertencias={advertencias} />
+            <InventarioLectorBarras
+              pais={empresa?.pais ?? "NI"}
+              almacen={almacenEntrada}
+              productos={productosLector.map((p) => ({
+                id: p.id,
+                sku: p.sku,
+                codigoBarras: p.codigoBarras ?? "",
+                nombre: p.nombre,
+                precioBase: desdeDecimal(p.precioBase),
+                costoPromedio: desdeDecimal(p.costoPromedio),
+              }))}
+            />
             <InventarioImportador pais={empresa?.pais ?? "NI"} />
             <Link href="/inventario/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
               <Plus size={14} /> Nuevo producto

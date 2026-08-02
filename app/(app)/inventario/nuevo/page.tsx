@@ -5,8 +5,15 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProductoForm } from "@/components/productos/ProductoForm";
 
-export default async function NuevoProductoPage() {
+export default async function NuevoProductoPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ codigoBarras?: string }>;
+}) {
   const user = await requireSession();
+  const params = searchParams ? await searchParams : {};
+  const codigoBarras =
+    typeof params.codigoBarras === "string" ? params.codigoBarras.slice(0, 80) : "";
 
   const [cats, mks, uns, imps] = await Promise.all([
     db
@@ -31,6 +38,7 @@ export default async function NuevoProductoPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Nuevo producto" subtitle="Agrega un nuevo SKU a tu catálogo" />
       <ProductoForm
+        defaults={{ codigoBarras }}
         categorias={cats.map((c) => ({ value: c.id, label: c.nombre }))}
         marcas={mks.map((m) => ({ value: m.id, label: m.nombre }))}
         unidades={uns.map((u) => ({ value: u.id, label: u.nombre }))}

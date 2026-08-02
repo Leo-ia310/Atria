@@ -126,6 +126,7 @@ export const COMMAND_ITEMS: CommandItem[] = [
   { label: "Cajas", href: "/configuracion/cajas", grupo: "Gestión", modulo: "configuracion" },
   { label: "Impuestos", href: "/configuracion/impuestos", grupo: "Gestión", modulo: "configuracion" },
   { label: "Formas de pago", href: "/configuracion/formas-pago", grupo: "Gestión", modulo: "configuracion" },
+  { label: "Dispositivos", href: "/configuracion/dispositivos", grupo: "Gestión", modulo: "configuracion", keywords: "lector barras impresora caja pos" },
   { label: "Cuentas financieras", href: "/configuracion/cuentas-financieras", grupo: "Gestión", modulo: "configuracion" },
   { label: "Facturación fiscal", href: "/configuracion/facturacion", grupo: "Gestión", modulo: "configuracion", keywords: "cai secuencias" },
   { label: "Sucursales", href: "/configuracion/sucursales", grupo: "Gestión", modulo: "configuracion" },
