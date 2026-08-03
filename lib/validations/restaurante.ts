@@ -23,6 +23,8 @@ export const menuVirtualSchema = z.object({
 
 export const menuVirtualAjustesSchema = z.object({
   menuId: z.string().uuid(),
+  sucursalId: z.string().uuid().optional().or(z.literal("")),
+  cantidadMesas: z.coerce.number().int().min(0).max(200).default(0),
   nombre: z.string().trim().min(2).max(120),
   slug: z
     .string()
@@ -54,6 +56,7 @@ export const menuSeccionSchema = z.object({
 
 export const menuPlatilloSchema = z.object({
   menuId: z.string().uuid(),
+  productoId: z.string().uuid().optional().or(z.literal("")),
   seccionId: z.string().uuid().optional().or(z.literal("")),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   descripcion: textoOpcional,
@@ -63,6 +66,13 @@ export const menuPlatilloSchema = z.object({
   imagenUrl: urlOpcional,
   destacado: z.coerce.boolean().default(false),
   disponible: z.coerce.boolean().default(true),
+});
+
+export const menuPlatilloDesdeProductoSchema = z.object({
+  menuId: z.string().uuid(),
+  productoId: z.string().uuid("Selecciona un producto"),
+  seccionId: z.string().uuid().optional().or(z.literal("")),
+  destacado: z.coerce.boolean().default(false),
 });
 
 export const menuPromocionSchema = z.object({
@@ -84,8 +94,48 @@ export const pedidoCocinaEstadoSchema = z.object({
   estado: z.enum(["nuevo", "en_preparacion", "listo", "entregado", "cancelado"]),
 });
 
+export const pedidoMenuPublicoSchema = z.object({
+  slug: z.string().trim().min(3).max(80),
+  mesaNumero: z
+    .string()
+    .trim()
+    .max(20)
+    .regex(/^[0-9A-Za-z-]*$/, "Mesa invalida")
+    .optional()
+    .or(z.literal("")),
+  clienteNombre: z.string().trim().max(120).optional().or(z.literal("")),
+  clienteTelefono: z.string().trim().max(50).optional().or(z.literal("")),
+  clienteDireccion: z.string().trim().max(220).optional().or(z.literal("")),
+  notas: z.string().trim().max(500).optional().or(z.literal("")),
+  items: z
+    .array(
+      z.object({
+        platilloId: z.string().uuid(),
+        cantidad: z.coerce.number().int().min(1).max(50),
+      }),
+    )
+    .min(1, "Agrega al menos un platillo"),
+}).superRefine((data, ctx) => {
+  if (data.mesaNumero) return;
+  if (!data.clienteNombre || data.clienteNombre.length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["clienteNombre"],
+      message: "Nombre requerido",
+    });
+  }
+  if (!data.clienteTelefono || data.clienteTelefono.length < 6) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["clienteTelefono"],
+      message: "Telefono requerido",
+    });
+  }
+});
+
 export type MenuVirtualInput = z.infer<typeof menuVirtualSchema>;
 export type MenuVirtualAjustesInput = z.infer<typeof menuVirtualAjustesSchema>;
 export type MenuSeccionInput = z.infer<typeof menuSeccionSchema>;
 export type MenuPlatilloInput = z.infer<typeof menuPlatilloSchema>;
+export type MenuPlatilloDesdeProductoInput = z.infer<typeof menuPlatilloDesdeProductoSchema>;
 export type MenuPromocionInput = z.infer<typeof menuPromocionSchema>;

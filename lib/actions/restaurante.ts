@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   empresas,
@@ -11,11 +11,14 @@ import {
   menuSecciones,
   menusVirtuales,
   pedidosCocina,
+  productos,
+  sucursales,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import {
   menuPlatilloSchema,
+  menuPlatilloDesdeProductoSchema,
   menuPromocionSchema,
   menuSeccionSchema,
   menuVirtualAjustesSchema,
@@ -144,6 +147,8 @@ export async function actualizarMenuVirtual(formData: FormData) {
   const user = await asegurarAccesoMenu();
   const parsed = menuVirtualAjustesSchema.safeParse({
     menuId: texto(formData, "menuId"),
+    sucursalId: texto(formData, "sucursalId"),
+    cantidadMesas: texto(formData, "cantidadMesas") || "0",
     nombre: texto(formData, "nombre"),
     slug: slugifyMenu(texto(formData, "slug")),
     descripcion: texto(formData, "descripcion"),
@@ -176,9 +181,31 @@ export async function actualizarMenuVirtual(formData: FormData) {
     });
   }
 
+  if (parsed.data.sucursalId) {
+    const [sucursal] = await db
+      .select({ id: sucursales.id })
+      .from(sucursales)
+      .where(
+        and(
+          eq(sucursales.id, parsed.data.sucursalId),
+          eq(sucursales.empresaId, user.empresaId),
+          eq(sucursales.activa, true),
+          isNull(sucursales.eliminadoEn),
+        ),
+      )
+      .limit(1);
+    if (!sucursal) {
+      volver(`/menu-virtual/${parsed.data.menuId}`, {
+        error: "Sucursal no encontrada o inactiva",
+      });
+    }
+  }
+
   await db
     .update(menusVirtuales)
     .set({
+      sucursalId: parsed.data.sucursalId || null,
+      cantidadMesas: parsed.data.cantidadMesas,
       nombre: parsed.data.nombre,
       slug: parsed.data.slug,
       descripcion: limpiarVacio(parsed.data.descripcion),
@@ -245,6 +272,7 @@ export async function crearMenuPlatillo(formData: FormData) {
   const user = await asegurarAccesoMenu();
   const parsed = menuPlatilloSchema.safeParse({
     menuId: texto(formData, "menuId"),
+    productoId: texto(formData, "productoId"),
     seccionId: texto(formData, "seccionId"),
     nombre: texto(formData, "nombre"),
     descripcion: texto(formData, "descripcion"),
@@ -263,6 +291,26 @@ export async function crearMenuPlatillo(formData: FormData) {
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
   if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
 
+  if (parsed.data.productoId) {
+    const [productoLigado] = await db
+      .select({ id: productos.id })
+      .from(productos)
+      .where(
+        and(
+          eq(productos.id, parsed.data.productoId),
+          eq(productos.empresaId, user.empresaId),
+          eq(productos.activo, true),
+          isNull(productos.eliminadoEn),
+        ),
+      )
+      .limit(1);
+    if (!productoLigado) {
+      volver(`/menu-virtual/${parsed.data.menuId}`, {
+        error: "Producto ligado no encontrado o inactivo",
+      });
+    }
+  }
+
   const [ultima] = await db
     .select({ orden: menuPlatillos.orden })
     .from(menuPlatillos)
@@ -274,6 +322,7 @@ export async function crearMenuPlatillo(formData: FormData) {
     empresaId: user.empresaId,
     menuId: parsed.data.menuId,
     seccionId: parsed.data.seccionId || null,
+    productoId: parsed.data.productoId || null,
     nombre: parsed.data.nombre,
     descripcion: limpiarVacio(parsed.data.descripcion),
     precio: aDecimalStr(parsed.data.precio),
@@ -285,6 +334,72 @@ export async function crearMenuPlatillo(formData: FormData) {
     imagenUrl: limpiarVacio(parsed.data.imagenUrl),
     destacado: parsed.data.destacado,
     disponible: parsed.data.disponible,
+    orden: (ultima?.orden ?? 0) + 10,
+  });
+
+  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(`/${menu.slug}`);
+  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+}
+
+export async function crearMenuPlatilloDesdeProducto(formData: FormData) {
+  const user = await asegurarAccesoMenu();
+  const parsed = menuPlatilloDesdeProductoSchema.safeParse({
+    menuId: texto(formData, "menuId"),
+    productoId: texto(formData, "productoId"),
+    seccionId: texto(formData, "seccionId"),
+    destacado: checkbox(formData, "destacado"),
+  });
+  if (!parsed.success) {
+    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+      error: parsed.error.issues[0]?.message ?? "Datos invalidos",
+    });
+  }
+  const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
+  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+
+  const [producto] = await db
+    .select({
+      id: productos.id,
+      nombre: productos.nombre,
+      descripcion: productos.descripcion,
+      precioBase: productos.precioBase,
+      imagenUrl: productos.imagenUrl,
+    })
+    .from(productos)
+    .where(
+      and(
+        eq(productos.id, parsed.data.productoId),
+        eq(productos.empresaId, user.empresaId),
+        eq(productos.activo, true),
+        isNull(productos.eliminadoEn),
+      ),
+    )
+    .limit(1);
+  if (!producto) {
+    volver(`/menu-virtual/${parsed.data.menuId}`, {
+      error: "Producto no encontrado o inactivo",
+    });
+  }
+
+  const [ultima] = await db
+    .select({ orden: menuPlatillos.orden })
+    .from(menuPlatillos)
+    .where(and(eq(menuPlatillos.menuId, parsed.data.menuId), eq(menuPlatillos.empresaId, user.empresaId)))
+    .orderBy(desc(menuPlatillos.orden))
+    .limit(1);
+
+  await db.insert(menuPlatillos).values({
+    empresaId: user.empresaId,
+    menuId: parsed.data.menuId,
+    seccionId: parsed.data.seccionId || null,
+    productoId: producto.id,
+    nombre: producto.nombre,
+    descripcion: producto.descripcion,
+    precio: producto.precioBase,
+    imagenUrl: producto.imagenUrl,
+    destacado: parsed.data.destacado,
+    disponible: true,
     orden: (ultima?.orden ?? 0) + 10,
   });
 

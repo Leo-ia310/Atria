@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Facebook, Globe, Instagram, Phone, Send, Sparkles, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   empresas,
+  almacenes,
+  existencias,
   menuPlatillos,
   menuPromociones,
   menuSecciones,
   menusVirtuales,
+  productos,
 } from "@/lib/db/schema";
 import {
   calcularPrecioPromo,
@@ -18,9 +21,16 @@ import {
 } from "@/lib/restaurante/menu-utils";
 import { cn, desdeDecimal, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { PedidoMenuPublico } from "@/components/restaurante/PedidoMenuPublico";
+
+type PlatilloPublico = typeof menuPlatillos.$inferSelect & {
+  agotado: boolean;
+  stockDisponible: number | null;
+};
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ mesa?: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -35,12 +45,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function MenuPublicoPage({ params }: PageProps) {
+export default async function MenuPublicoPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const data = await cargarMenuPublico(slug);
   if (!data) notFound();
 
   const { menu, empresa, secciones, platillos, promocionesActivas } = data;
+  const mesaNumero = normalizarMesa(sp.mesa, menu.cantidadMesas);
   const pais = empresa.pais as PaisCodigo;
   const accent = menu.colorSecundario;
   const agrupados = agruparPlatillos(platillos, secciones);
@@ -125,6 +137,23 @@ export default async function MenuPublicoPage({ params }: PageProps) {
         </section>
       )}
 
+      {platillos.length > 0 && (
+          <PedidoMenuPublico
+            slug={menu.slug}
+            mesaNumero={mesaNumero}
+            colorPrimario={menu.colorPrimario}
+            items={platillos.map((platillo) => {
+            const precio = precioEfectivo(platillo, promocionesActivas);
+            return {
+              id: platillo.id,
+              nombre: platillo.nombre,
+              precio: formatearMoneda(precio.valor, pais),
+              agotado: platillo.agotado,
+            };
+          })}
+        />
+      )}
+
       <section className="px-5 pb-12 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-6xl space-y-8">
           {agrupados.map((grupo) => (
@@ -147,7 +176,10 @@ export default async function MenuPublicoPage({ params }: PageProps) {
                   return (
                     <article
                       key={platillo.id}
-                      className="overflow-hidden rounded-md border border-black/10 bg-white shadow-sm"
+                      className={cn(
+                        "overflow-hidden rounded-md border border-black/10 bg-white shadow-sm",
+                        platillo.agotado && "opacity-70",
+                      )}
                     >
                       {platillo.imagenUrl && (
                         <img
@@ -174,6 +206,11 @@ export default async function MenuPublicoPage({ params }: PageProps) {
                               style={{ background: accent }}
                             >
                               Especial
+                            </span>
+                          )}
+                          {platillo.agotado && (
+                            <span className="shrink-0 rounded bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                              Agotado
                             </span>
                           )}
                         </div>
@@ -208,6 +245,13 @@ export default async function MenuPublicoPage({ params }: PageProps) {
       </section>
     </main>
   );
+}
+
+function normalizarMesa(valor: string | undefined, cantidadMesas: number): string | null {
+  if (!valor) return null;
+  const numero = Number(valor);
+  if (!Number.isInteger(numero) || numero < 1 || numero > cantidadMesas) return null;
+  return String(numero);
 }
 
 async function cargarMenuPublico(slug: string) {
@@ -250,6 +294,60 @@ async function cargarMenuPublico(slug: string) {
       .where(and(eq(menuPromociones.menuId, row.menu.id), eq(menuPromociones.activa, true))),
   ]);
 
+  const productoIds = [
+    ...new Set(platillos.flatMap((platillo) => (platillo.productoId ? [platillo.productoId] : []))),
+  ];
+  const [productosRows, stockRows] = productoIds.length
+    ? await Promise.all([
+        db
+          .select({ id: productos.id, tipo: productos.tipo })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, row.empresa.id),
+              eq(productos.activo, true),
+              isNull(productos.eliminadoEn),
+              inArray(productos.id, productoIds),
+            ),
+          ),
+        db
+          .select({
+            productoId: existencias.productoId,
+            cantidad: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+          })
+          .from(existencias)
+          .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+          .where(
+            and(
+              eq(existencias.empresaId, row.empresa.id),
+              eq(almacenes.empresaId, row.empresa.id),
+              row.menu.sucursalId ? eq(almacenes.sucursalId, row.menu.sucursalId) : undefined,
+              eq(almacenes.activo, true),
+              inArray(existencias.productoId, productoIds),
+            ),
+          )
+          .groupBy(existencias.productoId),
+      ])
+    : [[], []];
+  const tipoPorProducto = new Map(productosRows.map((producto) => [producto.id, producto.tipo]));
+  const stockPorProducto = new Map(
+    stockRows.map((stock) => [stock.productoId, parseFloat(stock.cantidad)]),
+  );
+  const platillosConStock: PlatilloPublico[] = platillos.map((platillo) => {
+    if (!platillo.productoId) {
+      return { ...platillo, agotado: false, stockDisponible: null };
+    }
+    const tipo = tipoPorProducto.get(platillo.productoId);
+    if (!tipo) {
+      return { ...platillo, agotado: true, stockDisponible: null };
+    }
+    if (tipo === "servicio") {
+      return { ...platillo, agotado: false, stockDisponible: null };
+    }
+    const stock = stockPorProducto.get(platillo.productoId) ?? 0;
+    return { ...platillo, agotado: stock <= 0, stockDisponible: stock };
+  });
+
   const { fecha, diaSemana } = fechaLocal(row.empresa.zonaHoraria);
   const promocionesActivas = promociones.filter((promo) => {
     if (!promo.diasSemana.includes(diaSemana)) return false;
@@ -262,7 +360,7 @@ async function cargarMenuPublico(slug: string) {
     menu: row.menu,
     empresa: row.empresa,
     secciones,
-    platillos,
+    platillos: platillosConStock,
     promocionesActivas,
   };
 }
@@ -291,7 +389,7 @@ function fechaLocal(timeZone: string): { fecha: string; diaSemana: number } {
 }
 
 function agruparPlatillos(
-  platillos: (typeof menuPlatillos.$inferSelect)[],
+  platillos: PlatilloPublico[],
   secciones: (typeof menuSecciones.$inferSelect)[],
 ) {
   const grupos = secciones.map((seccion) => ({
@@ -313,7 +411,7 @@ function agruparPlatillos(
 }
 
 function precioEfectivo(
-  platillo: typeof menuPlatillos.$inferSelect,
+  platillo: PlatilloPublico,
   promociones: (typeof menuPromociones.$inferSelect)[],
 ): { valor: number; etiqueta: string } {
   const precioBase = desdeDecimal(platillo.precio);

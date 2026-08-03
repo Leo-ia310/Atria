@@ -1167,6 +1167,10 @@ export const menusVirtuales = pgTable(
     empresaId: uuid("empresa_id")
       .notNull()
       .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id, {
+      onDelete: "set null",
+    }),
+    cantidadMesas: integer("cantidad_mesas").notNull().default(0),
     nombre: text("nombre").notNull(),
     slug: text("slug").notNull(),
     descripcion: text("descripcion"),
@@ -1193,6 +1197,7 @@ export const menusVirtuales = pgTable(
     unique("menus_virtuales_slug_uq").on(t.slug),
     index("menus_virtuales_empresa_idx").on(t.empresaId),
     index("menus_virtuales_empresa_publicado_idx").on(t.empresaId, t.publicado),
+    index("menus_virtuales_sucursal_idx").on(t.sucursalId),
   ],
 );
 
@@ -1296,11 +1301,18 @@ export const pedidosCocina = pgTable(
       .notNull()
       .references(() => empresas.id, { onDelete: "cascade" }),
     sucursalId: uuid("sucursal_id").references(() => sucursales.id),
-    ventaId: uuid("venta_id")
-      .notNull()
-      .references(() => ventas.id, { onDelete: "cascade" }),
+    ventaId: uuid("venta_id").references(() => ventas.id, {
+      onDelete: "cascade",
+    }),
+    menuId: uuid("menu_id").references(() => menusVirtuales.id, {
+      onDelete: "set null",
+    }),
     numero: text("numero").notNull(),
+    origen: text("origen").notNull().default("pos"),
+    mesaNumero: text("mesa_numero"),
     clienteNombre: text("cliente_nombre"),
+    clienteTelefono: text("cliente_telefono"),
+    clienteDireccion: text("cliente_direccion"),
     estado: pedidoCocinaEstadoEnum("estado").notNull().default("nuevo"),
     notas: text("notas"),
     creadoPor: uuid("creado_por").references(() => usuarios.id),
@@ -1314,6 +1326,7 @@ export const pedidosCocina = pgTable(
     unique("pedidos_cocina_venta_uq").on(t.ventaId),
     index("pedidos_cocina_empresa_estado_idx").on(t.empresaId, t.estado),
     index("pedidos_cocina_sucursal_estado_idx").on(t.sucursalId, t.estado),
+    index("pedidos_cocina_menu_idx").on(t.menuId),
     index("pedidos_cocina_creado_idx").on(t.creadoEn),
   ],
 );

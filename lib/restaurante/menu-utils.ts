@@ -24,6 +24,10 @@ export function getMenuPublicUrl(slug: string): string {
   return `${base.replace(/\/+$/, "")}/${slug}`;
 }
 
+export function getMenuMesaUrl(slug: string, mesaNumero: number): string {
+  return `${getMenuPublicUrl(slug)}?mesa=${mesaNumero}`;
+}
+
 export function formatearDiasSemana(dias: number[]): string {
   if (dias.length === 7) return "Todos los dias";
   const mapa = new Map<number, string>(DIAS_SEMANA.map((dia) => [dia.valor, dia.corto]));

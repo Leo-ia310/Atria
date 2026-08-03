@@ -2,13 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft, ExternalLink, Plus, Sparkles, Utensils } from "lucide-react";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  almacenes,
+  existencias,
   menuPlatillos,
   menuPromociones,
   menuSecciones,
   menusVirtuales,
+  productos,
+  sucursales,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
@@ -17,12 +21,14 @@ import {
   actualizarDisponibilidadPlatillo,
   actualizarMenuVirtual,
   crearMenuPlatillo,
+  crearMenuPlatilloDesdeProducto,
   crearMenuPromocion,
   crearMenuSeccion,
 } from "@/lib/actions/restaurante";
 import {
   DIAS_SEMANA,
   formatearDiasSemana,
+  getMenuMesaUrl,
   getMenuPublicUrl,
 } from "@/lib/restaurante/menu-utils";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -31,6 +37,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { MenuMesaQrsCard } from "@/components/restaurante/MenuMesaQrsCard";
 import { MenuQrCard } from "@/components/restaurante/MenuQrCard";
 import { desdeDecimal, formatearMoneda } from "@/lib/utils";
 
@@ -48,13 +55,35 @@ export default async function MenuVirtualDetallePage({
   ]);
   await requireModulo(user, "menu-virtual");
 
-  const [empresa, menuRows, secciones, platillos, promos] = await Promise.all([
+  const [empresa, menuRows, sucursalesEmpresa] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     db
       .select()
       .from(menusVirtuales)
       .where(and(eq(menusVirtuales.id, id), eq(menusVirtuales.empresaId, user.empresaId)))
       .limit(1),
+    db
+      .select({
+        id: sucursales.id,
+        nombre: sucursales.nombre,
+        esPrincipal: sucursales.esPrincipal,
+      })
+      .from(sucursales)
+      .where(
+        and(
+          eq(sucursales.empresaId, user.empresaId),
+          eq(sucursales.activa, true),
+          isNull(sucursales.eliminadoEn),
+        ),
+      )
+      .orderBy(sql`${sucursales.esPrincipal} desc`, asc(sucursales.nombre)),
+  ]);
+  const menu = menuRows[0];
+  if (!menu) notFound();
+  const sucursalPedidoId =
+    menu.sucursalId ?? sucursalesEmpresa.find((sucursal) => sucursal.esPrincipal)?.id ?? sucursalesEmpresa[0]?.id ?? null;
+
+  const [secciones, platillos, promos, productosInventario, stockRows] = await Promise.all([
     db
       .select()
       .from(menuSecciones)
@@ -70,9 +99,41 @@ export default async function MenuVirtualDetallePage({
       .from(menuPromociones)
       .where(and(eq(menuPromociones.menuId, id), eq(menuPromociones.empresaId, user.empresaId)))
       .orderBy(asc(menuPromociones.nombre)),
+    db
+      .select({
+        id: productos.id,
+        sku: productos.sku,
+        nombre: productos.nombre,
+        tipo: productos.tipo,
+        precioBase: productos.precioBase,
+      })
+      .from(productos)
+      .where(
+        and(
+          eq(productos.empresaId, user.empresaId),
+          eq(productos.activo, true),
+          isNull(productos.eliminadoEn),
+        ),
+      )
+      .orderBy(asc(productos.nombre))
+      .limit(500),
+    db
+      .select({
+        productoId: existencias.productoId,
+        cantidad: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+      })
+      .from(existencias)
+      .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+      .where(
+        and(
+          eq(existencias.empresaId, user.empresaId),
+          eq(almacenes.empresaId, user.empresaId),
+          sucursalPedidoId ? eq(almacenes.sucursalId, sucursalPedidoId) : undefined,
+          eq(almacenes.activo, true),
+        ),
+      )
+      .groupBy(existencias.productoId),
   ]);
-  const menu = menuRows[0];
-  if (!menu) notFound();
 
   const publicUrl = getMenuPublicUrl(menu.slug);
   const qrDataUrl = await QRCode.toDataURL(publicUrl, {
@@ -83,14 +144,58 @@ export default async function MenuVirtualDetallePage({
       light: "#ffffff",
     },
   });
+  const mesasQr = await Promise.all(
+    Array.from({ length: menu.cantidadMesas }, async (_, index) => {
+      const mesaNumero = index + 1;
+      const url = getMenuMesaUrl(menu.slug, mesaNumero);
+      return {
+        mesaNumero,
+        url,
+        qrDataUrl: await QRCode.toDataURL(url, {
+          width: 480,
+          margin: 1,
+          color: {
+            dark: "#111827",
+            light: "#ffffff",
+          },
+        }),
+      };
+    }),
+  );
   const pais = empresa?.pais ?? "NI";
   const seccionOptions = [
     { value: "", label: "Sin seccion" },
     ...secciones.map((s) => ({ value: s.id, label: s.nombre })),
   ];
+  const sucursalOptions = [
+    { value: "", label: "Sucursal principal automatica" },
+    ...sucursalesEmpresa.map((sucursal) => ({
+      value: sucursal.id,
+      label: sucursal.esPrincipal ? `${sucursal.nombre} (principal)` : sucursal.nombre,
+    })),
+  ];
   const platilloOptions = [
     { value: "", label: "Toda la carta" },
     ...platillos.map((p) => ({ value: p.id, label: p.nombre })),
+  ];
+  const stockPorProducto = new Map(
+    stockRows.map((stock) => [stock.productoId, parseFloat(stock.cantidad)]),
+  );
+  const productoPorId = new Map(productosInventario.map((producto) => [producto.id, producto]));
+  const sucursalStockLabel =
+    sucursalesEmpresa.find((sucursal) => sucursal.id === sucursalPedidoId)?.nombre ?? "sucursal principal";
+  const productoOptions = [
+    { value: "", label: "Selecciona un producto" },
+    ...productosInventario.map((producto) => {
+      const stock =
+        producto.tipo === "servicio"
+          ? "Servicio"
+          : `Stock ${stockPorProducto.get(producto.id)?.toFixed(2) ?? "0.00"}`;
+      return {
+        value: producto.id,
+        label: `${producto.sku} - ${producto.nombre} (${stock})`,
+      };
+    }),
   ];
 
   return (
@@ -153,6 +258,23 @@ export default async function MenuVirtualDetallePage({
                     { value: "fiesta", label: "Fiesta colorida" },
                   ]}
                 />
+                <Select
+                  name="sucursalId"
+                  label="Sucursal de pedidos"
+                  defaultValue={menu.sucursalId ?? ""}
+                  options={sucursalOptions}
+                  hint="El menu publico revisa inventario y manda pedidos a esta sucursal."
+                />
+                <Input
+                  name="cantidadMesas"
+                  label="Mesas con QR"
+                  type="number"
+                  min="0"
+                  max="200"
+                  step="1"
+                  defaultValue={menu.cantidadMesas}
+                  hint="Genera un QR individual por cada mesa."
+                />
                 <Input name="logoUrl" label="Logo URL" defaultValue={menu.logoUrl ?? ""} placeholder="https://..." />
                 <ColorInput name="colorPrimario" label="Color principal" value={menu.colorPrimario} />
                 <ColorInput name="colorSecundario" label="Color acento" value={menu.colorSecundario} />
@@ -210,10 +332,34 @@ export default async function MenuVirtualDetallePage({
           </Card>
 
           <Card>
-            <CardHeader title="Platillos" subtitle="Agrega nombre, precio, oferta, foto y disponibilidad sin editar codigo." />
+            <CardHeader
+              title="Platillos"
+              subtitle={`Agrega desde inventario o crea platillos manuales. Stock mostrado: ${sucursalStockLabel}.`}
+            />
             <CardBody>
+              <form
+                action={crearMenuPlatilloDesdeProducto}
+                className="mb-5 grid gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-4 lg:grid-cols-[minmax(0,1fr)_220px_auto]"
+              >
+                <input type="hidden" name="menuId" value={menu.id} />
+                <Select
+                  name="productoId"
+                  label="Agregar desde inventario"
+                  options={productoOptions}
+                  required
+                  hint={`${productosInventario.length} productos activos encontrados.`}
+                />
+                <Select name="seccionId" label="Seccion" options={seccionOptions} />
+                <div className="self-end">
+                  <Button type="submit" className="w-full">
+                    <Plus size={14} /> Agregar producto
+                  </Button>
+                </div>
+              </form>
+
               <form action={crearMenuPlatillo} className="grid gap-4 lg:grid-cols-2">
                 <input type="hidden" name="menuId" value={menu.id} />
+                <Select name="productoId" label="Producto ligado" options={productoOptions} />
                 <Input name="nombre" label="Platillo" placeholder="Tacos de birria" required />
                 <Select name="seccionId" label="Seccion" options={seccionOptions} />
                 <div className="lg:col-span-2">
@@ -256,6 +402,8 @@ export default async function MenuVirtualDetallePage({
                 ) : (
                   platillos.map((platillo) => {
                     const seccion = secciones.find((s) => s.id === platillo.seccionId);
+                    const producto = platillo.productoId ? productoPorId.get(platillo.productoId) : null;
+                    const stock = platillo.productoId ? stockPorProducto.get(platillo.productoId) ?? 0 : null;
                     return (
                       <div key={platillo.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                         <div className="min-w-0">
@@ -267,6 +415,11 @@ export default async function MenuVirtualDetallePage({
                             <Badge variant={platillo.disponible ? "success" : "neutral"}>
                               {platillo.disponible ? "Disponible" : "Oculto"}
                             </Badge>
+                            {producto && (
+                              <Badge variant={producto.tipo === "servicio" || (stock ?? 0) > 0 ? "info" : "error"}>
+                                {producto.sku} · {producto.tipo === "servicio" ? "Servicio" : `Stock ${stock?.toFixed(2)}`}
+                              </Badge>
+                            )}
                           </div>
                           <div className="mt-1 text-small text-[color:var(--color-text-muted)]">
                             {seccion?.nombre ?? "Sin seccion"} ·{" "}
@@ -387,6 +540,7 @@ export default async function MenuVirtualDetallePage({
 
         <div className="space-y-5">
           <MenuQrCard url={publicUrl} qrDataUrl={qrDataUrl} nombre={menu.nombre} />
+          <MenuMesaQrsCard nombre={menu.nombre} mesas={mesasQr} />
           <Card>
             <CardHeader title="Vista publica" />
             <CardBody>

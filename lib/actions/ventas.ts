@@ -270,6 +270,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
             sucursalId: data.sucursalId,
             ventaId: venta.id,
             numero: `P-${numero}`,
+            origen: "pos",
             clienteNombre: clientePedidoNombre,
             estado: "nuevo",
             notas: data.notas || null,

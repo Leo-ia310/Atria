@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ChefHat, Clock, Receipt } from "lucide-react";
+import { ChefHat, Clock, Receipt, Table2, Utensils } from "lucide-react";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   pedidoCocinaItems,
   pedidosCocina,
+  menusVirtuales,
   sucursales,
   ventas,
 } from "@/lib/db/schema";
@@ -43,13 +44,19 @@ export default async function PedidosCocinaPage({
       estado: pedidosCocina.estado,
       clienteNombre: pedidosCocina.clienteNombre,
       notas: pedidosCocina.notas,
+      origen: pedidosCocina.origen,
+      clienteTelefono: pedidosCocina.clienteTelefono,
+      clienteDireccion: pedidosCocina.clienteDireccion,
+      mesaNumero: pedidosCocina.mesaNumero,
       creadoEn: pedidosCocina.creadoEn,
       ventaId: pedidosCocina.ventaId,
       ventaNumero: ventas.numero,
+      menuNombre: menusVirtuales.nombre,
       sucursalNombre: sucursales.nombre,
     })
     .from(pedidosCocina)
     .leftJoin(ventas, eq(ventas.id, pedidosCocina.ventaId))
+    .leftJoin(menusVirtuales, eq(menusVirtuales.id, pedidosCocina.menuId))
     .leftJoin(sucursales, eq(sucursales.id, pedidosCocina.sucursalId))
     .where(
       and(
@@ -101,7 +108,7 @@ export default async function PedidosCocinaPage({
             <EmptyState
               icon={ChefHat}
               titulo="Sin pedidos abiertos"
-              descripcion="Cuando el POS registre una venta en un restaurante, el ticket aparecera aqui."
+              descripcion="Cuando el POS o el menu publico registren un pedido, el ticket aparecera aqui."
             />
           </CardBody>
         </Card>
@@ -129,14 +136,25 @@ export default async function PedidosCocinaPage({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="flex items-center gap-2">
-                                <Receipt size={15} className="text-[color:var(--color-text-muted)]" />
+                                {pedido.origen === "menu_virtual" ? (
+                                  <Utensils size={15} className="text-[color:var(--color-text-muted)]" />
+                                ) : (
+                                  <Receipt size={15} className="text-[color:var(--color-text-muted)]" />
+                                )}
                                 <span className="font-semibold text-[color:var(--color-text-primary)]">
                                   {pedido.numero}
                                 </span>
+                                {pedido.mesaNumero && (
+                                  <Badge variant="warning">
+                                    <Table2 size={12} /> Mesa {pedido.mesaNumero}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[color:var(--color-text-muted)]">
                                 <span>{pedido.clienteNombre ?? "Consumidor final"}</span>
+                                {pedido.clienteTelefono && <span>{pedido.clienteTelefono}</span>}
                                 {pedido.sucursalNombre && <span>{pedido.sucursalNombre}</span>}
+                                {pedido.menuNombre && <span>{pedido.menuNombre}</span>}
                                 <span className="inline-flex items-center gap-1">
                                   <Clock size={12} /> {formatearFechaHora(pedido.creadoEn)}
                                 </span>
@@ -176,14 +194,25 @@ export default async function PedidosCocinaPage({
                               {pedido.notas}
                             </p>
                           )}
+                          {pedido.clienteDireccion && (
+                            <p className="mt-3 rounded-md bg-[color:var(--color-info-bg)] px-3 py-2 text-small text-[color:var(--color-text-primary)]">
+                              {pedido.clienteDireccion}
+                            </p>
+                          )}
 
                           <div className="mt-4 flex flex-wrap justify-between gap-2">
-                            <Link
-                              href={`/ventas/${pedido.ventaId}`}
-                              className="arca-btn arca-btn-ghost arca-btn-sm"
-                            >
-                              Venta {pedido.ventaNumero}
-                            </Link>
+                            {pedido.ventaId ? (
+                              <Link
+                                href={`/ventas/${pedido.ventaId}`}
+                                className="arca-btn arca-btn-ghost arca-btn-sm"
+                              >
+                                Venta {pedido.ventaNumero}
+                              </Link>
+                            ) : (
+                              <span className="arca-badge arca-badge-info">
+                                Menu publico
+                              </span>
+                            )}
                             <div className="flex flex-wrap gap-2">
                               {pedido.estado === "nuevo" && (
                                 <EstadoButton pedidoId={pedido.id} estado="en_preparacion">

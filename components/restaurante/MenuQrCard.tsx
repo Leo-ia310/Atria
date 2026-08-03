@@ -52,6 +52,9 @@ export function MenuQrCard({
 
   return (
     <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+      <div className="mb-3 text-small font-semibold text-[color:var(--color-text-primary)]">
+        QR general
+      </div>
       <img
         src={qrDataUrl}
         alt={`QR ${nombre}`}
