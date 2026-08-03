@@ -23,7 +23,7 @@ const VENTAJAS_POR_PLAN: Record<string, string[]> = {
     "Gestion de proveedores y compras",
     "Roles y permisos granulares",
     "Reportes avanzados y exportacion",
-    "5 usuarios incluidos ($5/mes c/u extra)",
+    "7 usuarios incluidos ($5/mes c/u extra)",
     "Soporte por chat",
   ],
   enterprise: [
