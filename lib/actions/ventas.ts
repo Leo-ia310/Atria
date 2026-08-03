@@ -12,11 +12,14 @@ import {
   cuentasPorCobrar,
   formasPago as formasPagoTable,
   clientes,
+  empresas,
   sesionesCaja,
   cajas,
   almacenes,
   productos,
   facturas,
+  pedidosCocina,
+  pedidoCocinaItems,
 } from "@/lib/db/schema";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -94,6 +97,16 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     }
   }
 
+  let clientePedidoNombre = "Consumidor final";
+  if (data.clienteId) {
+    const [clientePedido] = await db
+      .select({ nombre: clientes.nombre })
+      .from(clientes)
+      .where(and(eq(clientes.id, data.clienteId), eq(clientes.empresaId, user.empresaId)))
+      .limit(1);
+    clientePedidoNombre = clientePedido?.nombre ?? clientePedidoNombre;
+  }
+
   // Enlazar la venta a la sesión de caja abierta (se resuelve en el servidor,
   // nunca se acepta del cliente). Se prioriza la sesión del propio cajero.
   const [almacen] = await db
@@ -115,9 +128,9 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   }
 
   const productoIds = [...new Set(data.items.map((item) => item.productoId))];
-  const [productosVenta, stockRows, sesionesAbiertas] = await Promise.all([
+  const [productosVenta, stockRows, sesionesAbiertas, empresaRows] = await Promise.all([
     db
-      .select({ id: productos.id, tipo: productos.tipo })
+      .select({ id: productos.id, tipo: productos.tipo, nombre: productos.nombre })
       .from(productos)
       .where(
         and(
@@ -153,11 +166,18 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         ),
       )
       .orderBy(desc(sesionesCaja.abiertaEn)),
+    db
+      .select({ tipoEmpresa: empresas.tipoEmpresa })
+      .from(empresas)
+      .where(eq(empresas.id, user.empresaId))
+      .limit(1),
   ]);
   if (productosVenta.length !== productoIds.length) {
     return { ok: false, error: "Uno o mas productos no son validos" };
   }
   const tipoPorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.tipo]));
+  const nombrePorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.nombre]));
+  const esRestaurante = empresaRows[0]?.tipoEmpresa === "restaurante";
   const stockPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.cantidad)]),
   );
@@ -241,6 +261,31 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           referencia: p.referencia || null,
         })),
       );
+
+      if (esRestaurante) {
+        const [pedido] = await tx
+          .insert(pedidosCocina)
+          .values({
+            empresaId: user.empresaId,
+            sucursalId: data.sucursalId,
+            ventaId: venta.id,
+            numero: `P-${numero}`,
+            clienteNombre: clientePedidoNombre,
+            estado: "nuevo",
+            notas: data.notas || null,
+            creadoPor: user.id,
+          })
+          .returning({ id: pedidosCocina.id });
+
+        await tx.insert(pedidoCocinaItems).values(
+          data.items.map((it) => ({
+            pedidoId: pedido.id,
+            productoId: it.productoId,
+            nombre: nombrePorProducto.get(it.productoId) ?? "Producto",
+            cantidad: aDecimalStr(it.cantidad),
+          })),
+        );
+      }
 
       const itemsInventario = data.items.filter(
         (it) => tipoPorProducto.get(it.productoId) !== "servicio",

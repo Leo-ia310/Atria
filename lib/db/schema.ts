@@ -156,6 +156,29 @@ export const documentoFiscalEstadoEnum = pgEnum("documento_fiscal_estado", [
   "emitido",
   "anulado",
 ]);
+export const empresaTipoEnum = pgEnum("empresa_tipo", [
+  "general",
+  "restaurante",
+  "retail",
+  "servicios",
+]);
+export const menuVirtualPlantillaEnum = pgEnum("menu_virtual_plantilla", [
+  "bistro",
+  "minimal",
+  "fiesta",
+]);
+export const promocionMenuTipoEnum = pgEnum("promocion_menu_tipo", [
+  "porcentaje",
+  "monto",
+  "precio_fijo",
+]);
+export const pedidoCocinaEstadoEnum = pgEnum("pedido_cocina_estado", [
+  "nuevo",
+  "en_preparacion",
+  "listo",
+  "entregado",
+  "cancelado",
+]);
 
 /* =========================================================
  * MÓDULO 1 — NÚCLEO SAAS
@@ -186,6 +209,7 @@ export const empresas = pgTable(
     razonSocial: text("razon_social").notNull(),
     nombreComercial: text("nombre_comercial"),
     identificacionFiscal: text("identificacion_fiscal").notNull(),
+    tipoEmpresa: empresaTipoEnum("tipo_empresa").notNull().default("general"),
     pais: paisEnum("pais").notNull(),
     moneda: monedaEnum("moneda").notNull(),
     telefono: text("telefono"),
@@ -1134,6 +1158,184 @@ export const pagosVenta = pgTable(
     cambio: numeric("cambio", { precision: 18, scale: 4 }).notNull().default("0"),
   },
   (t) => [index("pagos_venta_venta_idx").on(t.ventaId)],
+);
+
+export const menusVirtuales = pgTable(
+  "menus_virtuales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    slug: text("slug").notNull(),
+    descripcion: text("descripcion"),
+    plantilla: menuVirtualPlantillaEnum("plantilla").notNull().default("bistro"),
+    colorPrimario: text("color_primario").notNull().default("#0f766e"),
+    colorSecundario: text("color_secundario").notNull().default("#f59e0b"),
+    colorFondo: text("color_fondo").notNull().default("#fffaf0"),
+    logoUrl: text("logo_url"),
+    telefono: text("telefono"),
+    whatsapp: text("whatsapp"),
+    instagramUrl: text("instagram_url"),
+    facebookUrl: text("facebook_url"),
+    tiktokUrl: text("tiktok_url"),
+    sitioWebUrl: text("sitio_web_url"),
+    animaciones: boolean("animaciones").notNull().default(true),
+    publicado: boolean("publicado").notNull().default(true),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("menus_virtuales_slug_uq").on(t.slug),
+    index("menus_virtuales_empresa_idx").on(t.empresaId),
+    index("menus_virtuales_empresa_publicado_idx").on(t.empresaId, t.publicado),
+  ],
+);
+
+export const menuSecciones = pgTable(
+  "menu_secciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    menuId: uuid("menu_id")
+      .notNull()
+      .references(() => menusVirtuales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    orden: integer("orden").notNull().default(0),
+    visible: boolean("visible").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("menu_secciones_empresa_idx").on(t.empresaId),
+    index("menu_secciones_menu_orden_idx").on(t.menuId, t.orden),
+  ],
+);
+
+export const menuPlatillos = pgTable(
+  "menu_platillos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    menuId: uuid("menu_id")
+      .notNull()
+      .references(() => menusVirtuales.id, { onDelete: "cascade" }),
+    seccionId: uuid("seccion_id").references(() => menuSecciones.id, {
+      onDelete: "set null",
+    }),
+    productoId: uuid("producto_id").references(() => productos.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    precio: numeric("precio", { precision: 18, scale: 4 }).notNull(),
+    precioOferta: numeric("precio_oferta", { precision: 18, scale: 4 }),
+    etiquetaOferta: text("etiqueta_oferta"),
+    imagenUrl: text("imagen_url"),
+    destacado: boolean("destacado").notNull().default(false),
+    disponible: boolean("disponible").notNull().default(true),
+    orden: integer("orden").notNull().default(0),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("menu_platillos_empresa_idx").on(t.empresaId),
+    index("menu_platillos_menu_idx").on(t.menuId),
+    index("menu_platillos_seccion_orden_idx").on(t.seccionId, t.orden),
+  ],
+);
+
+export const menuPromociones = pgTable(
+  "menu_promociones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    menuId: uuid("menu_id")
+      .notNull()
+      .references(() => menusVirtuales.id, { onDelete: "cascade" }),
+    platilloId: uuid("platillo_id").references(() => menuPlatillos.id, {
+      onDelete: "cascade",
+    }),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    tipo: promocionMenuTipoEnum("tipo").notNull().default("porcentaje"),
+    valor: numeric("valor", { precision: 18, scale: 4 }).notNull(),
+    diasSemana: integer("dias_semana")
+      .array()
+      .notNull()
+      .default(sql`'{}'::integer[]`),
+    fechaInicio: date("fecha_inicio"),
+    fechaFin: date("fecha_fin"),
+    activa: boolean("activa").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("menu_promociones_empresa_idx").on(t.empresaId),
+    index("menu_promociones_menu_activa_idx").on(t.menuId, t.activa),
+    index("menu_promociones_platillo_idx").on(t.platilloId),
+  ],
+);
+
+export const pedidosCocina = pgTable(
+  "pedidos_cocina",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id),
+    ventaId: uuid("venta_id")
+      .notNull()
+      .references(() => ventas.id, { onDelete: "cascade" }),
+    numero: text("numero").notNull(),
+    clienteNombre: text("cliente_nombre"),
+    estado: pedidoCocinaEstadoEnum("estado").notNull().default("nuevo"),
+    notas: text("notas"),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    listoEn: timestamp("listo_en", { withTimezone: true }),
+  },
+  (t) => [
+    unique("pedidos_cocina_venta_uq").on(t.ventaId),
+    index("pedidos_cocina_empresa_estado_idx").on(t.empresaId, t.estado),
+    index("pedidos_cocina_sucursal_estado_idx").on(t.sucursalId, t.estado),
+    index("pedidos_cocina_creado_idx").on(t.creadoEn),
+  ],
+);
+
+export const pedidoCocinaItems = pgTable(
+  "pedido_cocina_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pedidoId: uuid("pedido_id")
+      .notNull()
+      .references(() => pedidosCocina.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id").references(() => productos.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    cantidad: numeric("cantidad", { precision: 18, scale: 4 }).notNull(),
+    notas: text("notas"),
+  },
+  (t) => [
+    index("pedido_cocina_items_pedido_idx").on(t.pedidoId),
+    index("pedido_cocina_items_producto_idx").on(t.productoId),
+  ],
 );
 
 export const notasCredito = pgTable(
@@ -2150,6 +2352,11 @@ export type NuevoUsuario = typeof usuarios.$inferInsert;
 export type Producto = typeof productos.$inferSelect;
 export type ProductoAdvertencia = typeof productoAdvertencias.$inferSelect;
 export type Venta = typeof ventas.$inferSelect;
+export type MenuVirtual = typeof menusVirtuales.$inferSelect;
+export type MenuSeccion = typeof menuSecciones.$inferSelect;
+export type MenuPlatillo = typeof menuPlatillos.$inferSelect;
+export type MenuPromocion = typeof menuPromociones.$inferSelect;
+export type PedidoCocina = typeof pedidosCocina.$inferSelect;
 export type Compra = typeof compras.$inferSelect;
 export type AsientoContable = typeof asientosContables.$inferSelect;
 export type AsientoPartida = typeof asientoPartidas.$inferSelect;

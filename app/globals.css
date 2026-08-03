@@ -406,6 +406,23 @@ textarea:focus {
   94%, 98% { transform: rotate(12deg); }
 }
 
+@keyframes arca-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .arca-menu-animate .menu-entrada {
+    animation: arca-menu-fade-in 0.55s ease-out both;
+  }
+}
+
 /* Ocultar scrollbar manteniendo el scroll (sidebar, carruseles) */
 .no-scrollbar {
   -ms-overflow-style: none;

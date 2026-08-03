@@ -19,6 +19,7 @@ type EstadoEmpresa = {
   razonSocial: string;
   nombreComercial: string;
   identificacionFiscal: string;
+  tipoEmpresa: "general" | "restaurante" | "retail" | "servicios";
   pais: PaisCodigo;
   moneda: string;
 };
@@ -52,6 +53,7 @@ export default function RegistroPage() {
     razonSocial: "",
     nombreComercial: "",
     identificacionFiscal: "",
+    tipoEmpresa: "general",
     pais: PAIS_DEFAULT,
     moneda: paisDefault.moneda,
   });
@@ -159,6 +161,23 @@ export default function RegistroPage() {
                 onChange={(e) =>
                   setEmpresa((p) => ({ ...p, nombreComercial: e.target.value }))
                 }
+              />
+              <Select
+                label="Tipo de empresa"
+                value={empresa.tipoEmpresa}
+                onChange={(e) =>
+                  setEmpresa((p) => ({
+                    ...p,
+                    tipoEmpresa: e.target.value as EstadoEmpresa["tipoEmpresa"],
+                  }))
+                }
+                options={[
+                  { value: "general", label: "Comercio general" },
+                  { value: "restaurante", label: "Restaurante / cafeteria" },
+                  { value: "retail", label: "Tienda / retail" },
+                  { value: "servicios", label: "Servicios profesionales" },
+                ]}
+                hint="Si eliges restaurante, ARCA activara menu virtual y pedidos de cocina."
               />
               <div className="grid grid-cols-2 gap-3">
                 <Select

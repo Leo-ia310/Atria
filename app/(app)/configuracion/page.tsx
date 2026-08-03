@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Building2,
+  BriefcaseBusiness,
   Users,
   Percent,
   CreditCard,
@@ -13,6 +14,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 
 const MODULOS = [
+  { href: "/configuracion/empresa", icon: BriefcaseBusiness, titulo: "Empresa", descripcion: "Giro del negocio y datos generales" },
   { href: "/configuracion/sucursales", icon: Building2, titulo: "Sucursales", descripcion: "Puntos de operación de tu negocio" },
   { href: "/configuracion/usuarios", icon: Users, titulo: "Usuarios", descripcion: "Equipo con acceso al sistema" },
   { href: "/configuracion/roles", icon: Lock, titulo: "Roles y permisos", descripcion: "Qué puede hacer cada rol" },

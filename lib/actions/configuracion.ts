@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import {
@@ -15,6 +15,9 @@ import {
   tiposDocumento,
   sucursales,
   almacenes,
+  empresas,
+  menusVirtuales,
+  pedidosCocina,
 } from "@/lib/db/schema";
 import {
   crearUsuarioSchema,
@@ -26,10 +29,12 @@ import {
   cuentaFinancieraSchema,
   secuenciaFiscalSchema,
   perfilSchema,
+  empresaTipoSchema,
   cambiarPasswordSchema,
 } from "@/lib/validations/configuracion";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
+import { esPalabraConfirmacionRestaurante } from "@/lib/restaurante/confirmacion";
 
 type Resultado = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -314,6 +319,103 @@ export async function cambiarMiPassword(input: unknown): Promise<Resultado> {
     console.error("[cambiarMiPassword]", err);
     return { ok: false, error: "No pudimos cambiar la contraseña." };
   }
+}
+
+/* ------------------------------ Empresa ------------------------------ */
+
+export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
+
+  const parsed = empresaTipoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  try {
+    if (parsed.data.tipoEmpresa !== "restaurante") {
+      const datos = await contarDatosRestaurante(user.empresaId);
+      if (datos.total > 0) {
+        return {
+          ok: false,
+          error:
+            "No puedes cambiar el tipo de empresa porque existen menus virtuales o pedidos de cocina. Elimina primero los datos de restaurante.",
+        };
+      }
+    }
+
+    await db
+      .update(empresas)
+      .set({ tipoEmpresa: parsed.data.tipoEmpresa, actualizadoEn: new Date() })
+      .where(eq(empresas.id, user.empresaId));
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/empresa");
+    revalidatePath("/dashboard");
+    revalidatePath("/menu-virtual");
+    revalidatePath("/pedidos-cocina");
+    return { ok: true };
+  } catch (err) {
+    console.error("[actualizarTipoEmpresa]", err);
+    return { ok: false, error: "No pudimos actualizar el tipo de empresa." };
+  }
+}
+
+export async function eliminarDatosRestaurante(input: unknown): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
+
+  const data = input as { reto?: unknown; confirmacion?: unknown };
+  const reto = typeof data.reto === "string" ? data.reto.trim() : "";
+  const confirmacion =
+    typeof data.confirmacion === "string" ? data.confirmacion.trim() : "";
+
+  if (
+    !reto ||
+    !esPalabraConfirmacionRestaurante(reto) ||
+    confirmacion !== reto
+  ) {
+    return { ok: false, error: "La palabra de confirmacion no coincide." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(menusVirtuales).where(eq(menusVirtuales.empresaId, user.empresaId));
+      await tx.delete(pedidosCocina).where(eq(pedidosCocina.empresaId, user.empresaId));
+    });
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/empresa");
+    revalidatePath("/dashboard");
+    revalidatePath("/menu-virtual");
+    revalidatePath("/pedidos-cocina");
+    return { ok: true };
+  } catch (err) {
+    console.error("[eliminarDatosRestaurante]", err);
+    return { ok: false, error: "No pudimos eliminar los datos de restaurante." };
+  }
+}
+
+async function contarDatosRestaurante(empresaId: string): Promise<{
+  menus: number;
+  pedidos: number;
+  total: number;
+}> {
+  const [[menus], [pedidos]] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(menusVirtuales)
+      .where(eq(menusVirtuales.empresaId, empresaId)),
+    db
+      .select({ n: count() })
+      .from(pedidosCocina)
+      .where(eq(pedidosCocina.empresaId, empresaId)),
+  ]);
+  const menusN = menus?.n ?? 0;
+  const pedidosN = pedidos?.n ?? 0;
+  return { menus: menusN, pedidos: pedidosN, total: menusN + pedidosN };
 }
 
 /* ------------------------------ Roles ------------------------------ */

@@ -4,6 +4,7 @@ import { and, count, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   clientes,
+  empresas,
   facturas,
   permisos,
   planes,
@@ -47,7 +48,7 @@ const getAccessContextCached = cache(
     sessionRolId: string | null,
     sessionEsSuperAdmin: boolean,
   ): Promise<AccessContext> => {
-    const [[usuarioActual], [suscripcion]] = await Promise.all([
+    const [[usuarioActual], [suscripcion], [empresa]] = await Promise.all([
       db
         .select({
           rolId: usuarios.rolId,
@@ -80,6 +81,13 @@ const getAccessContextCached = cache(
         .where(eq(suscripciones.empresaId, empresaId))
         .orderBy(desc(suscripciones.creadoEn))
         .limit(1),
+      db
+        .select({
+          tipoEmpresa: empresas.tipoEmpresa,
+        })
+        .from(empresas)
+        .where(eq(empresas.id, empresaId))
+        .limit(1),
     ]);
 
     const rolIdActual = usuarioActual?.rolId ?? sessionRolId;
@@ -110,6 +118,7 @@ const getAccessContextCached = cache(
         ? rolRows.flatMap((row) => (row.permiso ? [row.permiso] : []))
         : [],
       plan,
+      tipoEmpresa: empresa?.tipoEmpresa ?? "general",
       rolNombre,
       usuariosExtra: suscripcion?.usuariosExtra ?? 0,
       sucursalesExtra: suscripcion?.sucursalesExtra ?? 0,

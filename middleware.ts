@@ -16,8 +16,36 @@ export default auth((req) => {
       },
     });
 
+  const segmentos = pathname.split("/").filter(Boolean);
+  const rutasInternas = new Set([
+    "api",
+    "dashboard",
+    "pos",
+    "caja",
+    "ventas",
+    "ticket",
+    "menu-virtual",
+    "pedidos-cocina",
+    "inventario",
+    "clientes",
+    "compras",
+    "facturas",
+    "cxc",
+    "cxp",
+    "contabilidad",
+    "tesoreria",
+    "rrhh",
+    "reportes",
+    "configuracion",
+    "mi-cuenta",
+    "superadmin",
+  ]);
+  const esMenuPublico =
+    segmentos.length === 1 && !rutasInternas.has(segmentos[0] ?? "");
+
   const esRutaPublica =
     pathname === "/" ||
+    esMenuPublico ||
     pathname.startsWith("/precios") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/registro") ||

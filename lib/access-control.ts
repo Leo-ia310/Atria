@@ -5,6 +5,8 @@ export type ModuloAcceso =
   | "pos"
   | "caja"
   | "ventas"
+  | "menu-virtual"
+  | "pedidos-cocina"
   | "inventario"
   | "clientes"
   | "compras"
@@ -23,6 +25,7 @@ export type AccessSnapshot = {
   esAdminEmpresa: boolean;
   permisos: string[];
   plan: Plan;
+  tipoEmpresa: "general" | "restaurante" | "retail" | "servicios";
 };
 
 type ReglaAcceso = {
@@ -31,6 +34,7 @@ type ReglaAcceso = {
   permisos?: string[];
   features?: (keyof PlanFeatures)[];
   cualquierFeature?: (keyof PlanFeatures)[];
+  soloRestaurante?: boolean;
 };
 
 export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
@@ -39,6 +43,14 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
   pos: { permisos: ["ventas.crear"], features: ["pos"] },
   caja: { permisos: ["ventas.crear"], features: ["pos"] },
   ventas: { permisos: ["ventas.ver", "ventas.crear"], features: ["facturacion"] },
+  "menu-virtual": {
+    permisos: ["restaurante.menu"],
+    soloRestaurante: true,
+  },
+  "pedidos-cocina": {
+    permisos: ["restaurante.pedidos"],
+    soloRestaurante: true,
+  },
   facturas: { permisos: ["ventas.ver", "ventas.crear"], features: ["facturacion"] },
   inventario: {
     permisos: ["inventario.ver"],
@@ -78,6 +90,7 @@ export function puedeAccederModulo(
   const regla = REGLAS_ACCESO[modulo];
   if (regla.siempre) return true;
   if (regla.soloAdmin && !access.esAdminEmpresa) return false;
+  if (regla.soloRestaurante && access.tipoEmpresa !== "restaurante") return false;
 
   if (regla.permisos?.length && !tienePermiso(access, regla.permisos)) {
     return false;
@@ -116,6 +129,8 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
   if (base === "pos") return "pos";
   if (base === "caja") return "caja";
   if (base === "ventas" || base === "ticket") return "ventas";
+  if (base === "menu-virtual") return "menu-virtual";
+  if (base === "pedidos-cocina") return "pedidos-cocina";
   if (base === "inventario") return "inventario";
   if (base === "clientes") return "clientes";
   if (base === "compras") return "compras";

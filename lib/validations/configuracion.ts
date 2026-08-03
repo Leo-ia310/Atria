@@ -60,6 +60,11 @@ export const perfilSchema = z.object({
 });
 export type PerfilInput = z.infer<typeof perfilSchema>;
 
+export const empresaTipoSchema = z.object({
+  tipoEmpresa: z.enum(["general", "restaurante", "retail", "servicios"]),
+});
+export type EmpresaTipoInput = z.infer<typeof empresaTipoSchema>;
+
 export const cambiarPasswordSchema = z
   .object({
     actual: z.string().min(1, "Ingresa tu contraseña actual"),

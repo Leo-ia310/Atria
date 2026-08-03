@@ -32,6 +32,8 @@ const PERMISOS_BASE = [
   { clave: "ventas.anular", modulo: "ventas", descripcion: "Anular ventas" },
   { clave: "ventas.descuento_supervisor", modulo: "ventas", descripcion: "Aplicar descuentos altos" },
   { clave: "ventas.ver", modulo: "ventas", descripcion: "Ver historial de ventas" },
+  { clave: "restaurante.menu", modulo: "restaurante", descripcion: "Gestionar menu virtual" },
+  { clave: "restaurante.pedidos", modulo: "restaurante", descripcion: "Ver y actualizar pedidos de cocina" },
   { clave: "inventario.ver", modulo: "inventario", descripcion: "Ver inventario" },
   { clave: "inventario.ajustar", modulo: "inventario", descripcion: "Ajustar stock manualmente" },
   { clave: "inventario.conteo", modulo: "inventario", descripcion: "Realizar conteo físico" },
@@ -58,6 +60,7 @@ const ROLES_BASE = [
     descripcion: "Operación diaria y supervisión",
     permisos: [
       "ventas.crear", "ventas.anular", "ventas.descuento_supervisor", "ventas.ver",
+      "restaurante.menu", "restaurante.pedidos",
       "inventario.ver", "inventario.ajustar", "inventario.conteo",
       "compras.crear", "tesoreria.ver", "reportes.ver", "reportes.avanzados",
     ],
@@ -65,7 +68,7 @@ const ROLES_BASE = [
   {
     nombre: "Cajero",
     descripcion: "Punto de venta",
-    permisos: ["ventas.crear", "ventas.ver", "inventario.ver"],
+    permisos: ["ventas.crear", "ventas.ver", "restaurante.pedidos", "inventario.ver"],
   },
   {
     nombre: "Contador",
@@ -143,6 +146,7 @@ export async function registrarEmpresa(
           razonSocial: empresa.razonSocial,
           nombreComercial: empresa.nombreComercial || null,
           identificacionFiscal: empresa.identificacionFiscal,
+          tipoEmpresa: empresa.tipoEmpresa,
           pais: empresa.pais,
           moneda: empresa.moneda,
           zonaHoraria: paisCfg.zonaHoraria,
