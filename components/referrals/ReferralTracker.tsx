@@ -12,12 +12,12 @@ export function ReferralTracker() {
     const current = readStoredCode();
     const incoming = readIncomingCode();
 
-    if (current) {
-      persistCode(current);
+    if (incoming) {
+      persistCode(incoming);
       return;
     }
 
-    if (incoming) persistCode(incoming);
+    if (current) persistCode(current);
   }, []);
 
   return null;
