@@ -26,6 +26,11 @@ import {
 import { registroCompletoSchema } from "@/lib/validations/auth";
 import { CATALOGO_CUENTAS_BASE, getPaisConfig, CUENTAS_CLAVE } from "@/lib/paises";
 import { PLANES } from "@/lib/pricing";
+import {
+  leerCodigoReferidoDesdeCookie,
+  normalizarCodigoReferido,
+  notificarVentaReferida,
+} from "@/lib/referrals/atria-vendedores";
 
 const PERMISOS_BASE = [
   { clave: "ventas.crear", modulo: "ventas", descripcion: "Crear ventas en el POS" },
@@ -109,6 +114,7 @@ export async function registrarEmpresa(
 
   const { empresa, admin, plan } = parsed.data;
   const paisCfg = getPaisConfig(empresa.pais);
+  const codigoReferido = normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
 
   const yaExiste = await db
     .select({ id: usuarios.id })
@@ -149,6 +155,8 @@ export async function registrarEmpresa(
           tipoEmpresa: empresa.tipoEmpresa,
           pais: empresa.pais,
           moneda: empresa.moneda,
+          codigoReferido: codigoReferido || null,
+          referidoCapturadoEn: codigoReferido ? new Date() : null,
           zonaHoraria: paisCfg.zonaHoraria,
           formatoFecha: paisCfg.formatoFecha,
           onboardingCompleto: false,
@@ -328,6 +336,7 @@ export async function registrarEmpresa(
         planId: planSeleccionado.id,
         estado: plan.planId === "demo" ? "trial" : "activa",
         ciclo: plan.ciclo,
+        codigoReferido: codigoReferido || null,
         inicioPeriodo: inicio,
         finPeriodo: fin,
       });
@@ -346,6 +355,21 @@ export async function registrarEmpresa(
 
       return { empresaId: empresaCreada.id, usuarioId: usuarioCreado.id };
     });
+
+    if (codigoReferido && plan.planId !== "demo") {
+      const planCfg = PLANES[plan.planId];
+      await notificarVentaReferida({
+        codigoReferido,
+        referenciaExterna: `registro:${resultado.empresaId}:${plan.planId}:${plan.ciclo}`,
+        cliente: admin.nombre,
+        clienteEmail: admin.email,
+        empresaCliente: empresa.nombreComercial || empresa.razonSocial,
+        plan: `${planCfg.nombre} ${plan.ciclo}`,
+        monto: plan.ciclo === "anual" ? planCfg.precioAnual : planCfg.precioMensual,
+        tipoVenta: "primera",
+        origen: "registro",
+      });
+    }
 
     return { ok: true, ...resultado };
   } catch (err) {

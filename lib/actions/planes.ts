@@ -5,6 +5,7 @@ import { and, count, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   clientes,
+  empresas,
   facturas,
   planes as planesTable,
   productos,
@@ -17,6 +18,11 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { asegurarPlanes } from "@/lib/actions/registro";
 import { validarAccion } from "@/lib/server-access";
 import { getPlan, type Plan, type PlanId } from "@/lib/pricing";
+import {
+  leerCodigoReferidoDesdeCookie,
+  normalizarCodigoReferido,
+  notificarVentaReferida,
+} from "@/lib/referrals/atria-vendedores";
 
 type Ciclo = "mensual" | "anual";
 
@@ -68,6 +74,19 @@ export async function cambiarPlan(
     .orderBy(desc(suscripciones.creadoEn))
     .limit(1);
 
+  const [empresa] = await db
+    .select({
+      razonSocial: empresas.razonSocial,
+      nombreComercial: empresas.nombreComercial,
+      codigoReferido: empresas.codigoReferido,
+    })
+    .from(empresas)
+    .where(eq(empresas.id, user.empresaId))
+    .limit(1);
+  const codigoReferido =
+    normalizarCodigoReferido(empresa?.codigoReferido) ||
+    normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
+
   if (actual?.planCodigo === planId && actual.ciclo === cicloNormalizado) {
     return { ok: true, plan: plan.nombre };
   }
@@ -103,11 +122,34 @@ export async function cambiarPlan(
       ciclo: cicloNormalizado,
       usuariosExtra: extras.usuarios,
       sucursalesExtra: extras.sucursales,
+      codigoReferido: codigoReferido || null,
       inicioPeriodo: ahora,
       finPeriodo: fin,
       notas: `Cambio de plan a ${plan.nombre}`,
     });
+
+    if (codigoReferido && !empresa?.codigoReferido) {
+      await tx
+        .update(empresas)
+        .set({ codigoReferido, referidoCapturadoEn: ahora })
+        .where(eq(empresas.id, user.empresaId));
+    }
   });
+
+  if (codigoReferido && planId !== "demo") {
+    await notificarVentaReferida({
+      codigoReferido,
+      referenciaExterna: `plan:${user.empresaId}:${planId}:${cicloNormalizado}:${ahora.toISOString().slice(0, 10)}`,
+      cliente: user.nombre,
+      clienteEmail: user.email,
+      empresaCliente: empresa?.nombreComercial || empresa?.razonSocial || "Empresa",
+      plan: `${plan.nombre} ${cicloNormalizado}`,
+      monto: cicloNormalizado === "anual" ? plan.precioAnual : plan.precioMensual,
+      tipoVenta: !actual || actual.planCodigo === "demo" ? "primera" : "renovacion",
+      origen: "cambio_plan",
+      fechaVenta: ahora,
+    });
+  }
 
   revalidatePath("/", "layout");
   revalidatePath("/dashboard");

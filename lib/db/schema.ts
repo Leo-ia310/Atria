@@ -216,6 +216,8 @@ export const empresas = pgTable(
     email: text("email"),
     direccion: text("direccion"),
     logoUrl: text("logo_url"),
+    codigoReferido: text("codigo_referido"),
+    referidoCapturadoEn: timestamp("referido_capturado_en", { withTimezone: true }),
     zonaHoraria: text("zona_horaria").notNull().default("America/Managua"),
     formatoFecha: text("formato_fecha").notNull().default("DD/MM/YYYY"),
     activa: boolean("activa").notNull().default(true),
@@ -225,7 +227,10 @@ export const empresas = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("empresas_pais_idx").on(t.pais)],
+  (t) => [
+    index("empresas_pais_idx").on(t.pais),
+    index("empresas_codigo_referido_idx").on(t.codigoReferido),
+  ],
 );
 
 export const suscripciones = pgTable(
@@ -245,12 +250,14 @@ export const suscripciones = pgTable(
     inicioPeriodo: timestamp("inicio_periodo", { withTimezone: true }).notNull(),
     finPeriodo: timestamp("fin_periodo", { withTimezone: true }).notNull(),
     canceladaEn: timestamp("cancelada_en", { withTimezone: true }),
+    codigoReferido: text("codigo_referido"),
     notas: text("notas"),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("suscripciones_empresa_idx").on(t.empresaId),
     index("suscripciones_empresa_creado_idx").on(t.empresaId, t.creadoEn),
+    index("suscripciones_codigo_referido_idx").on(t.codigoReferido),
   ],
 );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -64,6 +64,18 @@ export default function RegistroPage() {
     confirmarPassword: "",
   });
   const [plan, setPlan] = useState<EstadoPlan>({ planId: "demo", ciclo: "mensual" });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const planParam = params.get("plan");
+    const cicloParam = params.get("ciclo");
+    setPlan((actual) => ({
+      planId: planParam === "pro" || planParam === "enterprise" || planParam === "demo"
+        ? planParam
+        : actual.planId,
+      ciclo: cicloParam === "anual" || cicloParam === "mensual" ? cicloParam : actual.ciclo,
+    }));
+  }, []);
 
   function actualizarPais(codigo: PaisCodigo) {
     const cfg = getPaisConfig(codigo);
