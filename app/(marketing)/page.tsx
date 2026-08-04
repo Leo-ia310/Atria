@@ -36,6 +36,8 @@ import { Nav } from "@/components/marketing/Nav";
 import { ArcaLogo } from "@/components/marketing/ArcaLogo";
 import { PricingToggle } from "@/components/marketing/PricingToggle";
 import { FAQ } from "@/components/marketing/FAQ";
+import { ModulesSection } from "@/components/marketing/ModulesSection";
+import { SavingsCalculator } from "@/components/marketing/SavingsCalculator";
 
 const REDES_SOCIALES = [
   {
@@ -269,6 +271,10 @@ const landingStyles = `
   html{
     scrollbar-width:thin;
     scrollbar-color:rgba(124,58,237,.46) #0b0416;
+    overflow-x:clip;
+  }
+  body{
+    overflow-x:clip;
   }
   html::-webkit-scrollbar,
   body::-webkit-scrollbar{
@@ -301,6 +307,7 @@ const landingStyles = `
   @keyframes arca-marquee-l{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
   @keyframes arca-marquee-r{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
   @keyframes arca-pulse{0%{transform:scale(.85);opacity:.6}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+  @keyframes arca-amount-pop{0%{transform:translate3d(0,8px,0);opacity:.35}100%{transform:translate3d(0,0,0);opacity:1}}
   @keyframes arca-gradient-flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 
   @keyframes arca-orb-a{0%,100%{transform:translate3d(-8vw,-4vh,0) scale(1)}50%{transform:translate3d(34vw,20vh,0) scale(1.12)}}
@@ -324,8 +331,8 @@ const landingStyles = `
 
   .arca-wavecard{background:rgba(255,255,255,.07);color:#fff;border-color:rgba(255,255,255,.14);animation:arca-wavecard 4.6s ease-in-out infinite;}
 
-  .arca-marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
-  .arca-marquee{display:flex;gap:1rem;width:max-content;will-change:transform;animation:arca-marquee-l 60s linear infinite;}
+  .arca-marquee-wrap{position:relative;width:100%;max-width:100%;overflow:hidden;overflow-x:clip;contain:paint;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
+  .arca-marquee{display:flex;max-width:none;gap:1rem;width:max-content;will-change:transform;animation:arca-marquee-l 60s linear infinite;}
   .arca-marquee.rev{animation-name:arca-marquee-r;animation-duration:72s;}
   .arca-marquee-wrap:hover .arca-marquee{animation-play-state:paused;}
 
@@ -948,6 +955,8 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <ModulesSection />
+
         <section id="viaje" className="relative overflow-hidden py-24 text-white">
           <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
             <div className="grid gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
@@ -960,9 +969,7 @@ export default function LandingPage() {
                   ordena, opera y <span className="arca-grad-text">escala</span>.
                 </h2>
                 <p className="mt-4 text-[16px] leading-7 text-white/65">
-                  La meta no es llenar otra pantalla. La meta es que tu equipo tenga un
-                  camino claro: implementar, vender, controlar y tomar mejores
-                  decisiones cada semana.
+                  Un camino simple para ordenar, operar y crecer con claridad.
                 </p>
                 <div className="mt-7 flex flex-wrap gap-2">
                   {industrias.map((industria) => (
@@ -1064,6 +1071,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <SavingsCalculator />
 
         <section id="precios" className="relative overflow-hidden py-24">
           <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
@@ -1206,6 +1215,8 @@ export default function LandingPage() {
                 <div className="mt-5 flex flex-col gap-3.5">
                   {[
                     ["Qué es ARCA", "#caracteristicas"],
+                    ["Módulos", "#modulos"],
+                    ["Calculadora", "#calculadora"],
                     ["Tu viaje", "#viaje"],
                     ["Precios", "#precios"],
                     ["Preguntas frecuentes", "#faq"],

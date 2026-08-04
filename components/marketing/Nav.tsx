@@ -32,9 +32,15 @@ export function Nav() {
           <span className="text-base font-semibold text-white">ARCA</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 text-small text-white/75 md:flex">
+        <nav className="hidden items-center gap-5 text-small text-white/75 lg:flex">
           <a href="#caracteristicas" className="transition-colors hover:text-white">
             Características
+          </a>
+          <a href="#modulos" className="transition-colors hover:text-white">
+            Módulos
+          </a>
+          <a href="#calculadora" className="transition-colors hover:text-white">
+            Calculadora
           </a>
           <a href="#precios" className="transition-colors hover:text-white">
             Precios
@@ -44,7 +50,7 @@ export function Nav() {
           </a>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <Link
             href="/login"
             className="arca-btn arca-btn-sm border-white/20 bg-white/10 text-white transition-colors hover:bg-white/16"
@@ -59,7 +65,7 @@ export function Nav() {
           </Link>
         </div>
 
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <button
             type="button"
             onClick={() => setMenuAbierto((s) => !s)}
@@ -73,10 +79,16 @@ export function Nav() {
       </div>
 
       {menuAbierto && (
-        <div className="border-t border-white/10 bg-[#0b0416]/90 px-5 py-4 text-white backdrop-blur-xl md:hidden">
+        <div className="border-t border-white/10 bg-[#0b0416]/90 px-5 py-4 text-white backdrop-blur-xl lg:hidden">
           <nav className="flex flex-col gap-3 text-small text-white/80">
             <a href="#caracteristicas" onClick={() => setMenuAbierto(false)}>
               Características
+            </a>
+            <a href="#modulos" onClick={() => setMenuAbierto(false)}>
+              Módulos
+            </a>
+            <a href="#calculadora" onClick={() => setMenuAbierto(false)}>
+              Calculadora
             </a>
             <a href="#precios" onClick={() => setMenuAbierto(false)}>
               Precios
