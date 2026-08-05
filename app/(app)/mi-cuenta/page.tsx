@@ -56,6 +56,7 @@ export default async function MiCuentaPage() {
 
       <PerfilForm
         nombreInicial={nombre}
+        emailInicial={info?.email ?? user.email ?? ""}
         telefonoInicial={info?.telefono ?? ""}
       />
 

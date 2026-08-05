@@ -279,9 +279,23 @@ export async function actualizarPerfil(input: unknown): Promise<Resultado> {
   }
   const d = parsed.data;
   try {
+    const duplicado = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(
+        and(
+          eq(usuarios.empresaId, user.empresaId),
+          eq(usuarios.email, d.email),
+        ),
+      )
+      .limit(1);
+    if (duplicado[0] && duplicado[0].id !== user.id) {
+      return { ok: false, error: "Ese correo ya está en uso en tu empresa." };
+    }
+
     await db
       .update(usuarios)
-      .set({ nombre: d.nombre, telefono: d.telefono || null })
+      .set({ nombre: d.nombre, email: d.email, telefono: d.telefono || null })
       .where(eq(usuarios.id, user.id));
     revalidatePath("/mi-cuenta");
     return { ok: true };

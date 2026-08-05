@@ -56,6 +56,7 @@ export type FormaPagoInput = z.infer<typeof formaPagoSchema>;
 
 export const perfilSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
+  email: z.string().trim().email("Correo no válido").max(160),
   telefono: z.string().trim().max(50).optional().or(z.literal("")),
 });
 export type PerfilInput = z.infer<typeof perfilSchema>;

@@ -10,20 +10,23 @@ import { actualizarPerfil, cambiarMiPassword } from "@/lib/actions/configuracion
 
 export function PerfilForm({
   nombreInicial,
+  emailInicial,
   telefonoInicial,
 }: {
   nombreInicial: string;
+  emailInicial: string;
   telefonoInicial: string;
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
   const [nombre, setNombre] = useState(nombreInicial);
+  const [email, setEmail] = useState(emailInicial);
   const [telefono, setTelefono] = useState(telefonoInicial);
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
     setGuardando(true);
-    const res = await actualizarPerfil({ nombre, telefono });
+    const res = await actualizarPerfil({ nombre, email, telefono });
     setGuardando(false);
     if (!res.ok) return mostrar("error", res.error);
     mostrar("success", "Perfil actualizado");
@@ -34,9 +37,29 @@ export function PerfilForm({
     <Card>
       <CardHeader title="Datos personales" />
       <CardBody className="space-y-4">
-        <Input label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <Input
+          label="Nombre"
+          name="nombre"
+          autoComplete="name"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
+        <Input
+          label="Correo"
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          hint="Lo usas para iniciar sesión"
+        />
         <Input
           label="Teléfono"
+          name="telefono"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
           value={telefono}
           onChange={(e) => setTelefono(e.target.value)}
         />
