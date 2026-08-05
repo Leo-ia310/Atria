@@ -324,7 +324,7 @@ export default function RegistroPage() {
                   className={cn(
                     "rounded px-3 py-1 transition",
                     plan.ciclo === c
-                      ? "bg-white font-medium text-[color:var(--color-text-primary)] shadow-sm"
+                      ? "bg-[color:var(--color-primary)] font-medium text-white shadow-sm"
                       : "text-[color:var(--color-text-muted)]",
                   )}
                 >
@@ -348,7 +348,7 @@ export default function RegistroPage() {
                       "w-full rounded-md border p-4 text-left transition",
                       seleccionado
                         ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)] ring-2 ring-[color:var(--color-tertiary)]/40"
-                        : "border-[color:var(--color-border)] bg-white hover:border-[color:var(--color-border-strong)]",
+                        : "border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] hover:border-[color:var(--color-border-strong)]",
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">

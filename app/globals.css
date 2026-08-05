@@ -185,6 +185,11 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+/* Deja espacio a la derecha para el botón de mostrar/ocultar contraseña. */
+.arca-input-pw {
+  padding-right: 2.4rem;
+}
+
 .arca-btn {
   display: inline-flex;
   align-items: center;
@@ -430,6 +435,76 @@ textarea:focus {
   body.legal-imprimiendo .legal-prose a {
     color: #111 !important;
   }
+}
+
+/* ============================================
+ * Auth split-screen — panel oscuro del formulario
+ * Remapea los tokens del design system dentro del scope, así los
+ * componentes (Input, Button, Card) se vuelven oscuros sin reescribirlos.
+ * ============================================ */
+
+.auth-dark {
+  --color-text-primary: #f6f4fb;
+  --color-text-secondary: #cabfe0;
+  --color-text-muted: #9488ac;
+  --color-text-on-primary: #ffffff;
+  --color-surface: transparent;
+  --color-surface-2: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+  --color-primary: #7c3aed;
+  --color-primary-hover: #8b5cf6;
+  --color-secondary: #c4b5fd;
+  --color-secondary-hover: #d8b4fe;
+  color: var(--color-text-primary);
+}
+
+.auth-dark .arca-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.auth-dark .arca-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0;
+  padding-left: 2px;
+  color: var(--color-text-primary);
+}
+
+.auth-dark .arca-input::placeholder {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.auth-dark .arca-input:focus {
+  border-bottom-color: var(--color-primary);
+  box-shadow: none;
+}
+
+.auth-dark .arca-input:disabled {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-bottom-style: dashed;
+}
+
+.auth-dark .arca-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Panel morado de bienvenida */
+.auth-welcome {
+  background:
+    radial-gradient(120% 120% at 80% 0%, #8b5cf6 0%, #7c3aed 42%, #5b21b6 100%);
+}
+
+.auth-welcome-blob {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.09);
+  filter: blur(2px);
+  pointer-events: none;
 }
 
 /* Scrollbar */

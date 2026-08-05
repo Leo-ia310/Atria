@@ -15,6 +15,7 @@ function LoginForm() {
   const params = useSearchParams();
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const {
     register,
@@ -23,6 +24,12 @@ function LoginForm() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(values: LoginInput) {
+    if (!aceptaTerminos) {
+      setErrorGlobal(
+        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.",
+      );
+      return;
+    }
     setErrorGlobal(null);
     setEnviando(true);
     const res = await signIn("credentials", {
@@ -68,13 +75,46 @@ function LoginForm() {
             {...register("password")}
           />
 
+          <label className="flex cursor-pointer items-start gap-2.5 text-small text-[color:var(--color-text-secondary)]">
+            <input
+              type="checkbox"
+              checked={aceptaTerminos}
+              onChange={(e) => setAceptaTerminos(e.target.checked)}
+              className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[color:var(--color-primary)]"
+            />
+            <span>
+              Acepto los{" "}
+              <Link
+                href="/legal/terminos"
+                target="_blank"
+                className="font-medium text-[color:var(--color-primary)] hover:underline"
+              >
+                Términos y Condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link
+                href="/legal/privacidad"
+                target="_blank"
+                className="font-medium text-[color:var(--color-primary)] hover:underline"
+              >
+                Política de Privacidad
+              </Link>
+              .
+            </span>
+          </label>
+
           {errorGlobal && (
             <div className="rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
               {errorGlobal}
             </div>
           )}
 
-          <Button type="submit" className="w-full" loading={enviando}>
+          <Button
+            type="submit"
+            className="w-full"
+            loading={enviando}
+            disabled={!aceptaTerminos}
+          >
             Iniciar sesión
           </Button>
         </form>
@@ -89,25 +129,14 @@ function LoginForm() {
         </div>
       </div>
 
-      <p className="mt-6 text-center text-small text-[color:var(--color-text-muted)]">
-        ¿Aún no tienes cuenta?{" "}
-        <Link
-          href="/registro"
-          className="font-medium text-[color:var(--color-primary)] hover:underline"
-        >
-          Crea una empresa
+      <div className="mt-8 flex items-center justify-between gap-3 border-t border-[color:var(--color-border)] pt-5">
+        <span className="text-small text-[color:var(--color-text-muted)]">
+          ¿Aún no tienes cuenta?
+        </span>
+        <Link href="/registro" className="arca-btn arca-btn-sm arca-btn-secondary">
+          Regístrate
         </Link>
-      </p>
-
-      <p className="mt-3 text-center text-[12px] text-[color:var(--color-text-muted)]">
-        <Link href="/legal/terminos" className="hover:underline">
-          Términos
-        </Link>
-        {" · "}
-        <Link href="/legal/privacidad" className="hover:underline">
-          Privacidad
-        </Link>
-      </p>
+      </div>
     </div>
   );
 }
