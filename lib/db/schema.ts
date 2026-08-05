@@ -42,6 +42,12 @@ export const suscripcionEstadoEnum = pgEnum("suscripcion_estado", [
   "cancelada",
   "suspendida",
 ]);
+export const pagoSuscripcionEstadoEnum = pgEnum("pago_suscripcion_estado", [
+  "creado",
+  "completado",
+  "fallido",
+  "reembolsado",
+]);
 export const paisEnum = pgEnum("pais", ["HN", "NI", "GT", "CR", "SV"]);
 export const monedaEnum = pgEnum("moneda", ["HNL", "NIO", "GTQ", "CRC", "USD"]);
 
@@ -260,6 +266,38 @@ export const suscripciones = pgTable(
     index("suscripciones_empresa_idx").on(t.empresaId),
     index("suscripciones_empresa_creado_idx").on(t.empresaId, t.creadoEn),
     index("suscripciones_codigo_referido_idx").on(t.codigoReferido),
+  ],
+);
+
+export const pagosSuscripcion = pgTable(
+  "pagos_suscripcion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    suscripcionId: uuid("suscripcion_id").references(() => suscripciones.id),
+    numeroRecibo: text("numero_recibo").notNull(),
+    proveedor: text("proveedor").notNull().default("paypal"),
+    ordenId: text("orden_id").notNull(),
+    capturaId: text("captura_id"),
+    planCodigo: planTipoEnum("plan_codigo").notNull(),
+    ciclo: cicloFacturacionEnum("ciclo").notNull(),
+    monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    moneda: text("moneda").notNull().default("USD"),
+    estado: pagoSuscripcionEstadoEnum("estado").notNull().default("creado"),
+    pagadorEmail: text("pagador_email"),
+    pagadorNombre: text("pagador_nombre"),
+    reciboEnviadoA: text("recibo_enviado_a"),
+    reciboEnviadoEn: timestamp("recibo_enviado_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    completadoEn: timestamp("completado_en", { withTimezone: true }),
+  },
+  (t) => [
+    unique("pagos_suscripcion_orden_uq").on(t.ordenId),
+    unique("pagos_suscripcion_recibo_uq").on(t.numeroRecibo),
+    index("pagos_suscripcion_empresa_idx").on(t.empresaId),
+    index("pagos_suscripcion_estado_idx").on(t.estado),
   ],
 );
 
@@ -2385,6 +2423,7 @@ export type AsientoPartida = typeof asientoPartidas.$inferSelect;
 export type CuentaContable = typeof catalogoCuentas.$inferSelect;
 export type Plan = typeof planes.$inferSelect;
 export type Suscripcion = typeof suscripciones.$inferSelect;
+export type PagoSuscripcion = typeof pagosSuscripcion.$inferSelect;
 export type Sucursal = typeof sucursales.$inferSelect;
 export type Cliente = typeof clientes.$inferSelect;
 export type Proveedor = typeof proveedores.$inferSelect;
