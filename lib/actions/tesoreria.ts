@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cuentasFinancieras, categoriasGasto, gastosRecurrentes } from "@/lib/db/schema";
@@ -136,6 +138,7 @@ export async function crearGasto(
     revalidatePath("/tesoreria");
     revalidatePath("/tesoreria/gastos");
     revalidatePath("/tesoreria/gastos/recurrentes");
+    await invalidarModulos(user.empresaId, [MODULOS.CONTABILIDAD]);
     return { ok: true, gastoId };
   } catch (err) {
     return {

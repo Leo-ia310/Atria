@@ -26,6 +26,8 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
 import { siguienteNumero, dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 
 type Resultado =
   | { ok: true; ventaId: string; numero: string; asientoId: string }
@@ -482,6 +484,15 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     revalidatePath("/ventas");
     revalidatePath("/facturas");
     revalidatePath("/dashboard");
+
+    // La venta ya está confirmada en Postgres (fuente de verdad); ahora
+    // invalidamos la caché de esta empresa afectada por la venta: KPIs del
+    // dashboard, reportes (ventas/inventario/rentabilidad) y saldos contables.
+    await invalidarModulos(user.empresaId, [
+      MODULOS.DASHBOARD,
+      MODULOS.REPORTES,
+      MODULOS.CONTABILIDAD,
+    ]);
 
     return { ok: true, ventaId: resultado.id, numero: resultado.numero, asientoId };
   } catch (err) {

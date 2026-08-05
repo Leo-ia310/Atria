@@ -12,6 +12,10 @@ import { db } from "@/lib/db";
 import { usuarios, empresas } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations/auth";
 import { authConfig } from "@/auth.config";
+import { rateLimit } from "@/lib/redis/rate-limit";
+
+const LOGIN_MAX_INTENTOS = 10;
+const LOGIN_VENTANA_SEG = 5 * 60;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -26,6 +30,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
+
+        // Rate limiting por email (fail-open si Redis no está disponible).
+        // Frena fuerza bruta de contraseñas sin tocar la fuente de verdad.
+        const limite = await rateLimit(
+          "login",
+          email.toLowerCase(),
+          LOGIN_MAX_INTENTOS,
+          LOGIN_VENTANA_SEG,
+        );
+        if (!limite.permitido) return null;
 
         const filas = await db
           .select({

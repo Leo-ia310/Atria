@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -257,6 +259,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
 
     revalidatePath("/compras");
     revalidatePath("/inventario");
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.CONTABILIDAD]);
 
     return { ok: true, compraId: compraResult.id, asientoId };
   } catch (err) {

@@ -10,6 +10,8 @@ import {
   asientosContables,
   catalogoCuentas,
 } from "@/lib/db/schema";
+import { cacheModulo } from "@/lib/redis/cache";
+import { MODULOS, TTL } from "@/lib/redis/keys";
 
 export type SaldoCuenta = {
   id: string;
@@ -23,7 +25,17 @@ export type SaldoCuenta = {
   saldo: number;
 };
 
-export async function saldosPorCuenta(
+export function saldosPorCuenta(
+  empresaId: string,
+  hasta?: Date,
+): Promise<SaldoCuenta[]> {
+  const variante = `saldos:${hasta ? hasta.toISOString().slice(0, 10) : "all"}`;
+  return cacheModulo(empresaId, MODULOS.CONTABILIDAD, variante, TTL.CONTABILIDAD, () =>
+    calcularSaldosPorCuenta(empresaId, hasta),
+  );
+}
+
+async function calcularSaldosPorCuenta(
   empresaId: string,
   hasta?: Date,
 ): Promise<SaldoCuenta[]> {

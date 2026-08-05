@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -133,6 +135,7 @@ export async function registrarAbono(
 
     revalidatePath("/cxc");
     revalidatePath(`/cxc/${data.cxcId}`);
+    await invalidarModulos(user.empresaId, [MODULOS.DASHBOARD, MODULOS.CONTABILIDAD]);
     return { ok: true, abonoId };
   } catch (err) {
     return {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { marcarPrimeraVez } from "@/lib/redis/idempotency";
 
 const REFERRAL_COOKIE = "atria_referral_code";
 
@@ -38,6 +39,12 @@ export async function notificarVentaReferida(input: {
     console.warn("[referidos] Puente a Vendedores ATRIA no configurado.");
     return;
   }
+
+  // Idempotencia: `referenciaExterna` identifica de forma estable la venta
+  // referida. Evita notificar dos veces la misma venta ante reintentos o
+  // doble envío. Fail-open: si Redis no está, se notifica igual.
+  const primeraVez = await marcarPrimeraVez("referidos", input.referenciaExterna);
+  if (!primeraVez) return;
 
   try {
     const res = await fetch(url, {

@@ -31,6 +31,7 @@ import {
   normalizarCodigoReferido,
   notificarVentaReferida,
 } from "@/lib/referrals/atria-vendedores";
+import { rateLimit } from "@/lib/redis/rate-limit";
 
 const PERMISOS_BASE = [
   { clave: "ventas.crear", modulo: "ventas", descripcion: "Crear ventas en el POS" },
@@ -113,6 +114,12 @@ export async function registrarEmpresa(
   }
 
   const { empresa, admin, plan } = parsed.data;
+
+  const limite = await rateLimit("registro", admin.email.toLowerCase(), 5, 60 * 60);
+  if (!limite.permitido) {
+    return { ok: false, error: "Demasiados intentos. Intenta de nuevo más tarde." };
+  }
+
   const paisCfg = getPaisConfig(empresa.pais);
   const codigoReferido = normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
 

@@ -13,6 +13,8 @@ import { TrendingUp, Coins, Percent } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { cacheModulo } from "@/lib/redis/cache";
+import { MODULOS, TTL } from "@/lib/redis/keys";
 
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
@@ -31,24 +33,32 @@ export default async function ReporteRentabilidadPage() {
   // Group sales by YYYY-MM period
   const periodoExpr = sql<string>`TO_CHAR(${ventas.fecha}, 'YYYY-MM')`;
 
-  const datos = await db
-    .select({
-      periodo: periodoExpr,
-      ingresos: sql<string>`COALESCE(SUM(${ventas.total}), 0)`,
-      costos: sql<string>`COALESCE(SUM(${ventas.costoTotal}), 0)`,
-      cantVentas: sql<string>`COUNT(*)`,
-    })
-    .from(ventas)
-    .where(
-      and(
-        eq(ventas.empresaId, user.empresaId),
-        eq(ventas.estado, "completada"),
-        gte(ventas.fecha, hace12),
-        sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .groupBy(periodoExpr)
-    .orderBy(periodoExpr);
+  const scopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
+  const datos = await cacheModulo(
+    user.empresaId,
+    MODULOS.REPORTES,
+    `rentabilidad:${scopeKey}`,
+    TTL.REPORTES,
+    () =>
+      db
+        .select({
+          periodo: periodoExpr,
+          ingresos: sql<string>`COALESCE(SUM(${ventas.total}), 0)`,
+          costos: sql<string>`COALESCE(SUM(${ventas.costoTotal}), 0)`,
+          cantVentas: sql<string>`COUNT(*)`,
+        })
+        .from(ventas)
+        .where(
+          and(
+            eq(ventas.empresaId, user.empresaId),
+            eq(ventas.estado, "completada"),
+            gte(ventas.fecha, hace12),
+            sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
+          ),
+        )
+        .groupBy(periodoExpr)
+        .orderBy(periodoExpr),
+  );
 
   const MESES_ES = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",

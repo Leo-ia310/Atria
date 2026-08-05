@@ -25,6 +25,8 @@ import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { cacheAside } from "@/lib/redis/cache";
+import { keys, TTL } from "@/lib/redis/keys";
 
 export default async function DashboardPage({
   searchParams,
@@ -50,79 +52,96 @@ export default async function DashboardPage({
   inicioMes.setDate(1);
   inicioMes.setHours(0, 0, 0, 0);
 
-  const [ventasHoyRes, ventasMesRes, productosRes, cxcRes, recientes] =
-    await Promise.all([
-      db
-        .select({ total: sum(ventas.total) })
-        .from(ventas)
-        .where(
-          and(
-            eq(ventas.empresaId, user.empresaId),
-            isNull(ventas.anuladoEn),
-            sql`${ventas.fecha}::date = current_date`,
-            filtroSucursalVenta,
-          ),
-        ),
-      db
-        .select({ total: sum(ventas.total) })
-        .from(ventas)
-        .where(
-          and(
-            eq(ventas.empresaId, user.empresaId),
-            isNull(ventas.anuladoEn),
-            gte(ventas.fecha, inicioMes),
-            filtroSucursalVenta,
-          ),
-        ),
-      db
-        .select({ n: count() })
-        .from(productos)
-        .where(
-          and(
-            eq(productos.empresaId, user.empresaId),
-            eq(productos.activo, true),
-            isNull(productos.eliminadoEn),
-          ),
-        ),
-      db
-        .select({ saldo: sum(cuentasPorCobrar.saldo) })
-        .from(cuentasPorCobrar)
-        .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
-        .where(
-          and(
-            eq(cuentasPorCobrar.empresaId, user.empresaId),
-            eq(cuentasPorCobrar.estado, "pendiente"),
-            filtroSucursalVenta,
-          ),
-        ),
-      db
-        .select({
-          id: ventas.id,
-          numero: ventas.numero,
-          fecha: ventas.fecha,
-          total: ventas.total,
-          esCredito: ventas.esCredito,
-          cliente: clientes.nombre,
-          sucursal: sucursales.nombre,
-        })
-        .from(ventas)
-        .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
-        .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
-        .where(
-          and(
-            eq(ventas.empresaId, user.empresaId),
-            isNull(ventas.anuladoEn),
-            filtroSucursalVenta,
-          ),
-        )
-        .orderBy(desc(ventas.fecha))
-        .limit(6),
-    ]);
+  // Clave de caché con el alcance de sucursal, para no mezclar KPIs entre
+  // distintas vistas de una misma empresa (ni entre empresas: empresaId va
+  // dentro de la clave).
+  const sucursalScopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
 
-  const ventasHoy = parseFloat(ventasHoyRes[0]?.total ?? "0");
-  const ventasMes = parseFloat(ventasMesRes[0]?.total ?? "0");
-  const productosCount = productosRes[0]?.n ?? 0;
-  const cxcPendiente = parseFloat(cxcRes[0]?.saldo ?? "0");
+  const [kpis, recientes] = await Promise.all([
+    cacheAside(
+      keys.dashboard(user.empresaId, sucursalScopeKey),
+      TTL.DASHBOARD,
+      async () => {
+        const [ventasHoyRes, ventasMesRes, productosRes, cxcRes] =
+          await Promise.all([
+            db
+              .select({ total: sum(ventas.total) })
+              .from(ventas)
+              .where(
+                and(
+                  eq(ventas.empresaId, user.empresaId),
+                  isNull(ventas.anuladoEn),
+                  sql`${ventas.fecha}::date = current_date`,
+                  filtroSucursalVenta,
+                ),
+              ),
+            db
+              .select({ total: sum(ventas.total) })
+              .from(ventas)
+              .where(
+                and(
+                  eq(ventas.empresaId, user.empresaId),
+                  isNull(ventas.anuladoEn),
+                  gte(ventas.fecha, inicioMes),
+                  filtroSucursalVenta,
+                ),
+              ),
+            db
+              .select({ n: count() })
+              .from(productos)
+              .where(
+                and(
+                  eq(productos.empresaId, user.empresaId),
+                  eq(productos.activo, true),
+                  isNull(productos.eliminadoEn),
+                ),
+              ),
+            db
+              .select({ saldo: sum(cuentasPorCobrar.saldo) })
+              .from(cuentasPorCobrar)
+              .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
+              .where(
+                and(
+                  eq(cuentasPorCobrar.empresaId, user.empresaId),
+                  eq(cuentasPorCobrar.estado, "pendiente"),
+                  filtroSucursalVenta,
+                ),
+              ),
+          ]);
+
+        return {
+          ventasHoy: parseFloat(ventasHoyRes[0]?.total ?? "0"),
+          ventasMes: parseFloat(ventasMesRes[0]?.total ?? "0"),
+          productosCount: productosRes[0]?.n ?? 0,
+          cxcPendiente: parseFloat(cxcRes[0]?.saldo ?? "0"),
+        };
+      },
+    ),
+    db
+      .select({
+        id: ventas.id,
+        numero: ventas.numero,
+        fecha: ventas.fecha,
+        total: ventas.total,
+        esCredito: ventas.esCredito,
+        cliente: clientes.nombre,
+        sucursal: sucursales.nombre,
+      })
+      .from(ventas)
+      .leftJoin(clientes, eq(clientes.id, ventas.clienteId))
+      .leftJoin(sucursales, eq(sucursales.id, ventas.sucursalId))
+      .where(
+        and(
+          eq(ventas.empresaId, user.empresaId),
+          isNull(ventas.anuladoEn),
+          filtroSucursalVenta,
+        ),
+      )
+      .orderBy(desc(ventas.fecha))
+      .limit(6),
+  ]);
+
+  const { ventasHoy, ventasMes, productosCount, cxcPendiente } = kpis;
 
   return (
     <div>

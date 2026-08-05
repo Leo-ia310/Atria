@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cuentasPorPagar, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
@@ -116,6 +118,7 @@ export async function registrarPago(
 
     revalidatePath("/cxp");
     revalidatePath(`/cxp/${data.cxpId}`);
+    await invalidarModulos(user.empresaId, [MODULOS.CONTABILIDAD]);
     return { ok: true, pagoId };
   } catch (err) {
     return {

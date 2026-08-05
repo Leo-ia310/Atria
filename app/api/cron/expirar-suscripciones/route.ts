@@ -1,4 +1,4 @@
-import { procesarGastosRecurrentesPendientes } from "@/lib/tesoreria/gastos-recurrentes";
+import { expirarSuscripcionesVencidas } from "@/lib/suscripciones/expiracion";
 import { withLock } from "@/lib/redis/lock";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +14,12 @@ export async function GET(request: Request) {
   }
 
   const resultado = await withLock(
-    "cron:gastos-recurrentes",
-    () => procesarGastosRecurrentesPendientes(),
+    "cron:expirar-suscripciones",
+    () => expirarSuscripcionesVencidas(),
     120,
   );
   if (resultado === null) {
     return Response.json({ ok: true, omitido: "ya en ejecución" });
   }
-  return Response.json({ ok: resultado.errores === 0, ...resultado });
+  return Response.json({ ok: true, ...resultado });
 }

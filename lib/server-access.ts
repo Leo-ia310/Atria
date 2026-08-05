@@ -17,6 +17,7 @@ import {
   ventas,
 } from "@/lib/db/schema";
 import { dentroDeLimite, getPlan, type Plan, type PlanFeatures } from "@/lib/pricing";
+import { suscripcionVigente } from "@/lib/suscripciones/expiracion";
 import type { SessionUser } from "@/lib/actions/session-helpers";
 import {
   puedeAccederModulo,
@@ -73,6 +74,8 @@ const getAccessContextCached = cache(
           maxProductos: planes.maxProductos,
           maxTransaccionesMes: planes.maxTransaccionesMes,
           features: planes.features,
+          estado: suscripciones.estado,
+          finPeriodo: suscripciones.finPeriodo,
           usuariosExtra: suscripciones.usuariosExtra,
           sucursalesExtra: suscripciones.sucursalesExtra,
         })
@@ -105,7 +108,10 @@ const getAccessContextCached = cache(
         .where(and(eq(roles.id, rolIdActual), eq(roles.empresaId, empresaId)))
       : [];
 
-    const plan = normalizarPlan(suscripcion);
+    const vigente = suscripcion
+      ? suscripcionVigente(suscripcion.estado, suscripcion.finPeriodo)
+      : false;
+    const plan = vigente ? normalizarPlan(suscripcion) : getPlan("demo");
     const rolNombre = rolRows[0]?.nombre ?? null;
     const esAdminEmpresa =
       usuarioActivo &&
@@ -120,8 +126,8 @@ const getAccessContextCached = cache(
       plan,
       tipoEmpresa: empresa?.tipoEmpresa ?? "general",
       rolNombre,
-      usuariosExtra: suscripcion?.usuariosExtra ?? 0,
-      sucursalesExtra: suscripcion?.sucursalesExtra ?? 0,
+      usuariosExtra: vigente ? suscripcion?.usuariosExtra ?? 0 : 0,
+      sucursalesExtra: vigente ? suscripcion?.sucursalesExtra ?? 0 : 0,
     };
   },
 );

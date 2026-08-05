@@ -20,6 +20,8 @@ import {
   importarProductosSchema,
 } from "@/lib/validations/productos";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 
 type Resultado =
@@ -126,6 +128,7 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
       .returning({ id: productos.id });
 
     revalidatePath("/inventario");
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.DASHBOARD]);
     return { ok: true, id: creado.id };
   } catch (err) {
     console.error("[crearProducto]", err);
@@ -211,6 +214,7 @@ export async function actualizarProducto(
 
     revalidatePath("/inventario");
     revalidatePath(`/inventario/${id}`);
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES]);
     return { ok: true, id };
   } catch (err) {
     console.error("[actualizarProducto]", err);
@@ -387,6 +391,7 @@ export async function importarProductosInventario(
     }
 
     revalidatePath("/inventario");
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.DASHBOARD]);
     return { ok: true, creados, actualizados, advertencias, stockAjustado, mensajes };
   } catch (err) {
     console.error("[importarProductosInventario]", err);
@@ -520,6 +525,7 @@ export async function registrarEntradaInventarioPorLector(
 
     revalidatePath("/inventario");
     revalidatePath("/pos");
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.CONTABILIDAD]);
     return { ok: true, productoId: producto.id, existencia: existenciaFinal };
   } catch (err) {
     console.error("[registrarEntradaInventarioPorLector]", err);
@@ -610,6 +616,7 @@ export async function eliminarProducto(id: string): Promise<Resultado> {
       .set({ eliminadoEn: new Date(), activo: false })
       .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)));
     revalidatePath("/inventario");
+    await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.DASHBOARD]);
     return { ok: true, id };
   } catch (err) {
     console.error("[eliminarProducto]", err);

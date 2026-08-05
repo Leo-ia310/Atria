@@ -14,6 +14,8 @@ import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { cacheModulo } from "@/lib/redis/cache";
+import { MODULOS, TTL } from "@/lib/redis/keys";
 
 export default async function ReporteInventarioPage() {
   const user = await requireSession();
@@ -25,51 +27,64 @@ export default async function ReporteInventarioPage() {
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const sucursalIds = selectedSucursalIds(scope);
 
-  const stockRows = await db
-    .select({
-      productoId: existencias.productoId,
-      stockTotal: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
-    })
-    .from(existencias)
-    .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
-    .where(
-      and(
-        eq(existencias.empresaId, user.empresaId),
-        eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.activo, true),
-        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .groupBy(existencias.productoId);
-  const stockPorProducto = new Map(
-    stockRows.map((row) => [row.productoId, row.stockTotal]),
-  );
-  const productoIdsEnScope = sucursalIds ? stockRows.map((row) => row.productoId) : null;
+  const scopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
+  const rows = await cacheModulo(
+    user.empresaId,
+    MODULOS.REPORTES,
+    `inventario:${scopeKey}`,
+    TTL.REPORTES,
+    async () => {
+      const stockRows = await db
+        .select({
+          productoId: existencias.productoId,
+          stockTotal: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+        })
+        .from(existencias)
+        .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+        .where(
+          and(
+            eq(existencias.empresaId, user.empresaId),
+            eq(almacenes.empresaId, user.empresaId),
+            eq(almacenes.activo, true),
+            sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+          ),
+        )
+        .groupBy(existencias.productoId);
+      const stockPorProducto = new Map(
+        stockRows.map((row) => [row.productoId, row.stockTotal]),
+      );
+      const productoIdsEnScope = sucursalIds
+        ? stockRows.map((row) => row.productoId)
+        : null;
 
-  const productosRows =
-    productoIdsEnScope && productoIdsEnScope.length === 0
-      ? []
-      : await db
-          .select({
-            productoId: productos.id,
-            nombre: productos.nombre,
-            sku: productos.sku,
-            stockMinimo: productos.stockMinimo,
-            costoPromedio: productos.costoPromedio,
-          })
-          .from(productos)
-          .where(
-            and(
-              eq(productos.empresaId, user.empresaId),
-              eq(productos.activo, true),
-              isNull(productos.eliminadoEn),
-              productoIdsEnScope ? inArray(productos.id, productoIdsEnScope) : undefined,
-            ),
-          );
-  const rows = productosRows.map((producto) => ({
-    ...producto,
-    stockTotal: stockPorProducto.get(producto.productoId) ?? "0",
-  }));
+      const productosRows =
+        productoIdsEnScope && productoIdsEnScope.length === 0
+          ? []
+          : await db
+              .select({
+                productoId: productos.id,
+                nombre: productos.nombre,
+                sku: productos.sku,
+                stockMinimo: productos.stockMinimo,
+                costoPromedio: productos.costoPromedio,
+              })
+              .from(productos)
+              .where(
+                and(
+                  eq(productos.empresaId, user.empresaId),
+                  eq(productos.activo, true),
+                  isNull(productos.eliminadoEn),
+                  productoIdsEnScope
+                    ? inArray(productos.id, productoIdsEnScope)
+                    : undefined,
+                ),
+              );
+      return productosRows.map((producto) => ({
+        ...producto,
+        stockTotal: stockPorProducto.get(producto.productoId) ?? "0",
+      }));
+    },
+  );
 
   const procesados = rows
     .map((r) => ({

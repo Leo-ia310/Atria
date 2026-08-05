@@ -10,6 +10,8 @@ import { Receipt, TrendingUp, ShoppingCart } from "lucide-react";
 import { formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { cacheModulo } from "@/lib/redis/cache";
+import { MODULOS, TTL } from "@/lib/redis/keys";
 
 export default async function ReporteVentasPage() {
   const user = await requireSession();
@@ -66,10 +68,20 @@ export default async function ReporteVentasPage() {
     .orderBy(sql`SUM(${ventaDetalle.subtotal}) DESC`)
     .limit(10);
 
-  const [ventasUlt30, topProductos] = await Promise.all([
-    ventasUlt30Promise,
-    topProductosPromise,
-  ]);
+  const scopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
+  const { ventasUlt30, topProductos } = await cacheModulo(
+    user.empresaId,
+    MODULOS.REPORTES,
+    `ventas:${scopeKey}`,
+    TTL.REPORTES,
+    async () => {
+      const [ventasUlt30, topProductos] = await Promise.all([
+        ventasUlt30Promise,
+        topProductosPromise,
+      ]);
+      return { ventasUlt30, topProductos };
+    },
+  );
   const dataDiaria = ventasUlt30.map((d) => ({
     label: new Date(d.fecha).toLocaleDateString("es", {
       day: "2-digit",

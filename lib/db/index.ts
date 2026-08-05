@@ -2,11 +2,18 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
+// La app en ejecución usa el Transaction Pooler de Supabase (Supavisor, 6543).
+// Orden de resolución (el primero definido gana), compatible con ambas
+// convenciones de nombres:
+//   - DATABASE_POOL_URL → pooler (nombre usado históricamente en este proyecto)
+//   - DATABASE_URL      → pooler (nombre canónico del Transaction Pooler)
+// La conexión directa (DIRECT_URL) queda reservada para migraciones y tareas
+// administrativas (ver drizzle.config.ts), nunca para el runtime serverless.
 const connectionString =
   process.env.DATABASE_POOL_URL ?? process.env.DATABASE_URL ?? "";
 
 if (!connectionString) {
-  throw new Error("DATABASE_URL no está configurada");
+  throw new Error("DATABASE_URL (o DATABASE_POOL_URL) no está configurada");
 }
 
 // Usamos el pooler de transacciones de Supabase (pgBouncer, puerto 6543), por eso
