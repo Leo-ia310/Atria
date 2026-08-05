@@ -1,4 +1,8 @@
-CREATE TYPE "public"."pago_suscripcion_estado" AS ENUM('creado', 'completado', 'fallido', 'reembolsado');--> statement-breakpoint
+DO $$ BEGIN
+ CREATE TYPE "public"."pago_suscripcion_estado" AS ENUM('creado', 'completado', 'fallido', 'reembolsado');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "pagos_suscripcion" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"empresa_id" uuid NOT NULL,

@@ -185,6 +185,13 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+/* Las opciones del popup nativo del <select> heredan color del control;
+   sin fondo propio quedan ilegibles. Se fija par contraste de la paleta. */
+.arca-input option {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
 /* Deja espacio a la derecha para el botón de mostrar/ocultar contraseña. */
 .arca-input-pw {
   padding-right: 2.4rem;
@@ -476,6 +483,13 @@ textarea:focus {
 
 .auth-dark .arca-input::placeholder {
   color: rgba(255, 255, 255, 0.34);
+}
+
+/* En el panel oscuro --color-surface es transparent, así que el popup
+   caería a blanco. Se fija un fondo sólido oscuro con texto claro. */
+.auth-dark .arca-input option {
+  background-color: #201533;
+  color: #f6f4fb;
 }
 
 .auth-dark .arca-input:focus {

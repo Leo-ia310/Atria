@@ -19,9 +19,9 @@ export function alertaPagoHtml(recibo: ReciboData): string {
     <tr><td align="center">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;border:1px solid #E2DFF0;">
         <tr>
-          <td style="background:linear-gradient(135deg,#16A34A 0%,#15803D 100%);padding:22px 28px;">
-            <span style="color:#FFFFFF;font-size:17px;font-weight:800;">💰 Nuevo pago recibido</span>
-            <div style="color:#DCFCE7;font-size:13px;margin-top:2px;">${monto} · ${recibo.planNombre} ${cicloTexto}</div>
+          <td style="background:linear-gradient(135deg,#2B1F3A 0%,#5C4B75 100%);padding:22px 28px;">
+            <span style="color:#FFFFFF;font-size:17px;font-weight:800;">Nuevo pago recibido</span>
+            <div style="color:#D4C8F0;font-size:13px;margin-top:2px;">${monto} · ${recibo.planNombre} ${cicloTexto}</div>
           </td>
         </tr>
         <tr>

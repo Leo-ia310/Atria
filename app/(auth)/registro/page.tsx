@@ -12,8 +12,16 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { cn, formatearMoneda } from "@/lib/utils";
+import { PayPalCheckout } from "@/components/pagos/PayPalCheckout";
 
 type Paso = 1 | 2 | 3;
+
+function validarPassword(pw: string): string | null {
+  if (pw.length < 8) return "Mínimo 8 caracteres";
+  if (!/[A-Z]/.test(pw)) return "Debe incluir una mayúscula";
+  if (!/[0-9]/.test(pw)) return "Debe incluir un número";
+  return null;
+}
 
 type EstadoEmpresa = {
   razonSocial: string;
@@ -65,6 +73,8 @@ export default function RegistroPage() {
   });
   const [plan, setPlan] = useState<EstadoPlan>({ planId: "demo", ciclo: "mensual" });
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [mostrarPago, setMostrarPago] = useState(false);
+  const [pagoError, setPagoError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -84,6 +94,12 @@ export default function RegistroPage() {
   }
 
   const paisConfig = getPaisConfig(empresa.pais);
+  const planElegido = PLANES_ARRAY.find((p) => p.id === plan.planId);
+  const precioPlanElegido = planElegido
+    ? plan.ciclo === "anual"
+      ? planElegido.precioAnual
+      : planElegido.precioMensual
+    : 0;
 
   async function enviar() {
     if (!aceptaTerminos) {
@@ -110,6 +126,15 @@ export default function RegistroPage() {
       setErrorGlobal("Cuenta creada, pero no pudimos iniciar sesión. Intenta desde /login.");
       return;
     }
+    // La cuenta arranca en Demo. Si eligió un plan pagado, cobramos ahora.
+    if (plan.planId !== "demo") {
+      setMostrarPago(true);
+      return;
+    }
+    irADashboard();
+  }
+
+  function irADashboard() {
     router.push("/dashboard?bienvenida=1");
     router.refresh();
   }
@@ -117,6 +142,7 @@ export default function RegistroPage() {
   return (
     <div className="w-full max-w-[540px]">
       <div className="arca-card p-8">
+        {!mostrarPago && (
         <ol className="mb-7 flex items-center gap-3">
           {PASOS.map((p, i) => {
             const completo = paso > p.num;
@@ -155,8 +181,9 @@ export default function RegistroPage() {
             );
           })}
         </ol>
+        )}
 
-        {paso === 1 && (
+        {!mostrarPago && paso === 1 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Cuéntanos de tu negocio
@@ -240,7 +267,7 @@ export default function RegistroPage() {
           </div>
         )}
 
-        {paso === 2 && (
+        {!mostrarPago && paso === 2 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Crea tu cuenta de administrador
@@ -271,6 +298,16 @@ export default function RegistroPage() {
                 placeholder="Mínimo 8 caracteres, una mayúscula y un número"
                 value={admin.password}
                 onChange={(e) => setAdmin((p) => ({ ...p, password: e.target.value }))}
+                error={
+                  admin.password.length > 0
+                    ? validarPassword(admin.password) ?? undefined
+                    : undefined
+                }
+                hint={
+                  admin.password.length === 0
+                    ? "Mínimo 8 caracteres, una mayúscula y un número"
+                    : undefined
+                }
               />
               <Input
                 label="Confirmar contraseña"
@@ -296,7 +333,7 @@ export default function RegistroPage() {
                 disabled={
                   !admin.nombre ||
                   !admin.email ||
-                  admin.password.length < 8 ||
+                  validarPassword(admin.password) !== null ||
                   admin.password !== admin.confirmarPassword
                 }
               >
@@ -306,7 +343,7 @@ export default function RegistroPage() {
           </div>
         )}
 
-        {paso === 3 && (
+        {!mostrarPago && paso === 3 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Elige tu plan
@@ -423,6 +460,62 @@ export default function RegistroPage() {
                 Crear cuenta
               </Button>
             </div>
+          </div>
+        )}
+
+        {mostrarPago && (
+          <div>
+            <h1 className="text-xl text-[color:var(--color-text-primary)]">
+              Activa tu plan {planElegido?.nombre}
+            </h1>
+            <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+              Tu cuenta ya está creada. Completa el pago para activar{" "}
+              {planElegido?.nombre} {plan.ciclo === "anual" ? "anual" : "mensual"}.
+            </p>
+
+            <div className="mt-5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-4">
+              <div className="flex items-center justify-between text-small">
+                <span className="text-[color:var(--color-text-secondary)]">
+                  Plan {planElegido?.nombre} ·{" "}
+                  {plan.ciclo === "anual" ? "Anual" : "Mensual"}
+                </span>
+                <span className="font-medium text-[color:var(--color-text-primary)]">
+                  ${precioPlanElegido.toFixed(2)}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
+                <span className="font-semibold text-[color:var(--color-text-primary)]">
+                  Total hoy
+                </span>
+                <span className="text-lg font-bold text-[color:var(--color-text-primary)]">
+                  ${precioPlanElegido.toFixed(2)}{" "}
+                  <span className="text-[11px] font-normal">USD</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <PayPalCheckout
+                planId={plan.planId}
+                ciclo={plan.ciclo}
+                onExito={() => irADashboard()}
+                onError={(m) => setPagoError(m)}
+              />
+            </div>
+
+            {pagoError && (
+              <div className="mt-3 rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
+                {pagoError}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={irADashboard}
+              className="mt-4 w-full text-center text-[12px] text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)]"
+            >
+              Pagar después y entrar con el plan Demo
+            </button>
           </div>
         )}
       </div>

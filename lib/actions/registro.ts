@@ -30,7 +30,6 @@ import { PLANES } from "@/lib/pricing";
 import {
   leerCodigoReferidoDesdeCookie,
   normalizarCodigoReferido,
-  notificarVentaReferida,
 } from "@/lib/referrals/atria-vendedores";
 import { rateLimit } from "@/lib/redis/rate-limit";
 
@@ -335,17 +334,26 @@ export async function registrarEmpresa(
         estado: "abierto",
       });
 
+      // El registro SIEMPRE arranca en Demo/trial. Los planes pagados se activan
+      // solo tras el pago con PayPal (post-registro), nunca gratis aquí.
       const inicio = new Date();
       const fin = new Date();
-      if (plan.ciclo === "anual") fin.setFullYear(fin.getFullYear() + 1);
-      else fin.setMonth(fin.getMonth() + 1);
-      if (plan.planId === "demo") fin.setDate(fin.getDate() + 14);
+      fin.setDate(fin.getDate() + 14);
+
+      const [planDemo] =
+        planSeleccionado.codigo === "demo"
+          ? [planSeleccionado]
+          : await tx
+              .select()
+              .from(planesTable)
+              .where(eq(planesTable.codigo, "demo"))
+              .limit(1);
 
       await tx.insert(suscripciones).values({
         empresaId: empresaCreada.id,
-        planId: planSeleccionado.id,
-        estado: plan.planId === "demo" ? "trial" : "activa",
-        ciclo: plan.ciclo,
+        planId: planDemo.id,
+        estado: "trial",
+        ciclo: "mensual",
         codigoReferido: codigoReferido || null,
         inicioPeriodo: inicio,
         finPeriodo: fin,
@@ -365,21 +373,6 @@ export async function registrarEmpresa(
 
       return { empresaId: empresaCreada.id, usuarioId: usuarioCreado.id };
     });
-
-    if (codigoReferido && plan.planId !== "demo") {
-      const planCfg = PLANES[plan.planId];
-      await notificarVentaReferida({
-        codigoReferido,
-        referenciaExterna: `registro:${resultado.empresaId}:${plan.planId}:${plan.ciclo}`,
-        cliente: admin.nombre,
-        clienteEmail: admin.email,
-        empresaCliente: empresa.nombreComercial || empresa.razonSocial,
-        plan: `${planCfg.nombre} ${plan.ciclo}`,
-        monto: plan.ciclo === "anual" ? planCfg.precioAnual : planCfg.precioMensual,
-        tipoVenta: "primera",
-        origen: "registro",
-      });
-    }
 
     return { ok: true, ...resultado };
   } catch (err) {

@@ -281,7 +281,7 @@ async function procesarCaptura(
   if (destino) {
     const envio = await enviarEmail({
       para: destino,
-      asunto: `Recibo ${recibo.numeroRecibo} — Plan ${plan.nombre} activado`,
+      asunto: `Factura ${recibo.numeroRecibo} — Plan ${plan.nombre} activado`,
       html: reciboPagoHtml(recibo),
       texto: reciboPagoTexto(recibo),
     });
@@ -297,7 +297,7 @@ async function procesarCaptura(
   if (alertaEmail) {
     await enviarEmail({
       para: alertaEmail,
-      asunto: `💰 Nuevo pago — ${plan.nombre} ${recibo.ciclo} (${empresaNombre})`,
+      asunto: `Nuevo pago — ${plan.nombre} ${recibo.ciclo} (${empresaNombre})`,
       html: alertaPagoHtml(recibo),
       texto: alertaPagoTexto(recibo),
     }).catch((error) => console.warn("[pagos] alerta de pago falló.", error));
