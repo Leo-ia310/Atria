@@ -32,7 +32,6 @@ import {
 } from "@/lib/pagos/recibo";
 import { enviarEmail } from "@/lib/email/resend";
 import { reciboPagoHtml, reciboPagoTexto } from "@/lib/email/templates/recibo-pago";
-import { alertaPagoHtml, alertaPagoTexto } from "@/lib/email/templates/alerta-pago";
 import { withLock } from "@/lib/redis/lock";
 
 const PLANES_PAGADOS = new Set<PlanId>(["pro", "enterprise"]);
@@ -49,6 +48,20 @@ type ResultadoCaptura =
 function precioPlan(planId: PlanId, ciclo: Ciclo): number {
   const plan = getPlan(planId);
   return ciclo === "anual" ? plan.precioAnual : plan.precioMensual;
+}
+
+function dedupeEmails(...emails: (string | null | undefined)[]): string[] {
+  const vistos = new Set<string>();
+  const salida: string[] = [];
+  for (const e of emails) {
+    const valor = (e || "").trim();
+    if (!valor.includes("@")) continue;
+    const clave = valor.toLowerCase();
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push(valor);
+  }
+  return salida;
 }
 
 export async function crearOrdenPlan(
@@ -277,30 +290,32 @@ async function procesarCaptura(
     vigenteHastaISO: fin.toISOString(),
   };
 
-  const destino = empresa?.email || usuario.email;
-  if (destino) {
+  // La factura va a: pagador (PayPal/tarjeta), admin del negocio (email de la
+  // empresa y del usuario) y el correo padre (valtrak / BILLING_ALERT_EMAIL).
+  // Se deduplica y se envía por separado a cada uno para no exponer las
+  // direcciones entre sí.
+  const destinatarios = dedupeEmails(
+    captura.pagadorEmail,
+    empresa?.email,
+    usuario.email,
+    process.env.BILLING_ALERT_EMAIL,
+  );
+
+  let enviadoAlguno = false;
+  for (const destino of destinatarios) {
     const envio = await enviarEmail({
       para: destino,
       asunto: `Factura ${recibo.numeroRecibo} — Plan ${plan.nombre} activado`,
       html: reciboPagoHtml(recibo),
       texto: reciboPagoTexto(recibo),
     });
-    if (envio.ok) {
-      await db
-        .update(pagosSuscripcion)
-        .set({ reciboEnviadoA: destino, reciboEnviadoEn: new Date() })
-        .where(eq(pagosSuscripcion.id, pago.id));
-    }
+    if (envio.ok) enviadoAlguno = true;
   }
-
-  const alertaEmail = process.env.BILLING_ALERT_EMAIL;
-  if (alertaEmail) {
-    await enviarEmail({
-      para: alertaEmail,
-      asunto: `Nuevo pago — ${plan.nombre} ${recibo.ciclo} (${empresaNombre})`,
-      html: alertaPagoHtml(recibo),
-      texto: alertaPagoTexto(recibo),
-    }).catch((error) => console.warn("[pagos] alerta de pago falló.", error));
+  if (enviadoAlguno) {
+    await db
+      .update(pagosSuscripcion)
+      .set({ reciboEnviadoA: destinatarios.join(", "), reciboEnviadoEn: new Date() })
+      .where(eq(pagosSuscripcion.id, pago.id));
   }
 
   if (codigoReferido) {
