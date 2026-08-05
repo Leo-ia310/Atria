@@ -222,6 +222,8 @@ export const empresas = pgTable(
     formatoFecha: text("formato_fecha").notNull().default("DD/MM/YYYY"),
     activa: boolean("activa").notNull().default(true),
     onboardingCompleto: boolean("onboarding_completo").notNull().default(false),
+    terminosVersion: text("terminos_version"),
+    terminosAceptadosEn: timestamp("terminos_aceptados_en", { withTimezone: true }),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
     actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
       .notNull()

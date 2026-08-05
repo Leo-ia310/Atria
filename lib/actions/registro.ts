@@ -24,6 +24,7 @@ import {
   configuraciones,
 } from "@/lib/db/schema";
 import { registroCompletoSchema } from "@/lib/validations/auth";
+import { VERSION_LEGAL } from "@/lib/legal";
 import { CATALOGO_CUENTAS_BASE, getPaisConfig, CUENTAS_CLAVE } from "@/lib/paises";
 import { PLANES } from "@/lib/pricing";
 import {
@@ -167,6 +168,8 @@ export async function registrarEmpresa(
           zonaHoraria: paisCfg.zonaHoraria,
           formatoFecha: paisCfg.formatoFecha,
           onboardingCompleto: false,
+          terminosVersion: VERSION_LEGAL,
+          terminosAceptadosEn: new Date(),
         })
         .returning();
 

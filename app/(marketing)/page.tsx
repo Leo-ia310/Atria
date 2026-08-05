@@ -1281,7 +1281,26 @@ export default function LandingPage() {
 
           <div className="h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent)]" />
 
-          <div className="flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
+          <nav
+            aria-label="Legal"
+            className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-6 text-[12px] text-white/45"
+          >
+            {[
+              ["Términos y Condiciones", "/legal/terminos"],
+              ["Privacidad", "/legal/privacidad"],
+              ["Cookies", "/legal/cookies"],
+              ["Tratamiento de Datos", "/legal/tratamiento-datos"],
+              ["Uso Aceptable", "/legal/uso-aceptable"],
+              ["Inteligencia Artificial", "/legal/inteligencia-artificial"],
+              ["Centro legal", "/legal"],
+            ].map(([label, href]) => (
+              <Link key={href} href={href} className="transition-colors hover:text-white">
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="mt-4 flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ARCA. Todos los derechos reservados.</span>
             <span className="max-w-xl sm:text-right">
               Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador

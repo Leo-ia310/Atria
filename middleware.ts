@@ -47,6 +47,7 @@ export default auth((req) => {
     pathname === "/" ||
     esMenuPublico ||
     pathname.startsWith("/precios") ||
+    pathname.startsWith("/legal") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/registro") ||
     pathname.startsWith("/recuperar") ||

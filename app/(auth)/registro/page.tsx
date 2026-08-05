@@ -64,6 +64,7 @@ export default function RegistroPage() {
     confirmarPassword: "",
   });
   const [plan, setPlan] = useState<EstadoPlan>({ planId: "demo", ciclo: "mensual" });
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -85,9 +86,15 @@ export default function RegistroPage() {
   const paisConfig = getPaisConfig(empresa.pais);
 
   async function enviar() {
+    if (!aceptaTerminos) {
+      setErrorGlobal(
+        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.",
+      );
+      return;
+    }
     setErrorGlobal(null);
     setEnviando(true);
-    const res = await registrarEmpresa({ empresa, admin, plan });
+    const res = await registrarEmpresa({ empresa, admin, plan, aceptaTerminos });
     if (!res.ok) {
       setErrorGlobal(res.error);
       setEnviando(false);
@@ -374,6 +381,34 @@ export default function RegistroPage() {
               })}
             </div>
 
+            <label className="mt-6 flex cursor-pointer items-start gap-2.5 text-small text-[color:var(--color-text-secondary)]">
+              <input
+                type="checkbox"
+                checked={aceptaTerminos}
+                onChange={(e) => setAceptaTerminos(e.target.checked)}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[color:var(--color-primary)]"
+              />
+              <span>
+                He leído y acepto los{" "}
+                <Link
+                  href="/legal/terminos"
+                  target="_blank"
+                  className="font-medium text-[color:var(--color-primary)] hover:underline"
+                >
+                  Términos y Condiciones
+                </Link>{" "}
+                y la{" "}
+                <Link
+                  href="/legal/privacidad"
+                  target="_blank"
+                  className="font-medium text-[color:var(--color-primary)] hover:underline"
+                >
+                  Política de Privacidad
+                </Link>
+                .
+              </span>
+            </label>
+
             {errorGlobal && (
               <div className="mt-4 rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
                 {errorGlobal}
@@ -384,7 +419,7 @@ export default function RegistroPage() {
               <Button variant="ghost" onClick={() => setPaso(2)} disabled={enviando}>
                 ← Atrás
               </Button>
-              <Button onClick={enviar} loading={enviando}>
+              <Button onClick={enviar} loading={enviando} disabled={!aceptaTerminos}>
                 Crear cuenta
               </Button>
             </div>

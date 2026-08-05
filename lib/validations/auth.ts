@@ -41,6 +41,12 @@ export const registroCompletoSchema = z.object({
   empresa: registroEmpresaSchema,
   admin: registroAdminSchema,
   plan: registroPlanSchema,
+  aceptaTerminos: z.literal(true, {
+    errorMap: () => ({
+      message:
+        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.",
+    }),
+  }),
 });
 
 export type RegistroEmpresaInput = z.infer<typeof registroEmpresaSchema>;

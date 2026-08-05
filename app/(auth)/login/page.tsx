@@ -98,6 +98,16 @@ function LoginForm() {
           Crea una empresa
         </Link>
       </p>
+
+      <p className="mt-3 text-center text-[12px] text-[color:var(--color-text-muted)]">
+        <Link href="/legal/terminos" className="hover:underline">
+          Términos
+        </Link>
+        {" · "}
+        <Link href="/legal/privacidad" className="hover:underline">
+          Privacidad
+        </Link>
+      </p>
     </div>
   );
 }
