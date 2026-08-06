@@ -684,12 +684,12 @@ export function Presentacion() {
                   Crear mi cuenta gratis
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                 </Link>
-                <a
-                  href="#video"
+                <Link
+                  href="/precios"
                   className="arca-btn arca-btn-lg border-white/18 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/16"
                 >
-                  <Play size={15} fill="currentColor" /> Ver el video
-                </a>
+                  Ver planes
+                </Link>
               </div>
 
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-white/65">
