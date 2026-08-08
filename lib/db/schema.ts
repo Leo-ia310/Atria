@@ -392,6 +392,21 @@ export const usuarios = pgTable(
   ],
 );
 
+export const codigosRecuperacion = pgTable(
+  "codigos_recuperacion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id, { onDelete: "cascade" }),
+    codigoHash: text("codigo_hash").notNull(),
+    expiraEn: timestamp("expira_en", { withTimezone: true }).notNull(),
+    usadoEn: timestamp("usado_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("codigos_recuperacion_usuario_idx").on(t.usuarioId)],
+);
+
 export const usuarioSucursales = pgTable(
   "usuario_sucursales",
   {
@@ -2409,6 +2424,8 @@ export type Empresa = typeof empresas.$inferSelect;
 export type NuevaEmpresa = typeof empresas.$inferInsert;
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
+export type CodigoRecuperacion = typeof codigosRecuperacion.$inferSelect;
+export type NuevoCodigoRecuperacion = typeof codigosRecuperacion.$inferInsert;
 export type Producto = typeof productos.$inferSelect;
 export type ProductoAdvertencia = typeof productoAdvertencias.$inferSelect;
 export type Venta = typeof ventas.$inferSelect;

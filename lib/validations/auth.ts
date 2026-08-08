@@ -7,6 +7,33 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const recuperarSolicitarSchema = z.object({
+  email: z.string().email("Correo no válido"),
+});
+
+export type RecuperarSolicitarInput = z.infer<typeof recuperarSolicitarSchema>;
+
+export const recuperarCanjearSchema = z
+  .object({
+    email: z.string().email("Correo no válido"),
+    codigo: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, "El código debe tener 6 dígitos"),
+    password: z
+      .string()
+      .min(8, "Mínimo 8 caracteres")
+      .regex(/[A-Z]/, "Debe incluir una mayúscula")
+      .regex(/[0-9]/, "Debe incluir un número"),
+    confirmarPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmarPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmarPassword"],
+  });
+
+export type RecuperarCanjearInput = z.infer<typeof recuperarCanjearSchema>;
+
 export const registroEmpresaSchema = z.object({
   razonSocial: z.string().min(2, "Mínimo 2 caracteres").max(200),
   nombreComercial: z.string().max(200).optional().or(z.literal("")),

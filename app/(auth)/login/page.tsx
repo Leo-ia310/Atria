@@ -16,6 +16,7 @@ function LoginForm() {
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const restablecida = params.get("restablecida") === "1";
 
   const {
     register,
@@ -56,6 +57,12 @@ function LoginForm() {
         <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
           Bienvenido de vuelta a ARCA.
         </p>
+
+        {restablecida && (
+          <div className="mt-4 rounded-md bg-[color:var(--color-success-bg)] px-3 py-2 text-small text-[color:var(--color-success)]">
+            Contraseña actualizada. Inicia sesión con tu nueva contraseña.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
           <Input

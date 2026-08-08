@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   empresas,
@@ -12,7 +12,7 @@ import {
 import { requireSession } from "@/lib/actions/session-helpers";
 import { asegurarPlanes } from "@/lib/actions/registro";
 import { validarAccion } from "@/lib/server-access";
-import { getPlan, type PlanId } from "@/lib/pricing";
+import { getPlan, precioPromocional, PROMO_LANZAMIENTO, type PlanId } from "@/lib/pricing";
 import {
   activarSuscripcion,
   notificarCambioReferido,
@@ -45,9 +45,40 @@ type ResultadoCaptura =
   | { ok: true; recibo: ReciboData }
   | { ok: false; error: string };
 
-function precioPlan(planId: PlanId, ciclo: Ciclo): number {
+/**
+ * Cuenta los meses ya pagados (completados, ciclo mensual, plan pago) de la
+ * empresa para saber si todavia cae dentro de la ventana de la promo de
+ * lanzamiento. La promo es por empresa, no por plan especifico: si cambia
+ * de Pro a Enterprise a medio camino, sigue contando los meses ya pagados.
+ */
+async function mesesPagadosPromo(empresaId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(pagosSuscripcion)
+    .where(
+      and(
+        eq(pagosSuscripcion.empresaId, empresaId),
+        eq(pagosSuscripcion.ciclo, "mensual"),
+        eq(pagosSuscripcion.estado, "completado"),
+        inArray(pagosSuscripcion.planCodigo, ["pro", "enterprise"]),
+      ),
+    );
+  return row?.n ?? 0;
+}
+
+async function precioAPagar(
+  empresaId: string,
+  planId: PlanId,
+  ciclo: Ciclo,
+): Promise<number> {
   const plan = getPlan(planId);
-  return ciclo === "anual" ? plan.precioAnual : plan.precioMensual;
+  if (ciclo === "anual") return plan.precioAnual;
+
+  const promo = precioPromocional(planId);
+  if (promo === null) return plan.precioMensual;
+
+  const mesesPagados = await mesesPagadosPromo(empresaId);
+  return mesesPagados < PROMO_LANZAMIENTO.meses ? promo : plan.precioMensual;
 }
 
 function dedupeEmails(...emails: (string | null | undefined)[]): string[] {
@@ -87,7 +118,7 @@ export async function crearOrdenPlan(
   });
   if (!limite.ok) return limite;
 
-  const monto = precioPlan(planId, ciclo);
+  const monto = await precioAPagar(user.empresaId, planId, ciclo);
   const montoStr = monto.toFixed(2);
 
   try {
@@ -324,6 +355,7 @@ async function procesarCaptura(
       codigoReferido,
       planId,
       ciclo: pago.ciclo,
+      monto: montoEsperado,
       cliente: usuario.nombre,
       clienteEmail: usuario.email,
       empresaCliente: empresaNombre,

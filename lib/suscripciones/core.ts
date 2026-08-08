@@ -228,6 +228,7 @@ export async function notificarCambioReferido(input: {
   codigoReferido: string;
   planId: PlanId;
   ciclo: Ciclo;
+  monto: number;
   cliente: string;
   clienteEmail: string;
   empresaCliente: string;
@@ -244,7 +245,7 @@ export async function notificarCambioReferido(input: {
     clienteEmail: input.clienteEmail,
     empresaCliente: input.empresaCliente,
     plan: `${plan.nombre} ${input.ciclo}`,
-    monto: input.ciclo === "anual" ? plan.precioAnual : plan.precioMensual,
+    monto: input.monto,
     tipoVenta: input.esPrimera ? "primera" : "renovacion",
     origen: "pago_paypal",
     fechaVenta: input.fecha,

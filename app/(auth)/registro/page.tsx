@@ -6,7 +6,13 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { registrarEmpresa } from "@/lib/actions/registro";
-import { DESCUENTO_ANUAL_PORCENTAJE, PLANES_ARRAY } from "@/lib/pricing";
+import {
+  DESCUENTO_ANUAL_PORCENTAJE,
+  PLANES_ARRAY,
+  PROMO_LANZAMIENTO,
+  descuentoPromoPorcentaje,
+  precioPromocional,
+} from "@/lib/pricing";
 import { PAISES_ARRAY, PAIS_DEFAULT, type PaisCodigo, getPaisConfig } from "@/lib/paises";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -95,10 +101,11 @@ export default function RegistroPage() {
 
   const paisConfig = getPaisConfig(empresa.pais);
   const planElegido = PLANES_ARRAY.find((p) => p.id === plan.planId);
+  // Toda cuenta nueva arranca sin pagos previos, así que si hay promo activa
+  // y el ciclo es mensual, siempre aplica en este flujo de registro.
+  const promoPlanElegido = plan.ciclo === "mensual" ? precioPromocional(plan.planId) : null;
   const precioPlanElegido = planElegido
-    ? plan.ciclo === "anual"
-      ? planElegido.precioAnual
-      : planElegido.precioMensual
+    ? promoPlanElegido ?? (plan.ciclo === "anual" ? planElegido.precioAnual : planElegido.precioMensual)
     : 0;
 
   async function enviar() {
@@ -375,7 +382,10 @@ export default function RegistroPage() {
             <div className="mt-5 space-y-3">
               {PLANES_ARRAY.map((p) => {
                 const seleccionado = plan.planId === p.id;
-                const precio = plan.ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
+                const precioNormal = plan.ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
+                const promo = plan.ciclo === "mensual" ? precioPromocional(p.id) : null;
+                const promoPorcentaje = promo !== null ? descuentoPromoPorcentaje(p.id) : null;
+                const precio = promo ?? precioNormal;
                 return (
                   <button
                     key={p.id}
@@ -394,6 +404,11 @@ export default function RegistroPage() {
                           <span className="text-base font-semibold text-[color:var(--color-text-primary)]">
                             {p.nombre}
                           </span>
+                          {promoPorcentaje !== null && (
+                            <span className="arca-badge arca-badge-success">
+                              -{promoPorcentaje}% x {PROMO_LANZAMIENTO.meses} meses
+                            </span>
+                          )}
                           {p.destacado && (
                             <span className="arca-badge arca-badge-info">Popular</span>
                           )}
@@ -403,6 +418,11 @@ export default function RegistroPage() {
                         </p>
                       </div>
                       <div className="text-right">
+                        {promo !== null && (
+                          <div className="text-[11px] text-[color:var(--color-text-muted)] line-through">
+                            {formatearMoneda(precioNormal, "NI").replace("C$", "$")}
+                          </div>
+                        )}
                         <div className="text-base font-semibold text-[color:var(--color-text-primary)]">
                           {precio === 0 ? "Gratis" : formatearMoneda(precio, "NI").replace("C$", "$")}
                         </div>
@@ -480,6 +500,11 @@ export default function RegistroPage() {
                   {plan.ciclo === "anual" ? "Anual" : "Mensual"}
                 </span>
                 <span className="font-medium text-[color:var(--color-text-primary)]">
+                  {promoPlanElegido !== null && (
+                    <span className="mr-1.5 text-[color:var(--color-text-muted)] line-through">
+                      ${planElegido?.precioMensual.toFixed(2)}
+                    </span>
+                  )}
                   ${precioPlanElegido.toFixed(2)}
                 </span>
               </div>
@@ -492,6 +517,12 @@ export default function RegistroPage() {
                   <span className="text-[11px] font-normal">USD</span>
                 </span>
               </div>
+              {promoPlanElegido !== null && (
+                <p className="mt-3 text-[12px] text-[color:var(--color-text-muted)]">
+                  Precio promocional por los primeros {PROMO_LANZAMIENTO.meses} meses. Luego $
+                  {planElegido?.precioMensual.toFixed(2)}/mes.
+                </p>
+              )}
             </div>
 
             <div className="mt-5">

@@ -8,6 +8,35 @@ export type PlanId = "demo" | "pro" | "enterprise";
 
 export const DESCUENTO_ANUAL_PORCENTAJE = 30;
 
+/**
+ * Promo de lanzamiento: precio especial mensual durante los primeros
+ * `meses` de suscripcion paga (Pro/Enterprise). Solo aplica a ciclo
+ * mensual — el anual ya es un compromiso prepago de 12 meses.
+ */
+export const PROMO_LANZAMIENTO = {
+  activa: true,
+  meses: 3,
+  precios: {
+    pro: 20,
+    enterprise: 99,
+  } as Record<"pro" | "enterprise", number>,
+} as const;
+
+export function precioPromocional(planId: PlanId): number | null {
+  if (!PROMO_LANZAMIENTO.activa) return null;
+  if (planId !== "pro" && planId !== "enterprise") return null;
+  return PROMO_LANZAMIENTO.precios[planId];
+}
+
+/** Porcentaje de descuento de la promo vs. el precio mensual normal, redondeado. */
+export function descuentoPromoPorcentaje(planId: PlanId): number | null {
+  const promo = precioPromocional(planId);
+  if (promo === null) return null;
+  const plan = getPlan(planId);
+  if (plan.precioMensual <= 0) return null;
+  return Math.round((1 - promo / plan.precioMensual) * 100);
+}
+
 export type PlanFeatures = {
   pos: boolean;
   inventario_basico: boolean;

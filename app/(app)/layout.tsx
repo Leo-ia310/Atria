@@ -9,6 +9,7 @@ import {
 import { getAccessContext } from "@/lib/server-access";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { DemoNoticeBanner } from "@/components/layout/DemoNoticeBanner";
 import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -109,6 +110,7 @@ export default async function AppLayout({
               commandItems={commandItems}
               sucursalScope={sucursalScope}
             />
+            {esDemo && <DemoNoticeBanner />}
             <main className="p-6">{children}</main>
           </div>
         </div>

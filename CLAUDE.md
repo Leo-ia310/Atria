@@ -132,10 +132,17 @@ arca/
 | Plan | Mensual | Anual mensualizado | Sucursales | Usuarios | Contabilidad |
 |---|---|---|---|---|---|
 | **Demo** | Gratis | — | 1 | 1 | ✗ |
-| **Pro** | $45.99 | $32.19 | 1 | 5 (+$5/extra) | ✓ |
-| **Enterprise** | $199.00 | $139.30 | 3 (+$30/extra) | 10 (+$5/extra) | ✓ multi-sucursal |
+| **Pro** | $39.00 | $27.30 | 1 | 7 (+$5/extra) | ✓ |
+| **Enterprise** | $149.00 | $104.30 | 5 (+$30/extra) | 20 (+$5/extra) | ✓ multi-sucursal |
 
 Limites Demo: 10 productos, 50 transacciones/mes, 10 clientes, 5 facturas/mes.
+
+**Promo de lanzamiento** (`PROMO_LANZAMIENTO` en `lib/pricing.ts`): los primeros 3 meses
+de ciclo mensual, Pro cuesta $20 (-49%) y Enterprise $99 (-34%); luego vuelve al precio
+normal. Solo aplica a mensual (el anual ya es prepago de 12 meses). El cobro real la
+respeta vía `precioAPagar()` en `lib/actions/pagos.ts`, que cuenta los meses ya pagados
+por la empresa (`pagosSuscripcion`, ciclo mensual, plan pago) para saber si sigue dentro
+de la ventana. Para apagar la promo, `PROMO_LANZAMIENTO.activa = false`.
 
 Las features están tipadas en `PlanFeatures` (`lib/pricing.ts`). Para gatear UI/lógica:
 ```ts
@@ -240,8 +247,9 @@ Tabla completa en `lib/actions/registro.ts`. Permisos verificados en middleware 
 npm install
 
 # 2. Variables de entorno
-cp .env.example .env.local
+cp .env.example .env
 # Editar DATABASE_URL (Supabase) y AUTH_SECRET (openssl rand -base64 32)
+# Un solo archivo .env (dev y build local). No usar .env.local/.env.production.local.
 
 # 3. Esquema en DB
 npm run db:push
