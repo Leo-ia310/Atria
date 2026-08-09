@@ -60,7 +60,7 @@ export function NotificacionesBell({
       </button>
 
       {abierto && (
-        <div className="absolute right-0 top-11 z-40 w-80 overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
+        <div className="absolute right-0 top-11 z-40 w-[min(88vw,20rem)] overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
           <div className="border-b border-[color:var(--color-border)] px-4 py-2.5 text-small font-semibold">
             Notificaciones
           </div>

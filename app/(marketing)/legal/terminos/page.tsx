@@ -373,8 +373,6 @@ export default function TerminosPage() {
       <p>
         {INFO_LEGAL.proveedor}
         <br />
-        Identificación fiscal: {INFO_LEGAL.idFiscal}
-        <br />
         {INFO_LEGAL.direccion}
         <br />
         Correo legal:{" "}

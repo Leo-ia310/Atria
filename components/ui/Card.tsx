@@ -23,8 +23,8 @@ export function CardHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-[color:var(--color-border)] px-5 py-4">
-      <div>
+    <div className="flex flex-col items-start justify-between gap-3 border-b border-[color:var(--color-border)] px-4 py-4 sm:flex-row sm:gap-4 sm:px-5">
+      <div className="min-w-0">
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">
           {title}
         </h3>
@@ -34,7 +34,11 @@ export function CardHeader({
           </p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -46,12 +50,12 @@ export function CardBody({
   className?: string;
   children: ReactNode;
 }) {
-  return <div className={cn("p-5", className)}>{children}</div>;
+  return <div className={cn("p-4 sm:p-5", className)}>{children}</div>;
 }
 
 export function CardFooter({ children }: { children: ReactNode }) {
   return (
-    <div className="border-t border-[color:var(--color-border)] px-5 py-3 text-small text-[color:var(--color-text-muted)]">
+    <div className="border-t border-[color:var(--color-border)] px-4 py-3 text-small text-[color:var(--color-text-muted)] sm:px-5">
       {children}
     </div>
   );

@@ -61,6 +61,39 @@
  * Base
  * ============================================ */
 
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-secondary: #c4b5fd;
+  --color-secondary-hover: #d8b4fe;
+  --color-tertiary: #a78bfa;
+  --color-tertiary-light: #ddd6fe;
+  --color-neutral: #0f0a18;
+  --color-surface: #171023;
+  --color-surface-2: #211732;
+  --color-dark-bg: #0b0711;
+  --color-dark-surface: #171023;
+  --color-border: #30263f;
+  --color-border-strong: #4b3d61;
+  --color-text-primary: #f8f7fb;
+  --color-text-secondary: #d7cde8;
+  --color-text-muted: #9f93b5;
+  --color-text-on-dark: #f8f7fb;
+  --color-text-on-primary: #ffffff;
+  --color-success: #4ade80;
+  --color-success-bg: rgba(34, 197, 94, 0.14);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-error: #f87171;
+  --color-error-bg: rgba(248, 113, 113, 0.14);
+  --color-info: #60a5fa;
+  --color-info-bg: rgba(96, 165, 250, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.28);
+  --shadow-md: 0 8px 20px rgba(0,0,0,0.34);
+  --shadow-lg: 0 18px 38px rgba(0,0,0,0.42);
+}
+
 * {
   border-color: var(--color-border);
 }
@@ -74,6 +107,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 ::selection {
@@ -190,6 +224,14 @@ textarea:focus {
 .arca-input option {
   background-color: var(--color-surface);
   color: var(--color-text-primary);
+}
+
+.arca-input:-webkit-autofill,
+.arca-input:-webkit-autofill:hover,
+.arca-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text-primary);
+  box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  transition: background-color 9999s ease-out;
 }
 
 /* Deja espacio a la derecha para el botón de mostrar/ocultar contraseña. */
@@ -539,6 +581,12 @@ textarea:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-secondary);
+}
+
+@media (max-width: 640px) {
+  .arca-btn {
+    min-height: 36px;
+  }
 }
 
 /* Impresión: aislar únicamente el recibo/factura */

@@ -19,13 +19,9 @@ export const FECHA_VIGENCIA_LARGA = "4 de agosto de 2026";
  */
 export const INFO_LEGAL = {
   marca: "ARCA",
-  // ARCA lo opera una persona natural (no hay sociedad constituida).
-  proveedor:
-    "Maikel Leandro Martínez Flores, persona natural que opera bajo el nombre comercial «ARCA»",
-  idFiscal: "Cédula de identidad No. 401-230707-1002V",
+  proveedor: "El proveedor",
   paisSede: "Nicaragua",
   direccion: "Masaya, Nicaragua",
-  // Correo único de contacto (persona natural, sin dominio propio aún).
   sitio: "[DOMINIO — opcional, cuando exista sitio propio]",
   dominio: "arcaoficontac@gmail.com",
   correoLegal: "arcaoficontac@gmail.com",

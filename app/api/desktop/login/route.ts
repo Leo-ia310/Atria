@@ -34,8 +34,30 @@ function obtenerIp(request: Request): string {
   return fwd.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim() || "desconocida";
 }
 
-function firmarGrant(secret: string, payload: Record<string, unknown>): string {
-  return createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
+/**
+ * Firma canónica del grant (mismo formato en /api/desktop/login y /api/sync).
+ * Orden explícito por campo para no depender del orden de claves de JSON.
+ */
+export function firmarGrantCanonico(
+  secret: string,
+  g: {
+    userId: string;
+    empresaId: string;
+    sucursalIds: string[];
+    deviceId: string;
+    issuedAt: string;
+    expiresAt: string;
+  },
+): string {
+  const canonico = [
+    g.userId,
+    g.empresaId,
+    g.sucursalIds.join(","),
+    g.deviceId,
+    g.issuedAt,
+    g.expiresAt,
+  ].join("\n");
+  return createHmac("sha256", secret).update(canonico).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -133,15 +155,14 @@ export async function POST(request: Request) {
   const rolNombre = rolFilas[0]?.nombre ?? null;
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + GRANT_TTL_MS).toISOString();
-  const grantPayload = {
+  const signature = firmarGrantCanonico(secret, {
     userId: user.id,
     empresaId: user.empresaId,
     sucursalIds: listaSucursales.map((s) => s.id),
     deviceId,
     issuedAt,
     expiresAt,
-  };
-  const signature = firmarGrant(secret, grantPayload);
+  });
 
   return Response.json({
     ok: true,

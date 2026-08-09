@@ -10,6 +10,19 @@ const inter = Inter({
   display: "swap",
 });
 
+const themeScript = `
+(() => {
+  try {
+    const stored = localStorage.getItem("arca:theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = stored === "light" || stored === "dark" ? stored : prefersDark ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
+  } catch {
+    document.documentElement.dataset.theme = "light";
+  }
+})();
+`;
+
 export const metadata: Metadata = {
   title: {
     default: "ARCA — Sistema operativo para el comercio",
@@ -32,8 +45,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={inter.variable}>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ReferralTracker />
         {children}
         <Analytics />

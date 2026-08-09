@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ mostrar }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      <div className="fixed inset-x-3 bottom-3 z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4">
         {toasts.map((t) => (
           <ToastItem
             key={t.id}
@@ -63,7 +63,7 @@ function ToastItem({
   return (
     <div
       className={cn(
-        "flex w-80 items-start gap-3 rounded-md border bg-[color:var(--color-surface)] p-3 shadow-lg",
+        "flex w-full items-start gap-3 rounded-md border bg-[color:var(--color-surface)] p-3 shadow-lg sm:w-80",
         tipo === "success" && "border-[color:var(--color-success)]/30",
         tipo === "error" && "border-[color:var(--color-error)]/30",
         tipo === "warning" && "border-[color:var(--color-warning)]/30",
