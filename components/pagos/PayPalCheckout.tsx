@@ -90,7 +90,7 @@ export function PayPalCheckout({
           style: { layout: "vertical", color: "gold", shape: "pill", label: "pay", height: 46 },
           createOrder: async () => {
             setMensaje(null);
-            const res = await crearOrdenPlan(planId, ciclo);
+            const res = await crearOrdenPlan(planId, ciclo, readReferralCode());
             if (!res.ok) {
               setMensaje(res.error);
               throw new Error(res.error);
@@ -100,7 +100,7 @@ export function PayPalCheckout({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onApprove: async (data: any) => {
             setEstado("procesando");
-            const res = await capturarOrdenPlan(data.orderID);
+            const res = await capturarOrdenPlan(data.orderID, readReferralCode());
             if (!res.ok) {
               setEstado("listo");
               setMensaje(res.error);
@@ -177,4 +177,13 @@ export function PayPalCheckout({
       )}
     </div>
   );
+}
+
+function readReferralCode() {
+  if (typeof window === "undefined") return "";
+  return String(window.localStorage.getItem("atria_referral_code") || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, "")
+    .slice(0, 80);
 }

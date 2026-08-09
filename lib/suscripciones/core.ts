@@ -6,6 +6,8 @@ import {
   clientes,
   empresas,
   facturas,
+  referidosAtribuciones,
+  referidosPagos,
   productos,
   sucursales,
   suscripciones,
@@ -21,6 +23,7 @@ import {
 } from "@/lib/referrals/atria-vendedores";
 
 export type Ciclo = "mensual" | "anual";
+export type TipoComisionReferido = "primera" | "renovacion";
 
 export function finPeriodo(inicio: Date, planId: PlanId, ciclo: Ciclo): Date {
   const fin = new Date(inicio);
@@ -210,20 +213,133 @@ function limite(
   return usado <= permitido ? null : `tienes ${usado} ${label} y el limite es ${permitido}`;
 }
 
-export async function resolverCodigoReferido(empresaId: string): Promise<string | null> {
+export async function resolverCodigoReferido(
+  empresaId: string,
+  codigoReferidoCliente?: string | null,
+): Promise<string | null> {
+  const [atribucion] = await db
+    .select({ codigoReferido: referidosAtribuciones.codigoReferido })
+    .from(referidosAtribuciones)
+    .where(eq(referidosAtribuciones.empresaId, empresaId))
+    .limit(1);
+
+  const permanente = normalizarCodigoReferido(atribucion?.codigoReferido);
+  if (permanente) return permanente;
+
   const [empresa] = await db
     .select({ codigoReferido: empresas.codigoReferido })
     .from(empresas)
     .where(eq(empresas.id, empresaId))
     .limit(1);
-  return (
-    normalizarCodigoReferido(empresa?.codigoReferido) ||
-    normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie()) ||
-    null
-  );
+
+  const existente = normalizarCodigoReferido(empresa?.codigoReferido);
+  const capturado =
+    normalizarCodigoReferido(codigoReferidoCliente) ||
+    normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
+
+  if (!capturado) return existente || null;
+
+  if (capturado !== existente) {
+    await db
+      .update(empresas)
+      .set({ codigoReferido: capturado, referidoCapturadoEn: new Date() })
+      .where(eq(empresas.id, empresaId));
+  }
+
+  return capturado;
+}
+
+export function referenciaExternaPagoReferido(input: {
+  empresaId: string;
+  planId: PlanId;
+  ciclo: Ciclo;
+  fecha: Date;
+  pagoSuscripcionId: string;
+}): string {
+  return `plan:${input.empresaId}:${input.planId}:${input.ciclo}:${input.fecha
+    .toISOString()
+    .slice(0, 10)}:pago:${input.pagoSuscripcionId}`;
+}
+
+export async function registrarPagoReferido(
+  tx: TX,
+  params: {
+    empresaId: string;
+    pagoSuscripcionId: string;
+    codigoReferido: string;
+    planId: PlanId;
+    ciclo: Ciclo;
+    monto: number;
+    tipoComision: TipoComisionReferido;
+    fecha: Date;
+    origen: string;
+  },
+): Promise<{ referenciaExterna: string; tipoComision: TipoComisionReferido }> {
+  const codigoReferido = normalizarCodigoReferido(params.codigoReferido);
+  const referenciaExterna = referenciaExternaPagoReferido({
+    empresaId: params.empresaId,
+    planId: params.planId,
+    ciclo: params.ciclo,
+    fecha: params.fecha,
+    pagoSuscripcionId: params.pagoSuscripcionId,
+  });
+
+  await tx
+    .insert(referidosAtribuciones)
+    .values({
+      empresaId: params.empresaId,
+      codigoReferido,
+      primerPagoId: params.pagoSuscripcionId,
+      origen: params.origen,
+      metadata: { lockedBy: "first_referred_payment" },
+      fijadoEn: params.fecha,
+      actualizadoEn: params.fecha,
+    })
+    .onConflictDoNothing({ target: referidosAtribuciones.empresaId });
+
+  await tx
+    .update(empresas)
+    .set({
+      codigoReferido,
+      referidoCapturadoEn: params.fecha,
+    })
+    .where(eq(empresas.id, params.empresaId));
+
+  await tx
+    .insert(referidosPagos)
+    .values({
+      empresaId: params.empresaId,
+      pagoSuscripcionId: params.pagoSuscripcionId,
+      codigoReferido,
+      planCodigo: params.planId,
+      ciclo: params.ciclo,
+      monto: params.monto.toFixed(4),
+      tipoComision: params.tipoComision,
+      referenciaExterna,
+      estadoNotificacion: "pendiente",
+      creadoEn: params.fecha,
+      actualizadoEn: params.fecha,
+    })
+    .onConflictDoUpdate({
+      target: referidosPagos.pagoSuscripcionId,
+      set: {
+        codigoReferido,
+        planCodigo: params.planId,
+        ciclo: params.ciclo,
+        monto: params.monto.toFixed(4),
+        tipoComision: params.tipoComision,
+        referenciaExterna,
+        estadoNotificacion: "pendiente",
+        errorNotificacion: null,
+        actualizadoEn: params.fecha,
+      },
+    });
+
+  return { referenciaExterna, tipoComision: params.tipoComision };
 }
 
 export async function notificarCambioReferido(input: {
+  pagoSuscripcionId: string;
   empresaId: string;
   codigoReferido: string;
   planId: PlanId;
@@ -231,23 +347,52 @@ export async function notificarCambioReferido(input: {
   monto: number;
   cliente: string;
   clienteEmail: string;
+  clienteTelefono?: string | null;
   empresaCliente: string;
-  esPrimera: boolean;
+  empresaTelefono?: string | null;
+  empresaPais?: string | null;
+  tipoEmpresa?: string | null;
+  tipoComision: TipoComisionReferido;
+  referenciaExterna: string;
   fecha: Date;
 }): Promise<void> {
   const plan = getPlan(input.planId);
-  await notificarVentaReferida({
+  const resultado = await notificarVentaReferida({
     codigoReferido: input.codigoReferido,
-    referenciaExterna: `plan:${input.empresaId}:${input.planId}:${input.ciclo}:${input.fecha
-      .toISOString()
-      .slice(0, 10)}`,
+    referenciaExterna: input.referenciaExterna,
     cliente: input.cliente,
     clienteEmail: input.clienteEmail,
+    clienteTelefono: input.clienteTelefono,
     empresaCliente: input.empresaCliente,
+    empresaTelefono: input.empresaTelefono,
+    empresaPais: input.empresaPais,
+    tipoEmpresa: input.tipoEmpresa,
     plan: `${plan.nombre} ${input.ciclo}`,
     monto: input.monto,
-    tipoVenta: input.esPrimera ? "primera" : "renovacion",
+    tipoVenta: input.tipoComision,
     origen: "pago_paypal",
     fechaVenta: input.fecha,
   });
+
+  if (resultado.ok) {
+    await db
+      .update(referidosPagos)
+      .set({
+        estadoNotificacion: "enviado",
+        notificadoEn: new Date(),
+        errorNotificacion: null,
+        actualizadoEn: new Date(),
+      })
+      .where(eq(referidosPagos.pagoSuscripcionId, input.pagoSuscripcionId));
+    return;
+  }
+
+  await db
+    .update(referidosPagos)
+    .set({
+      estadoNotificacion: "fallido",
+      errorNotificacion: [resultado.code, resultado.error].filter(Boolean).join(": ").slice(0, 1000),
+      actualizadoEn: new Date(),
+    })
+    .where(eq(referidosPagos.pagoSuscripcionId, input.pagoSuscripcionId));
 }

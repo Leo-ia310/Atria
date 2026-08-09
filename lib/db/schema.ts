@@ -301,6 +301,62 @@ export const pagosSuscripcion = pgTable(
   ],
 );
 
+export const referidosAtribuciones = pgTable(
+  "referidos_atribuciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    codigoReferido: text("codigo_referido").notNull(),
+    primerPagoId: uuid("primer_pago_id").references(() => pagosSuscripcion.id),
+    origen: text("origen").notNull().default("pago_paypal"),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    fijadoEn: timestamp("fijado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("referidos_atribuciones_empresa_uq").on(t.empresaId),
+    index("referidos_atribuciones_codigo_idx").on(t.codigoReferido),
+  ],
+);
+
+export const referidosPagos = pgTable(
+  "referidos_pagos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    pagoSuscripcionId: uuid("pago_suscripcion_id")
+      .notNull()
+      .references(() => pagosSuscripcion.id, { onDelete: "cascade" }),
+    codigoReferido: text("codigo_referido").notNull(),
+    planCodigo: planTipoEnum("plan_codigo").notNull(),
+    ciclo: cicloFacturacionEnum("ciclo").notNull(),
+    monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    tipoComision: text("tipo_comision").notNull(),
+    referenciaExterna: text("referencia_externa").notNull(),
+    estadoNotificacion: text("estado_notificacion").notNull().default("pendiente"),
+    notificadoEn: timestamp("notificado_en", { withTimezone: true }),
+    errorNotificacion: text("error_notificacion"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("referidos_pagos_pago_uq").on(t.pagoSuscripcionId),
+    unique("referidos_pagos_referencia_uq").on(t.referenciaExterna),
+    index("referidos_pagos_empresa_idx").on(t.empresaId),
+    index("referidos_pagos_codigo_idx").on(t.codigoReferido),
+    index("referidos_pagos_plan_idx").on(t.empresaId, t.planCodigo),
+    index("referidos_pagos_estado_notificacion_idx").on(t.estadoNotificacion),
+  ],
+);
+
 export const sucursales = pgTable(
   "sucursales",
   {
@@ -2441,6 +2497,8 @@ export type CuentaContable = typeof catalogoCuentas.$inferSelect;
 export type Plan = typeof planes.$inferSelect;
 export type Suscripcion = typeof suscripciones.$inferSelect;
 export type PagoSuscripcion = typeof pagosSuscripcion.$inferSelect;
+export type ReferidoAtribucion = typeof referidosAtribuciones.$inferSelect;
+export type ReferidoPago = typeof referidosPagos.$inferSelect;
 export type Sucursal = typeof sucursales.$inferSelect;
 export type Cliente = typeof clientes.$inferSelect;
 export type Proveedor = typeof proveedores.$inferSelect;

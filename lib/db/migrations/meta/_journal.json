@@ -85,6 +85,13 @@
       "when": 1786165956609,
       "tag": "0011_codigos_recuperacion",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786204800000,
+      "tag": "0012_referral_commission_tracking",
+      "breakpoints": true
     }
   ]
 }

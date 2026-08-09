@@ -16,9 +16,11 @@ import { getPlan, precioPromocional, PROMO_LANZAMIENTO, type PlanId } from "@/li
 import {
   activarSuscripcion,
   notificarCambioReferido,
+  registrarPagoReferido,
   resolverCodigoReferido,
   validarUsoActual,
   type Ciclo,
+  type TipoComisionReferido,
 } from "@/lib/suscripciones/core";
 import {
   capturarOrden,
@@ -98,6 +100,7 @@ function dedupeEmails(...emails: (string | null | undefined)[]): string[] {
 export async function crearOrdenPlan(
   planId: PlanId,
   ciclo: Ciclo = "mensual",
+  codigoReferidoCliente?: string | null,
 ): Promise<ResultadoOrden> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
@@ -123,6 +126,7 @@ export async function crearOrdenPlan(
 
   try {
     await asegurarPlanes();
+    await resolverCodigoReferido(user.empresaId, codigoReferidoCliente);
 
     const orden = await crearOrden({
       monto: montoStr,
@@ -155,7 +159,10 @@ export async function crearOrdenPlan(
   }
 }
 
-export async function capturarOrdenPlan(orderId: string): Promise<ResultadoCaptura> {
+export async function capturarOrdenPlan(
+  orderId: string,
+  codigoReferidoCliente?: string | null,
+): Promise<ResultadoCaptura> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -186,10 +193,16 @@ export async function capturarOrdenPlan(orderId: string): Promise<ResultadoCaptu
 
   const resultado = await withLock(
     `pago:capture:${ordenLimpia}`,
-    () => procesarCaptura(ordenLimpia, user.empresaId, {
-      nombre: user.nombre,
-      email: user.email,
-    }),
+    () =>
+      procesarCaptura(
+        ordenLimpia,
+        user.empresaId,
+        {
+          nombre: user.nombre,
+          email: user.email,
+        },
+        codigoReferidoCliente,
+      ),
     120,
   );
 
@@ -203,6 +216,7 @@ async function procesarCaptura(
   ordenId: string,
   empresaId: string,
   usuario: { nombre: string; email: string },
+  codigoReferidoCliente?: string | null,
 ): Promise<ResultadoCaptura> {
   const [pago] = await db
     .select()
@@ -231,6 +245,9 @@ async function procesarCaptura(
       razonSocial: empresas.razonSocial,
       nombreComercial: empresas.nombreComercial,
       email: empresas.email,
+      telefono: empresas.telefono,
+      pais: empresas.pais,
+      tipoEmpresa: empresas.tipoEmpresa,
       codigoReferido: empresas.codigoReferido,
     })
     .from(empresas)
@@ -275,10 +292,14 @@ async function procesarCaptura(
 
   const empresaNombre = empresa?.nombreComercial || empresa?.razonSocial || "Tu empresa";
   const ahora = new Date();
-  const codigoReferido = await resolverCodigoReferido(empresaId);
-  const esPrimera = await esPrimerPagoCompletado(empresaId);
+  const codigoReferido = await resolverCodigoReferido(empresaId, codigoReferidoCliente);
+  const tipoComision: TipoComisionReferido | null = codigoReferido
+    ? (await esPrimerPagoCompletadoDePlan(empresaId, planId))
+      ? "primera"
+      : "renovacion"
+    : null;
 
-  const { fin } = await db.transaction(async (tx) => {
+  const { fin, referido } = await db.transaction(async (tx) => {
     const activada = await activarSuscripcion(tx, {
       empresaId,
       planRowId: planRow.id,
@@ -303,7 +324,22 @@ async function procesarCaptura(
       })
       .where(eq(pagosSuscripcion.id, pago.id));
 
-    return activada;
+    const referido =
+      codigoReferido && tipoComision
+        ? await registrarPagoReferido(tx, {
+            empresaId,
+            pagoSuscripcionId: pago.id,
+            codigoReferido,
+            planId,
+            ciclo: pago.ciclo,
+            monto: montoEsperado,
+            tipoComision,
+            fecha: ahora,
+            origen: "pago_paypal",
+          })
+        : null;
+
+    return { ...activada, referido };
   });
 
   const recibo: ReciboData = {
@@ -349,8 +385,9 @@ async function procesarCaptura(
       .where(eq(pagosSuscripcion.id, pago.id));
   }
 
-  if (codigoReferido) {
+  if (codigoReferido && referido) {
     await notificarCambioReferido({
+      pagoSuscripcionId: pago.id,
       empresaId,
       codigoReferido,
       planId,
@@ -358,8 +395,13 @@ async function procesarCaptura(
       monto: montoEsperado,
       cliente: usuario.nombre,
       clienteEmail: usuario.email,
+      clienteTelefono: empresa?.telefono,
       empresaCliente: empresaNombre,
-      esPrimera,
+      empresaTelefono: empresa?.telefono,
+      empresaPais: empresa?.pais,
+      tipoEmpresa: empresa?.tipoEmpresa,
+      tipoComision: referido.tipoComision,
+      referenciaExterna: referido.referenciaExterna,
       fecha: ahora,
     }).catch((error) => console.warn("[pagos] notificación de referido falló.", error));
   }
@@ -378,13 +420,17 @@ async function marcarFallido(pagoId: string): Promise<void> {
     .where(eq(pagosSuscripcion.id, pagoId));
 }
 
-async function esPrimerPagoCompletado(empresaId: string): Promise<boolean> {
+async function esPrimerPagoCompletadoDePlan(
+  empresaId: string,
+  planId: PlanId,
+): Promise<boolean> {
   const [previo] = await db
     .select({ id: pagosSuscripcion.id })
     .from(pagosSuscripcion)
     .where(
       and(
         eq(pagosSuscripcion.empresaId, empresaId),
+        eq(pagosSuscripcion.planCodigo, planId),
         eq(pagosSuscripcion.estado, "completado"),
       ),
     )
