@@ -130,6 +130,8 @@ try {
       continue;
     }
 
+    await asegurarRegistroReferido(row, payload);
+
     const response = await fetch(backendUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -183,6 +185,73 @@ async function marcarPagoReferido(pagoId, estado, error) {
       error_notificacion = ${error},
       actualizado_en = now()
     where pago_suscripcion_id = ${pagoId}
+  `;
+}
+
+async function asegurarRegistroReferido(row, payload) {
+  const fecha = toDate(row.completado_en || row.creado_en);
+  const metadata = { source: "scripts/backfill-referrals.mjs" };
+
+  await sql`
+    insert into referidos_atribuciones (
+      empresa_id,
+      codigo_referido,
+      primer_pago_id,
+      origen,
+      metadata,
+      fijado_en,
+      actualizado_en
+    )
+    values (
+      ${row.empresa_id},
+      ${payload.codigoReferido},
+      ${row.pago_id},
+      'backfill_script',
+      ${sql.json(metadata)},
+      ${fecha},
+      now()
+    )
+    on conflict (empresa_id) do nothing
+  `;
+
+  await sql`
+    insert into referidos_pagos (
+      empresa_id,
+      pago_suscripcion_id,
+      codigo_referido,
+      plan_codigo,
+      ciclo,
+      monto,
+      tipo_comision,
+      referencia_externa,
+      estado_notificacion,
+      creado_en,
+      actualizado_en
+    )
+    values (
+      ${row.empresa_id},
+      ${row.pago_id},
+      ${payload.codigoReferido},
+      ${row.plan_codigo},
+      ${row.ciclo},
+      ${Number(row.monto || 0).toFixed(4)},
+      ${payload.tipoVenta},
+      ${payload.referenciaExterna},
+      'pendiente',
+      ${fecha},
+      now()
+    )
+    on conflict (pago_suscripcion_id) do update
+    set
+      codigo_referido = excluded.codigo_referido,
+      plan_codigo = excluded.plan_codigo,
+      ciclo = excluded.ciclo,
+      monto = excluded.monto,
+      tipo_comision = excluded.tipo_comision,
+      referencia_externa = excluded.referencia_externa,
+      estado_notificacion = 'pendiente',
+      error_notificacion = null,
+      actualizado_en = now()
   `;
 }
 
