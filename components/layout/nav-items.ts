@@ -8,6 +8,7 @@ import {
   Coins,
   FileText,
   HandCoins,
+  CheckCircle2,
   Inbox,
   LayoutDashboard,
   Package,
@@ -30,6 +31,8 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   modulo: ModuloAcceso;
+  subitem?: boolean;
+  exact?: boolean;
 };
 
 export type NavGroup = {
@@ -68,7 +71,21 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     titulo: "Finanzas",
     items: [
-      { href: "/facturas", label: "Facturas", icon: FileText, modulo: "facturas" },
+      { href: "/facturas", label: "Facturas", icon: FileText, modulo: "facturas", exact: true },
+      {
+        href: "/facturas/cobradas",
+        label: "Cobradas",
+        icon: CheckCircle2,
+        modulo: "facturas",
+        subitem: true,
+      },
+      {
+        href: "/facturas/credito",
+        label: "Al credito",
+        icon: HandCoins,
+        modulo: "facturas",
+        subitem: true,
+      },
       { href: "/cxc", label: "Cobros (CxC)", icon: HandCoins, modulo: "cxc" },
       { href: "/cxp", label: "Pagos (CxP)", icon: Banknote, modulo: "cxp" },
       { href: "/contabilidad", label: "Contabilidad", icon: BookOpen, modulo: "contabilidad" },
@@ -108,6 +125,8 @@ export const COMMAND_ITEMS: CommandItem[] = [
   { label: "Clientes", href: "/clientes", grupo: "Operativo", modulo: "clientes" },
   { label: "Compras", href: "/compras", grupo: "Operativo", modulo: "compras", keywords: "proveedores" },
   { label: "Facturas", href: "/facturas", grupo: "Finanzas", modulo: "facturas", keywords: "documentos recibos" },
+  { label: "Facturas cobradas", href: "/facturas/cobradas", grupo: "Finanzas", modulo: "facturas", keywords: "contado caja banco pagadas" },
+  { label: "Facturas al credito", href: "/facturas/credito", grupo: "Finanzas", modulo: "facturas", keywords: "credito cuentas por cobrar clientes" },
   { label: "Cobros (CxC)", href: "/cxc", grupo: "Finanzas", modulo: "cxc", keywords: "cuentas por cobrar" },
   { label: "Pagos (CxP)", href: "/cxp", grupo: "Finanzas", modulo: "cxp", keywords: "cuentas por pagar" },
   { label: "Contabilidad", href: "/contabilidad", grupo: "Finanzas", modulo: "contabilidad", keywords: "asientos libro diario mayor balance" },

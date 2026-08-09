@@ -162,8 +162,10 @@ export function Sidebar({
                 </div>
               )}
               <div className="space-y-0.5">
-                {g.items.map(({ href, label, icon: Icon }) => {
-                  const activo = pathname === href || pathname.startsWith(href + "/");
+                {g.items.map(({ href, label, icon: Icon, subitem, exact }) => {
+                  const activo = exact
+                    ? pathname === href
+                    : pathname === href || pathname.startsWith(href + "/");
                   return (
                     <Link
                       key={href}
@@ -171,13 +173,17 @@ export function Sidebar({
                       title={colapsadoVisual ? label : undefined}
                       className={cn(
                         "flex items-center rounded-md py-2 text-[13px] transition-colors",
-                        colapsadoVisual ? "justify-center px-0" : "gap-2.5 px-2.5",
+                        colapsadoVisual
+                          ? "justify-center px-0"
+                          : subitem
+                            ? "gap-2.5 px-2.5 pl-8 text-[12px]"
+                            : "gap-2.5 px-2.5",
                         activo
                           ? "bg-[color:var(--color-tertiary)]/20 text-white font-medium"
                           : "text-white/70 hover:bg-white/5 hover:text-white",
                       )}
                     >
-                      <Icon size={16} className="shrink-0" />
+                      <Icon size={subitem ? 14 : 16} className="shrink-0" />
                       {!colapsadoVisual && label}
                     </Link>
                   );

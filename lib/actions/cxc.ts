@@ -141,6 +141,7 @@ export async function registrarAbono(
 
     revalidatePath("/cxc");
     revalidatePath(`/cxc/${data.cxcId}`);
+    revalidatePath("/facturas/credito");
     await invalidarModulos(user.empresaId, [MODULOS.DASHBOARD, MODULOS.CONTABILIDAD]);
     return { ok: true, abonoId };
   } catch (err) {

@@ -507,6 +507,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
     revalidatePath("/ventas");
     revalidatePath("/facturas");
+    revalidatePath(data.esCredito ? "/facturas/credito" : "/facturas/cobradas");
     revalidatePath("/dashboard");
 
     // La venta ya está confirmada en Postgres (fuente de verdad); ahora
