@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   asientosContables, asientoPartidas, catalogoCuentas } from "@/lib/db/schema";
@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function LibroDiarioPage({
   searchParams,
@@ -21,12 +22,17 @@ export default async function LibroDiarioPage({
   const params = await searchParams;
   const user = await requireSession();
 
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const sucursalIds = selectedSucursalIds(scope);
 
-  const filtros = [eq(asientosContables.empresaId, user.empresaId)];
+  const filtros: SQL[] = [eq(asientosContables.empresaId, user.empresaId)];
   if (params.desde) filtros.push(gte(asientosContables.fecha, params.desde));
   if (params.hasta) filtros.push(lte(asientosContables.fecha, params.hasta));
+  if (sucursalIds) filtros.push(inArray(asientosContables.sucursalId, sucursalIds));
 
   const asientos = await db
     .select({
@@ -79,7 +85,7 @@ export default async function LibroDiarioPage({
   const header = (
     <PageHeader
       title="Libro Diario"
-      subtitle={`${asientos.length} asiento(s)${filtroActivo ? " (filtrado)" : ""}`}
+      subtitle={`${asientos.length} asiento(s)${filtroActivo ? " (filtrado)" : ""}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
       actions={
         <div className="flex flex-wrap items-end gap-3">
           {filterBar}
@@ -164,40 +170,42 @@ export default async function LibroDiarioPage({
                 </div>
               </div>
 
-              <table className="w-full text-small">
-                <thead className="border-b border-[color:var(--color-border)]">
-                  <tr className="text-label">
-                    <th className="px-4 py-2 text-left">Cuenta</th>
-                    <th className="px-4 py-2 text-left">Detalle</th>
-                    <th className="px-4 py-2 text-right">Debe</th>
-                    <th className="px-4 py-2 text-right">Haber</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ps.map((p, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-[color:var(--color-border)] last:border-b-0"
-                    >
-                      <td className="px-4 py-2">
-                        <span className="font-mono text-[12px] text-[color:var(--color-text-muted)]">
-                          {p.codigo}
-                        </span>{" "}
-                        <span className="font-medium">{p.cuenta}</span>
-                      </td>
-                      <td className="px-4 py-2 text-[color:var(--color-text-muted)]">
-                        {p.descripcion}
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        {parseFloat(p.debe) > 0 ? formatearMoneda(parseFloat(p.debe), pais) : ""}
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        {parseFloat(p.haber) > 0 ? formatearMoneda(parseFloat(p.haber), pais) : ""}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-small">
+                  <thead className="border-b border-[color:var(--color-border)]">
+                    <tr className="text-label">
+                      <th className="px-4 py-2 text-left">Cuenta</th>
+                      <th className="px-4 py-2 text-left">Detalle</th>
+                      <th className="px-4 py-2 text-right">Debe</th>
+                      <th className="px-4 py-2 text-right">Haber</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ps.map((p, i) => (
+                      <tr
+                        key={i}
+                        className="border-b border-[color:var(--color-border)] last:border-b-0"
+                      >
+                        <td className="px-4 py-2">
+                          <span className="font-mono text-[12px] text-[color:var(--color-text-muted)]">
+                            {p.codigo}
+                          </span>{" "}
+                          <span className="font-medium">{p.cuenta}</span>
+                        </td>
+                        <td className="px-4 py-2 text-[color:var(--color-text-muted)]">
+                          {p.descripcion}
+                        </td>
+                        <td className="px-4 py-2 text-right font-medium">
+                          {parseFloat(p.debe) > 0 ? formatearMoneda(parseFloat(p.debe), pais) : ""}
+                        </td>
+                        <td className="px-4 py-2 text-right font-medium">
+                          {parseFloat(p.haber) > 0 ? formatearMoneda(parseFloat(p.haber), pais) : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         })}

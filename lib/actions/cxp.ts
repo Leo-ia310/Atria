@@ -5,7 +5,7 @@ import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
-import { cuentasPorPagar, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
+import { cuentasPorPagar, pagosProveedor, cuentasFinancieras, compras } from "@/lib/db/schema";
 import { registrarPagoSchema } from "@/lib/validations/cxp";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
@@ -46,8 +46,10 @@ export async function registrarPago(
           id: cuentasPorPagar.id,
           saldo: cuentasPorPagar.saldo,
           estado: cuentasPorPagar.estado,
+          sucursalId: compras.sucursalId,
         })
         .from(cuentasPorPagar)
+        .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
         .where(
           and(
             eq(cuentasPorPagar.id, data.cxpId),
@@ -105,6 +107,7 @@ export async function registrarPago(
           fecha,
           monto,
           cuentaFinancieraId: data.cuentaFinancieraId,
+          sucursalId: cxp.sucursalId,
           referencia: data.referencia || undefined,
         },
         tx,

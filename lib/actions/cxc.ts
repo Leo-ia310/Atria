@@ -9,6 +9,7 @@ import {
   abonosCliente,
   cuentasPorCobrar,
   formasPago,
+  ventas,
 } from "@/lib/db/schema";
 import { registrarAbonoSchema } from "@/lib/validations/cxc";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -59,8 +60,10 @@ export async function registrarAbono(
           saldo: cuentasPorCobrar.saldo,
           estado: cuentasPorCobrar.estado,
           clienteId: cuentasPorCobrar.clienteId,
+          sucursalId: ventas.sucursalId,
         })
         .from(cuentasPorCobrar)
+        .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
         .where(
           and(
             eq(cuentasPorCobrar.id, data.cxcId),
@@ -122,6 +125,7 @@ export async function registrarAbono(
           fecha,
           monto,
           cuentaFinancieraId,
+          sucursalId: cxc.sucursalId,
           referencia: data.referencia || undefined,
         },
         tx,

@@ -92,6 +92,13 @@
       "when": 1786204800000,
       "tag": "0012_referral_commission_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786291200000,
+      "tag": "0013_accounting_branch_scope",
+      "breakpoints": true
     }
   ]
 }

@@ -395,6 +395,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       total,
       costoTotal,
       esCredito: data.esCredito,
+      sucursalId: data.sucursalId,
       pagos: pagosContables,
     });
 

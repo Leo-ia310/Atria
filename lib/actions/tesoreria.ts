@@ -15,6 +15,7 @@ import {
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import { aDecimalStr } from "@/lib/contabilidad/helpers";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import {
   registrarGastoEnTransaccion,
   siguienteFechaMensual,
@@ -85,6 +86,14 @@ export async function crearGasto(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const data = parsed.data;
+  const scope = await getSucursalScope(user);
+  const sucursalIds = selectedSucursalIds(scope);
+  const sucursalId =
+    sucursalIds?.length === 1
+      ? sucursalIds[0]
+      : scope.sucursalIds.length === 1
+        ? scope.sucursalIds[0]
+        : null;
 
   // Verify ownership before entering transaction (prevents cross-tenant FK injection)
   const [categoria] = await dbConEmpresa(user.empresaId, (tx) =>
@@ -114,6 +123,7 @@ export async function crearGasto(
           .insert(gastosRecurrentes)
           .values({
             empresaId: user.empresaId,
+            sucursalId,
             categoriaId: data.categoriaId,
             cuentaFinancieraId: data.cuentaFinancieraId,
             descripcion: data.descripcion,
@@ -131,6 +141,7 @@ export async function crearGasto(
       return registrarGastoEnTransaccion(tx, {
         empresaId: user.empresaId,
         usuarioId: user.id,
+        sucursalId,
         categoriaId: data.categoriaId,
         cuentaFinancieraId: data.cuentaFinancieraId,
         fecha: data.fecha,

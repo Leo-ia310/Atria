@@ -246,6 +246,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
       impuesto,
       total,
       esCredito: data.esCredito,
+      sucursalId: almacen.sucursalId,
       cuentaFinancieraId: data.cuentaFinancieraId || undefined,
     });
 
