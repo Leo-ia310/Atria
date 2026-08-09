@@ -1,7 +1,6 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { marcarPrimeraVez } from "@/lib/redis/idempotency";
 
 const REFERRAL_COOKIE = "atria_referral_code";
 
@@ -18,33 +17,45 @@ export async function leerCodigoReferidoDesdeCookie() {
   return normalizarCodigoReferido(store.get(REFERRAL_COOKIE)?.value);
 }
 
+export type NotificarVentaReferidaResultado =
+  | { ok: true; duplicada: boolean }
+  | { ok: false; error: string; code?: string };
+
 export async function notificarVentaReferida(input: {
   codigoReferido?: string | null;
   referenciaExterna: string;
   cliente: string;
   clienteEmail?: string | null;
+  clienteTelefono?: string | null;
   empresaCliente?: string | null;
+  empresaTelefono?: string | null;
+  empresaPais?: string | null;
+  tipoEmpresa?: string | null;
   plan: string;
   monto: number;
   tipoVenta: "primera" | "renovacion";
   origen: string;
   fechaVenta?: Date;
-}) {
+}): Promise<NotificarVentaReferidaResultado> {
   const codigoReferido = normalizarCodigoReferido(input.codigoReferido);
-  if (!codigoReferido) return;
+  if (!codigoReferido) {
+    return {
+      ok: false,
+      code: "CODIGO_REFERIDO_INVALIDO",
+      error: "Codigo referido vacio.",
+    };
+  }
 
   const url = process.env.VENDEDORES_ATRIA_BACKEND_URL;
   const secret = process.env.VENDEDORES_ATRIA_WEBHOOK_SECRET;
   if (!url || !secret) {
     console.warn("[referidos] Puente a Vendedores ATRIA no configurado.");
-    return;
+    return {
+      ok: false,
+      code: "PUENTE_NO_CONFIGURADO",
+      error: "VENDEDORES_ATRIA_BACKEND_URL o VENDEDORES_ATRIA_WEBHOOK_SECRET no esta configurado.",
+    };
   }
-
-  // Idempotencia: `referenciaExterna` identifica de forma estable la venta
-  // referida. Evita notificar dos veces la misma venta ante reintentos o
-  // doble envío. Fail-open: si Redis no está, se notifica igual.
-  const primeraVez = await marcarPrimeraVez("referidos", input.referenciaExterna);
-  if (!primeraVez) return;
 
   try {
     const res = await fetch(url, {
@@ -59,7 +70,11 @@ export async function notificarVentaReferida(input: {
           referenciaExterna: input.referenciaExterna,
           cliente: input.cliente,
           clienteEmail: input.clienteEmail || "",
+          clienteTelefono: input.clienteTelefono || "",
           empresaCliente: input.empresaCliente || input.cliente,
+          empresaTelefono: input.empresaTelefono || "",
+          empresaPais: input.empresaPais || "",
+          tipoEmpresa: input.tipoEmpresa || "",
           plan: input.plan,
           monto: input.monto,
           tipoVenta: input.tipoVenta,
@@ -72,8 +87,19 @@ export async function notificarVentaReferida(input: {
     const json = await res.json().catch(() => null);
     if (!res.ok || !json?.ok) {
       console.warn("[referidos] Vendedores ATRIA rechazo la venta referida.", json);
+      return {
+        ok: false,
+        code: json?.code || String(res.status),
+        error: json?.error || res.statusText || "Vendedores ATRIA rechazo la venta referida.",
+      };
     }
+    return { ok: true, duplicada: Boolean(json.data?.duplicada) };
   } catch (error) {
     console.warn("[referidos] No se pudo notificar la venta referida.", error);
+    return {
+      ok: false,
+      code: "FETCH_ERROR",
+      error: error instanceof Error ? error.message : "No se pudo notificar la venta referida.",
+    };
   }
 }
