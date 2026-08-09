@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import { cuentasPorPagar, pagosProveedor, cuentasFinancieras } from "@/lib/db/schema";
 import { registrarPagoSchema } from "@/lib/validations/cxp";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -25,20 +25,22 @@ export async function registrarPago(
   const data = parsed.data;
 
   // Validate cuenta financiera ownership before entering transaction
-  const [cuenta] = await db
-    .select({ id: cuentasFinancieras.id })
-    .from(cuentasFinancieras)
-    .where(
-      and(
-        eq(cuentasFinancieras.id, data.cuentaFinancieraId),
-        eq(cuentasFinancieras.empresaId, user.empresaId),
-      ),
-    )
-    .limit(1);
+  const [cuenta] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: cuentasFinancieras.id })
+      .from(cuentasFinancieras)
+      .where(
+        and(
+          eq(cuentasFinancieras.id, data.cuentaFinancieraId),
+          eq(cuentasFinancieras.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1),
+  );
   if (!cuenta) return { ok: false, error: "Cuenta financiera no encontrada" };
 
   try {
-    const pagoId = await db.transaction(async (tx) => {
+    const pagoId = await dbConEmpresa(user.empresaId, async (tx) => {
       const [cxp] = await tx
         .select({
           id: cuentasPorPagar.id,

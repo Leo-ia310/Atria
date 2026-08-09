@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, desc, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   ventas,
   ventaDetalle,
@@ -82,17 +82,20 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     if (!data.clienteId) {
       return { ok: false, error: "Venta al crédito requiere cliente" };
     }
-    const [cliente] = await db
-      .select({ limite: clientes.limiteCredito, dias: clientes.diasCredito })
-      .from(clientes)
-      .where(
-        and(
-          eq(clientes.id, data.clienteId),
-          eq(clientes.empresaId, user.empresaId),
-          isNull(clientes.eliminadoEn),
-        ),
-      )
-      .limit(1);
+    const clienteId = data.clienteId;
+    const [cliente] = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({ limite: clientes.limiteCredito, dias: clientes.diasCredito })
+        .from(clientes)
+        .where(
+          and(
+            eq(clientes.id, clienteId),
+            eq(clientes.empresaId, user.empresaId),
+            isNull(clientes.eliminadoEn),
+          ),
+        )
+        .limit(1),
+    );
     if (!cliente) return { ok: false, error: "Cliente no encontrado" };
     if (parseFloat(cliente.limite) <= 0) {
       return { ok: false, error: "Cliente no tiene crédito habilitado" };
@@ -101,27 +104,32 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
   let clientePedidoNombre = "Consumidor final";
   if (data.clienteId) {
-    const [clientePedido] = await db
-      .select({ nombre: clientes.nombre })
-      .from(clientes)
-      .where(and(eq(clientes.id, data.clienteId), eq(clientes.empresaId, user.empresaId)))
-      .limit(1);
+    const clienteId = data.clienteId;
+    const [clientePedido] = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({ nombre: clientes.nombre })
+        .from(clientes)
+        .where(and(eq(clientes.id, clienteId), eq(clientes.empresaId, user.empresaId)))
+        .limit(1),
+    );
     clientePedidoNombre = clientePedido?.nombre ?? clientePedidoNombre;
   }
 
   // Enlazar la venta a la sesión de caja abierta (se resuelve en el servidor,
   // nunca se acepta del cliente). Se prioriza la sesión del propio cajero.
-  const [almacen] = await db
-    .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
-    .from(almacenes)
-    .where(
-      and(
-        eq(almacenes.id, data.almacenId),
-        eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.activo, true),
-      ),
-    )
-    .limit(1);
+  const [almacen] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
+      .from(almacenes)
+      .where(
+        and(
+          eq(almacenes.id, data.almacenId),
+          eq(almacenes.empresaId, user.empresaId),
+          eq(almacenes.activo, true),
+        ),
+      )
+      .limit(1),
+  );
   if (!almacen) {
     return { ok: false, error: "Almacen no valido para esta empresa" };
   }
@@ -130,50 +138,54 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   }
 
   const productoIds = [...new Set(data.items.map((item) => item.productoId))];
-  const [productosVenta, stockRows, sesionesAbiertas, empresaRows] = await Promise.all([
-    db
-      .select({ id: productos.id, tipo: productos.tipo, nombre: productos.nombre })
-      .from(productos)
-      .where(
-        and(
-          eq(productos.empresaId, user.empresaId),
-          eq(productos.activo, true),
-          isNull(productos.eliminadoEn),
-          inArray(productos.id, productoIds),
-        ),
-      ),
-    db
-      .select({
-        productoId: existencias.productoId,
-        cantidad: existencias.cantidad,
-      })
-      .from(existencias)
-      .where(
-        and(
-          eq(existencias.empresaId, user.empresaId),
-          eq(existencias.almacenId, data.almacenId),
-          inArray(existencias.productoId, productoIds),
-        ),
-      ),
-    db
-      .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
-      .from(sesionesCaja)
-      .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
-      .where(
-        and(
-          eq(sesionesCaja.empresaId, user.empresaId),
-          eq(sesionesCaja.estado, "abierta"),
-          eq(cajas.empresaId, user.empresaId),
-          eq(cajas.sucursalId, data.sucursalId),
-        ),
-      )
-      .orderBy(desc(sesionesCaja.abiertaEn)),
-    db
-      .select({ tipoEmpresa: empresas.tipoEmpresa })
-      .from(empresas)
-      .where(eq(empresas.id, user.empresaId))
-      .limit(1),
-  ]);
+  const [productosVenta, stockRows, sesionesAbiertas, empresaRows] = await dbConEmpresa(
+    user.empresaId,
+    (tx) =>
+      Promise.all([
+        tx
+          .select({ id: productos.id, tipo: productos.tipo, nombre: productos.nombre })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              eq(productos.activo, true),
+              isNull(productos.eliminadoEn),
+              inArray(productos.id, productoIds),
+            ),
+          ),
+        tx
+          .select({
+            productoId: existencias.productoId,
+            cantidad: existencias.cantidad,
+          })
+          .from(existencias)
+          .where(
+            and(
+              eq(existencias.empresaId, user.empresaId),
+              eq(existencias.almacenId, data.almacenId),
+              inArray(existencias.productoId, productoIds),
+            ),
+          ),
+        tx
+          .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
+          .from(sesionesCaja)
+          .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
+          .where(
+            and(
+              eq(sesionesCaja.empresaId, user.empresaId),
+              eq(sesionesCaja.estado, "abierta"),
+              eq(cajas.empresaId, user.empresaId),
+              eq(cajas.sucursalId, data.sucursalId),
+            ),
+          )
+          .orderBy(desc(sesionesCaja.abiertaEn)),
+        tx
+          .select({ tipoEmpresa: empresas.tipoEmpresa })
+          .from(empresas)
+          .where(eq(empresas.id, user.empresaId))
+          .limit(1),
+      ]),
+  );
   if (productosVenta.length !== productoIds.length) {
     return { ok: false, error: "Uno o mas productos no son validos" };
   }
@@ -210,7 +222,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       ? new Date(fechaVenta.getTime() + data.diasCredito * 24 * 3600 * 1000)
       : null;
 
-    const resultado = await db.transaction(async (tx) => {
+    const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
       const numero = await siguienteNumero(tx, {
         empresaId: user.empresaId,
         prefijo: "V",
@@ -350,14 +362,16 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       return venta;
     });
 
-    const formaPagos = await db
-      .select({
-        id: formasPagoTable.id,
-        nombre: formasPagoTable.nombre,
-        cuentaFinancieraId: formasPagoTable.cuentaFinancieraId,
-      })
-      .from(formasPagoTable)
-      .where(eq(formasPagoTable.empresaId, user.empresaId));
+    const formaPagos = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({
+          id: formasPagoTable.id,
+          nombre: formasPagoTable.nombre,
+          cuentaFinancieraId: formasPagoTable.cuentaFinancieraId,
+        })
+        .from(formasPagoTable)
+        .where(eq(formasPagoTable.empresaId, user.empresaId)),
+    );
     const mapaFormas = new Map(formaPagos.map((f) => [f.id, f.cuentaFinancieraId]));
     const mapaFormasNombre = new Map(formaPagos.map((f) => [f.id, f.nombre]));
 
@@ -384,45 +398,52 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       pagos: pagosContables,
     });
 
-    await db
-      .update(ventas)
-      .set({ asientoId })
-      .where(
-        and(
-          eq(ventas.id, resultado.id),
-          eq(ventas.empresaId, user.empresaId),
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(ventas)
+        .set({ asientoId })
+        .where(
+          and(
+            eq(ventas.id, resultado.id),
+            eq(ventas.empresaId, user.empresaId),
+          ),
         ),
-      );
+    );
 
     // Guardar la factura (snapshot JSON) para el repositorio de facturas y la
     // reconstrucción del documento desde plantilla. No debe tumbar la venta.
     try {
       const idsProductos = [...new Set(data.items.map((i) => i.productoId))];
       const prods = idsProductos.length
-        ? await db
-            .select({ id: productos.id, nombre: productos.nombre, sku: productos.sku })
-            .from(productos)
-            .where(
-              and(
-                eq(productos.empresaId, user.empresaId),
-                inArray(productos.id, idsProductos),
+        ? await dbConEmpresa(user.empresaId, (tx) =>
+            tx
+              .select({ id: productos.id, nombre: productos.nombre, sku: productos.sku })
+              .from(productos)
+              .where(
+                and(
+                  eq(productos.empresaId, user.empresaId),
+                  inArray(productos.id, idsProductos),
+                ),
               ),
-            )
+          )
         : [];
       const mapaProd = new Map(prods.map((p) => [p.id, p]));
 
       let clienteNombre = "Consumidor final";
       if (data.clienteId) {
-        const [c] = await db
-          .select({ nombre: clientes.nombre })
-          .from(clientes)
-          .where(
-            and(
-              eq(clientes.id, data.clienteId),
-              eq(clientes.empresaId, user.empresaId),
-            ),
-          )
-          .limit(1);
+        const clienteId = data.clienteId;
+        const [c] = await dbConEmpresa(user.empresaId, (tx) =>
+          tx
+            .select({ nombre: clientes.nombre })
+            .from(clientes)
+            .where(
+              and(
+                eq(clientes.id, clienteId),
+                eq(clientes.empresaId, user.empresaId),
+              ),
+            )
+            .limit(1),
+        );
         if (c) clienteNombre = c.nombre;
       }
 
@@ -461,22 +482,24 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         total,
       };
 
-      await db
-        .insert(facturas)
-        .values({
-          empresaId: user.empresaId,
-          ventaId: resultado.id,
-          numero: resultado.numero,
-          fecha: fechaVenta,
-          vendedorId: user.id,
-          vendedorNombre: user.nombre,
-          clienteNombre,
-          formasPago: data.esCredito ? "Crédito" : nombresFormas.join(", "),
-          esCredito: data.esCredito,
-          total: aDecimalStr(total),
-          snapshot,
-        })
-        .onConflictDoNothing();
+      await dbConEmpresa(user.empresaId, (tx) =>
+        tx
+          .insert(facturas)
+          .values({
+            empresaId: user.empresaId,
+            ventaId: resultado.id,
+            numero: resultado.numero,
+            fecha: fechaVenta,
+            vendedorId: user.id,
+            vendedorNombre: user.nombre,
+            clienteNombre,
+            formasPago: data.esCredito ? "Crédito" : nombresFormas.join(", "),
+            esCredito: data.esCredito,
+            total: aDecimalStr(total),
+            snapshot,
+          })
+          .onConflictDoNothing(),
+      );
     } catch (errFactura) {
       console.error("[procesarVenta:factura]", errFactura);
     }

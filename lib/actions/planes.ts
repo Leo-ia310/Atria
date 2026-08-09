@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import { planes as planesTable, suscripciones } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { asegurarPlanes } from "@/lib/actions/registro";
@@ -29,11 +29,13 @@ export async function cambiarPlan(planId: PlanId): Promise<Resultado> {
 
   await asegurarPlanes();
 
-  const [planRow] = await db
-    .select({ id: planesTable.id })
-    .from(planesTable)
-    .where(and(eq(planesTable.codigo, planId), eq(planesTable.activo, true)))
-    .limit(1);
+  const [planRow] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: planesTable.id })
+      .from(planesTable)
+      .where(and(eq(planesTable.codigo, planId), eq(planesTable.activo, true)))
+      .limit(1),
+  );
 
   if (!planRow) {
     return { ok: false, error: "No encontramos ese plan activo." };
@@ -41,13 +43,15 @@ export async function cambiarPlan(planId: PlanId): Promise<Resultado> {
 
   const plan = getPlan(planId);
 
-  const [actual] = await db
-    .select({ planCodigo: planesTable.codigo })
-    .from(suscripciones)
-    .innerJoin(planesTable, eq(planesTable.id, suscripciones.planId))
-    .where(eq(suscripciones.empresaId, user.empresaId))
-    .orderBy(desc(suscripciones.creadoEn))
-    .limit(1);
+  const [actual] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ planCodigo: planesTable.codigo })
+      .from(suscripciones)
+      .innerJoin(planesTable, eq(planesTable.id, suscripciones.planId))
+      .where(eq(suscripciones.empresaId, user.empresaId))
+      .orderBy(desc(suscripciones.creadoEn))
+      .limit(1),
+  );
 
   if (actual?.planCodigo === planId) {
     return { ok: true, plan: plan.nombre };
@@ -59,7 +63,7 @@ export async function cambiarPlan(planId: PlanId): Promise<Resultado> {
   });
   if (!limite.ok) return limite;
 
-  await db.transaction(async (tx) => {
+  await dbConEmpresa(user.empresaId, async (tx) => {
     await activarSuscripcion(tx, {
       empresaId: user.empresaId,
       planRowId: planRow.id,

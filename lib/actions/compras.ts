@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   compras,
   compraDetalle,
@@ -38,17 +38,19 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
     return { ok: false, error: "Compra de contado requiere cuenta financiera" };
   }
 
-  const [almacen] = await db
-    .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
-    .from(almacenes)
-    .where(
-      and(
-        eq(almacenes.id, data.almacenId),
-        eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.activo, true),
-      ),
-    )
-    .limit(1);
+  const [almacen] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: almacenes.id, sucursalId: almacenes.sucursalId })
+      .from(almacenes)
+      .where(
+        and(
+          eq(almacenes.id, data.almacenId),
+          eq(almacenes.empresaId, user.empresaId),
+          eq(almacenes.activo, true),
+        ),
+      )
+      .limit(1),
+  );
   if (!almacen) {
     return { ok: false, error: "Almacen no valido para esta empresa" };
   }
@@ -65,7 +67,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
       ? new Date(fecha.getTime() + data.diasCredito * 24 * 3600 * 1000)
       : null;
 
-    const compraResult = await db.transaction(async (tx) => {
+    const compraResult = await dbConEmpresa(user.empresaId, async (tx) => {
       const numeroAuto = await siguienteNumero(tx, {
         empresaId: user.empresaId,
         prefijo: "C",
@@ -247,15 +249,17 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
       cuentaFinancieraId: data.cuentaFinancieraId || undefined,
     });
 
-    await db
-      .update(compras)
-      .set({ asientoId })
-      .where(
-        and(
-          eq(compras.id, compraResult.id),
-          eq(compras.empresaId, user.empresaId),
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(compras)
+        .set({ asientoId })
+        .where(
+          and(
+            eq(compras.id, compraResult.id),
+            eq(compras.empresaId, user.empresaId),
+          ),
         ),
-      );
+    );
 
     revalidatePath("/compras");
     revalidatePath("/inventario");

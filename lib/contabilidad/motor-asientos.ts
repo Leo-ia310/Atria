@@ -9,7 +9,7 @@
  */
 
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   asientosContables,
   asientoPartidas,
@@ -133,7 +133,7 @@ export type RegistrarVentaInput = {
 };
 
 export async function registrarVenta(input: RegistrarVentaInput): Promise<string> {
-  return db.transaction(async (tx) => {
+  return dbConEmpresa(input.empresaId, async (tx) => {
     const cuentas = await resolverCuentasClave(tx, input.empresaId, [
       "VENTAS", "IVA_DEBITO", "CXC_CLIENTES", "COSTO_VENTAS", "INVENTARIO",
     ]);
@@ -239,7 +239,7 @@ export type RegistrarCompraInput = {
 };
 
 export async function registrarCompra(input: RegistrarCompraInput): Promise<string> {
-  return db.transaction(async (tx) => {
+  return dbConEmpresa(input.empresaId, async (tx) => {
     const cuentas = await resolverCuentasClave(tx, input.empresaId, [
       "INVENTARIO", "IVA_CREDITO", "CXP_PROVEEDORES",
     ]);
@@ -361,7 +361,7 @@ export async function registrarPagoProveedor(
       ],
     });
   };
-  return externalTx ? core(externalTx) : db.transaction(core);
+  return externalTx ? core(externalTx) : dbConEmpresa(input.empresaId, core);
 }
 
 /* =====================================================================
@@ -422,7 +422,7 @@ export async function registrarAbonoCliente(
       ],
     });
   };
-  return externalTx ? core(externalTx) : db.transaction(core);
+  return externalTx ? core(externalTx) : dbConEmpresa(input.empresaId, core);
 }
 
 /* =====================================================================
@@ -499,7 +499,7 @@ export async function registrarGasto(input: RegistrarGastoInput, externalTx?: TX
       usuarioId: input.usuarioId,
     });
   };
-  return externalTx ? core(externalTx) : db.transaction(core);
+  return externalTx ? core(externalTx) : dbConEmpresa(input.empresaId, core);
 }
 
 /* =====================================================================
@@ -520,7 +520,7 @@ export type RegistrarAjusteInventarioInput = {
 export async function registrarAjusteInventario(
   input: RegistrarAjusteInventarioInput,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
+  return dbConEmpresa(input.empresaId, async (tx) => {
     const valor = dinero(input.cantidad * input.costoUnitario);
     const cuentas = await resolverCuentasClave(tx, input.empresaId, [
       "INVENTARIO",
@@ -630,7 +630,7 @@ export type RegistrarNominaDevengoInput = {
 export async function registrarNominaDevengo(
   input: RegistrarNominaDevengoInput,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
+  return dbConEmpresa(input.empresaId, async (tx) => {
     const gastoSueldos = await cuentaPorCodigo(tx, input.empresaId, "6101");
     const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
 
@@ -691,7 +691,7 @@ export type RegistrarPagoNominaInput = {
 export async function registrarPagoNomina(
   input: RegistrarPagoNominaInput,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
+  return dbConEmpresa(input.empresaId, async (tx) => {
     const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
 
     const [cf] = await tx

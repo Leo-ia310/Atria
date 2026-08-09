@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { and, count, desc, eq, gte, isNull, lt } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   clientes,
   empresas,
@@ -49,63 +49,69 @@ const getAccessContextCached = cache(
     sessionRolId: string | null,
     sessionEsSuperAdmin: boolean,
   ): Promise<AccessContext> => {
-    const [[usuarioActual], [suscripcion], [empresa]] = await Promise.all([
-      db
-        .select({
-          rolId: usuarios.rolId,
-          activo: usuarios.activo,
-          esSuperAdmin: usuarios.esSuperAdmin,
-        })
-        .from(usuarios)
-        .where(
-          and(
-            eq(usuarios.id, userId),
-            eq(usuarios.empresaId, empresaId),
-            isNull(usuarios.eliminadoEn),
-          ),
-        )
-        .limit(1),
-      db
-        .select({
-          planCodigo: planes.codigo,
-          planNombre: planes.nombre,
-          maxSucursales: planes.maxSucursales,
-          maxUsuarios: planes.maxUsuarios,
-          maxProductos: planes.maxProductos,
-          maxTransaccionesMes: planes.maxTransaccionesMes,
-          features: planes.features,
-          estado: suscripciones.estado,
-          finPeriodo: suscripciones.finPeriodo,
-          usuariosExtra: suscripciones.usuariosExtra,
-          sucursalesExtra: suscripciones.sucursalesExtra,
-        })
-        .from(suscripciones)
-        .innerJoin(planes, eq(planes.id, suscripciones.planId))
-        .where(eq(suscripciones.empresaId, empresaId))
-        .orderBy(desc(suscripciones.creadoEn))
-        .limit(1),
-      db
-        .select({
-          tipoEmpresa: empresas.tipoEmpresa,
-        })
-        .from(empresas)
-        .where(eq(empresas.id, empresaId))
-        .limit(1),
-    ]);
+    const [[usuarioActual], [suscripcion], [empresa]] = await dbConEmpresa(
+      empresaId,
+      (tx) =>
+        Promise.all([
+          tx
+            .select({
+              rolId: usuarios.rolId,
+              activo: usuarios.activo,
+              esSuperAdmin: usuarios.esSuperAdmin,
+            })
+            .from(usuarios)
+            .where(
+              and(
+                eq(usuarios.id, userId),
+                eq(usuarios.empresaId, empresaId),
+                isNull(usuarios.eliminadoEn),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({
+              planCodigo: planes.codigo,
+              planNombre: planes.nombre,
+              maxSucursales: planes.maxSucursales,
+              maxUsuarios: planes.maxUsuarios,
+              maxProductos: planes.maxProductos,
+              maxTransaccionesMes: planes.maxTransaccionesMes,
+              features: planes.features,
+              estado: suscripciones.estado,
+              finPeriodo: suscripciones.finPeriodo,
+              usuariosExtra: suscripciones.usuariosExtra,
+              sucursalesExtra: suscripciones.sucursalesExtra,
+            })
+            .from(suscripciones)
+            .innerJoin(planes, eq(planes.id, suscripciones.planId))
+            .where(eq(suscripciones.empresaId, empresaId))
+            .orderBy(desc(suscripciones.creadoEn))
+            .limit(1),
+          tx
+            .select({
+              tipoEmpresa: empresas.tipoEmpresa,
+            })
+            .from(empresas)
+            .where(eq(empresas.id, empresaId))
+            .limit(1),
+        ]),
+    );
 
     const rolIdActual = usuarioActual?.rolId ?? sessionRolId;
     const usuarioActivo = usuarioActual?.activo ?? true;
 
     const rolRows = rolIdActual
-      ? await db
-        .select({
-          nombre: roles.nombre,
-          permiso: permisos.clave,
-        })
-        .from(roles)
-        .leftJoin(rolPermisos, eq(rolPermisos.rolId, roles.id))
-        .leftJoin(permisos, eq(permisos.id, rolPermisos.permisoId))
-        .where(and(eq(roles.id, rolIdActual), eq(roles.empresaId, empresaId)))
+      ? await dbConEmpresa(empresaId, (tx) =>
+          tx
+            .select({
+              nombre: roles.nombre,
+              permiso: permisos.clave,
+            })
+            .from(roles)
+            .leftJoin(rolPermisos, eq(rolPermisos.rolId, roles.id))
+            .leftJoin(permisos, eq(permisos.id, rolPermisos.permisoId))
+            .where(and(eq(roles.id, rolIdActual), eq(roles.empresaId, empresaId))),
+        )
       : [];
 
     const vigente = suscripcion
@@ -234,87 +240,89 @@ async function contarRecurso(
 ): Promise<number> {
   const [inicioMes, finMes] = rangoMesActual();
 
-  switch (recurso) {
-    case "usuarios": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(usuarios)
-        .where(
-          and(
-            eq(usuarios.empresaId, empresaId),
-            eq(usuarios.activo, true),
-            isNull(usuarios.eliminadoEn),
-          ),
-        );
-      return row?.n ?? 0;
+  return dbConEmpresa(empresaId, async (tx) => {
+    switch (recurso) {
+      case "usuarios": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(usuarios)
+          .where(
+            and(
+              eq(usuarios.empresaId, empresaId),
+              eq(usuarios.activo, true),
+              isNull(usuarios.eliminadoEn),
+            ),
+          );
+        return row?.n ?? 0;
+      }
+      case "sucursales": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(sucursales)
+          .where(
+            and(
+              eq(sucursales.empresaId, empresaId),
+              eq(sucursales.activa, true),
+              isNull(sucursales.eliminadoEn),
+            ),
+          );
+        return row?.n ?? 0;
+      }
+      case "productos": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, empresaId),
+              eq(productos.activo, true),
+              isNull(productos.eliminadoEn),
+            ),
+          );
+        return row?.n ?? 0;
+      }
+      case "clientes": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(clientes)
+          .where(
+            and(
+              eq(clientes.empresaId, empresaId),
+              eq(clientes.activo, true),
+              isNull(clientes.eliminadoEn),
+            ),
+          );
+        return row?.n ?? 0;
+      }
+      case "transacciones_mes": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(ventas)
+          .where(
+            and(
+              eq(ventas.empresaId, empresaId),
+              isNull(ventas.anuladoEn),
+              gte(ventas.fecha, inicioMes),
+              lt(ventas.fecha, finMes),
+            ),
+          );
+        return row?.n ?? 0;
+      }
+      case "facturas_mes": {
+        const [row] = await tx
+          .select({ n: count() })
+          .from(facturas)
+          .where(
+            and(
+              eq(facturas.empresaId, empresaId),
+              gte(facturas.fecha, inicioMes),
+              lt(facturas.fecha, finMes),
+            ),
+          );
+        return row?.n ?? 0;
+      }
     }
-    case "sucursales": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(sucursales)
-        .where(
-          and(
-            eq(sucursales.empresaId, empresaId),
-            eq(sucursales.activa, true),
-            isNull(sucursales.eliminadoEn),
-          ),
-        );
-      return row?.n ?? 0;
-    }
-    case "productos": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(productos)
-        .where(
-          and(
-            eq(productos.empresaId, empresaId),
-            eq(productos.activo, true),
-            isNull(productos.eliminadoEn),
-          ),
-        );
-      return row?.n ?? 0;
-    }
-    case "clientes": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(clientes)
-        .where(
-          and(
-            eq(clientes.empresaId, empresaId),
-            eq(clientes.activo, true),
-            isNull(clientes.eliminadoEn),
-          ),
-        );
-      return row?.n ?? 0;
-    }
-    case "transacciones_mes": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(ventas)
-        .where(
-          and(
-            eq(ventas.empresaId, empresaId),
-            isNull(ventas.anuladoEn),
-            gte(ventas.fecha, inicioMes),
-            lt(ventas.fecha, finMes),
-          ),
-        );
-      return row?.n ?? 0;
-    }
-    case "facturas_mes": {
-      const [row] = await db
-        .select({ n: count() })
-        .from(facturas)
-        .where(
-          and(
-            eq(facturas.empresaId, empresaId),
-            gte(facturas.fecha, inicioMes),
-            lt(facturas.fecha, finMes),
-          ),
-        );
-      return row?.n ?? 0;
-    }
-  }
+  });
 }
 
 function rangoMesActual(): [Date, Date] {

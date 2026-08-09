@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   abonosCliente,
   cuentasPorCobrar,
@@ -32,11 +32,13 @@ export async function registrarAbono(
   const data = parsed.data;
 
   // Validate forma de pago ownership before entering the transaction
-  const [fp] = await db
-    .select({ cuentaFinancieraId: formasPago.cuentaFinancieraId, nombre: formasPago.nombre })
-    .from(formasPago)
-    .where(and(eq(formasPago.id, data.formaPagoId), eq(formasPago.empresaId, user.empresaId)))
-    .limit(1);
+  const [fp] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ cuentaFinancieraId: formasPago.cuentaFinancieraId, nombre: formasPago.nombre })
+      .from(formasPago)
+      .where(and(eq(formasPago.id, data.formaPagoId), eq(formasPago.empresaId, user.empresaId)))
+      .limit(1),
+  );
 
   if (!fp) return { ok: false, error: "Forma de pago no encontrada" };
   if (!fp.cuentaFinancieraId) {
@@ -48,7 +50,7 @@ export async function registrarAbono(
   const cuentaFinancieraId = fp.cuentaFinancieraId;
 
   try {
-    const abonoId = await db.transaction(async (tx) => {
+    const abonoId = await dbConEmpresa(user.empresaId, async (tx) => {
       // SELECT FOR UPDATE locks the row for the duration of the transaction,
       // preventing concurrent abonos from reading a stale saldo.
       const [cxc] = await tx
