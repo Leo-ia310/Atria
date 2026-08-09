@@ -345,6 +345,39 @@ textarea:focus {
   color: var(--color-text-secondary);
 }
 
+/* Documentos comerciales: facturas, recibos, tickets y colillas siempre claros. */
+.arca-documento-claro {
+  color-scheme: light;
+  --color-primary: #2B1F3A;
+  --color-primary-hover: #3d2d52;
+  --color-secondary: #5C4B75;
+  --color-secondary-hover: #6e5a8a;
+  --color-tertiary: #A18BCF;
+  --color-tertiary-light: #D4C8F0;
+  --color-neutral: #F8F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F2F0F7;
+  --color-dark-bg: #1A1225;
+  --color-dark-surface: #231834;
+  --color-border: #E2DFF0;
+  --color-border-strong: #C4BEDF;
+  --color-text-primary: #2B1F3A;
+  --color-text-secondary: #5C4B75;
+  --color-text-muted: #8B7FA8;
+  --color-text-on-dark: #F8F7FA;
+  --color-text-on-primary: #FFFFFF;
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #DC2626;
+  --color-error-bg: #FEF2F2;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+  background: #ffffff;
+  color: var(--color-text-primary);
+}
+
 /* ============================================
  * Documentos legales (tema oscuro de marca)
  * ============================================ */

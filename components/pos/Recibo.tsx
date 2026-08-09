@@ -46,7 +46,7 @@ export type ReciboData = {
 export function Recibo({ data }: { data: ReciboData }) {
   const { empresa, pais } = data;
   return (
-    <div className="mx-auto w-[340px] max-w-full rounded-lg border border-[color:var(--color-border)] bg-white p-5 text-[13px] leading-snug text-[color:var(--color-text-primary)] shadow-sm">
+    <div className="arca-documento-claro mx-auto w-[340px] max-w-full rounded-lg border border-[color:var(--color-border)] bg-white p-5 text-[13px] leading-snug text-[color:var(--color-text-primary)] shadow-sm">
       {/* Encabezado empresa */}
       <div className="text-center">
         <div className="text-[15px] font-bold uppercase tracking-tight">
