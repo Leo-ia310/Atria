@@ -2,7 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbSuperAdmin, type Tx } from "@/lib/db";
 import {
   empresas,
   usuarios,
@@ -123,27 +123,34 @@ export async function registrarEmpresa(
   const paisCfg = getPaisConfig(empresa.pais);
   const codigoReferido = normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
 
-  const yaExiste = await db
-    .select({ id: usuarios.id })
-    .from(usuarios)
-    .where(eq(usuarios.email, admin.email))
-    .limit(1);
+  // Registro corre SIN sesión (crea una empresa nueva): bypass de RLS.
+  const yaExiste = await dbSuperAdmin((tx) =>
+    tx
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(eq(usuarios.email, admin.email))
+      .limit(1),
+  );
   if (yaExiste.length > 0) {
     return { ok: false, error: "Ya existe una cuenta con ese correo" };
   }
 
-  const planRow = await db
-    .select()
-    .from(planesTable)
-    .where(eq(planesTable.codigo, plan.planId))
-    .limit(1);
-  if (planRow.length === 0) {
-    await asegurarPlanes();
-    const reintento = await db
+  const planRow = await dbSuperAdmin((tx) =>
+    tx
       .select()
       .from(planesTable)
       .where(eq(planesTable.codigo, plan.planId))
-      .limit(1);
+      .limit(1),
+  );
+  if (planRow.length === 0) {
+    await asegurarPlanes();
+    const reintento = await dbSuperAdmin((tx) =>
+      tx
+        .select()
+        .from(planesTable)
+        .where(eq(planesTable.codigo, plan.planId))
+        .limit(1),
+    );
     if (reintento.length === 0) {
       return { ok: false, error: "Plan no encontrado" };
     }
@@ -152,7 +159,7 @@ export async function registrarEmpresa(
   const planSeleccionado = planRow[0];
 
   try {
-    const resultado = await db.transaction(async (tx) => {
+    const resultado = await dbSuperAdmin(async (tx) => {
       const [empresaCreada] = await tx
         .insert(empresas)
         .values({
@@ -381,7 +388,7 @@ export async function registrarEmpresa(
   }
 }
 
-async function asegurarPermisos(tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) {
+async function asegurarPermisos(tx: Tx) {
   const existentes = await tx.select({ clave: permisosTable.clave }).from(permisosTable);
   const yaExisten = new Set(existentes.map((p) => p.clave));
   const aInsertar = PERMISOS_BASE.filter((p) => !yaExisten.has(p.clave));
@@ -389,7 +396,7 @@ async function asegurarPermisos(tx: Parameters<Parameters<typeof db.transaction>
 }
 
 async function crearCatalogoCuentas(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Tx,
   empresaId: string,
 ) {
   const filas = CATALOGO_CUENTAS_BASE.map((c) => ({
@@ -425,7 +432,8 @@ async function crearCatalogoCuentas(
 }
 
 export async function asegurarPlanes() {
-  const filas = await db.select().from(planesTable);
+  // Tabla `planes` es global (sin RLS); bypass explícito por consistencia.
+  const filas = await dbSuperAdmin((tx) => tx.select().from(planesTable));
   const existentes = new Set(filas.map((p) => p.codigo));
 
   for (const id of ["demo", "pro", "enterprise"] as const) {
@@ -447,9 +455,11 @@ export async function asegurarPlanes() {
     };
 
     if (existentes.has(id)) {
-      await db.update(planesTable).set(values).where(eq(planesTable.codigo, id));
+      await dbSuperAdmin((tx) =>
+        tx.update(planesTable).set(values).where(eq(planesTable.codigo, id)),
+      );
     } else {
-      await db.insert(planesTable).values(values);
+      await dbSuperAdmin((tx) => tx.insert(planesTable).values(values));
     }
   }
 }

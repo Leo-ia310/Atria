@@ -1,4 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js";
+import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -29,3 +30,38 @@ const client = postgres(connectionString, {
 
 export const db = drizzle(client, { schema });
 export { schema };
+
+/** Transacción de Drizzle (el `tx` que recibe `db.transaction`). */
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Ejecuta `fn` dentro de una transacción con el tenant fijado a nivel LOCAL
+ * (`set_config(..., true)`), de modo que las políticas RLS de `policies.sql`
+ * dejen ver/escribir solo filas de esa empresa.
+ *
+ * El scope LOCAL es OBLIGATORIO: el pooler reutiliza conexiones y un scope de
+ * sesión filtraría el `empresa_id` a la siguiente request (fuga entre tenants).
+ *
+ * Usar en server actions y lecturas en lugar de `db.*` directo a medida que se
+ * migra cada módulo (ver RLS-ROLLOUT.md).
+ */
+export async function dbConEmpresa<T>(
+  empresaId: string,
+  fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.empresa_id', ${empresaId}, true)`);
+    return fn(tx);
+  });
+}
+
+/**
+ * Bypass controlado de RLS para el panel de super-admin (consultas cross-tenant
+ * legítimas). También LOCAL a la transacción.
+ */
+export async function dbSuperAdmin<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.bypass_rls', 'true', true)`);
+    return fn(tx);
+  });
+}

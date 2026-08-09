@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import { periodosContables } from "@/lib/db/schema";
 import { requireSession } from "./session-helpers";
 import { crearPeriodoSchema, periodoIdSchema } from "@/lib/validations/periodos";
@@ -29,33 +29,37 @@ export async function crearPeriodo(data: unknown) {
 
   const { anio, mes } = parsed.data;
 
-  const [existente] = await db
-    .select({ id: periodosContables.id })
-    .from(periodosContables)
-    .where(
-      and(
-        eq(periodosContables.empresaId, user.empresaId),
-        eq(periodosContables.anio, anio),
-        eq(periodosContables.mes, mes),
-      ),
-    )
-    .limit(1);
+  const [existente] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: periodosContables.id })
+      .from(periodosContables)
+      .where(
+        and(
+          eq(periodosContables.empresaId, user.empresaId),
+          eq(periodosContables.anio, anio),
+          eq(periodosContables.mes, mes),
+        ),
+      )
+      .limit(1),
+  );
 
   if (existente) return { ok: false as const, error: "Ya existe un período para ese mes" };
 
   const { fechaInicio, fechaFin } = fechasPeriodo(anio, mes);
 
-  const [nuevo] = await db
-    .insert(periodosContables)
-    .values({
-      empresaId: user.empresaId,
-      anio,
-      mes,
-      fechaInicio,
-      fechaFin,
-      estado: "abierto",
-    })
-    .returning({ id: periodosContables.id });
+  const [nuevo] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .insert(periodosContables)
+      .values({
+        empresaId: user.empresaId,
+        anio,
+        mes,
+        fechaInicio,
+        fechaFin,
+        estado: "abierto",
+      })
+      .returning({ id: periodosContables.id }),
+  );
 
   return { ok: true as const, id: nuevo.id };
 }
@@ -72,24 +76,28 @@ export async function cerrarPeriodo(data: unknown) {
 
   const { periodoId } = parsed.data;
 
-  const [periodo] = await db
-    .select({ id: periodosContables.id, estado: periodosContables.estado })
-    .from(periodosContables)
-    .where(
-      and(
-        eq(periodosContables.id, periodoId),
-        eq(periodosContables.empresaId, user.empresaId),
-      ),
-    )
-    .limit(1);
+  const [periodo] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: periodosContables.id, estado: periodosContables.estado })
+      .from(periodosContables)
+      .where(
+        and(
+          eq(periodosContables.id, periodoId),
+          eq(periodosContables.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1),
+  );
 
   if (!periodo) return { ok: false as const, error: "Período no encontrado" };
   if (periodo.estado === "cerrado") return { ok: false as const, error: "El período ya está cerrado" };
 
-  await db
-    .update(periodosContables)
-    .set({ estado: "cerrado", cerradoEn: new Date(), cerradoPor: user.id })
-    .where(eq(periodosContables.id, periodoId));
+  await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .update(periodosContables)
+      .set({ estado: "cerrado", cerradoEn: new Date(), cerradoPor: user.id })
+      .where(eq(periodosContables.id, periodoId)),
+  );
 
   return { ok: true as const };
 }
@@ -106,24 +114,28 @@ export async function reabrirPeriodo(data: unknown) {
 
   const { periodoId } = parsed.data;
 
-  const [periodo] = await db
-    .select({ id: periodosContables.id, estado: periodosContables.estado })
-    .from(periodosContables)
-    .where(
-      and(
-        eq(periodosContables.id, periodoId),
-        eq(periodosContables.empresaId, user.empresaId),
-      ),
-    )
-    .limit(1);
+  const [periodo] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: periodosContables.id, estado: periodosContables.estado })
+      .from(periodosContables)
+      .where(
+        and(
+          eq(periodosContables.id, periodoId),
+          eq(periodosContables.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1),
+  );
 
   if (!periodo) return { ok: false as const, error: "Período no encontrado" };
   if (periodo.estado === "abierto") return { ok: false as const, error: "El período ya está abierto" };
 
-  await db
-    .update(periodosContables)
-    .set({ estado: "abierto", cerradoEn: null, cerradoPor: null })
-    .where(eq(periodosContables.id, periodoId));
+  await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .update(periodosContables)
+      .set({ estado: "abierto", cerradoEn: null, cerradoPor: null })
+      .where(eq(periodosContables.id, periodoId)),
+  );
 
   return { ok: true as const };
 }

@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { and, count, eq, inArray, isNull, lt } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import {
   compras,
   cuentasPorCobrar,
@@ -29,9 +29,10 @@ const cargarConteos = unstable_cache(
     const sucursalIds = sucursalIdsKey
       ? sucursalIdsKey.split(",").filter(Boolean)
       : null;
-    const [cxcRows, cxpRows, solicitudesRows] = await Promise.all([
+    const [cxcRows, cxpRows, solicitudesRows] = await dbConEmpresa(empresaId, (tx) =>
+      Promise.all([
       puedeVerCxc
-        ? db
+        ? tx
             .select({ n: count() })
             .from(cuentasPorCobrar)
             .leftJoin(ventas, eq(ventas.id, cuentasPorCobrar.ventaId))
@@ -47,7 +48,7 @@ const cargarConteos = unstable_cache(
             )
         : Promise.resolve([{ n: 0 }]),
       puedeVerCxp
-        ? db
+        ? tx
             .select({ n: count() })
             .from(cuentasPorPagar)
             .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
@@ -63,7 +64,7 @@ const cargarConteos = unstable_cache(
             )
         : Promise.resolve([{ n: 0 }]),
       puedeVerRrhh
-        ? db
+        ? tx
             .select({ n: count() })
             .from(solicitudesRrhh)
             .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
@@ -79,7 +80,8 @@ const cargarConteos = unstable_cache(
               ),
             )
         : Promise.resolve([{ n: 0 }]),
-    ]);
+      ]),
+    );
 
     return {
       cxcVencidas: cxcRows[0]?.n ?? 0,

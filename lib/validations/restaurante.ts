@@ -9,6 +9,18 @@ const urlOpcional = z
 
 const textoOpcional = z.string().trim().optional().or(z.literal(""));
 
+// Texto libre de origen ANÓNIMO (menú público). Neutraliza inyección de HTML
+// como defensa en profundidad —además del escape de React— y elimina
+// caracteres de control (\p{Cc}). `max` acota el tamaño para evitar abuso.
+const textoPublico = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => v.replace(/[<>]/gu, "").replace(/\p{Cc}/gu, ""))
+    .optional()
+    .or(z.literal(""));
+
 export const menuVirtualSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   slug: z
@@ -103,10 +115,10 @@ export const pedidoMenuPublicoSchema = z.object({
     .regex(/^[0-9A-Za-z-]*$/, "Mesa invalida")
     .optional()
     .or(z.literal("")),
-  clienteNombre: z.string().trim().max(120).optional().or(z.literal("")),
-  clienteTelefono: z.string().trim().max(50).optional().or(z.literal("")),
-  clienteDireccion: z.string().trim().max(220).optional().or(z.literal("")),
-  notas: z.string().trim().max(500).optional().or(z.literal("")),
+  clienteNombre: textoPublico(120),
+  clienteTelefono: textoPublico(50),
+  clienteDireccion: textoPublico(220),
+  notas: textoPublico(500),
   items: z
     .array(
       z.object({

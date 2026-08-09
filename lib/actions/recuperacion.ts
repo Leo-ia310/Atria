@@ -3,7 +3,7 @@
 import { randomInt, createHash } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import { dbSuperAdmin } from "@/lib/db";
 import { usuarios, codigosRecuperacion } from "@/lib/db/schema";
 import {
   recuperarSolicitarSchema,
@@ -58,26 +58,41 @@ export async function solicitarCodigoRecuperacion(
     return { ok: false, error: "Demasiados intentos. Espera unos minutos e intenta de nuevo." };
   }
 
-  const [usuario] = await db
-    .select({
-      id: usuarios.id,
-      nombre: usuarios.nombre,
-      email: usuarios.email,
-      activo: usuarios.activo,
-    })
-    .from(usuarios)
-    .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
-    .limit(1);
+  const [usuario] = await dbSuperAdmin((tx) =>
+    tx
+      .select({
+        id: usuarios.id,
+        nombre: usuarios.nombre,
+        email: usuarios.email,
+        activo: usuarios.activo,
+      })
+      .from(usuarios)
+      .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
+      .limit(1),
+  );
 
   if (!usuario || !usuario.activo) return OK_GENERICO;
 
   const codigo = generarCodigo();
   const expiraEn = new Date(Date.now() + CODIGO_MINUTOS_VALIDEZ * 60 * 1000);
 
-  await db.insert(codigosRecuperacion).values({
-    usuarioId: usuario.id,
-    codigoHash: hashCodigo(codigo),
-    expiraEn,
+  await dbSuperAdmin(async (tx) => {
+    // Invalida cualquier código previo aún sin usar: solo el más reciente
+    // debe poder canjearse.
+    await tx
+      .update(codigosRecuperacion)
+      .set({ usadoEn: new Date() })
+      .where(
+        and(
+          eq(codigosRecuperacion.usuarioId, usuario.id),
+          isNull(codigosRecuperacion.usadoEn),
+        ),
+      );
+    await tx.insert(codigosRecuperacion).values({
+      usuarioId: usuario.id,
+      codigoHash: hashCodigo(codigo),
+      expiraEn,
+    });
   });
 
   await enviarEmail({
@@ -119,24 +134,28 @@ export async function canjearCodigoRecuperacion(
     return { ok: false, error: "Demasiados intentos. Solicita un nuevo código." };
   }
 
-  const [usuario] = await db
-    .select({ id: usuarios.id })
-    .from(usuarios)
-    .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
-    .limit(1);
+  const [usuario] = await dbSuperAdmin((tx) =>
+    tx
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
+      .limit(1),
+  );
   if (!usuario) return ERROR_CODIGO;
 
-  const [fila] = await db
-    .select()
-    .from(codigosRecuperacion)
-    .where(
-      and(
-        eq(codigosRecuperacion.usuarioId, usuario.id),
-        isNull(codigosRecuperacion.usadoEn),
-      ),
-    )
-    .orderBy(desc(codigosRecuperacion.creadoEn))
-    .limit(1);
+  const [fila] = await dbSuperAdmin((tx) =>
+    tx
+      .select()
+      .from(codigosRecuperacion)
+      .where(
+        and(
+          eq(codigosRecuperacion.usuarioId, usuario.id),
+          isNull(codigosRecuperacion.usadoEn),
+        ),
+      )
+      .orderBy(desc(codigosRecuperacion.creadoEn))
+      .limit(1),
+  );
 
   if (!fila) return ERROR_CODIGO;
   if (fila.expiraEn.getTime() < Date.now()) return ERROR_CODIGO;
@@ -144,7 +163,7 @@ export async function canjearCodigoRecuperacion(
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await db.transaction(async (tx) => {
+  await dbSuperAdmin(async (tx) => {
     await tx.update(usuarios).set({ passwordHash }).where(eq(usuarios.id, usuario.id));
     await tx
       .update(codigosRecuperacion)

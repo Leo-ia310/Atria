@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import { proveedores } from "@/lib/db/schema";
 import { proveedorSchema } from "@/lib/validations/proveedores";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -18,22 +18,24 @@ export async function crearProveedor(input: unknown): Promise<Resultado> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   const d = parsed.data;
   try {
-    const [creado] = await db
-      .insert(proveedores)
-      .values({
-        empresaId: user.empresaId,
-        razonSocial: d.razonSocial,
-        nombreComercial: d.nombreComercial || null,
-        identificacionFiscal: d.identificacionFiscal || null,
-        email: d.email || null,
-        telefono: d.telefono || null,
-        direccion: d.direccion || null,
-        diasCredito: d.diasCredito,
-        contacto: d.contacto || null,
-        notas: d.notas || null,
-        activo: true,
-      })
-      .returning({ id: proveedores.id });
+    const [creado] = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .insert(proveedores)
+        .values({
+          empresaId: user.empresaId,
+          razonSocial: d.razonSocial,
+          nombreComercial: d.nombreComercial || null,
+          identificacionFiscal: d.identificacionFiscal || null,
+          email: d.email || null,
+          telefono: d.telefono || null,
+          direccion: d.direccion || null,
+          diasCredito: d.diasCredito,
+          contacto: d.contacto || null,
+          notas: d.notas || null,
+          activo: true,
+        })
+        .returning({ id: proveedores.id }),
+    );
     revalidatePath("/compras/proveedores");
     return { ok: true, id: creado.id };
   } catch (err) {
@@ -50,20 +52,22 @@ export async function actualizarProveedor(id: string, input: unknown): Promise<R
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   const d = parsed.data;
   try {
-    await db
-      .update(proveedores)
-      .set({
-        razonSocial: d.razonSocial,
-        nombreComercial: d.nombreComercial || null,
-        identificacionFiscal: d.identificacionFiscal || null,
-        email: d.email || null,
-        telefono: d.telefono || null,
-        direccion: d.direccion || null,
-        diasCredito: d.diasCredito,
-        contacto: d.contacto || null,
-        notas: d.notas || null,
-      })
-      .where(and(eq(proveedores.id, id), eq(proveedores.empresaId, user.empresaId)));
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(proveedores)
+        .set({
+          razonSocial: d.razonSocial,
+          nombreComercial: d.nombreComercial || null,
+          identificacionFiscal: d.identificacionFiscal || null,
+          email: d.email || null,
+          telefono: d.telefono || null,
+          direccion: d.direccion || null,
+          diasCredito: d.diasCredito,
+          contacto: d.contacto || null,
+          notas: d.notas || null,
+        })
+        .where(and(eq(proveedores.id, id), eq(proveedores.empresaId, user.empresaId))),
+    );
     revalidatePath("/compras/proveedores");
     return { ok: true, id };
   } catch (err) {

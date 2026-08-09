@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { dbConEmpresa } from "@/lib/db";
 import {
   productos,
   marcas,
@@ -70,62 +70,66 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
   if (!limite.ok) return limite;
 
   try {
-    const yaExiste = await db
-      .select({ id: productos.id })
-      .from(productos)
-      .where(
-        and(
-          eq(productos.empresaId, user.empresaId),
-          eq(productos.sku, datos.sku),
-          isNull(productos.eliminadoEn),
-        ),
-      )
-      .limit(1);
-    if (yaExiste.length > 0) {
-      return { ok: false, error: "Ya existe un producto con ese SKU" };
-    }
     const codigoBarras = String(datos.codigoBarras ?? "").trim();
-    if (codigoBarras) {
-      const duplicado = await db
+    const creado = await dbConEmpresa(user.empresaId, async (tx) => {
+      const yaExiste = await tx
         .select({ id: productos.id })
         .from(productos)
         .where(
           and(
             eq(productos.empresaId, user.empresaId),
-            eq(productos.codigoBarras, codigoBarras),
+            eq(productos.sku, datos.sku),
             isNull(productos.eliminadoEn),
           ),
         )
         .limit(1);
-      if (duplicado.length > 0) {
-        return { ok: false, error: "Ya existe un producto con ese codigo de barras" };
+      if (yaExiste.length > 0) return null;
+      if (codigoBarras) {
+        const duplicado = await tx
+          .select({ id: productos.id })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              eq(productos.codigoBarras, codigoBarras),
+              isNull(productos.eliminadoEn),
+            ),
+          )
+          .limit(1);
+        if (duplicado.length > 0) return "dup" as const;
       }
-    }
 
-    const [creado] = await db
-      .insert(productos)
-      .values({
-        empresaId: user.empresaId,
-        sku: datos.sku,
-        codigoBarras: codigoBarras || null,
-        nombre: datos.nombre,
-        descripcion: datos.descripcion as string | null,
-        tipo: datos.tipo,
-        categoriaId: (datos.categoriaId as string | null) ?? null,
-        marcaId: (datos.marcaId as string | null) ?? null,
-        unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
-        impuestoId: (datos.impuestoId as string | null) ?? null,
-        precioBase: datos.precioBase.toString(),
-        costoPromedio: datos.costoPromedio.toString(),
-        stockMinimo: datos.stockMinimo.toString(),
-        stockMaximo: datos.stockMaximo?.toString(),
-        metodoCosteo: datos.metodoCosteo,
-        manejaLotes: datos.manejaLotes,
-        manejaSeries: datos.manejaSeries,
-        fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
-        activo: true,
-      })
-      .returning({ id: productos.id });
+      const [fila] = await tx
+        .insert(productos)
+        .values({
+          empresaId: user.empresaId,
+          sku: datos.sku,
+          codigoBarras: codigoBarras || null,
+          nombre: datos.nombre,
+          descripcion: datos.descripcion as string | null,
+          tipo: datos.tipo,
+          categoriaId: (datos.categoriaId as string | null) ?? null,
+          marcaId: (datos.marcaId as string | null) ?? null,
+          unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
+          impuestoId: (datos.impuestoId as string | null) ?? null,
+          precioBase: datos.precioBase.toString(),
+          costoPromedio: datos.costoPromedio.toString(),
+          stockMinimo: datos.stockMinimo.toString(),
+          stockMaximo: datos.stockMaximo?.toString(),
+          metodoCosteo: datos.metodoCosteo,
+          manejaLotes: datos.manejaLotes,
+          manejaSeries: datos.manejaSeries,
+          fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
+          activo: true,
+        })
+        .returning({ id: productos.id });
+      return fila;
+    });
+
+    if (creado === null) return { ok: false, error: "Ya existe un producto con ese SKU" };
+    if (creado === "dup") {
+      return { ok: false, error: "Ya existe un producto con ese codigo de barras" };
+    }
 
     revalidatePath("/inventario");
     await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.DASHBOARD]);
@@ -151,66 +155,70 @@ export async function actualizarProducto(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const datos = limpiar(parsed.data);
+  const codigoBarras = String(datos.codigoBarras ?? "").trim();
 
   try {
-    const existente = await db
-      .select({ id: productos.id })
-      .from(productos)
-      .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)))
-      .limit(1);
-    if (existente.length === 0) {
-      return { ok: false, error: "Producto no encontrado" };
-    }
-    const codigoBarras = String(datos.codigoBarras ?? "").trim();
-    if (codigoBarras) {
-      const duplicado = await db
+    const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+      const existente = await tx
         .select({ id: productos.id })
         .from(productos)
+        .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)))
+        .limit(1);
+      if (existente.length === 0) return "no-existe" as const;
+      if (codigoBarras) {
+        const duplicado = await tx
+          .select({ id: productos.id })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              eq(productos.codigoBarras, codigoBarras),
+              ne(productos.id, id),
+              isNull(productos.eliminadoEn),
+            ),
+          )
+          .limit(1);
+        if (duplicado.length > 0) return "dup" as const;
+      }
+
+      await tx
+        .update(productos)
+        .set({
+          sku: datos.sku,
+          codigoBarras: codigoBarras || null,
+          nombre: datos.nombre,
+          descripcion: datos.descripcion as string | null,
+          tipo: datos.tipo,
+          categoriaId: (datos.categoriaId as string | null) ?? null,
+          marcaId: (datos.marcaId as string | null) ?? null,
+          unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
+          impuestoId: (datos.impuestoId as string | null) ?? null,
+          precioBase: datos.precioBase.toString(),
+          stockMinimo: datos.stockMinimo.toString(),
+          stockMaximo: datos.stockMaximo?.toString() ?? null,
+          metodoCosteo: datos.metodoCosteo,
+          manejaLotes: datos.manejaLotes,
+          manejaSeries: datos.manejaSeries,
+          fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
+          actualizadoEn: new Date(),
+        })
+        .where(eq(productos.id, id));
+      await tx
+        .update(productoAdvertencias)
+        .set({ resuelta: true })
         .where(
           and(
-            eq(productos.empresaId, user.empresaId),
-            eq(productos.codigoBarras, codigoBarras),
-            ne(productos.id, id),
-            isNull(productos.eliminadoEn),
+            eq(productoAdvertencias.productoId, id),
+            eq(productoAdvertencias.empresaId, user.empresaId),
           ),
-        )
-        .limit(1);
-      if (duplicado.length > 0) {
-        return { ok: false, error: "Ya existe otro producto con ese codigo de barras" };
-      }
-    }
+        );
+      return "ok" as const;
+    });
 
-    await db
-      .update(productos)
-      .set({
-        sku: datos.sku,
-        codigoBarras: codigoBarras || null,
-        nombre: datos.nombre,
-        descripcion: datos.descripcion as string | null,
-        tipo: datos.tipo,
-        categoriaId: (datos.categoriaId as string | null) ?? null,
-        marcaId: (datos.marcaId as string | null) ?? null,
-        unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
-        impuestoId: (datos.impuestoId as string | null) ?? null,
-        precioBase: datos.precioBase.toString(),
-        stockMinimo: datos.stockMinimo.toString(),
-        stockMaximo: datos.stockMaximo?.toString() ?? null,
-        metodoCosteo: datos.metodoCosteo,
-        manejaLotes: datos.manejaLotes,
-        manejaSeries: datos.manejaSeries,
-        fechaVencimiento: (datos.fechaVencimiento as string | null) ?? null,
-        actualizadoEn: new Date(),
-      })
-      .where(eq(productos.id, id));
-    await db
-      .update(productoAdvertencias)
-      .set({ resuelta: true })
-      .where(
-        and(
-          eq(productoAdvertencias.productoId, id),
-          eq(productoAdvertencias.empresaId, user.empresaId),
-        ),
-      );
+    if (resultado === "no-existe") return { ok: false, error: "Producto no encontrado" };
+    if (resultado === "dup") {
+      return { ok: false, error: "Ya existe otro producto con ese codigo de barras" };
+    }
 
     revalidatePath("/inventario");
     revalidatePath(`/inventario/${id}`);
@@ -239,16 +247,18 @@ export async function importarProductosInventario(
   const filas = parsed.data.filas;
   const skus = [...new Set(filas.map((f) => f.sku.trim()))];
   const existentes = skus.length
-    ? await db
-        .select({ id: productos.id, sku: productos.sku })
-        .from(productos)
-        .where(
-          and(
-            eq(productos.empresaId, user.empresaId),
-            inArray(productos.sku, skus),
-            isNull(productos.eliminadoEn),
+    ? await dbConEmpresa(user.empresaId, (tx) =>
+        tx
+          .select({ id: productos.id, sku: productos.sku })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.empresaId, user.empresaId),
+              inArray(productos.sku, skus),
+              isNull(productos.eliminadoEn),
+            ),
           ),
-        )
+      )
     : [];
   const mapaExistentes = new Map(existentes.map((p) => [p.sku, p.id]));
   const nuevos = skus.filter((sku) => !mapaExistentes.has(sku));
@@ -260,13 +270,6 @@ export async function importarProductosInventario(
   );
   if (!limite.ok) return limite;
 
-  const [almacen] = await db
-    .select({ id: almacenes.id })
-    .from(almacenes)
-    .where(and(eq(almacenes.empresaId, user.empresaId), eq(almacenes.activo, true)))
-    .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
-    .limit(1);
-
   try {
     let creados = 0;
     let actualizados = 0;
@@ -274,7 +277,14 @@ export async function importarProductosInventario(
     let stockAjustado = 0;
     const mensajes: string[] = [];
 
-    await db.transaction(async (tx) => {
+    const almacen = await dbConEmpresa(user.empresaId, async (tx) => {
+      const [alm] = await tx
+        .select({ id: almacenes.id })
+        .from(almacenes)
+        .where(and(eq(almacenes.empresaId, user.empresaId), eq(almacenes.activo, true)))
+        .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
+        .limit(1);
+
       for (const fila of filas) {
         const existenteId = mapaExistentes.get(fila.sku);
         let productoId = existenteId;
@@ -335,7 +345,7 @@ export async function importarProductosInventario(
           advertencias += fila.advertencias.length;
         }
 
-        if (almacen && fila.existenciaInicial > 0) {
+        if (alm && fila.existenciaInicial > 0) {
           const [existencia] = await tx
             .select({ id: existencias.id, cantidad: existencias.cantidad })
             .from(existencias)
@@ -343,7 +353,7 @@ export async function importarProductosInventario(
               and(
                 eq(existencias.empresaId, user.empresaId),
                 eq(existencias.productoId, productoId!),
-                eq(existencias.almacenId, almacen.id),
+                eq(existencias.almacenId, alm.id),
                 isNull(existencias.loteId),
               ),
             )
@@ -363,7 +373,7 @@ export async function importarProductosInventario(
             await tx.insert(existencias).values({
               empresaId: user.empresaId,
               productoId: productoId!,
-              almacenId: almacen.id,
+              almacenId: alm.id,
               cantidad: dec(fila.existenciaInicial),
             });
           }
@@ -372,7 +382,7 @@ export async function importarProductosInventario(
             await tx.insert(movimientosInventario).values({
               empresaId: user.empresaId,
               productoId: productoId!,
-              almacenId: almacen.id,
+              almacenId: alm.id,
               tipo: diff >= 0 ? "ajuste_entrada" : "ajuste_salida",
               cantidad: dec(diff),
               costoUnitario: dec(fila.costoPromedio),
@@ -384,6 +394,7 @@ export async function importarProductosInventario(
           }
         }
       }
+      return alm;
     });
 
     if (!almacen && filas.some((f) => f.existenciaInicial > 0)) {
@@ -416,35 +427,37 @@ export async function registrarEntradaInventarioPorLector(
   const codigoBarras = data.codigoBarras.trim();
 
   try {
-    const [[producto], [almacen]] = await Promise.all([
-      db
-        .select({
-          id: productos.id,
-          nombre: productos.nombre,
-          codigoBarras: productos.codigoBarras,
-          tipo: productos.tipo,
-        })
-        .from(productos)
-        .where(
-          and(
-            eq(productos.id, data.productoId),
-            eq(productos.empresaId, user.empresaId),
-            isNull(productos.eliminadoEn),
-          ),
-        )
-        .limit(1),
-      db
-        .select({ id: almacenes.id })
-        .from(almacenes)
-        .where(
-          and(
-            eq(almacenes.id, data.almacenId),
-            eq(almacenes.empresaId, user.empresaId),
-            eq(almacenes.activo, true),
-          ),
-        )
-        .limit(1),
-    ]);
+    const [[producto], [almacen]] = await dbConEmpresa(user.empresaId, (tx) =>
+      Promise.all([
+        tx
+          .select({
+            id: productos.id,
+            nombre: productos.nombre,
+            codigoBarras: productos.codigoBarras,
+            tipo: productos.tipo,
+          })
+          .from(productos)
+          .where(
+            and(
+              eq(productos.id, data.productoId),
+              eq(productos.empresaId, user.empresaId),
+              isNull(productos.eliminadoEn),
+            ),
+          )
+          .limit(1),
+        tx
+          .select({ id: almacenes.id })
+          .from(almacenes)
+          .where(
+            and(
+              eq(almacenes.id, data.almacenId),
+              eq(almacenes.empresaId, user.empresaId),
+              eq(almacenes.activo, true),
+            ),
+          )
+          .limit(1),
+      ]),
+    );
 
     if (!producto) return { ok: false, error: "Producto no encontrado" };
     if (!almacen) return { ok: false, error: "Almacen no disponible" };
@@ -458,7 +471,7 @@ export async function registrarEntradaInventarioPorLector(
       };
     }
 
-    const existenciaFinal = await db.transaction(async (tx) => {
+    const existenciaFinal = await dbConEmpresa(user.empresaId, async (tx) => {
       const [existencia] = await tx
         .select({ id: existencias.id, cantidad: existencias.cantidad })
         .from(existencias)
@@ -548,18 +561,19 @@ export async function crearMarca(
   }
   const nombre = parsed.data.nombre.trim();
   try {
-    const yaExiste = await db
-      .select({ id: marcas.id, nombre: marcas.nombre })
-      .from(marcas)
-      .where(and(eq(marcas.empresaId, user.empresaId), eq(marcas.nombre, nombre)))
-      .limit(1);
-    if (yaExiste.length > 0) {
-      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
-    }
-    const [creada] = await db
-      .insert(marcas)
-      .values({ empresaId: user.empresaId, nombre })
-      .returning({ id: marcas.id, nombre: marcas.nombre });
+    const creada = await dbConEmpresa(user.empresaId, async (tx) => {
+      const yaExiste = await tx
+        .select({ id: marcas.id, nombre: marcas.nombre })
+        .from(marcas)
+        .where(and(eq(marcas.empresaId, user.empresaId), eq(marcas.nombre, nombre)))
+        .limit(1);
+      if (yaExiste.length > 0) return yaExiste[0];
+      const [nueva] = await tx
+        .insert(marcas)
+        .values({ empresaId: user.empresaId, nombre })
+        .returning({ id: marcas.id, nombre: marcas.nombre });
+      return nueva;
+    });
     revalidatePath("/inventario/nuevo");
     return { ok: true, id: creada.id, nombre: creada.nombre };
   } catch (err) {
@@ -583,18 +597,19 @@ export async function crearCategoria(
   }
   const nombre = parsed.data.nombre.trim();
   try {
-    const yaExiste = await db
-      .select({ id: categorias.id, nombre: categorias.nombre })
-      .from(categorias)
-      .where(and(eq(categorias.empresaId, user.empresaId), eq(categorias.nombre, nombre)))
-      .limit(1);
-    if (yaExiste.length > 0) {
-      return { ok: true, id: yaExiste[0].id, nombre: yaExiste[0].nombre };
-    }
-    const [creada] = await db
-      .insert(categorias)
-      .values({ empresaId: user.empresaId, nombre })
-      .returning({ id: categorias.id, nombre: categorias.nombre });
+    const creada = await dbConEmpresa(user.empresaId, async (tx) => {
+      const yaExiste = await tx
+        .select({ id: categorias.id, nombre: categorias.nombre })
+        .from(categorias)
+        .where(and(eq(categorias.empresaId, user.empresaId), eq(categorias.nombre, nombre)))
+        .limit(1);
+      if (yaExiste.length > 0) return yaExiste[0];
+      const [nueva] = await tx
+        .insert(categorias)
+        .values({ empresaId: user.empresaId, nombre })
+        .returning({ id: categorias.id, nombre: categorias.nombre });
+      return nueva;
+    });
     revalidatePath("/inventario/nuevo");
     return { ok: true, id: creada.id, nombre: creada.nombre };
   } catch (err) {
@@ -611,10 +626,12 @@ export async function eliminarProducto(id: string): Promise<Resultado> {
   });
   if (!acceso.ok) return acceso;
   try {
-    await db
-      .update(productos)
-      .set({ eliminadoEn: new Date(), activo: false })
-      .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)));
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(productos)
+        .set({ eliminadoEn: new Date(), activo: false })
+        .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId))),
+    );
     revalidatePath("/inventario");
     await invalidarModulos(user.empresaId, [MODULOS.REPORTES, MODULOS.DASHBOARD]);
     return { ok: true, id };
@@ -632,15 +649,17 @@ export async function resolverAdvertenciaProducto(id: string): Promise<Resultado
   });
   if (!acceso.ok) return acceso;
   try {
-    await db
-      .update(productoAdvertencias)
-      .set({ resuelta: true })
-      .where(
-        and(
-          eq(productoAdvertencias.id, id),
-          eq(productoAdvertencias.empresaId, user.empresaId),
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(productoAdvertencias)
+        .set({ resuelta: true })
+        .where(
+          and(
+            eq(productoAdvertencias.id, id),
+            eq(productoAdvertencias.empresaId, user.empresaId),
+          ),
         ),
-      );
+    );
     revalidatePath("/inventario");
     return { ok: true };
   } catch (err) {

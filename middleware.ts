@@ -16,8 +16,23 @@ export default auth((req) => {
       },
     });
 
-  const segmentos = pathname.split("/").filter(Boolean);
-  const rutasInternas = new Set([
+  // Allowlist explícita de prefijos públicos. Todo lo demás requiere sesión.
+  // No abrimos rutas "por defecto": añadir un módulo nuevo queda protegido
+  // automáticamente hasta que se liste aquí de forma consciente.
+  const PREFIJOS_PUBLICOS = [
+    "/precios",
+    "/legal",
+    "/login",
+    "/registro",
+    "/recuperar",
+    "/api/auth",
+    "/api/cron",
+    "/_next",
+  ];
+
+  // Rutas de módulos internos: NUNCA son menús públicos aunque tengan forma de
+  // slug. Cualquier módulo top-level debe estar aquí para no quedar expuesto.
+  const RUTAS_INTERNAS = new Set([
     "api",
     "dashboard",
     "pos",
@@ -40,21 +55,22 @@ export default auth((req) => {
     "mi-cuenta",
     "superadmin",
   ]);
+
+  // Los menús virtuales de restaurantes viven en `/<slug>` (un solo segmento con
+  // forma de slug). Se validan contra el mismo formato que impone el registro
+  // del menú y se excluyen las rutas internas, en lugar de abrir cualquier
+  // segmento suelto.
+  const segmentos = pathname.split("/").filter(Boolean);
+  const primerSegmento = segmentos[0] ?? "";
   const esMenuPublico =
-    segmentos.length === 1 && !rutasInternas.has(segmentos[0] ?? "");
+    segmentos.length === 1 &&
+    !RUTAS_INTERNAS.has(primerSegmento) &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(primerSegmento);
 
   const esRutaPublica =
     pathname === "/" ||
     esMenuPublico ||
-    pathname.startsWith("/precios") ||
-    pathname.startsWith("/legal") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/registro") ||
-    pathname.startsWith("/recuperar") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/cron") ||
-    pathname.startsWith("/_next") ||
-    pathname.includes(".");
+    PREFIJOS_PUBLICOS.some((prefijo) => pathname.startsWith(prefijo));
 
   if (esRutaPublica) return continuar();
 

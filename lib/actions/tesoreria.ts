@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbConEmpresa } from "@/lib/db";
 import { cuentasFinancieras, categoriasGasto, gastosRecurrentes } from "@/lib/db/schema";
 import {
   crearCuentaFinancieraSchema,
@@ -32,17 +32,19 @@ export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> 
   }
   const data = parsed.data;
 
-  await db.insert(cuentasFinancieras).values({
-    empresaId: user.empresaId,
-    tipo: data.tipo,
-    nombre: data.nombre,
-    banco: data.banco || null,
-    numeroCuenta: data.numeroCuenta || null,
-    moneda: data.moneda,
-    saldoActual: aDecimalStr(data.saldoInicial),
-    cuentaContableId: data.cuentaContableId || null,
-    activa: true,
-  });
+  await dbConEmpresa(user.empresaId, (tx) =>
+    tx.insert(cuentasFinancieras).values({
+      empresaId: user.empresaId,
+      tipo: data.tipo,
+      nombre: data.nombre,
+      banco: data.banco || null,
+      numeroCuenta: data.numeroCuenta || null,
+      moneda: data.moneda,
+      saldoActual: aDecimalStr(data.saldoInicial),
+      cuentaContableId: data.cuentaContableId || null,
+      activa: true,
+    }),
+  );
 
   revalidatePath("/tesoreria");
   revalidatePath("/tesoreria/cuentas");
@@ -59,12 +61,14 @@ export async function crearCategoriaGasto(input: unknown): Promise<Resultado> {
   }
   const data = parsed.data;
 
-  await db.insert(categoriasGasto).values({
-    empresaId: user.empresaId,
-    nombre: data.nombre,
-    cuentaContableId: data.cuentaContableId,
-    activa: true,
-  });
+  await dbConEmpresa(user.empresaId, (tx) =>
+    tx.insert(categoriasGasto).values({
+      empresaId: user.empresaId,
+      nombre: data.nombre,
+      cuentaContableId: data.cuentaContableId,
+      activa: true,
+    }),
+  );
 
   revalidatePath("/tesoreria/gastos");
   return { ok: true };
@@ -83,22 +87,26 @@ export async function crearGasto(
   const data = parsed.data;
 
   // Verify ownership before entering transaction (prevents cross-tenant FK injection)
-  const [categoria] = await db
-    .select({ id: categoriasGasto.id })
-    .from(categoriasGasto)
-    .where(and(eq(categoriasGasto.id, data.categoriaId), eq(categoriasGasto.empresaId, user.empresaId)))
-    .limit(1);
+  const [categoria] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: categoriasGasto.id })
+      .from(categoriasGasto)
+      .where(and(eq(categoriasGasto.id, data.categoriaId), eq(categoriasGasto.empresaId, user.empresaId)))
+      .limit(1),
+  );
   if (!categoria) return { ok: false, error: "Categoría de gasto no encontrada" };
 
-  const [cuenta] = await db
-    .select({ id: cuentasFinancieras.id })
-    .from(cuentasFinancieras)
-    .where(and(eq(cuentasFinancieras.id, data.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, user.empresaId)))
-    .limit(1);
+  const [cuenta] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: cuentasFinancieras.id })
+      .from(cuentasFinancieras)
+      .where(and(eq(cuentasFinancieras.id, data.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, user.empresaId)))
+      .limit(1),
+  );
   if (!cuenta) return { ok: false, error: "Cuenta financiera no encontrada" };
 
   try {
-    const gastoId = await db.transaction(async (tx) => {
+    const gastoId = await dbConEmpresa(user.empresaId, async (tx) => {
       let recurrenteId: string | null = null;
       if (data.recurrenteMensual) {
         const diaMes = Number(data.fecha.slice(8, 10));
@@ -158,43 +166,47 @@ export async function actualizarGastoRecurrente(input: unknown): Promise<Resulta
   }
   const data = parsed.data;
 
-  const [categoria, cuenta, recurrente] = await Promise.all([
-    db
-      .select({ id: categoriasGasto.id })
-      .from(categoriasGasto)
-      .where(and(eq(categoriasGasto.id, data.categoriaId), eq(categoriasGasto.empresaId, user.empresaId)))
-      .limit(1),
-    db
-      .select({ id: cuentasFinancieras.id })
-      .from(cuentasFinancieras)
-      .where(and(eq(cuentasFinancieras.id, data.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, user.empresaId)))
-      .limit(1),
-    db
-      .select({ id: gastosRecurrentes.id })
-      .from(gastosRecurrentes)
-      .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId)))
-      .limit(1),
-  ]);
+  const [categoria, cuenta, recurrente] = await dbConEmpresa(user.empresaId, (tx) =>
+    Promise.all([
+      tx
+        .select({ id: categoriasGasto.id })
+        .from(categoriasGasto)
+        .where(and(eq(categoriasGasto.id, data.categoriaId), eq(categoriasGasto.empresaId, user.empresaId)))
+        .limit(1),
+      tx
+        .select({ id: cuentasFinancieras.id })
+        .from(cuentasFinancieras)
+        .where(and(eq(cuentasFinancieras.id, data.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, user.empresaId)))
+        .limit(1),
+      tx
+        .select({ id: gastosRecurrentes.id })
+        .from(gastosRecurrentes)
+        .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId)))
+        .limit(1),
+    ]),
+  );
   if (!categoria[0]) return { ok: false, error: "Categoría de gasto no encontrada" };
   if (!cuenta[0]) return { ok: false, error: "Cuenta financiera no encontrada" };
   if (!recurrente[0]) return { ok: false, error: "Gasto recurrente no encontrado" };
 
   try {
-    await db
-      .update(gastosRecurrentes)
-      .set({
-        categoriaId: data.categoriaId,
-        cuentaFinancieraId: data.cuentaFinancieraId,
-        descripcion: data.descripcion,
-        referencia: data.referencia || null,
-        subtotal: aDecimalStr(data.subtotal),
-        impuesto: aDecimalStr(data.impuesto),
-        diaMes: data.diaMes,
-        proximaFecha: data.proximaFecha,
-        activa: data.activa,
-        actualizadoEn: new Date(),
-      })
-      .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId)));
+    await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .update(gastosRecurrentes)
+        .set({
+          categoriaId: data.categoriaId,
+          cuentaFinancieraId: data.cuentaFinancieraId,
+          descripcion: data.descripcion,
+          referencia: data.referencia || null,
+          subtotal: aDecimalStr(data.subtotal),
+          impuesto: aDecimalStr(data.impuesto),
+          diaMes: data.diaMes,
+          proximaFecha: data.proximaFecha,
+          activa: data.activa,
+          actualizadoEn: new Date(),
+        })
+        .where(and(eq(gastosRecurrentes.id, data.id), eq(gastosRecurrentes.empresaId, user.empresaId))),
+    );
   } catch (error) {
     console.error(`[gasto-recurrente:${data.id}] No se pudo actualizar`, error);
     return { ok: false, error: "No se pudo actualizar el gasto recurrente" };
