@@ -9,11 +9,11 @@
  * locales → reales) es un paso server-side posterior y deliberado.
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { dbSuperAdmin } from "@/lib/db";
-import { firmarGrantCanonico } from "@/app/api/desktop/login/route";
+import { firmarGrantCanonico } from "@/lib/desktop-grant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

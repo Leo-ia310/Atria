@@ -7,7 +7,6 @@
  * para operar sin conexion hasta su vencimiento.
  */
 
-import { createHmac } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
@@ -20,6 +19,7 @@ import {
 } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations/auth";
 import { rateLimit } from "@/lib/redis/rate-limit";
+import { firmarGrantCanonico } from "@/lib/desktop-grant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,32 +32,6 @@ const LOGIN_MAX_IP = 40;
 function obtenerIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for") ?? "";
   return fwd.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim() || "desconocida";
-}
-
-/**
- * Firma canónica del grant (mismo formato en /api/desktop/login y /api/sync).
- * Orden explícito por campo para no depender del orden de claves de JSON.
- */
-export function firmarGrantCanonico(
-  secret: string,
-  g: {
-    userId: string;
-    empresaId: string;
-    sucursalIds: string[];
-    deviceId: string;
-    issuedAt: string;
-    expiresAt: string;
-  },
-): string {
-  const canonico = [
-    g.userId,
-    g.empresaId,
-    g.sucursalIds.join(","),
-    g.deviceId,
-    g.issuedAt,
-    g.expiresAt,
-  ].join("\n");
-  return createHmac("sha256", secret).update(canonico).digest("hex");
 }
 
 export async function POST(request: Request) {
