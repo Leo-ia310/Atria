@@ -2,13 +2,16 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/actions/session-helpers";
 import {
+  type ModuloAcceso,
   moduloDesdeRuta,
   modulosPermitidos,
   puedeAccederModulo,
 } from "@/lib/access-control";
 import { getAccessContext } from "@/lib/server-access";
 import { AppShell } from "@/components/layout/AppShell";
+import { BillingBlockedScreen } from "@/components/layout/BillingBlockedScreen";
 import { DemoNoticeBanner } from "@/components/layout/DemoNoticeBanner";
+import { TrialNoticeBanner } from "@/components/layout/TrialNoticeBanner";
 import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import { SessionProvider } from "@/components/layout/SessionProvider";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -32,14 +35,47 @@ export default async function AppLayout({
   const pathname = headerStore.get("x-arca-pathname") ?? "";
   const moduloActual = moduloDesdeRuta(pathname);
 
-  if (moduloActual && !puedeAccederModulo(access, moduloActual)) {
-    redirect("/dashboard?acceso=denegado");
-  }
-
   const nombreEmpresa =
     empresa?.nombreComercial || empresa?.razonSocial || "Empresa";
   const planNombre = access.plan.nombre;
   const esDemo = access.plan.id === "demo";
+  const esTrialPago = access.suscripcionEstado === "trial" && access.plan.id !== "demo";
+
+  if (access.suscripcionBloqueada) {
+    const permitidosBloqueo: ModuloAcceso[] = ["dashboard", "mi-cuenta"];
+    return (
+      <SessionProvider>
+        <ToastProvider>
+          <AppShell
+            nombreEmpresa={nombreEmpresa}
+            planNombre={planNombre}
+            planActualId={access.plan.id}
+            suscripcionEstado={access.suscripcionEstado}
+            suscripcionFinISO={access.suscripcionFinPeriodo?.toISOString() ?? null}
+            suscripcionBloqueada={access.suscripcionBloqueada}
+            esDemo={esDemo}
+            nombreUsuario={user.nombre}
+            modulosPermitidos={permitidosBloqueo}
+            notificaciones={[]}
+            commandItems={filtrarCommandItems(permitidosBloqueo)}
+          >
+            <BillingBlockedScreen
+              planNombre={planNombre}
+              planActualId={access.plan.id}
+              vencioISO={access.suscripcionFinPeriodo?.toISOString() ?? null}
+              eliminaISO={access.suscripcionFechaEliminacion?.toISOString() ?? null}
+              diasGraciaRestantes={access.suscripcionDiasGraciaRestantes}
+            />
+          </AppShell>
+        </ToastProvider>
+      </SessionProvider>
+    );
+  }
+
+  if (moduloActual && !puedeAccederModulo(access, moduloActual)) {
+    redirect("/dashboard?acceso=denegado");
+  }
+
   const permitidos = modulosPermitidos(access);
   const commandItems = filtrarCommandItems(permitidos);
   const sucursalIds = selectedSucursalIds(sucursalScope);
@@ -94,13 +130,27 @@ export default async function AppLayout({
         <AppShell
           nombreEmpresa={nombreEmpresa}
           planNombre={planNombre}
+          planActualId={access.plan.id}
+          suscripcionEstado={access.suscripcionEstado}
+          suscripcionFinISO={access.suscripcionFinPeriodo?.toISOString() ?? null}
+          suscripcionBloqueada={access.suscripcionBloqueada}
           esDemo={esDemo}
           nombreUsuario={user.nombre}
           modulosPermitidos={permitidos}
           notificaciones={notificaciones}
           commandItems={commandItems}
           sucursalScope={sucursalScope}
-          banner={esDemo ? <DemoNoticeBanner /> : null}
+          banner={
+            esDemo ? (
+              <DemoNoticeBanner />
+            ) : esTrialPago && access.suscripcionFinPeriodo ? (
+              <TrialNoticeBanner
+                planNombre={planNombre}
+                planActualId={access.plan.id}
+                finISO={access.suscripcionFinPeriodo.toISOString()}
+              />
+            ) : null
+          }
         >
           {children}
         </AppShell>

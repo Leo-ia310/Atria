@@ -103,7 +103,10 @@ export async function crearOrdenPlan(
   codigoReferidoCliente?: string | null,
 ): Promise<ResultadoOrden> {
   const user = await requireSession();
-  const acceso = await validarAccion(user, { soloAdmin: true });
+  const acceso = await validarAccion(user, {
+    soloAdmin: true,
+    permitirConSuscripcionBloqueada: true,
+  });
   if (!acceso.ok) return acceso;
 
   if (!PLANES_PAGADOS.has(planId)) {
@@ -164,7 +167,10 @@ export async function capturarOrdenPlan(
   codigoReferidoCliente?: string | null,
 ): Promise<ResultadoCaptura> {
   const user = await requireSession();
-  const acceso = await validarAccion(user, { soloAdmin: true });
+  const acceso = await validarAccion(user, {
+    soloAdmin: true,
+    permitirConSuscripcionBloqueada: true,
+  });
   if (!acceso.ok) return acceso;
 
   const ordenLimpia = String(orderId || "").trim();

@@ -25,6 +25,10 @@ function agruparNav(items: NavItem[]): { item: NavItem; children: NavItem[] }[] 
 export function Sidebar({
   nombreEmpresa,
   planNombre,
+  planActualId,
+  suscripcionEstado,
+  suscripcionFinISO,
+  suscripcionBloqueada = false,
   esDemo,
   nombreUsuario,
   modulosPermitidos,
@@ -33,6 +37,10 @@ export function Sidebar({
 }: {
   nombreEmpresa: string;
   planNombre: string;
+  planActualId?: "demo" | "pro" | "enterprise";
+  suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
+  suscripcionFinISO?: string | null;
+  suscripcionBloqueada?: boolean;
   esDemo: boolean;
   nombreUsuario: string;
   modulosPermitidos: ModuloAcceso[];
@@ -285,7 +293,16 @@ export function Sidebar({
                   />
                 )}
               </div>
-              {esDemo ? (
+              {suscripcionBloqueada ? (
+                <>
+                  <p className="mt-1 text-[12px] text-white/70">
+                    Pago pendiente
+                  </p>
+                  <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
+                    Pagar plan
+                  </span>
+                </>
+              ) : esDemo ? (
                 <>
                   <p className="mt-1 text-[12px] text-white/70">
                     Funciones limitadas
@@ -294,6 +311,8 @@ export function Sidebar({
                     Mejorar plan
                   </span>
                 </>
+              ) : suscripcionEstado === "trial" ? (
+                <p className="mt-1 text-[12px] text-white/70">Prueba gratis activa</p>
               ) : (
                 <p className="mt-1 text-[12px] text-white/70">Suscripcion activa</p>
               )}
@@ -328,6 +347,10 @@ export function Sidebar({
           abierto={planesAbierto}
           onCerrar={() => setPlanesAbierto(false)}
           planActual={planNombre}
+          planActualId={planActualId}
+          suscripcionEstado={suscripcionEstado}
+          suscripcionFinISO={suscripcionFinISO}
+          suscripcionBloqueada={suscripcionBloqueada}
         />
       </aside>
     </>

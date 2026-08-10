@@ -15,7 +15,13 @@ import {
   ventas,
 } from "@/lib/db/schema";
 import type { TX } from "@/lib/contabilidad/helpers";
-import { getPlan, type Plan, type PlanId } from "@/lib/pricing";
+import {
+  DIAS_TRIAL_PLAN_PAGO,
+  DIAS_VIGENCIA_DEMO,
+  getPlan,
+  type Plan,
+  type PlanId,
+} from "@/lib/pricing";
 import {
   leerCodigoReferidoDesdeCookie,
   normalizarCodigoReferido,
@@ -28,12 +34,18 @@ export type TipoComisionReferido = "primera" | "renovacion";
 export function finPeriodo(inicio: Date, planId: PlanId, ciclo: Ciclo): Date {
   const fin = new Date(inicio);
   if (planId === "demo") {
-    fin.setDate(fin.getDate() + 14);
+    fin.setDate(fin.getDate() + DIAS_VIGENCIA_DEMO);
   } else if (ciclo === "anual") {
     fin.setFullYear(fin.getFullYear() + 1);
   } else {
     fin.setMonth(fin.getMonth() + 1);
   }
+  return fin;
+}
+
+export function finTrialPlanPago(inicio: Date): Date {
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + DIAS_TRIAL_PLAN_PAGO);
   return fin;
 }
 

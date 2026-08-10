@@ -27,6 +27,7 @@ import { registroCompletoSchema } from "@/lib/validations/auth";
 import { VERSION_LEGAL } from "@/lib/legal";
 import { CATALOGO_CUENTAS_BASE, getPaisConfig, CUENTAS_CLAVE } from "@/lib/paises";
 import { PLANES } from "@/lib/pricing";
+import { finPeriodo, finTrialPlanPago } from "@/lib/suscripciones/core";
 import {
   leerCodigoReferidoDesdeCookie,
   normalizarCodigoReferido,
@@ -165,7 +166,7 @@ export async function registrarEmpresa(
         .values({
           razonSocial: empresa.razonSocial,
           nombreComercial: empresa.nombreComercial || null,
-          identificacionFiscal: empresa.identificacionFiscal,
+          identificacionFiscal: empresa.identificacionFiscal.trim(),
           tipoEmpresa: empresa.tipoEmpresa,
           pais: empresa.pais,
           moneda: empresa.moneda,
@@ -341,26 +342,19 @@ export async function registrarEmpresa(
         estado: "abierto",
       });
 
-      // El registro SIEMPRE arranca en Demo/trial. Los planes pagados se activan
-      // solo tras el pago con PayPal (post-registro), nunca gratis aquí.
+      // Demo es permanente y limitado. Pro/Enterprise inician con 15 dias gratis.
       const inicio = new Date();
-      const fin = new Date();
-      fin.setDate(fin.getDate() + 14);
-
-      const [planDemo] =
-        planSeleccionado.codigo === "demo"
-          ? [planSeleccionado]
-          : await tx
-              .select()
-              .from(planesTable)
-              .where(eq(planesTable.codigo, "demo"))
-              .limit(1);
+      const planIdInicial = planSeleccionado.codigo as keyof typeof PLANES;
+      const fin =
+        planIdInicial === "demo"
+          ? finPeriodo(inicio, "demo", "mensual")
+          : finTrialPlanPago(inicio);
 
       await tx.insert(suscripciones).values({
         empresaId: empresaCreada.id,
-        planId: planDemo.id,
+        planId: planSeleccionado.id,
         estado: "trial",
-        ciclo: "mensual",
+        ciclo: planIdInicial === "demo" ? "mensual" : plan.ciclo,
         codigoReferido: codigoReferido || null,
         inicioPeriodo: inicio,
         finPeriodo: fin,

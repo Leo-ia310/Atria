@@ -12,6 +12,10 @@ export function AppShell({
   banner,
   nombreEmpresa,
   planNombre,
+  planActualId,
+  suscripcionEstado,
+  suscripcionFinISO,
+  suscripcionBloqueada,
   esDemo,
   nombreUsuario,
   modulosPermitidos,
@@ -23,6 +27,10 @@ export function AppShell({
   banner?: ReactNode;
   nombreEmpresa: string;
   planNombre: string;
+  planActualId?: "demo" | "pro" | "enterprise";
+  suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
+  suscripcionFinISO?: string | null;
+  suscripcionBloqueada?: boolean;
   esDemo: boolean;
   nombreUsuario: string;
   modulosPermitidos: ModuloAcceso[];
@@ -38,6 +46,10 @@ export function AppShell({
       <Sidebar
         nombreEmpresa={nombreEmpresa}
         planNombre={planNombre}
+        planActualId={planActualId}
+        suscripcionEstado={suscripcionEstado}
+        suscripcionFinISO={suscripcionFinISO}
+        suscripcionBloqueada={suscripcionBloqueada}
         esDemo={esDemo}
         nombreUsuario={nombreUsuario}
         modulosPermitidos={modulosPermitidos}

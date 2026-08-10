@@ -8,6 +8,7 @@ import { Check } from "lucide-react";
 import { registrarEmpresa } from "@/lib/actions/registro";
 import {
   DESCUENTO_ANUAL_PORCENTAJE,
+  DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
   PROMO_LANZAMIENTO,
   descuentoPromoPorcentaje,
@@ -18,7 +19,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { cn, formatearMoneda } from "@/lib/utils";
-import { PayPalCheckout } from "@/components/pagos/PayPalCheckout";
 
 type Paso = 1 | 2 | 3;
 
@@ -79,8 +79,6 @@ export default function RegistroPage() {
   });
   const [plan, setPlan] = useState<EstadoPlan>({ planId: "demo", ciclo: "mensual" });
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
-  const [mostrarPago, setMostrarPago] = useState(false);
-  const [pagoError, setPagoError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -100,13 +98,6 @@ export default function RegistroPage() {
   }
 
   const paisConfig = getPaisConfig(empresa.pais);
-  const planElegido = PLANES_ARRAY.find((p) => p.id === plan.planId);
-  // Toda cuenta nueva arranca sin pagos previos, así que si hay promo activa
-  // y el ciclo es mensual, siempre aplica en este flujo de registro.
-  const promoPlanElegido = plan.ciclo === "mensual" ? precioPromocional(plan.planId) : null;
-  const precioPlanElegido = planElegido
-    ? promoPlanElegido ?? (plan.ciclo === "anual" ? planElegido.precioAnual : planElegido.precioMensual)
-    : 0;
 
   async function enviar() {
     if (!aceptaTerminos) {
@@ -133,11 +124,6 @@ export default function RegistroPage() {
       setErrorGlobal("Cuenta creada, pero no pudimos iniciar sesión. Intenta desde /login.");
       return;
     }
-    // La cuenta arranca en Demo. Si eligió un plan pagado, cobramos ahora.
-    if (plan.planId !== "demo") {
-      setMostrarPago(true);
-      return;
-    }
     irADashboard();
   }
 
@@ -149,7 +135,6 @@ export default function RegistroPage() {
   return (
     <div className="w-full max-w-[540px]">
       <div className="arca-card p-8">
-        {!mostrarPago && (
         <ol className="mb-7 flex items-center gap-3">
           {PASOS.map((p, i) => {
             const completo = paso > p.num;
@@ -188,9 +173,8 @@ export default function RegistroPage() {
             );
           })}
         </ol>
-        )}
 
-        {!mostrarPago && paso === 1 && (
+        {paso === 1 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Cuéntanos de tu negocio
@@ -250,13 +234,13 @@ export default function RegistroPage() {
                 />
               </div>
               <Input
-                label={`Identificación fiscal (${paisConfig.idFiscalNombre})`}
-                placeholder={paisConfig.idFiscalNombre}
+                label={`Identificación fiscal (${paisConfig.idFiscalNombre}, opcional)`}
+                placeholder="Puedes completarlo despues"
                 value={empresa.identificacionFiscal}
                 onChange={(e) =>
                   setEmpresa((p) => ({ ...p, identificacionFiscal: e.target.value }))
                 }
-                hint={`El impuesto principal será ${paisConfig.impuestoNombre} ${(paisConfig.tasaDefault * 100).toFixed(0)}%`}
+                hint={`Puedes agregarlo despues. El impuesto principal sera ${paisConfig.impuestoNombre} ${(paisConfig.tasaDefault * 100).toFixed(0)}%`}
               />
             </div>
             <div className="mt-7 flex justify-end">
@@ -264,7 +248,6 @@ export default function RegistroPage() {
                 onClick={() => setPaso(2)}
                 disabled={
                   !empresa.razonSocial ||
-                  !empresa.identificacionFiscal ||
                   empresa.razonSocial.length < 2
                 }
               >
@@ -274,7 +257,7 @@ export default function RegistroPage() {
           </div>
         )}
 
-        {!mostrarPago && paso === 2 && (
+        {paso === 2 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Crea tu cuenta de administrador
@@ -350,13 +333,13 @@ export default function RegistroPage() {
           </div>
         )}
 
-        {!mostrarPago && paso === 3 && (
+        {paso === 3 && (
           <div>
             <h1 className="text-xl text-[color:var(--color-text-primary)]">
               Elige tu plan
             </h1>
             <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-              Puedes empezar gratis y subir cuando lo necesites.
+              Demo es limitado; Pro y Enterprise empiezan con prueba gratis de 15 dias.
             </p>
 
             <div className="mt-5 inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-0.5 text-small">
@@ -404,6 +387,11 @@ export default function RegistroPage() {
                           <span className="text-base font-semibold text-[color:var(--color-text-primary)]">
                             {p.nombre}
                           </span>
+                          {p.id !== "demo" && (
+                            <span className="arca-badge arca-badge-success">
+                              {DIAS_TRIAL_PLAN_PAGO} dias gratis
+                            </span>
+                          )}
                           {promoPorcentaje !== null && (
                             <span className="arca-badge arca-badge-success">
                               -{promoPorcentaje}% x {PROMO_LANZAMIENTO.meses} meses
@@ -477,78 +465,12 @@ export default function RegistroPage() {
                 ← Atrás
               </Button>
               <Button onClick={enviar} loading={enviando} disabled={!aceptaTerminos}>
-                Crear cuenta
+                {plan.planId === "demo" ? "Crear cuenta" : "Empezar prueba gratis"}
               </Button>
             </div>
           </div>
         )}
 
-        {mostrarPago && (
-          <div>
-            <h1 className="text-xl text-[color:var(--color-text-primary)]">
-              Activa tu plan {planElegido?.nombre}
-            </h1>
-            <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-              Tu cuenta ya está creada. Completa el pago para activar{" "}
-              {planElegido?.nombre} {plan.ciclo === "anual" ? "anual" : "mensual"}.
-            </p>
-
-            <div className="mt-5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-4">
-              <div className="flex items-center justify-between text-small">
-                <span className="text-[color:var(--color-text-secondary)]">
-                  Plan {planElegido?.nombre} ·{" "}
-                  {plan.ciclo === "anual" ? "Anual" : "Mensual"}
-                </span>
-                <span className="font-medium text-[color:var(--color-text-primary)]">
-                  {promoPlanElegido !== null && (
-                    <span className="mr-1.5 text-[color:var(--color-text-muted)] line-through">
-                      ${planElegido?.precioMensual.toFixed(2)}
-                    </span>
-                  )}
-                  ${precioPlanElegido.toFixed(2)}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
-                <span className="font-semibold text-[color:var(--color-text-primary)]">
-                  Total hoy
-                </span>
-                <span className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                  ${precioPlanElegido.toFixed(2)}{" "}
-                  <span className="text-[11px] font-normal">USD</span>
-                </span>
-              </div>
-              {promoPlanElegido !== null && (
-                <p className="mt-3 text-[12px] text-[color:var(--color-text-muted)]">
-                  Precio promocional por los primeros {PROMO_LANZAMIENTO.meses} meses. Luego $
-                  {planElegido?.precioMensual.toFixed(2)}/mes.
-                </p>
-              )}
-            </div>
-
-            <div className="mt-5">
-              <PayPalCheckout
-                planId={plan.planId}
-                ciclo={plan.ciclo}
-                onExito={() => irADashboard()}
-                onError={(m) => setPagoError(m)}
-              />
-            </div>
-
-            {pagoError && (
-              <div className="mt-3 rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
-                {pagoError}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={irADashboard}
-              className="mt-4 w-full text-center text-[12px] text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)]"
-            >
-              Pagar después y entrar con el plan Demo
-            </button>
-          </div>
-        )}
       </div>
 
       <p className="mt-6 text-center text-small text-[color:var(--color-text-muted)]">

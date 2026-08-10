@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X, Check, ArrowLeft } from "lucide-react";
-import { cambiarPlan } from "@/lib/actions/planes";
-import { PLANES_ARRAY, type Plan, type PlanId } from "@/lib/pricing";
-import { cn } from "@/lib/utils";
+import { cambiarPlan, iniciarTrialPlanPago } from "@/lib/actions/planes";
+import { PLANES_ARRAY, precioPromocional, type Plan, type PlanId } from "@/lib/pricing";
+import { cn, formatearFecha } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { PayPalCheckout } from "@/components/pagos/PayPalCheckout";
 import { ReciboExito } from "@/components/pagos/ReciboExito";
@@ -18,10 +18,18 @@ export function PlanesModal({
   abierto,
   onCerrar,
   planActual,
+  planActualId,
+  suscripcionEstado,
+  suscripcionFinISO,
+  suscripcionBloqueada = false,
 }: {
   abierto: boolean;
   onCerrar: () => void;
   planActual: string;
+  planActualId?: PlanId;
+  suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
+  suscripcionFinISO?: string | null;
+  suscripcionBloqueada?: boolean;
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -63,6 +71,10 @@ export function PlanesModal({
 
   async function elegirPlan(plan: Plan) {
     if (plan.id === "demo") {
+      if (suscripcionBloqueada) {
+        mostrar("error", "Tu cuenta esta bloqueada. Paga el plan para recuperar el acceso.");
+        return;
+      }
       setSeleccionando("demo");
       const res = await cambiarPlan("demo");
       setSeleccionando(null);
@@ -74,6 +86,42 @@ export function PlanesModal({
       onCerrar();
       router.refresh();
       return;
+    }
+
+    const esActual = planActualId
+      ? plan.id === planActualId
+      : plan.nombre.toLowerCase() === planActual.toLowerCase();
+    const trialPagoActivo =
+      suscripcionEstado === "trial" &&
+      !suscripcionBloqueada &&
+      (planActualId ? planActualId !== "demo" : planActual.toLowerCase() !== "demo");
+    if (trialPagoActivo) {
+      mostrar(
+        "info",
+        suscripcionFinISO
+          ? `Tu prueba gratis esta activa hasta ${formatearFecha(suscripcionFinISO)}. No necesitas tarjeta ahora.`
+          : "Tu prueba gratis esta activa. No necesitas tarjeta ahora.",
+      );
+      return;
+    }
+
+    const debePagarActual =
+      esActual &&
+      (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
+    if (!debePagarActual && !suscripcionBloqueada) {
+      setSeleccionando(plan.id);
+      const res = await iniciarTrialPlanPago(plan.id, anual ? "anual" : "mensual");
+      setSeleccionando(null);
+      if (res.ok) {
+        mostrar("success", `Prueba gratis de ${res.plan} activada hasta ${formatearFecha(res.finISO)}`);
+        onCerrar();
+        router.refresh();
+        return;
+      }
+      if (!res.requierePago) {
+        mostrar("error", res.error);
+        return;
+      }
     }
 
     setPlanCheckout(plan);
@@ -94,7 +142,7 @@ export function PlanesModal({
   const precioCheckout = planCheckout
     ? anual
       ? planCheckout.precioAnual
-      : planCheckout.precioMensual
+      : precioPromocional(planCheckout.id) ?? planCheckout.precioMensual
     : 0;
 
   return createPortal(
@@ -120,6 +168,10 @@ export function PlanesModal({
         {vista === "planes" && (
           <VistaPlanes
             planActual={planActual}
+            planActualId={planActualId}
+            suscripcionEstado={suscripcionEstado}
+            suscripcionFinISO={suscripcionFinISO}
+            suscripcionBloqueada={suscripcionBloqueada}
             anual={anual}
             setAnual={setAnual}
             seleccionando={seleccionando}
@@ -150,17 +202,31 @@ export function PlanesModal({
 
 function VistaPlanes({
   planActual,
+  planActualId,
+  suscripcionEstado,
+  suscripcionFinISO,
+  suscripcionBloqueada,
   anual,
   setAnual,
   seleccionando,
   onElegir,
 }: {
   planActual: string;
+  planActualId?: PlanId;
+  suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
+  suscripcionFinISO?: string | null;
+  suscripcionBloqueada: boolean;
   anual: boolean;
   setAnual: (v: boolean) => void;
   seleccionando: PlanId | null;
   onElegir: (plan: Plan) => void;
 }) {
+  const trialPagoActivo =
+    suscripcionEstado === "trial" &&
+    !suscripcionBloqueada &&
+    (planActualId ? planActualId !== "demo" : planActual.toLowerCase() !== "demo");
+  const finTrialTexto = suscripcionFinISO ? formatearFecha(suscripcionFinISO) : null;
+
   return (
     <>
       <div className="mb-5 text-center">
@@ -168,15 +234,35 @@ function VistaPlanes({
           Planes de ARCA
         </h2>
         <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-          Tu plan actual es <strong>{planActual}</strong>. Escala cuando lo necesites.
+          {trialPagoActivo ? (
+            <>
+              Tu prueba gratis de <strong>{planActual}</strong>{" "}
+              {finTrialTexto ? `termina el ${finTrialTexto}` : "esta activa"}.
+              No necesitas tarjeta ahora.
+            </>
+          ) : (
+            <>
+              Tu plan actual es <strong>{planActual}</strong>. Escala cuando lo necesites.
+            </>
+          )}
         </p>
         <TogglePeriodo anual={anual} setAnual={setAnual} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {PLANES_ARRAY.map((plan) => {
-          const esActual = plan.nombre.toLowerCase() === planActual.toLowerCase();
-          const precio = anual ? plan.precioAnualMensualizado : plan.precioMensual;
+          const esActual = planActualId
+            ? plan.id === planActualId
+            : plan.nombre.toLowerCase() === planActual.toLowerCase();
+          const puedePagarActual =
+            esActual &&
+            plan.id !== "demo" &&
+            (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
+          const demoBloqueado = suscripcionBloqueada && plan.id === "demo";
+          const planPagoBloqueadoPorTrial = trialPagoActivo && plan.id !== "demo";
+          const precio = anual
+            ? plan.precioAnualMensualizado
+            : precioPromocional(plan.id) ?? plan.precioMensual;
           return (
             <div
               key={plan.id}
@@ -218,22 +304,28 @@ function VistaPlanes({
                 <LiP ok={plan.features.multi_sucursal}>Multi-sucursal</LiP>
                 <LiP ok={plan.features.ia_asistente}>IA integrada</LiP>
               </ul>
-              {esActual ? (
+              {esActual && !puedePagarActual ? (
                 <div className="mt-4 rounded-md bg-[color:var(--color-surface-2)] py-2 text-center text-small font-medium text-[color:var(--color-text-muted)]">
-                  Plan actual
+                  {trialPagoActivo ? "Prueba gratis activa" : "Plan actual"}
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => onElegir(plan)}
-                  disabled={seleccionando !== null}
+                  disabled={seleccionando !== null || demoBloqueado || planPagoBloqueadoPorTrial}
                   className="arca-btn arca-btn-primary mt-4 w-full justify-center"
                 >
                   {seleccionando === plan.id
                     ? "Activando…"
-                    : plan.id === "demo"
+                    : demoBloqueado
+                      ? "No disponible"
+                    : planPagoBloqueadoPorTrial
+                      ? "Gratis activo"
+                    : puedePagarActual
+                      ? `Pagar ${plan.nombre}`
+                      : plan.id === "demo"
                       ? "Elegir Demo"
-                      : `Contratar ${plan.nombre}`}
+                      : `Probar ${plan.nombre}`}
                 </button>
               )}
             </div>

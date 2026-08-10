@@ -16,7 +16,14 @@ import {
   usuarios,
   ventas,
 } from "@/lib/db/schema";
-import { dentroDeLimite, getPlan, type Plan, type PlanFeatures } from "@/lib/pricing";
+import {
+  DIAS_GRACIA_PAGO,
+  dentroDeLimite,
+  getPlan,
+  type Plan,
+  type PlanFeatures,
+  type PlanId,
+} from "@/lib/pricing";
 import { suscripcionVigente } from "@/lib/suscripciones/expiracion";
 import type { SessionUser } from "@/lib/actions/session-helpers";
 import {
@@ -30,6 +37,11 @@ export type AccessContext = AccessSnapshot & {
   rolNombre: string | null;
   usuariosExtra: number;
   sucursalesExtra: number;
+  suscripcionEstado: EstadoSuscripcion | null;
+  suscripcionFinPeriodo: Date | null;
+  suscripcionBloqueada: boolean;
+  suscripcionFechaEliminacion: Date | null;
+  suscripcionDiasGraciaRestantes: number | null;
 };
 
 export type RecursoLimitado =
@@ -41,6 +53,7 @@ export type RecursoLimitado =
   | "facturas_mes";
 
 const ADMIN_ROLE = "administrador";
+type EstadoSuscripcion = (typeof suscripciones.estado.enumValues)[number];
 
 const getAccessContextCached = cache(
   async (
@@ -117,7 +130,22 @@ const getAccessContextCached = cache(
     const vigente = suscripcion
       ? suscripcionVigente(suscripcion.estado, suscripcion.finPeriodo)
       : false;
-    const plan = vigente ? normalizarPlan(suscripcion) : getPlan("demo");
+    const planCodigo = suscripcion?.planCodigo as PlanId | undefined;
+    const esPlanPago = planCodigo === "pro" || planCodigo === "enterprise";
+    const suscripcionBloqueada = Boolean(
+      suscripcion && esPlanPago && !vigente && suscripcion.estado !== "cancelada",
+    );
+    const suscripcionFechaEliminacion =
+      suscripcionBloqueada && suscripcion
+        ? sumarDias(suscripcion.finPeriodo, DIAS_GRACIA_PAGO)
+        : null;
+    const suscripcionDiasGraciaRestantes = suscripcionFechaEliminacion
+      ? Math.max(
+          0,
+          Math.ceil((suscripcionFechaEliminacion.getTime() - Date.now()) / 86_400_000),
+        )
+      : null;
+    const plan = vigente || suscripcionBloqueada ? normalizarPlan(suscripcion) : getPlan("demo");
     const rolNombre = rolRows[0]?.nombre ?? null;
     const esAdminEmpresa =
       usuarioActivo &&
@@ -132,8 +160,13 @@ const getAccessContextCached = cache(
       plan,
       tipoEmpresa: empresa?.tipoEmpresa ?? "general",
       rolNombre,
-      usuariosExtra: vigente ? suscripcion?.usuariosExtra ?? 0 : 0,
-      sucursalesExtra: vigente ? suscripcion?.sucursalesExtra ?? 0 : 0,
+      usuariosExtra: vigente || suscripcionBloqueada ? suscripcion?.usuariosExtra ?? 0 : 0,
+      sucursalesExtra: vigente || suscripcionBloqueada ? suscripcion?.sucursalesExtra ?? 0 : 0,
+      suscripcionEstado: suscripcion?.estado ?? null,
+      suscripcionFinPeriodo: suscripcion?.finPeriodo ?? null,
+      suscripcionBloqueada,
+      suscripcionFechaEliminacion,
+      suscripcionDiasGraciaRestantes,
     };
   },
 );
@@ -149,6 +182,9 @@ export function getAccessContext(user: SessionUser): Promise<AccessContext> {
 
 export async function requireModulo(user: SessionUser, modulo: ModuloAcceso) {
   const access = await getAccessContext(user);
+  if (access.suscripcionBloqueada) {
+    redirect("/dashboard?cuenta=bloqueada");
+  }
   if (!puedeAccederModulo(access, modulo)) {
     redirect("/dashboard?acceso=denegado");
   }
@@ -161,9 +197,17 @@ export async function validarAccion(
     modulo?: ModuloAcceso;
     permisos?: string | string[];
     soloAdmin?: boolean;
+    permitirConSuscripcionBloqueada?: boolean;
   },
 ): Promise<{ ok: true; access: AccessContext } | { ok: false; error: string }> {
   const access = await getAccessContext(user);
+
+  if (access.suscripcionBloqueada && !opciones.permitirConSuscripcionBloqueada) {
+    return {
+      ok: false,
+      error: "Tu prueba gratis vencio. Paga el plan para desbloquear la cuenta.",
+    };
+  }
 
   if (opciones.soloAdmin && !access.esAdminEmpresa) {
     return { ok: false, error: "Solo el administrador puede realizar esta acción." };
@@ -232,6 +276,12 @@ function normalizarPlan(
       ...base.features,
     },
   };
+}
+
+function sumarDias(fecha: Date, dias: number): Date {
+  const resultado = new Date(fecha);
+  resultado.setDate(resultado.getDate() + dias);
+  return resultado;
 }
 
 async function contarRecurso(

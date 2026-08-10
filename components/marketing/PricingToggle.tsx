@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import {
   DESCUENTO_ANUAL_PORCENTAJE,
+  DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
   PROMO_LANZAMIENTO,
   descuentoPromoPorcentaje,
@@ -15,12 +16,15 @@ import { cn } from "@/lib/utils";
 const VENTAJAS_POR_PLAN: Record<string, string[]> = {
   demo: [
     "Punto de venta basico",
-    "Hasta 10 productos",
-    "Hasta 50 transacciones al mes",
+    "Hasta 5 productos",
+    "Hasta 20 transacciones al mes",
+    "Hasta 5 clientes",
+    "Hasta 3 facturas al mes",
     "1 sucursal y 1 usuario",
     "Facturacion basica",
   ],
   pro: [
+    "15 dias gratis antes de pagar",
     "Todo en Demo, sin limites de productos",
     "Contabilidad de partida doble automatica",
     "Nomina incluida para tu equipo",
@@ -33,6 +37,7 @@ const VENTAJAS_POR_PLAN: Record<string, string[]> = {
     "Soporte por chat",
   ],
   enterprise: [
+    "15 dias gratis antes de pagar",
     "Todo en Pro para operacion corporativa",
     "Multi-sucursal (5 incluidas, +$30/mes c/u)",
     "Contabilidad consolidada por sucursal",
@@ -103,6 +108,11 @@ export function PricingToggle() {
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-[18px] font-semibold text-white">{p.nombre}</h3>
                   <div className="flex items-center gap-1.5">
+                    {p.id !== "demo" && (
+                      <span className="inline-flex items-center rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
+                        {DIAS_TRIAL_PLAN_PAGO} dias gratis
+                      </span>
+                    )}
                     {promoPorcentaje !== null && (
                       <span className="inline-flex items-center rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
                         -{promoPorcentaje}% x {PROMO_LANZAMIENTO.meses} meses
@@ -132,13 +142,13 @@ export function PricingToggle() {
                 </div>
                 {promo !== null ? (
                   <p className="mt-1 text-[12px] text-white/45">
-                    Primeros {PROMO_LANZAMIENTO.meses} meses. Luego ${precioNormal.toFixed(2)}/mes.
+                    {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego ${promo.toFixed(2)}/mes por {PROMO_LANZAMIENTO.meses} meses.
                   </p>
                 ) : (
                   <>
                     {ciclo === "anual" && p.precioAnual > 0 && (
                       <p className="mt-1 text-[12px] text-white/45">
-                        Facturado anual: ${p.precioAnual.toFixed(2)}
+                        {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}
                       </p>
                     )}
                     {ciclo === "mensual" && p.precioMensual > 0 && (
@@ -156,7 +166,7 @@ export function PricingToggle() {
                       : "border border-white/20 bg-white/5 text-white hover:bg-white/12",
                   )}
                 >
-                  {p.id === "demo" ? "Probar gratis" : `Empezar ${p.nombre}`}
+                  {p.id === "demo" ? "Explorar Demo" : `Probar ${p.nombre} gratis`}
                 </Link>
 
                 <ul className="mt-6 space-y-2.5 text-[13px]">

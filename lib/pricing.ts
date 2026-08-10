@@ -7,6 +7,9 @@
 export type PlanId = "demo" | "pro" | "enterprise";
 
 export const DESCUENTO_ANUAL_PORCENTAJE = 30;
+export const DIAS_TRIAL_PLAN_PAGO = 15;
+export const DIAS_GRACIA_PAGO = 7;
+export const DIAS_VIGENCIA_DEMO = 36500;
 
 /**
  * Promo de lanzamiento: precio especial mensual durante los primeros
@@ -129,17 +132,17 @@ export const PLANES: Record<PlanId, Plan> = {
   demo: {
     id: "demo",
     nombre: "Demo",
-    descripcionCorta: "Prueba el POS y la facturacion basica con limites claros.",
+    descripcionCorta: "Explora ARCA con datos propios y limites de prueba.",
     precioMensual: 0,
     precioAnual: 0,
     precioAnualMensualizado: 0,
     ahorroAnualPorcentaje: 0,
     maxSucursales: 1,
     maxUsuarios: 1,
-    maxProductos: 10,
-    maxTransaccionesMes: 50,
-    maxClientes: 10,
-    maxFacturasMes: 5,
+    maxProductos: 5,
+    maxTransaccionesMes: 20,
+    maxClientes: 5,
+    maxFacturasMes: 3,
     precioUsuarioExtra: null,
     precioSucursalExtra: null,
     features: {

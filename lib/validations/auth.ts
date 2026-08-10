@@ -37,7 +37,7 @@ export type RecuperarCanjearInput = z.infer<typeof recuperarCanjearSchema>;
 export const registroEmpresaSchema = z.object({
   razonSocial: z.string().min(2, "Mínimo 2 caracteres").max(200),
   nombreComercial: z.string().max(200).optional().or(z.literal("")),
-  identificacionFiscal: z.string().min(3, "Identificación fiscal requerida").max(50),
+  identificacionFiscal: z.string().trim().max(50).optional().default(""),
   tipoEmpresa: z.enum(["general", "restaurante", "retail", "servicios"]).default("general"),
   pais: z.enum(["HN", "NI", "GT", "CR", "SV"]),
   moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD"]),
