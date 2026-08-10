@@ -20,7 +20,7 @@ WHERE gr."cuenta_financiera_id" = cf."id"
 WITH recurrentes_con_sucursal AS (
   SELECT
     g."recurrente_id",
-    MIN(g."sucursal_id") AS "sucursal_id"
+    MIN(g."sucursal_id"::text)::uuid AS "sucursal_id"
   FROM "gastos" g
   WHERE g."recurrente_id" IS NOT NULL
     AND g."sucursal_id" IS NOT NULL
@@ -91,7 +91,7 @@ WHERE a."referencia_tabla" = 'movimientos_inventario'
 WITH nominas_con_sucursal AS (
   SELECT
     nd."nomina_id",
-    MIN(e."sucursal_id") AS "sucursal_id"
+    MIN(e."sucursal_id"::text)::uuid AS "sucursal_id"
   FROM "nomina_detalles" nd
   INNER JOIN "empleados" e ON e."id" = nd."empleado_id"
   WHERE e."sucursal_id" IS NOT NULL
