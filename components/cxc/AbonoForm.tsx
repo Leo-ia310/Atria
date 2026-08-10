@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { registrarAbono } from "@/lib/actions/cxc";
 import { formatearMoneda } from "@/lib/utils";
+import { fechaISOEnZona } from "@/lib/dates";
 import type { PaisCodigo } from "@/lib/paises";
 
 type Opcion = { value: string; label: string };
@@ -29,7 +30,7 @@ export function AbonoForm({
   const [enviando, setEnviando] = useState(false);
 
   const [formaPagoId, setFormaPagoId] = useState(formasPago[0]?.value ?? "");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(fechaISOEnZona());
   const [monto, setMonto] = useState<number | "">(saldoPendiente);
   const [referencia, setReferencia] = useState("");
   const [notas, setNotas] = useState("");

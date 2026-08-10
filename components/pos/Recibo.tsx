@@ -26,6 +26,7 @@ export type ReciboData = {
   };
   numero: string;
   fecha: string;
+  zonaHoraria?: string | null;
   cajero?: string | null;
   cliente: string;
   esCredito: boolean;
@@ -72,7 +73,7 @@ export function Recibo({ data }: { data: ReciboData }) {
 
       {/* Meta */}
       <div className="space-y-0.5 text-[12px]">
-        <Linea izq="Fecha" der={formatearFechaHora(data.fecha)} />
+        <Linea izq="Fecha" der={formatearFechaHora(data.fecha, pais, data.zonaHoraria)} />
         {data.cajero && <Linea izq="Cajero" der={data.cajero} />}
         <Linea izq="Cliente" der={data.cliente} />
         <Linea izq="Tipo" der={data.esCredito ? "Crédito" : "Contado"} />

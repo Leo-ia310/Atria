@@ -44,6 +44,9 @@ export default async function ProductoDetallePage({
   const [{ id }, user] = await Promise.all([params, requireSession()]);
   const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
+  const fechaMovimientoLocal = sql<string>`(${movimientosInventario.creadoEn} AT TIME ZONE ${zonaHoraria})::date`;
 
   const [producto] = await db
     .select({
@@ -75,7 +78,7 @@ export default async function ProductoDetallePage({
     await Promise.all([
       db
         .select({
-          fecha: sql<string>`DATE(${ventas.fecha})`,
+          fecha: fechaVentaLocal,
           unidades: sql<string>`SUM(${ventaDetalle.cantidad})`,
           monto: sql<string>`SUM(${ventaDetalle.subtotal})`,
         })
@@ -90,11 +93,11 @@ export default async function ProductoDetallePage({
             gte(ventas.fecha, hace90),
           ),
         )
-        .groupBy(sql`DATE(${ventas.fecha})`)
-        .orderBy(sql`DATE(${ventas.fecha})`),
+        .groupBy(fechaVentaLocal)
+        .orderBy(fechaVentaLocal),
       db
         .select({
-          fecha: sql<string>`DATE(${movimientosInventario.creadoEn})`,
+          fecha: fechaMovimientoLocal,
           unidades: sql<string>`SUM(${movimientosInventario.cantidad})`,
         })
         .from(movimientosInventario)
@@ -106,8 +109,8 @@ export default async function ProductoDetallePage({
             gte(movimientosInventario.creadoEn, hace90),
           ),
         )
-        .groupBy(sql`DATE(${movimientosInventario.creadoEn})`)
-        .orderBy(sql`DATE(${movimientosInventario.creadoEn})`),
+        .groupBy(fechaMovimientoLocal)
+        .orderBy(fechaMovimientoLocal),
       db
         .select({
           nombre: usuarios.nombre,

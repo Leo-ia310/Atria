@@ -13,6 +13,7 @@ import { PagoForm } from "@/components/cxp/PagoForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { fechaISOEnZona } from "@/lib/dates";
 
 export default async function CxPDetallePage({
   params,
@@ -74,11 +75,12 @@ export default async function CxPDetallePage({
     getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const cxp = cxpRows[0];
 
   if (!cxp) notFound();
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaISOEnZona(new Date(), zonaHoraria);
   const estaVencida =
     cxp.estado !== "pagada" &&
     fechaEstaVencida(cxp.fechaVencimiento, politicas.diasGraciaPagoProveedor, hoy);

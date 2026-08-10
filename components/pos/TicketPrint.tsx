@@ -31,6 +31,7 @@ export type TicketData = {
   };
   numero: string;
   fecha: string;
+  zonaHoraria?: string | null;
   cajero: string | null;
   cliente: string;
   esCredito: boolean;

@@ -18,6 +18,7 @@ export type ModuloAcceso =
   | "rrhh"
   | "reportes"
   | "reportes-avanzados"
+  | "soporte"
   | "configuracion"
   | "mi-cuenta";
 
@@ -71,6 +72,7 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
     permisos: ["reportes.avanzados"],
     features: ["reportes_avanzados"],
   },
+  soporte: { features: ["soporte_chat"] },
   configuracion: { soloAdmin: true },
 };
 
@@ -141,6 +143,7 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
   if (base === "tesoreria") return "tesoreria";
   if (base === "rrhh") return "rrhh";
   if (base === "configuracion") return "configuracion";
+  if (base === "soporte") return "soporte";
   if (base === "mi-cuenta") return "mi-cuenta";
   if (base === "reportes") {
     return partes[1] === "rentabilidad" ? "reportes-avanzados" : "reportes";

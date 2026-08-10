@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ventas, ventaDetalle, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -12,6 +12,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
+import { fechaISOEnZona, sumarDiasISO } from "@/lib/dates";
 
 export default async function ReporteVentasPage() {
   const user = await requireSession();
@@ -20,17 +21,18 @@ export default async function ReporteVentasPage() {
     getSucursalScope(user),
   ]);
   const pais = empresa?.pais ?? "NI";
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
+  const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
+  const hace30Local = sumarDiasISO(hoyLocal, -30);
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
     : undefined;
 
-  const hace30 = new Date();
-  hace30.setDate(hace30.getDate() - 30);
-
   const ventasUlt30Promise = db
     .select({
-      fecha: sql<string>`DATE(${ventas.fecha})`,
+      fecha: fechaVentaLocal,
       total: sql<string>`SUM(${ventas.total})`,
       count: sql<string>`COUNT(*)`,
     })
@@ -39,12 +41,12 @@ export default async function ReporteVentasPage() {
       and(
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
-        gte(ventas.fecha, hace30),
+        sql`${fechaVentaLocal} >= ${hace30Local}`,
         filtroSucursalVenta,
       ),
     )
-    .groupBy(sql`DATE(${ventas.fecha})`)
-    .orderBy(sql`DATE(${ventas.fecha})`);
+    .groupBy(fechaVentaLocal)
+    .orderBy(fechaVentaLocal);
 
   const topProductosPromise = db
     .select({
@@ -60,7 +62,7 @@ export default async function ReporteVentasPage() {
       and(
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
-        gte(ventas.fecha, hace30),
+        sql`${fechaVentaLocal} >= ${hace30Local}`,
         filtroSucursalVenta,
       ),
     )
@@ -83,7 +85,7 @@ export default async function ReporteVentasPage() {
     },
   );
   const dataDiaria = ventasUlt30.map((d) => ({
-    label: new Date(d.fecha).toLocaleDateString("es", {
+    label: new Date(`${d.fecha}T12:00:00`).toLocaleDateString("es", {
       day: "2-digit",
       month: "short",
     }),

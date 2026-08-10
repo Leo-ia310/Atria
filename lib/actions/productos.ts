@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, ne } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
   productos,
@@ -23,6 +23,8 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
+import { formatearSku, normalizarSku, prefijoSkuCategoria } from "@/lib/sku";
+import type { TX } from "@/lib/contabilidad/helpers";
 
 type Resultado =
   | { ok: true; id: string }
@@ -54,6 +56,69 @@ function limpiar<T extends Record<string, unknown>>(obj: T): T {
   return out;
 }
 
+async function nombreCategoriaSku(
+  tx: TX,
+  empresaId: string,
+  categoriaId: unknown,
+): Promise<string | null> {
+  const id = typeof categoriaId === "string" && categoriaId ? categoriaId : null;
+  if (!id) return null;
+  const [categoria] = await tx
+    .select({ nombre: categorias.nombre })
+    .from(categorias)
+    .where(and(eq(categorias.id, id), eq(categorias.empresaId, empresaId)))
+    .limit(1);
+  if (!categoria) {
+    throw new Error("Categoria no valida para esta empresa");
+  }
+  return categoria.nombre;
+}
+
+async function siguienteSkuCategoria(
+  tx: TX,
+  empresaId: string,
+  categoriaNombre: string | null,
+  tipo: string,
+): Promise<string> {
+  const prefijo = prefijoSkuCategoria(categoriaNombre, tipo);
+  const existentes = await tx
+    .select({ sku: productos.sku })
+    .from(productos)
+    .where(
+      and(
+        eq(productos.empresaId, empresaId),
+        like(productos.sku, `${prefijo}-%`),
+        isNull(productos.eliminadoEn),
+      ),
+    )
+    .limit(5000);
+
+  const usados = new Set(existentes.map((row) => row.sku));
+  const max = existentes.reduce((actual, row) => {
+    const numero = Number(row.sku.match(/-(\d+)$/)?.[1] ?? 0);
+    return Number.isFinite(numero) ? Math.max(actual, numero) : actual;
+  }, 0);
+
+  let siguiente = max + 1;
+  let sku = formatearSku(prefijo, siguiente);
+  while (usados.has(sku)) {
+    siguiente += 1;
+    sku = formatearSku(prefijo, siguiente);
+  }
+  return sku;
+}
+
+async function resolverSkuProducto(
+  tx: TX,
+  empresaId: string,
+  datos: { sku?: string | null; categoriaId?: unknown; tipo: string },
+): Promise<string> {
+  const manual = normalizarSku(String(datos.sku ?? ""));
+  if (manual) return manual;
+  const categoriaNombre = await nombreCategoriaSku(tx, empresaId, datos.categoriaId);
+  return siguienteSkuCategoria(tx, empresaId, categoriaNombre, datos.tipo);
+}
+
 export async function crearProducto(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
@@ -72,13 +137,14 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
   try {
     const codigoBarras = String(datos.codigoBarras ?? "").trim();
     const creado = await dbConEmpresa(user.empresaId, async (tx) => {
+      const sku = await resolverSkuProducto(tx, user.empresaId, datos);
       const yaExiste = await tx
         .select({ id: productos.id })
         .from(productos)
         .where(
           and(
             eq(productos.empresaId, user.empresaId),
-            eq(productos.sku, datos.sku),
+            eq(productos.sku, sku),
             isNull(productos.eliminadoEn),
           ),
         )
@@ -103,7 +169,7 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
         .insert(productos)
         .values({
           empresaId: user.empresaId,
-          sku: datos.sku,
+          sku,
           codigoBarras: codigoBarras || null,
           nombre: datos.nombre,
           descripcion: datos.descripcion as string | null,
@@ -159,12 +225,26 @@ export async function actualizarProducto(
 
   try {
     const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+      const sku = await resolverSkuProducto(tx, user.empresaId, datos);
       const existente = await tx
         .select({ id: productos.id })
         .from(productos)
         .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)))
         .limit(1);
       if (existente.length === 0) return "no-existe" as const;
+      const skuDuplicado = await tx
+        .select({ id: productos.id })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.empresaId, user.empresaId),
+            eq(productos.sku, sku),
+            ne(productos.id, id),
+            isNull(productos.eliminadoEn),
+          ),
+        )
+        .limit(1);
+      if (skuDuplicado.length > 0) return "sku-dup" as const;
       if (codigoBarras) {
         const duplicado = await tx
           .select({ id: productos.id })
@@ -184,7 +264,7 @@ export async function actualizarProducto(
       await tx
         .update(productos)
         .set({
-          sku: datos.sku,
+          sku,
           codigoBarras: codigoBarras || null,
           nombre: datos.nombre,
           descripcion: datos.descripcion as string | null,
@@ -216,6 +296,7 @@ export async function actualizarProducto(
     });
 
     if (resultado === "no-existe") return { ok: false, error: "Producto no encontrado" };
+    if (resultado === "sku-dup") return { ok: false, error: "Ya existe otro producto con ese SKU" };
     if (resultado === "dup") {
       return { ok: false, error: "Ya existe otro producto con ese codigo de barras" };
     }

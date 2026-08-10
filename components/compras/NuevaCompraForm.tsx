@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { procesarCompra } from "@/lib/actions/compras";
 import { formatearMoneda } from "@/lib/utils";
+import { fechaISOEnZona } from "@/lib/dates";
 import type { PaisCodigo } from "@/lib/paises";
 
 type ProductoOpcion = {
@@ -50,7 +51,7 @@ export function NuevaCompraForm({
   const [proveedorId, setProveedorId] = useState(proveedores[0]?.value ?? "");
   const [almacenId, setAlmacenId] = useState(almacenes[0]?.value ?? "");
   const [numeroFactura, setNumeroFactura] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(fechaISOEnZona());
   const [esCredito, setEsCredito] = useState(false);
   const [diasCredito, setDiasCredito] = useState(proveedores[0]?.diasCredito ?? 0);
   const [cuentaFinId, setCuentaFinId] = useState(cuentasFinancieras[0]?.id ?? "");

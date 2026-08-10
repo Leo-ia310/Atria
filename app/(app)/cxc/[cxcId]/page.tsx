@@ -13,6 +13,7 @@ import { AbonoForm } from "@/components/cxc/AbonoForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { fechaISOEnZona } from "@/lib/dates";
 
 export default async function CxCDetallePage({
   params,
@@ -74,11 +75,12 @@ export default async function CxCDetallePage({
     getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const cxc = cxcRows[0];
 
   if (!cxc) notFound();
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaISOEnZona(new Date(), zonaHoraria);
   const estaVencida =
     cxc.estado !== "pagada" &&
     fechaEstaVencida(cxc.fechaVencimiento, politicas.diasGraciaCobroCliente, hoy);

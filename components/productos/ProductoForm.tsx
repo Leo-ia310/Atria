@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { SelectConAgregar } from "@/components/productos/SelectConAgregar";
+import { prefijoSkuCategoria } from "@/lib/sku";
 
 type OpcionRef = { value: string; label: string };
 
@@ -70,6 +71,12 @@ export function ProductoForm({
 
   const categoriaId = watch("categoriaId") ?? "";
   const marcaId = watch("marcaId") ?? "";
+  const tipo = watch("tipo") ?? "simple";
+  const esNuevo = !productoId;
+  const prefijoSku = useMemo(() => {
+    const categoria = categorias.find((c) => c.value === categoriaId);
+    return prefijoSkuCategoria(categoria?.label, tipo);
+  }, [categoriaId, categorias, tipo]);
 
   async function onSubmit(values: ProductoInput) {
     setEnviando(true);
@@ -92,7 +99,14 @@ export function ProductoForm({
         <CardHeader title="Información básica" />
         <CardBody className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input label="SKU" error={errors.sku?.message} {...register("sku")} placeholder="ITM-001" />
+            <Input
+              label={esNuevo ? "SKU automatico" : "SKU"}
+              error={errors.sku?.message}
+              {...register("sku")}
+              placeholder={esNuevo ? `${prefijoSku}-0001` : "LIM-0001"}
+              readOnly={esNuevo}
+              hint={esNuevo ? `Se asignara como ${prefijoSku}-0001, ${prefijoSku}-0002...` : "Usa el prefijo de la categoria cuando lo cambies."}
+            />
             <Input
               label="Código de barras (opcional)"
               {...register("codigoBarras")}
@@ -123,7 +137,10 @@ export function ProductoForm({
               label="Categoría"
               tituloModal="Agregar categoría"
               value={categoriaId}
-              onChange={(v) => setValue("categoriaId", v)}
+              onChange={(v) => {
+                setValue("categoriaId", v);
+                if (esNuevo) setValue("sku", "");
+              }}
               options={[{ value: "", label: "Sin categoría" }, ...categorias]}
               onCrear={(nombre) => crearCategoria({ nombre })}
             />

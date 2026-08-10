@@ -29,6 +29,7 @@ import { siguienteNumero, dinero, aDecimalStr } from "@/lib/contabilidad/helpers
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { fechaISOEnZona, fechaMediodiaUTC, horaMinutoEnZona, sumarDiasISO } from "@/lib/dates";
 
 type Resultado =
   | { ok: true; ventaId: string; numero: string; asientoId: string }
@@ -190,7 +191,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           )
           .orderBy(desc(sesionesCaja.abiertaEn)),
         tx
-          .select({ tipoEmpresa: empresas.tipoEmpresa })
+          .select({ tipoEmpresa: empresas.tipoEmpresa, zonaHoraria: empresas.zonaHoraria })
           .from(empresas)
           .where(eq(empresas.id, user.empresaId))
           .limit(1),
@@ -202,6 +203,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   const tipoPorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.tipo]));
   const nombrePorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.nombre]));
   const esRestaurante = empresaRows[0]?.tipoEmpresa === "restaurante";
+  const zonaHoraria = empresaRows[0]?.zonaHoraria ?? "America/Managua";
   const stockPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.cantidad)]),
   );
@@ -228,15 +230,17 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
   try {
     const fechaVenta = new Date();
+    const fechaLocalVenta = fechaISOEnZona(fechaVenta, zonaHoraria);
+    const fechaContable = fechaMediodiaUTC(fechaLocalVenta);
     const fechaVencimiento = data.esCredito
-      ? new Date(fechaVenta.getTime() + diasCreditoVenta * 24 * 3600 * 1000)
+      ? sumarDiasISO(fechaLocalVenta, diasCreditoVenta)
       : null;
 
     const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
       const numero = await siguienteNumero(tx, {
         empresaId: user.empresaId,
         prefijo: "V",
-        fecha: fechaVenta,
+        fecha: fechaContable,
         tabla: ventas,
         columnaNumero: ventas.numero,
       });
@@ -253,7 +257,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           estado: "completada",
           esCredito: data.esCredito,
           diasCredito: diasCreditoVenta,
-          fechaVencimiento: fechaVencimiento?.toISOString().slice(0, 10) ?? null,
+          fechaVencimiento,
           subtotal: aDecimalStr(subtotal),
           descuento: aDecimalStr(descuentoTotal),
           impuesto: aDecimalStr(impuestoTotal),
@@ -361,8 +365,8 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           empresaId: user.empresaId,
           clienteId: data.clienteId,
           ventaId: venta.id,
-          fechaEmision: fechaVenta.toISOString().slice(0, 10),
-          fechaVencimiento: fechaVencimiento!.toISOString().slice(0, 10),
+          fechaEmision: fechaLocalVenta,
+          fechaVencimiento: fechaVencimiento!,
           monto: aDecimalStr(total),
           saldo: aDecimalStr(total),
           estado: "pendiente",
@@ -398,7 +402,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       empresaId: user.empresaId,
       usuarioId: user.id,
       ventaId: resultado.id,
-      fecha: fechaVenta,
+      fecha: fechaContable,
       numero: resultado.numero,
       subtotal,
       impuesto: impuestoTotal,
@@ -467,6 +471,9 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       const snapshot = {
         numero: resultado.numero,
         fecha: fechaVenta.toISOString(),
+        fechaLocal: fechaLocalVenta,
+        horaLocal: horaMinutoEnZona(fechaVenta, zonaHoraria),
+        zonaHoraria,
         esCredito: data.esCredito,
         cliente: clienteNombre,
         cajero: user.nombre,
@@ -504,12 +511,25 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
             vendedorId: user.id,
             vendedorNombre: user.nombre,
             clienteNombre,
-            formasPago: data.esCredito ? "Crédito" : nombresFormas.join(", "),
-            esCredito: data.esCredito,
-            total: aDecimalStr(total),
-            snapshot,
-          })
-          .onConflictDoNothing(),
+            formasPago: data.esCredito ? "Credito" : nombresFormas.join(", "),
+          esCredito: data.esCredito,
+          total: aDecimalStr(total),
+          snapshot,
+        })
+          .onConflictDoUpdate({
+            target: facturas.ventaId,
+            set: {
+              numero: resultado.numero,
+              fecha: fechaVenta,
+              vendedorId: user.id,
+              vendedorNombre: user.nombre,
+              clienteNombre,
+              formasPago: data.esCredito ? "Credito" : nombresFormas.join(", "),
+              esCredito: data.esCredito,
+              total: aDecimalStr(total),
+              snapshot,
+            },
+          }),
       );
     } catch (errFactura) {
       console.error("[procesarVenta:factura]", errFactura);

@@ -26,6 +26,8 @@ export function reciboDesdeSnapshot({
     empresa,
     numero: String(snapshot.numero ?? ""),
     fecha: String(snapshot.fecha ?? new Date().toISOString()),
+    zonaHoraria:
+      snapshot.zonaHoraria != null ? String(snapshot.zonaHoraria) : undefined,
     cajero: snapshot.cajero != null ? String(snapshot.cajero) : null,
     cliente: String(snapshot.cliente ?? "Consumidor final"),
     esCredito: Boolean(snapshot.esCredito),

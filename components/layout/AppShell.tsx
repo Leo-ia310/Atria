@@ -45,7 +45,7 @@ export function AppShell({
         onMobileClose={cerrarMenuMovil}
       />
 
-      <div className="min-w-0 transition-[margin] duration-200 md:ml-[var(--sidebar-width)]">
+      <div className="min-w-0 transition-[margin] duration-200 sm:ml-[var(--sidebar-width)]">
         <Header
           breadcrumb={[{ label: nombreEmpresa }]}
           notificaciones={notificaciones}

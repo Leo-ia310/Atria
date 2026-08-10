@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, BookOpen } from "lucide-react";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   ventas,
@@ -93,20 +93,30 @@ export default async function VentaDetallePage({
         ),
       )
       .limit(1),
-    venta.asientoId
-      ? db
-          .select({ numero: asientosContables.numero, id: asientosContables.id })
-          .from(asientosContables)
-          .where(
-            and(
-              eq(asientosContables.id, venta.asientoId),
-              eq(asientosContables.empresaId, user.empresaId),
-            ),
-          )
-          .limit(1)
-      : Promise.resolve([]),
+    db
+      .select({ numero: asientosContables.numero, id: asientosContables.id })
+      .from(asientosContables)
+      .where(
+        and(
+          eq(asientosContables.empresaId, user.empresaId),
+          venta.asientoId
+            ? or(
+                eq(asientosContables.id, venta.asientoId),
+                and(
+                  eq(asientosContables.referenciaTabla, "ventas"),
+                  eq(asientosContables.referenciaId, venta.id),
+                ),
+              )
+            : and(
+                eq(asientosContables.referenciaTabla, "ventas"),
+                eq(asientosContables.referenciaId, venta.id),
+              ),
+        ),
+      )
+      .limit(1),
   ]);
   const pais = empresa?.pais ?? "NI";
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const factura = facturaRows[0];
   const asiento = asientoRows[0] ?? null;
 
@@ -120,7 +130,7 @@ export default async function VentaDetallePage({
       </Link>
       <PageHeader
         title={`Venta ${venta.numero}`}
-        subtitle={formatearFechaHora(venta.fecha)}
+        subtitle={formatearFechaHora(venta.fecha, pais, zonaHoraria)}
         actions={
           venta.estado === "anulada" ? (
             <Badge variant="error">Anulada</Badge>

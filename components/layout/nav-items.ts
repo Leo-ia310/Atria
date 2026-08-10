@@ -10,6 +10,7 @@ import {
   HandCoins,
   CheckCircle2,
   Inbox,
+  LifeBuoy,
   LayoutDashboard,
   Package,
   Receipt,
@@ -108,6 +109,7 @@ export const NAV_GROUPS: NavGroup[] = [
     titulo: "Gestión",
     items: [
       { href: "/reportes", label: "Reportes", icon: BarChart3, modulo: "reportes" },
+      { href: "/soporte", label: "Soporte", icon: LifeBuoy, modulo: "soporte" },
       { href: "/configuracion", label: "Configuración", icon: Settings, modulo: "configuracion" },
     ],
   },
@@ -150,6 +152,7 @@ export const COMMAND_ITEMS: CommandItem[] = [
   { label: "Reporte de inventario", href: "/reportes/inventario", grupo: "Gestión", modulo: "reportes" },
   { label: "Reporte de ventas", href: "/reportes/ventas", grupo: "Gestión", modulo: "reportes" },
   { label: "Rentabilidad", href: "/reportes/rentabilidad", grupo: "Gestión", modulo: "reportes-avanzados" },
+  { label: "Soporte", href: "/soporte", grupo: "Gestion", modulo: "soporte", keywords: "ayuda asistente ia arca soporte" },
   { label: "Configuración", href: "/configuracion", grupo: "Gestión", modulo: "configuracion" },
   { label: "Empresa", href: "/configuracion/empresa", grupo: "Gestión", modulo: "configuracion", keywords: "tipo negocio restaurante giro" },
   { label: "Usuarios", href: "/configuracion/usuarios", grupo: "Gestión", modulo: "configuracion" },

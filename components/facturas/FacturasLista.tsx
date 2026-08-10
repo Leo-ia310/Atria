@@ -22,6 +22,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { reciboDesdeSnapshot } from "@/lib/facturas";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { fechaISOEnZona } from "@/lib/dates";
 
 export type ModoFacturas = "cobradas" | "credito";
 
@@ -84,6 +85,7 @@ export async function FacturasLista({
   const sucursalIds = selectedSucursalIds(scope);
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const configPais = getPaisConfig(pais);
   const empresaRecibo = {
     nombre: empresa?.nombreComercial || empresa?.razonSocial || "Mi Empresa",
@@ -99,10 +101,10 @@ export async function FacturasLista({
   ];
   if (searchParams.numero) cond.push(ilike(facturas.numero, `%${searchParams.numero}%`));
   if (searchParams.desde && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.desde)) {
-    cond.push(sql`${facturas.fecha}::date >= ${searchParams.desde}`);
+    cond.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${searchParams.desde}`);
   }
   if (searchParams.hasta && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.hasta)) {
-    cond.push(sql`${facturas.fecha}::date <= ${searchParams.hasta}`);
+    cond.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date <= ${searchParams.hasta}`);
   }
   if (searchParams.vendedor) cond.push(eq(facturas.vendedorId, searchParams.vendedor));
   if (searchParams.forma) cond.push(ilike(facturas.formasPago, `%${searchParams.forma}%`));
@@ -142,7 +144,7 @@ export async function FacturasLista({
 
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
   const totalPendiente = filas.reduce((a, f) => a + parseFloat(f.cxcSaldo ?? "0"), 0);
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaISOEnZona(new Date(), zonaHoraria);
   const diasGraciaCobro = politicas.diasGraciaCobroCliente;
   const hayFiltro = Boolean(
     searchParams.numero ||
@@ -311,7 +313,7 @@ export async function FacturasLista({
                         </Link>
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-[color:var(--color-text-muted)]">
-                        {formatearFechaHora(f.fecha)}
+                        {formatearFechaHora(f.fecha, pais, zonaHoraria)}
                       </td>
                       <td className="px-4 py-2">{f.cliente ?? "Consumidor final"}</td>
                       {scope.visible && (

@@ -54,7 +54,7 @@ export function Header({
           onClick={onAbrirMenu}
           aria-label="Abrir menu"
           title="Abrir menu"
-          className="arca-btn arca-btn-ghost p-2 md:hidden"
+          className="arca-btn arca-btn-ghost p-2 sm:hidden"
         >
           <Menu size={17} />
         </button>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { crearGasto } from "@/lib/actions/tesoreria";
 import { formatearMoneda } from "@/lib/utils";
+import { fechaISOEnZona } from "@/lib/dates";
 import type { PaisCodigo } from "@/lib/paises";
 
 type Opcion = { value: string; label: string };
@@ -30,7 +31,7 @@ export function GastoForm({
 
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.value ?? "");
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState(cuentas[0]?.value ?? "");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(fechaISOEnZona());
   const [descripcion, setDescripcion] = useState("");
   const [referencia, setReferencia] = useState("");
   const [subtotal, setSubtotal] = useState<number | "">("");

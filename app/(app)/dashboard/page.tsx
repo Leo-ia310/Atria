@@ -20,13 +20,14 @@ import {
   cuentasPorCobrar,
   clientes,
 } from "@/lib/db/schema";
-import { eq, and, isNull, gte, sql, sum, count, desc, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, sum, count, desc, inArray } from "drizzle-orm";
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheAside } from "@/lib/redis/cache";
 import { keys, TTL } from "@/lib/redis/keys";
+import { fechaISOEnZona, inicioMesISO } from "@/lib/dates";
 
 export default async function DashboardPage({
   searchParams,
@@ -42,15 +43,14 @@ export default async function DashboardPage({
   const esBienvenida = params.bienvenida === "1";
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
+  const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
+  const inicioMesLocal = inicioMesISO(hoyLocal);
 
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
     : undefined;
-
-  const inicioMes = new Date();
-  inicioMes.setDate(1);
-  inicioMes.setHours(0, 0, 0, 0);
 
   // Clave de caché con el alcance de sucursal, para no mezclar KPIs entre
   // distintas vistas de una misma empresa (ni entre empresas: empresaId va
@@ -71,7 +71,7 @@ export default async function DashboardPage({
                 and(
                   eq(ventas.empresaId, user.empresaId),
                   isNull(ventas.anuladoEn),
-                  sql`${ventas.fecha}::date = current_date`,
+                  sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date = ${hoyLocal}`,
                   filtroSucursalVenta,
                 ),
               ),
@@ -82,7 +82,7 @@ export default async function DashboardPage({
                 and(
                   eq(ventas.empresaId, user.empresaId),
                   isNull(ventas.anuladoEn),
-                  gte(ventas.fecha, inicioMes),
+                  sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${inicioMesLocal}`,
                   filtroSucursalVenta,
                 ),
               ),
@@ -260,7 +260,7 @@ export default async function DashboardPage({
                     <div>
                       <div className="text-small font-medium">{v.numero}</div>
                       <div className="text-[12px] text-[color:var(--color-text-muted)]">
-                        {v.cliente ?? "Consumidor final"} · {formatearFechaHora(v.fecha)}
+                        {v.cliente ?? "Consumidor final"} · {formatearFechaHora(v.fecha, pais, zonaHoraria)}
                         {scope.visible && v.sucursal ? ` · ${v.sucursal}` : ""}
                       </div>
                     </div>

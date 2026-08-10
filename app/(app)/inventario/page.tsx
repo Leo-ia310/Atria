@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Package, Plus } from "lucide-react";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { almacenes, existencias, productoAdvertencias, productos } from "@/lib/db/schema";
+import { almacenes, categorias, existencias, productoAdvertencias, productos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -19,6 +19,7 @@ type Fila = {
   id: string;
   sku: string;
   nombre: string;
+  categoria: string;
   codigoBarras: string;
   precio: string;
   costo: string;
@@ -98,6 +99,7 @@ export default async function InventarioPage() {
             id: productos.id,
             sku: productos.sku,
             nombre: productos.nombre,
+            categoria: categorias.nombre,
             codigoBarras: productos.codigoBarras,
             precio: productos.precioBase,
             costo: productos.costoPromedio,
@@ -105,6 +107,13 @@ export default async function InventarioPage() {
             activo: productos.activo,
           })
           .from(productos)
+          .leftJoin(
+            categorias,
+            and(
+              eq(categorias.id, productos.categoriaId),
+              eq(categorias.empresaId, user.empresaId),
+            ),
+          )
           .where(
             and(
               eq(productos.empresaId, user.empresaId),
@@ -116,6 +125,7 @@ export default async function InventarioPage() {
           .limit(200);
   const filas: Fila[] = productosRows.map((producto) => ({
     ...producto,
+    categoria: producto.categoria ?? "",
     codigoBarras: producto.codigoBarras ?? "",
     existencia: existenciaPorProducto.get(producto.id) ?? 0,
   }));

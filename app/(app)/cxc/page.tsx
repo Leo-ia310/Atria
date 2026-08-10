@@ -14,6 +14,7 @@ import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { fechaISOEnZona } from "@/lib/dates";
 
 type Fila = {
   id: string;
@@ -55,6 +56,7 @@ export default async function CxCPage({
     getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const sucursalIds = selectedSucursalIds(scope);
 
   const filas: Fila[] = await db
@@ -84,7 +86,7 @@ export default async function CxCPage({
     .orderBy(desc(cuentasPorCobrar.fechaVencimiento))
     .limit(500);
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaISOEnZona(new Date(), zonaHoraria);
   const diasGracia = politicas.diasGraciaCobroCliente;
   const vencidas = filas.filter((f) =>
     fechaEstaVencida(f.fechaVencimiento, diasGracia, hoy),

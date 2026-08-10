@@ -34,15 +34,16 @@ export default async function ImprimirFacturasPage({
     getEmpresaMetadata(user.empresaId),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   let filas: { id: string; snapshot: unknown }[];
   if (sp.origen === "ventas") {
     const condicionesVenta = [eq(ventas.empresaId, user.empresaId)];
     if (sucursalIds) condicionesVenta.push(inArray(ventas.sucursalId, sucursalIds));
     if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {
-      condicionesVenta.push(sql`${ventas.fecha}::date >= ${sp.desde}`);
+      condicionesVenta.push(sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${sp.desde}`);
     }
     if (sp.hasta && /^\d{4}-\d{2}-\d{2}$/.test(sp.hasta)) {
-      condicionesVenta.push(sql`${ventas.fecha}::date <= ${sp.hasta}`);
+      condicionesVenta.push(sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date <= ${sp.hasta}`);
     }
     if (sp.tipo === "contado") condicionesVenta.push(eq(ventas.esCredito, false));
     if (sp.tipo === "credito") condicionesVenta.push(eq(ventas.esCredito, true));
@@ -65,10 +66,10 @@ export default async function ImprimirFacturasPage({
     const condicionesFactura = [eq(facturas.empresaId, user.empresaId)];
     if (sp.numero) condicionesFactura.push(ilike(facturas.numero, `%${sp.numero}%`));
     if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {
-      condicionesFactura.push(sql`${facturas.fecha}::date >= ${sp.desde}`);
+      condicionesFactura.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${sp.desde}`);
     }
     if (sp.hasta && /^\d{4}-\d{2}-\d{2}$/.test(sp.hasta)) {
-      condicionesFactura.push(sql`${facturas.fecha}::date <= ${sp.hasta}`);
+      condicionesFactura.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date <= ${sp.hasta}`);
     }
     if (sp.vendedor) condicionesFactura.push(eq(facturas.vendedorId, sp.vendedor));
     if (sp.forma) condicionesFactura.push(ilike(facturas.formasPago, `%${sp.forma}%`));

@@ -84,6 +84,7 @@ export default async function TicketPage({
       }}
       numero={venta.numero}
       fecha={venta.fecha.toISOString()}
+      zonaHoraria={empresa?.zonaHoraria}
       cajero={venta.cajero}
       cliente={venta.cliente ?? "Consumidor final"}
       esCredito={venta.esCredito}

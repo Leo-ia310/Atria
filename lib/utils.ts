@@ -1,7 +1,8 @@
 /**
- * Helpers genéricos compartidos.
+ * Helpers genericos compartidos.
  */
 
+import { DEFAULT_TIME_ZONE } from "./dates";
 import { getPaisConfig, type PaisCodigo } from "./paises";
 
 export function cn(...classes: (string | undefined | null | false)[]): string {
@@ -21,18 +22,62 @@ export function formatearMoneda(
   })}`;
 }
 
-export function formatearFecha(fecha: Date | string, _pais: PaisCodigo = "NI"): string {
+export function formatearFecha(
+  fecha: Date | string,
+  _pais: PaisCodigo = "NI",
+  timeZone?: string | null,
+): string {
+  if (typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    const [yyyy, mm, dd] = fecha.split("-");
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
   const d = typeof fecha === "string" ? new Date(fecha) : fecha;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
+
+  if (timeZone) {
+    try {
+      return new Intl.DateTimeFormat("es", {
+        timeZone,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d);
+    } catch {
+      return formatearFecha(d, _pais, DEFAULT_TIME_ZONE);
+    }
+  }
+
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
 
-export function formatearFechaHora(fecha: Date | string, _pais: PaisCodigo = "NI"): string {
+export function formatearFechaHora(
+  fecha: Date | string,
+  _pais: PaisCodigo = "NI",
+  timeZone?: string | null,
+): string {
   const d = typeof fecha === "string" ? new Date(fecha) : fecha;
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
+
+  if (timeZone) {
+    try {
+      return new Intl.DateTimeFormat("es", {
+        timeZone,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(d);
+    } catch {
+      return formatearFechaHora(d, _pais, DEFAULT_TIME_ZONE);
+    }
+  }
+
   const fechaStr = formatearFecha(d);
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
@@ -43,7 +88,7 @@ export function slugify(texto: string): string {
   return texto
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }

@@ -41,6 +41,8 @@ export default async function LibroDiarioPage({
       fecha: asientosContables.fecha,
       concepto: asientosContables.concepto,
       origen: asientosContables.origen,
+      referenciaTabla: asientosContables.referenciaTabla,
+      referenciaId: asientosContables.referenciaId,
       totalDebe: asientosContables.totalDebe,
       estado: asientosContables.estado,
     })
@@ -158,6 +160,14 @@ export default async function LibroDiarioPage({
                     <Badge variant="neutral">{a.origen}</Badge>
                     {a.estado === "anulado" && <Badge variant="error">Anulado</Badge>}
                   </div>
+                  {a.referenciaTabla === "ventas" && a.referenciaId && (
+                    <Link
+                      href={`/ventas/${a.referenciaId}`}
+                      className="mt-1 inline-flex text-[12px] text-[color:var(--color-secondary)] hover:underline"
+                    >
+                      Ver venta relacionada
+                    </Link>
+                  )}
                   <div className="mt-0.5 text-[12px] text-[color:var(--color-text-muted)]">
                     {formatearFecha(a.fecha, pais)} · {a.concepto}
                   </div>

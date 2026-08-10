@@ -18,6 +18,7 @@ const cargarEmpresa = unstable_cache(
           identificacionFiscal: empresas.identificacionFiscal,
           direccion: empresas.direccion,
           telefono: empresas.telefono,
+          zonaHoraria: empresas.zonaHoraria,
         })
         .from(empresas)
         .where(eq(empresas.id, empresaId))

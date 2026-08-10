@@ -45,14 +45,15 @@ export default async function VentasPage({
     getSucursalScope(user),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
+  const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
 
   const cond = [eq(ventas.empresaId, user.empresaId)];
   if (sucursalIds) cond.push(inArray(ventas.sucursalId, sucursalIds));
   if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {
-    cond.push(sql`${ventas.fecha}::date >= ${sp.desde}`);
+    cond.push(sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${sp.desde}`);
   }
   if (sp.hasta && /^\d{4}-\d{2}-\d{2}$/.test(sp.hasta)) {
-    cond.push(sql`${ventas.fecha}::date <= ${sp.hasta}`);
+    cond.push(sql`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date <= ${sp.hasta}`);
   }
   if (sp.tipo === "contado") cond.push(eq(ventas.esCredito, false));
   if (sp.tipo === "credito") cond.push(eq(ventas.esCredito, true));
@@ -106,7 +107,7 @@ export default async function VentasPage({
     {
       key: "fecha",
       header: "Fecha y hora",
-      cell: (r) => formatearFechaHora(r.fecha),
+      cell: (r) => formatearFechaHora(r.fecha, pais, zonaHoraria),
       width: "180px",
     },
     {

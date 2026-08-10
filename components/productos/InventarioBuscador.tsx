@@ -11,6 +11,7 @@ export type FilaInventario = {
   id: string;
   sku: string;
   nombre: string;
+  categoria: string;
   codigoBarras: string;
   precio: string;
   costo: string;
@@ -45,7 +46,10 @@ export function InventarioBuscador({
       return filas.filter((f) => f.codigoBarras && f.codigoBarras.includes(raw));
     }
     return filas.filter(
-      (f) => normalizar(f.sku).includes(q) || normalizar(f.nombre).includes(q),
+      (f) =>
+        normalizar(f.sku).includes(q) ||
+        normalizar(f.nombre).includes(q) ||
+        normalizar(f.categoria).includes(q),
     );
   }, [filas, query, modoBarras]);
 
@@ -66,7 +70,7 @@ export function InventarioBuscador({
             placeholder={
               modoBarras
                 ? "Escanea o escribe el código de barras…"
-                : "Buscar por SKU o nombre de producto…"
+                : "Buscar por SKU, categoria o nombre..."
             }
             className="arca-input arca-input-con-icono arca-input-pw w-full"
           />
@@ -133,6 +137,11 @@ export function InventarioBuscador({
                     >
                       {r.nombre}
                     </Link>
+                    {r.categoria && (
+                      <div className="mt-0.5 text-[11px] text-[color:var(--color-text-muted)]">
+                        {r.categoria}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-right sm:px-4">
                     {formatearMoneda(desdeDecimal(r.precio), pais)}

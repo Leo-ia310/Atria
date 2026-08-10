@@ -61,7 +61,7 @@ export function Sidebar({
   }, []);
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
+    const query = window.matchMedia("(max-width: 639px)");
     const actualizar = () => setEsMovil(query.matches);
 
     actualizar();
@@ -102,14 +102,14 @@ export function Sidebar({
         <button
           type="button"
           aria-label="Cerrar menu"
-          className="fixed inset-0 z-20 bg-black/45 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-20 bg-black/45 backdrop-blur-sm sm:hidden"
           onClick={onMobileClose}
         />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-[min(86vw,300px)] flex-col bg-[color:var(--color-dark-bg)] text-[color:var(--color-text-on-dark)] transition-[width,transform] duration-200 md:w-[var(--sidebar-width)] md:translate-x-0",
+          "fixed inset-y-0 left-0 z-30 flex w-[min(86vw,300px)] flex-col bg-[color:var(--color-dark-bg)] text-[color:var(--color-text-on-dark)] transition-[width,transform] duration-200 sm:w-[var(--sidebar-width)] sm:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
