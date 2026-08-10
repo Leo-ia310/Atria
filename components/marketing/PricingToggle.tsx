@@ -15,13 +15,13 @@ import { cn } from "@/lib/utils";
 
 const VENTAJAS_POR_PLAN: Record<string, string[]> = {
   demo: [
-    "Punto de venta basico",
-    "Hasta 5 productos",
-    "Hasta 20 transacciones al mes",
-    "Hasta 5 clientes",
-    "Hasta 3 facturas al mes",
-    "1 sucursal y 1 usuario",
-    "Facturacion basica",
+    "Punto de venta completo",
+    "Hasta 25 productos",
+    "Hasta 50 transacciones al mes",
+    "Hasta 20 clientes",
+    "Hasta 10 facturas al mes",
+    "1 sucursal",
+    "1 usuario",
   ],
   pro: [
     "15 dias gratis antes de pagar",

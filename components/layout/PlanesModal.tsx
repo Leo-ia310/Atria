@@ -298,6 +298,10 @@ function VistaPlanes({
               <ul className="mt-3 flex-1 space-y-1.5 text-[12px]">
                 <LiP ok>{plan.maxSucursales ?? "∞"} sucursal(es)</LiP>
                 <LiP ok>{plan.maxUsuarios ?? "∞"} usuarios</LiP>
+                <LiP ok>{plan.maxProductos ?? "∞"} productos</LiP>
+                <LiP ok>{plan.maxTransaccionesMes ?? "∞"} transacciones/mes</LiP>
+                <LiP ok>{plan.maxClientes ?? "∞"} clientes</LiP>
+                <LiP ok>{plan.maxFacturasMes ?? "∞"} facturas/mes</LiP>
                 <LiP ok={plan.features.contabilidad}>Contabilidad</LiP>
                 <LiP ok={plan.features.modulo_nomina}>Nómina</LiP>
                 <LiP ok={plan.features.reportes_avanzados}>Reportes avanzados</LiP>
