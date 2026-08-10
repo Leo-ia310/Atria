@@ -52,7 +52,7 @@ export function NuevaCompraForm({
   const [numeroFactura, setNumeroFactura] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [esCredito, setEsCredito] = useState(false);
-  const [diasCredito, setDiasCredito] = useState(0);
+  const [diasCredito, setDiasCredito] = useState(proveedores[0]?.diasCredito ?? 0);
   const [cuentaFinId, setCuentaFinId] = useState(cuentasFinancieras[0]?.id ?? "");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [busqueda, setBusqueda] = useState("");

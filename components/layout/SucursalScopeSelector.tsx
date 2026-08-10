@@ -85,22 +85,22 @@ export function SucursalScopeSelector({
         type="button"
         onClick={() => setAbierto((actual) => !actual)}
         aria-expanded={abierto}
-        className="flex h-8 max-w-[230px] items-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-3 text-small text-[color:var(--color-text-secondary)] transition hover:border-[color:var(--color-border-strong)]"
+        className="flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-0 text-small text-[color:var(--color-text-secondary)] transition hover:border-[color:var(--color-border-strong)] sm:w-auto sm:max-w-[230px] sm:justify-start sm:px-3"
         title={etiqueta}
       >
         <Building2 size={14} className="shrink-0 text-[color:var(--color-primary)]" />
-        <span className="truncate">{etiqueta}</span>
+        <span className="hidden truncate sm:block">{etiqueta}</span>
         <ChevronDown
           size={14}
           className={cn(
-            "shrink-0 text-[color:var(--color-text-muted)] transition",
+            "hidden shrink-0 text-[color:var(--color-text-muted)] transition sm:block",
             abierto && "rotate-180",
           )}
         />
       </button>
 
       {abierto && (
-        <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
+        <div className="absolute right-0 z-50 mt-2 w-[min(88vw,18rem)] overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-lg">
           <div className="border-b border-[color:var(--color-border)] px-3 py-2">
             <label className="flex cursor-pointer items-center gap-2 text-small font-medium text-[color:var(--color-text-primary)]">
               <input

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { AbonoForm } from "@/components/cxc/AbonoForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export default async function CxCDetallePage({
   params,
@@ -65,11 +66,12 @@ export default async function CxCDetallePage({
     .from(formasPago)
     .where(and(eq(formasPago.empresaId, user.empresaId), eq(formasPago.activa, true)));
 
-  const [empresa, cxcRows, abonos, formasPagoList] = await Promise.all([
+  const [empresa, cxcRows, abonos, formasPagoList, politicas] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     cxcPromise,
     abonosPromise,
     formasPagoPromise,
+    getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const cxc = cxcRows[0];
@@ -77,7 +79,9 @@ export default async function CxCDetallePage({
   if (!cxc) notFound();
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const estaVencida = cxc.estado !== "pagada" && cxc.fechaVencimiento < hoy;
+  const estaVencida =
+    cxc.estado !== "pagada" &&
+    fechaEstaVencida(cxc.fechaVencimiento, politicas.diasGraciaCobroCliente, hoy);
   const montoOriginal = parseFloat(cxc.monto);
   const saldoPendiente = parseFloat(cxc.saldo);
   const pagado = montoOriginal - saldoPendiente;

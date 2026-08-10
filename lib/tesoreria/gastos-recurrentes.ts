@@ -7,6 +7,7 @@ import { aDecimalStr, dinero, type TX } from "@/lib/contabilidad/helpers";
 export type DatosGasto = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   categoriaId: string;
   cuentaFinancieraId: string;
   fecha: string;
@@ -33,6 +34,7 @@ export async function registrarGastoEnTransaccion(tx: TX, data: DatosGasto): Pro
     .insert(gastos)
     .values({
       empresaId: data.empresaId,
+      sucursalId: data.sucursalId ?? null,
       categoriaId: data.categoriaId,
       cuentaFinancieraId: data.cuentaFinancieraId,
       recurrenteId: data.recurrenteId ?? null,
@@ -56,6 +58,7 @@ export async function registrarGastoEnTransaccion(tx: TX, data: DatosGasto): Pro
     {
       empresaId: data.empresaId,
       usuarioId: data.usuarioId,
+      sucursalId: data.sucursalId ?? null,
       gastoId: gasto.id,
       categoriaGastoId: data.categoriaId,
       cuentaFinancieraId: data.cuentaFinancieraId,
@@ -112,6 +115,7 @@ export async function procesarGastosRecurrentesPendientes({
           const gastoId = await registrarGastoEnTransaccion(tx, {
             empresaId: plantilla.empresaId,
             usuarioId: plantilla.usuarioId,
+            sucursalId: plantilla.sucursalId,
             categoriaId: plantilla.categoriaId,
             cuentaFinancieraId: plantilla.cuentaFinancieraId,
             fecha: proximaFecha,

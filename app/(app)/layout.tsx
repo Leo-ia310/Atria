@@ -7,8 +7,7 @@ import {
   puedeAccederModulo,
 } from "@/lib/access-control";
 import { getAccessContext } from "@/lib/server-access";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
+import { AppShell } from "@/components/layout/AppShell";
 import { DemoNoticeBanner } from "@/components/layout/DemoNoticeBanner";
 import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import { SessionProvider } from "@/components/layout/SessionProvider";
@@ -92,28 +91,19 @@ export default async function AppLayout({
   return (
     <SessionProvider>
       <ToastProvider>
-        <div className="min-h-screen bg-[color:var(--color-neutral)]">
-          <Sidebar
-            nombreEmpresa={nombreEmpresa}
-            planNombre={planNombre}
-            esDemo={esDemo}
-            nombreUsuario={user.nombre}
-            modulosPermitidos={permitidos}
-          />
-          <div
-            style={{ marginLeft: "var(--sidebar-width)" }}
-            className="transition-[margin] duration-200"
-          >
-            <Header
-              breadcrumb={[{ label: nombreEmpresa }]}
-              notificaciones={notificaciones}
-              commandItems={commandItems}
-              sucursalScope={sucursalScope}
-            />
-            {esDemo && <DemoNoticeBanner />}
-            <main className="p-6">{children}</main>
-          </div>
-        </div>
+        <AppShell
+          nombreEmpresa={nombreEmpresa}
+          planNombre={planNombre}
+          esDemo={esDemo}
+          nombreUsuario={user.nombre}
+          modulosPermitidos={permitidos}
+          notificaciones={notificaciones}
+          commandItems={commandItems}
+          sucursalScope={sucursalScope}
+          banner={esDemo ? <DemoNoticeBanner /> : null}
+        >
+          {children}
+        </AppShell>
       </ToastProvider>
     </SessionProvider>
   );

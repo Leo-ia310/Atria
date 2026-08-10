@@ -3,9 +3,9 @@ import { AlertTriangle } from "lucide-react";
 
 export function DemoNoticeBanner() {
   return (
-    <div className="flex items-center gap-3 border-b border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning-bg)] px-6 py-2.5 text-small text-[color:var(--color-warning)]">
+    <div className="flex flex-wrap items-center gap-3 border-b border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning-bg)] px-4 py-2.5 text-small text-[color:var(--color-warning)] sm:px-6">
       <AlertTriangle size={16} className="flex-shrink-0" />
-      <p className="flex-1">
+      <p className="min-w-0 flex-1">
         <strong className="font-semibold">Cuenta Demo:</strong> estos datos son de prueba
         y se borran automáticamente cada 3 días. Cuando quieras conservarlos, actualiza a
         un plan pago.

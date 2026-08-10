@@ -32,14 +32,14 @@ export function DataTable<T extends { id?: string }>({
   return (
     <div className="arca-card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-small">
+        <table className="w-full min-w-[640px] text-small sm:min-w-full">
           <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
             <tr>
               {columns.map((c) => (
                 <th
                   key={c.key}
                   style={{ width: c.width, textAlign: c.align ?? "left" }}
-                  className="text-label px-4 py-3 font-semibold"
+                  className="text-label px-3 py-3 font-semibold sm:px-4"
                 >
                   {c.header}
                 </th>
@@ -56,7 +56,7 @@ export function DataTable<T extends { id?: string }>({
                   <td
                     key={c.key}
                     style={{ textAlign: c.align ?? "left" }}
-                    className="px-4 py-3 text-[color:var(--color-text-primary)]"
+                    className="px-3 py-3 text-[color:var(--color-text-primary)] sm:px-4"
                   >
                     {c.cell(row)}
                   </td>

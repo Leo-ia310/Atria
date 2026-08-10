@@ -3,7 +3,7 @@
  * asiento_partidas — nunca persistido en columnas.
  */
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   asientoPartidas,
@@ -28,23 +28,33 @@ export type SaldoCuenta = {
 export function saldosPorCuenta(
   empresaId: string,
   hasta?: Date,
+  sucursalIds?: string[] | null,
 ): Promise<SaldoCuenta[]> {
-  const variante = `saldos:${hasta ? hasta.toISOString().slice(0, 10) : "all"}`;
+  const sucursales = sucursalIds?.length ? [...sucursalIds].sort() : null;
+  const variante = [
+    "saldos",
+    hasta ? hasta.toISOString().slice(0, 10) : "all",
+    sucursales ? `suc:${sucursales.join(",")}` : "todas",
+  ].join(":");
   return cacheModulo(empresaId, MODULOS.CONTABILIDAD, variante, TTL.CONTABILIDAD, () =>
-    calcularSaldosPorCuenta(empresaId, hasta),
+    calcularSaldosPorCuenta(empresaId, hasta, sucursales),
   );
 }
 
 async function calcularSaldosPorCuenta(
   empresaId: string,
   hasta?: Date,
+  sucursalIds?: string[] | null,
 ): Promise<SaldoCuenta[]> {
-  const filtros = [
+  const filtros: SQL[] = [
     eq(asientosContables.empresaId, empresaId),
     eq(asientosContables.estado, "registrado"),
   ];
   if (hasta) {
     filtros.push(sql`${asientosContables.fecha} <= ${hasta.toISOString().slice(0, 10)}`);
+  }
+  if (sucursalIds?.length) {
+    filtros.push(inArray(asientosContables.sucursalId, sucursalIds));
   }
 
   const rows = await db

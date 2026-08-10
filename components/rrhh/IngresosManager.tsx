@@ -194,9 +194,9 @@ function FilaEmpleado({
 
   return (
     <div className="p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <span className="text-small font-medium">{empleado.nombre}</span>
-        <div className="flex gap-4 text-[12px] text-[color:var(--color-text-muted)]">
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-[color:var(--color-text-muted)]">
           <span>Devengado: {formatearMoneda(empleado.totalDevengado, pais)}</span>
           <span>Ingresos: {formatearMoneda(empleado.ingresos, pais)}</span>
           <span className="font-semibold text-[color:var(--color-text-primary)]">
@@ -204,39 +204,6 @@ function FilaEmpleado({
           </span>
         </div>
       </div>
-
-      {empleado.registros.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {empleado.registros.map((d) => (
-            <span
-              key={d.id}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-surface-2)] px-2.5 py-1 text-[12px]"
-              title={d.nota ?? undefined}
-            >
-              <span className="font-medium">{d.tipo}</span>
-              <span className="text-[color:var(--color-success)]">
-                + {formatearMoneda(d.monto, pais)}
-              </span>
-              <span className="text-[color:var(--color-text-muted)]">
-                {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}
-              </span>
-              <span className="text-[color:var(--color-text-muted)]">
-                {formatearFechaHora(d.creadoEn)}
-              </span>
-              {editable && (
-                <button
-                  type="button"
-                  onClick={() => quitar(d.id)}
-                  className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
-                  aria-label="Quitar"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
 
       {editable && (
         <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -267,6 +234,52 @@ function FilaEmpleado({
           <Button size="md" onClick={agregar} loading={guardando} disabled={tipos.length === 0}>
             <Plus size={14} /> Agregar
           </Button>
+        </div>
+      )}
+
+      {empleado.registros.length > 0 && (
+        <div className="mt-3 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
+          <div className="text-label border-b border-[color:var(--color-border)] px-3 py-1.5 font-semibold text-[color:var(--color-text-muted)]">
+            Historial · {empleado.registros.length}
+          </div>
+          <ul className="divide-y divide-[color:var(--color-border)]">
+            {empleado.registros.map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-[12px]"
+              >
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
+                  <span className="font-medium text-[color:var(--color-text-primary)]">
+                    {d.tipo}
+                  </span>
+                  <span className="text-[color:var(--color-success)]">
+                    + {formatearMoneda(d.monto, pais)}
+                  </span>
+                  <span className="text-[color:var(--color-text-muted)]">
+                    {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}
+                  </span>
+                  <span className="text-[color:var(--color-text-muted)]">
+                    {formatearFechaHora(d.creadoEn)}
+                  </span>
+                  {d.nota && (
+                    <span className="truncate text-[color:var(--color-text-muted)] italic">
+                      {d.nota}
+                    </span>
+                  )}
+                </div>
+                {editable && (
+                  <button
+                    type="button"
+                    onClick={() => quitar(d.id)}
+                    className="shrink-0 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
+                    aria-label="Quitar"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

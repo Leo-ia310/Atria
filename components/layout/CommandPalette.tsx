@@ -97,7 +97,7 @@ export function CommandPalette({
             placeholder="Buscar módulo o página..."
             className="h-12 flex-1 bg-transparent text-small outline-none placeholder:text-[color:var(--color-text-muted)]"
           />
-          <kbd className="rounded border border-[color:var(--color-border)] bg-white px-1.5 py-0.5 text-[10px]">
+          <kbd className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-1.5 py-0.5 text-[10px] text-[color:var(--color-text-muted)]">
             Esc
           </kbd>
         </div>

@@ -1,32 +1,39 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { empresas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { saldosPorCuenta, calcularBalanceGeneral } from "@/lib/contabilidad/queries";
+import { calcularBalanceGeneral, saldosPorCuenta } from "@/lib/contabilidad/queries";
 import { formatearMoneda } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function BalanceGeneralPage() {
   const user = await requireSession();
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = empresa?.pais ?? "NI";
+  const sucursalIds = selectedSucursalIds(scope);
 
-  const saldos = await saldosPorCuenta(user.empresaId);
+  const saldos = await saldosPorCuenta(user.empresaId, undefined, sucursalIds);
   const bg = calcularBalanceGeneral(saldos);
+  const subtitulo = [empresa?.razonSocial, scope.visible ? scope.etiqueta : null]
+    .filter(Boolean)
+    .join(" - ");
 
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Balance General"
-        subtitle={empresa?.razonSocial ?? ""}
+        subtitle={subtitulo}
         actions={
           bg.balanceado ? (
             <Badge variant="success">Balanceado</Badge>
           ) : (
-            <Badge variant="error">Diferencia: {formatearMoneda(bg.totalActivos - bg.totalPasivoMasPatrimonio, pais)}</Badge>
+            <Badge variant="error">
+              Diferencia: {formatearMoneda(bg.totalActivos - bg.totalPasivoMasPatrimonio, pais)}
+            </Badge>
           )
         }
       />
@@ -106,14 +113,14 @@ function Linea({
   pais: string;
 }) {
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between gap-3">
       <span>
         <span className="font-mono text-[11px] text-[color:var(--color-text-muted)]">
           {codigo}
         </span>{" "}
         {nombre}
       </span>
-      <span className="font-medium">{formatearMoneda(monto, pais as never)}</span>
+      <span className="shrink-0 font-medium">{formatearMoneda(monto, pais as never)}</span>
     </div>
   );
 }

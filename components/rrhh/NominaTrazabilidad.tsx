@@ -283,7 +283,7 @@ function ColillaDocumento({
   mostrarJson?: boolean;
 }) {
   return (
-    <div className="colilla-documento mx-auto max-w-3xl rounded-md border border-[color:var(--color-border)] bg-white p-6 text-[13px] text-[color:var(--color-text-primary)]">
+    <div className="arca-documento-claro colilla-documento mx-auto max-w-3xl rounded-md border border-[color:var(--color-border)] bg-white p-6 text-[13px] text-[color:var(--color-text-primary)]">
       <div className="text-center">
         <div className="text-lg font-bold uppercase">{snapshot.empresa.nombre}</div>
         <div className="text-small font-semibold">Colilla de pago</div>

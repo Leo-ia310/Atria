@@ -1,29 +1,52 @@
 import Link from "next/link";
-import { BookOpen, BookText, TableProperties, FileBarChart, PieChart, Calendar } from "lucide-react";
-import { count, eq, and, sum } from "drizzle-orm";
+import type { LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  BookText,
+  Calendar,
+  FileBarChart,
+  PieChart,
+  TableProperties,
+} from "lucide-react";
+import { and, count, eq, inArray, sum, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  asientoPartidas,
   asientosContables,
   periodosContables,
-  asientoPartidas,
-  catalogoCuentas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
 import { formatearMoneda } from "@/lib/utils";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function ContabilidadPage() {
   const user = await requireSession();
   const hoy = new Date();
-  const [empresa, asientosRows, periodoRows, resumenRows] = await Promise.all([
+  const [empresa, scope] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
+  const sucursalIds = selectedSucursalIds(scope);
+
+  const filtrosAsientos: SQL[] = [eq(asientosContables.empresaId, user.empresaId)];
+  const filtrosResumen: SQL[] = [
+    eq(asientosContables.empresaId, user.empresaId),
+    eq(asientosContables.estado, "registrado"),
+  ];
+  if (sucursalIds) {
+    filtrosAsientos.push(inArray(asientosContables.sucursalId, sucursalIds));
+    filtrosResumen.push(inArray(asientosContables.sucursalId, sucursalIds));
+  }
+
+  const [asientosRows, periodoRows, resumenRows] = await Promise.all([
     db
       .select({ n: count() })
       .from(asientosContables)
-      .where(eq(asientosContables.empresaId, user.empresaId)),
+      .where(and(...filtrosAsientos)),
     db
       .select({
         id: periodosContables.id,
@@ -50,13 +73,9 @@ export default async function ContabilidadPage() {
         asientosContables,
         eq(asientosContables.id, asientoPartidas.asientoId),
       )
-      .where(
-        and(
-          eq(asientosContables.empresaId, user.empresaId),
-          eq(asientosContables.estado, "registrado"),
-        ),
-      ),
+      .where(and(...filtrosResumen)),
   ]);
+
   const pais = empresa?.pais ?? "NI";
   const asientosCount = asientosRows[0];
   const periodoActual = periodoRows[0];
@@ -67,26 +86,35 @@ export default async function ContabilidadPage() {
     Math.abs(parseFloat(resumen?.debe ?? "0") - parseFloat(resumen?.haber ?? "0")) < 0.01;
 
   const mesesEs = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
+  const subtituloPeriodo = periodoActual
+    ? `Periodo activo: ${mesesEs[periodoActual.mes - 1]} ${periodoActual.anio} - ${periodoActual.estado}`
+    : "Sin periodo abierto";
 
   return (
     <div>
       <PageHeader
         title="Contabilidad"
-        subtitle={
-          periodoActual
-            ? `Período activo: ${mesesEs[periodoActual.mes - 1]} ${periodoActual.anio} · ${periodoActual.estado}`
-            : "Sin período abierto"
-        }
+        subtitle={`${subtituloPeriodo}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
           label="Asientos registrados"
           value={String(asientosCount?.n ?? 0)}
-          hint="Todo el histórico"
+          hint={scope.visible ? scope.etiqueta : "Todo el historico"}
           icon={BookOpen}
         />
         <KpiCard
@@ -94,12 +122,12 @@ export default async function ContabilidadPage() {
           value={formatearMoneda(totalMovimiento, pais)}
           hint={balanceado ? "Libros balanceados" : "Hay desbalance"}
           icon={TableProperties}
-          delta={balanceado ? "✓" : "✗"}
+          delta={balanceado ? "OK" : "Revisar"}
           deltaPositive={balanceado}
         />
         <KpiCard
-          label="Estado del período"
-          value={periodoActual?.estado === "abierto" ? "Abierto" : periodoActual?.estado ?? "—"}
+          label="Estado del periodo"
+          value={periodoActual?.estado === "abierto" ? "Abierto" : periodoActual?.estado ?? "-"}
           hint="Puedes registrar operaciones"
           icon={FileBarChart}
         />
@@ -110,7 +138,7 @@ export default async function ContabilidadPage() {
           href="/contabilidad/libro-diario"
           icon={BookOpen}
           titulo="Libro Diario"
-          descripcion="Todos los asientos en orden cronológico"
+          descripcion="Todos los asientos en orden cronologico"
         />
         <ModuloLink
           href="/contabilidad/libro-mayor"
@@ -121,7 +149,7 @@ export default async function ContabilidadPage() {
         <ModuloLink
           href="/contabilidad/balance-comprobacion"
           icon={TableProperties}
-          titulo="Balance de comprobación"
+          titulo="Balance de comprobacion"
           descripcion="Saldos deudores vs acreedores por cuenta"
         />
         <ModuloLink
@@ -139,21 +167,19 @@ export default async function ContabilidadPage() {
         <ModuloLink
           href="/contabilidad/catalogo-cuentas"
           icon={BookText}
-          titulo="Catálogo de cuentas"
+          titulo="Catalogo de cuentas"
           descripcion="Plan de cuentas de tu empresa"
         />
         <ModuloLink
           href="/contabilidad/periodos"
           icon={Calendar}
-          titulo="Períodos contables"
-          descripcion="Abrir y cerrar períodos mensuales"
+          titulo="Periodos contables"
+          descripcion="Abrir y cerrar periodos mensuales"
         />
       </div>
     </div>
   );
 }
-
-import type { LucideIcon } from "lucide-react";
 
 function ModuloLink({
   href,

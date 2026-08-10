@@ -15,13 +15,15 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { POSContenedor } from "@/components/pos/POSContenedor";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
+import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export default async function POSPage() {
   const user = await requireSession();
 
-  const [empresa, scope] = await Promise.all([
+  const [empresa, scope, politicas] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
+    getPoliticasNegocio(user.empresaId),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
   const sucursalesActivas = scope.sucursales
@@ -195,7 +197,10 @@ export default async function POSPage() {
         telefono: c.telefono,
         email: c.email,
         tieneCredito: parseFloat(c.limiteCredito) > 0,
-        diasCredito: c.diasCredito,
+        diasCredito:
+          c.diasCredito > 0
+            ? c.diasCredito
+            : politicas.diasCreditoClienteDefault,
         esConsumidorFinal: c.esConsumidorFinal,
       }))}
       formasPago={formasPagoList}

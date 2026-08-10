@@ -1789,6 +1789,9 @@ export const asientosContables = pgTable(
     empresaId: uuid("empresa_id")
       .notNull()
       .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id, {
+      onDelete: "set null",
+    }),
     periodoId: uuid("periodo_id")
       .notNull()
       .references(() => periodosContables.id),
@@ -1811,9 +1814,20 @@ export const asientosContables = pgTable(
     index("asientos_empresa_idx").on(t.empresaId),
     index("asientos_periodo_idx").on(t.periodoId),
     index("asientos_fecha_idx").on(t.fecha),
+    index("asientos_empresa_sucursal_fecha_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.fecha,
+    ),
     index("asientos_referencia_idx").on(t.referenciaTabla, t.referenciaId),
     index("asientos_empresa_estado_fecha_idx").on(
       t.empresaId,
+      t.estado,
+      t.fecha,
+    ),
+    index("asientos_empresa_sucursal_estado_fecha_idx").on(
+      t.empresaId,
+      t.sucursalId,
       t.estado,
       t.fecha,
     ),
@@ -1925,6 +1939,9 @@ export const gastosRecurrentes = pgTable(
     empresaId: uuid("empresa_id")
       .notNull()
       .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id, {
+      onDelete: "set null",
+    }),
     categoriaId: uuid("categoria_id")
       .notNull()
       .references(() => categoriasGasto.id),
@@ -1945,6 +1962,7 @@ export const gastosRecurrentes = pgTable(
   },
   (t) => [
     index("gastos_recurrentes_empresa_idx").on(t.empresaId),
+    index("gastos_recurrentes_sucursal_idx").on(t.sucursalId),
     index("gastos_recurrentes_proxima_idx").on(t.activa, t.proximaFecha),
   ],
 );

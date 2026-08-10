@@ -6,10 +6,12 @@ import { Recibo, type ReciboData } from "@/components/pos/Recibo";
 import { imprimirRecibo } from "@/components/pos/TicketPrint";
 
 export function FacturaDetalleVista({ data }: { data: ReciboData }) {
+  const volverHref = data.esCredito ? "/facturas/credito" : "/facturas/cobradas";
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3 print:hidden">
-        <Link href="/facturas" className="arca-btn arca-btn-ghost arca-btn-sm">
+        <Link href={volverHref} className="arca-btn arca-btn-ghost arca-btn-sm">
           <ArrowLeft size={14} /> Volver
         </Link>
         <button

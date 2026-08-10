@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  asientosContables, asientoPartidas, catalogoCuentas } from "@/lib/db/schema";
+import { asientoPartidas, asientosContables, catalogoCuentas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatearMoneda, formatearFecha } from "@/lib/utils";
+import { formatearFecha, formatearMoneda } from "@/lib/utils";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 export default async function LibroMayorPage({
   searchParams,
@@ -18,8 +18,12 @@ export default async function LibroMayorPage({
 }) {
   const params = await searchParams;
   const user = await requireSession();
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = empresa?.pais ?? "NI";
+  const sucursalIds = selectedSucursalIds(scope);
 
   const cuentas = await db
     .select({
@@ -58,9 +62,11 @@ export default async function LibroMayorPage({
         )
         .where(
           and(
-            eq(asientoPartidas.cuentaId, cuentaSeleccionada.id),
-            eq(asientosContables.empresaId, user.empresaId),
-            eq(asientosContables.estado, "registrado"),
+            ...movimientosPorCuentaFiltros({
+              cuentaId: cuentaSeleccionada.id,
+              empresaId: user.empresaId,
+              sucursalIds,
+            }),
           ),
         )
         .orderBy(asc(asientosContables.fecha), asc(asientosContables.numero))
@@ -82,13 +88,13 @@ export default async function LibroMayorPage({
     <div>
       <PageHeader
         title="Libro Mayor"
-        subtitle="Movimientos por cuenta contable"
+        subtitle={`Movimientos por cuenta contable${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
           <Link
             href="/contabilidad/libro-diario"
             className="arca-btn arca-btn-secondary arca-btn-sm"
           >
-            Ver libro diario →
+            Ver libro diario
           </Link>
         }
       />
@@ -125,7 +131,7 @@ export default async function LibroMayorPage({
           <CardHeader
             title={
               cuentaSeleccionada
-                ? `${cuentaSeleccionada.codigo} · ${cuentaSeleccionada.nombre}`
+                ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}`
                 : "Selecciona una cuenta"
             }
             subtitle={
@@ -139,15 +145,15 @@ export default async function LibroMayorPage({
               <EmptyState
                 icon={BookOpen}
                 titulo="Sin movimientos en esta cuenta"
-                descripcion="Cuando una operación afecte esta cuenta, aparecerán los movimientos aquí."
+                descripcion="Cuando una operacion afecte esta cuenta, apareceran los movimientos aqui."
               />
             ) : (
-              <>
-                <table className="w-full text-small">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-small">
                   <thead className="border-b border-[color:var(--color-border)]">
                     <tr className="text-label">
                       <th className="px-2 py-2 text-left">Fecha</th>
-                      <th className="px-2 py-2 text-left">N° Asiento</th>
+                      <th className="px-2 py-2 text-left">Asiento</th>
                       <th className="px-2 py-2 text-left">Detalle</th>
                       <th className="px-2 py-2 text-right">Debe</th>
                       <th className="px-2 py-2 text-right">Haber</th>
@@ -188,11 +194,31 @@ export default async function LibroMayorPage({
                     </tr>
                   </tbody>
                 </table>
-              </>
+              </div>
             )}
           </CardBody>
         </Card>
       </div>
     </div>
   );
+}
+
+function movimientosPorCuentaFiltros({
+  cuentaId,
+  empresaId,
+  sucursalIds,
+}: {
+  cuentaId: string;
+  empresaId: string;
+  sucursalIds: string[] | null;
+}): SQL[] {
+  const filtros: SQL[] = [
+    eq(asientoPartidas.cuentaId, cuentaId),
+    eq(asientosContables.empresaId, empresaId),
+    eq(asientosContables.estado, "registrado"),
+  ];
+  if (sucursalIds) {
+    filtros.push(inArray(asientosContables.sucursalId, sucursalIds));
+  }
+  return filtros;
 }

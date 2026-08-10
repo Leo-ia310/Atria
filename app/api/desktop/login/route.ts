@@ -7,7 +7,6 @@
  * para operar sin conexion hasta su vencimiento.
  */
 
-import { createHmac } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
@@ -20,6 +19,7 @@ import {
 } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations/auth";
 import { rateLimit } from "@/lib/redis/rate-limit";
+import { firmarGrantCanonico } from "@/lib/desktop-grant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,10 +32,6 @@ const LOGIN_MAX_IP = 40;
 function obtenerIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for") ?? "";
   return fwd.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim() || "desconocida";
-}
-
-function firmarGrant(secret: string, payload: Record<string, unknown>): string {
-  return createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -133,15 +129,14 @@ export async function POST(request: Request) {
   const rolNombre = rolFilas[0]?.nombre ?? null;
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + GRANT_TTL_MS).toISOString();
-  const grantPayload = {
+  const signature = firmarGrantCanonico(secret, {
     userId: user.id,
     empresaId: user.empresaId,
     sucursalIds: listaSucursales.map((s) => s.id),
     deviceId,
     issuedAt,
     expiresAt,
-  };
-  const signature = firmarGrant(secret, grantPayload);
+  });
 
   return Response.json({
     ok: true,

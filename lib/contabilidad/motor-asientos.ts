@@ -8,7 +8,7 @@
  * de persistir. Si no cuadra, lanzar AsientoNoBalanceadoError sin tocar la DB.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
   asientosContables,
@@ -16,6 +16,8 @@ import {
   catalogoCuentas,
   categoriasGasto,
   cuentasFinancieras,
+  empleados,
+  nominaDetalles,
 } from "@/lib/db/schema";
 import { CUENTAS_CLAVE } from "@/lib/paises";
 import {
@@ -64,6 +66,7 @@ async function crearAsiento(
   tx: TX,
   opciones: {
     empresaId: string;
+    sucursalId?: string | null;
     fecha: Date;
     concepto: string;
     origen: "venta" | "compra" | "pago_cliente" | "pago_proveedor" | "gasto" | "ajuste_inventario" | "manual" | "cierre_periodo" | "apertura_caja" | "cierre_caja" | "depreciacion" | "nomina";
@@ -85,6 +88,7 @@ async function crearAsiento(
     .insert(asientosContables)
     .values({
       empresaId: opciones.empresaId,
+      sucursalId: opciones.sucursalId ?? null,
       periodoId,
       numero,
       fecha: opciones.fecha.toISOString().slice(0, 10),
@@ -120,6 +124,7 @@ async function crearAsiento(
 export type RegistrarVentaInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   ventaId: string;
   fecha: Date;
   numero: string;
@@ -215,6 +220,7 @@ export async function registrarVenta(input: RegistrarVentaInput): Promise<string
       origen: "venta",
       referenciaTabla: "ventas",
       referenciaId: input.ventaId,
+      sucursalId: input.sucursalId ?? null,
       partidas,
       usuarioId: input.usuarioId,
     });
@@ -228,6 +234,7 @@ export async function registrarVenta(input: RegistrarVentaInput): Promise<string
 export type RegistrarCompraInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   compraId: string;
   fecha: Date;
   numeroFactura?: string | null;
@@ -297,6 +304,7 @@ export async function registrarCompra(input: RegistrarCompraInput): Promise<stri
       origen: "compra",
       referenciaTabla: "compras",
       referenciaId: input.compraId,
+      sucursalId: input.sucursalId ?? null,
       partidas,
       usuarioId: input.usuarioId,
     });
@@ -310,6 +318,7 @@ export async function registrarCompra(input: RegistrarCompraInput): Promise<stri
 export type RegistrarPagoProveedorInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   pagoId: string;
   cxpId: string;
   fecha: Date;
@@ -328,7 +337,11 @@ export async function registrarPagoProveedor(
     ]);
 
     const [cf] = await tx
-      .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
+      .select({
+        cuentaContableId: cuentasFinancieras.cuentaContableId,
+        nombre: cuentasFinancieras.nombre,
+        sucursalId: cuentasFinancieras.sucursalId,
+      })
       .from(cuentasFinancieras)
       .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
@@ -344,6 +357,7 @@ export async function registrarPagoProveedor(
       origen: "pago_proveedor",
       referenciaTabla: "pagos_proveedor",
       referenciaId: input.pagoId,
+      sucursalId: input.sucursalId ?? cf.sucursalId ?? null,
       usuarioId: input.usuarioId,
       partidas: [
         {
@@ -371,6 +385,7 @@ export async function registrarPagoProveedor(
 export type RegistrarAbonoClienteInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   abonoId: string;
   cxcId: string;
   fecha: Date;
@@ -389,7 +404,11 @@ export async function registrarAbonoCliente(
     ]);
 
     const [cf] = await tx
-      .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
+      .select({
+        cuentaContableId: cuentasFinancieras.cuentaContableId,
+        nombre: cuentasFinancieras.nombre,
+        sucursalId: cuentasFinancieras.sucursalId,
+      })
       .from(cuentasFinancieras)
       .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
@@ -405,6 +424,7 @@ export async function registrarAbonoCliente(
       origen: "pago_cliente",
       referenciaTabla: "abonos_cliente",
       referenciaId: input.abonoId,
+      sucursalId: input.sucursalId ?? cf.sucursalId ?? null,
       usuarioId: input.usuarioId,
       partidas: [
         {
@@ -432,6 +452,7 @@ export async function registrarAbonoCliente(
 export type RegistrarGastoInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   gastoId: string;
   categoriaGastoId: string;
   cuentaFinancieraId: string;
@@ -454,7 +475,11 @@ export async function registrarGasto(input: RegistrarGastoInput, externalTx?: TX
     }
 
     const [cf] = await tx
-      .select({ cuentaContableId: cuentasFinancieras.cuentaContableId, nombre: cuentasFinancieras.nombre })
+      .select({
+        cuentaContableId: cuentasFinancieras.cuentaContableId,
+        nombre: cuentasFinancieras.nombre,
+        sucursalId: cuentasFinancieras.sucursalId,
+      })
       .from(cuentasFinancieras)
       .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
       .limit(1);
@@ -495,6 +520,7 @@ export async function registrarGasto(input: RegistrarGastoInput, externalTx?: TX
       origen: "gasto",
       referenciaTabla: "gastos",
       referenciaId: input.gastoId,
+      sucursalId: input.sucursalId ?? cf.sucursalId ?? null,
       partidas,
       usuarioId: input.usuarioId,
     });
@@ -509,6 +535,7 @@ export async function registrarGasto(input: RegistrarGastoInput, externalTx?: TX
 export type RegistrarAjusteInventarioInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   movimientoId: string;
   fecha: Date;
   cantidad: number;
@@ -563,6 +590,7 @@ export async function registrarAjusteInventario(
       origen: "ajuste_inventario",
       referenciaTabla: "movimientos_inventario",
       referenciaId: input.movimientoId,
+      sucursalId: input.sucursalId ?? null,
       partidas,
       usuarioId: input.usuarioId,
     });
@@ -610,9 +638,32 @@ async function cuentaPorCodigo(tx: TX, empresaId: string, codigo: string): Promi
   return cuenta.id;
 }
 
+async function resolverSucursalUnicaNomina(
+  tx: TX,
+  empresaId: string,
+  nominaId: string,
+): Promise<string | null> {
+  const sucursales = await tx
+    .select({ sucursalId: empleados.sucursalId })
+    .from(nominaDetalles)
+    .innerJoin(empleados, eq(empleados.id, nominaDetalles.empleadoId))
+    .where(
+      and(
+        eq(nominaDetalles.empresaId, empresaId),
+        eq(nominaDetalles.nominaId, nominaId),
+        isNotNull(empleados.sucursalId),
+      ),
+    )
+    .groupBy(empleados.sucursalId)
+    .limit(2);
+
+  return sucursales.length === 1 ? sucursales[0].sucursalId : null;
+}
+
 export type RegistrarNominaDevengoInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   nominaId: string;
   fecha: Date;
   numero: string;
@@ -662,6 +713,9 @@ export async function registrarNominaDevengo(
 
     return crearAsiento(tx, {
       empresaId: input.empresaId,
+      sucursalId:
+        input.sucursalId ??
+        (await resolverSucursalUnicaNomina(tx, input.empresaId, input.nominaId)),
       fecha: input.fecha,
       concepto: `Nómina ${input.numero}`,
       origen: "nomina",
@@ -676,6 +730,7 @@ export async function registrarNominaDevengo(
 export type RegistrarPagoNominaInput = {
   empresaId: string;
   usuarioId: string;
+  sucursalId?: string | null;
   nominaId: string;
   fecha: Date;
   numero: string;
@@ -698,6 +753,7 @@ export async function registrarPagoNomina(
       .select({
         cuentaContableId: cuentasFinancieras.cuentaContableId,
         nombre: cuentasFinancieras.nombre,
+        sucursalId: cuentasFinancieras.sucursalId,
       })
       .from(cuentasFinancieras)
       .where(
@@ -728,6 +784,11 @@ export async function registrarPagoNomina(
 
     return crearAsiento(tx, {
       empresaId: input.empresaId,
+      sucursalId:
+        input.sucursalId ??
+        (await resolverSucursalUnicaNomina(tx, input.empresaId, input.nominaId)) ??
+        cf.sucursalId ??
+        null,
       fecha: input.fecha,
       concepto: `Pago de nómina ${input.numero}`,
       origen: "nomina",

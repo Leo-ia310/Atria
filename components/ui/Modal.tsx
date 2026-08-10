@@ -45,17 +45,17 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--color-dark-bg)]/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--color-dark-bg)]/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onCerrar}
     >
       <div
         className={cn(
-          "arca-card w-full overflow-hidden bg-[color:var(--color-surface)]",
+          "arca-card max-h-[92vh] w-full overflow-hidden bg-[color:var(--color-surface)]",
           anchoClase,
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[color:var(--color-border)] px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-[color:var(--color-border)] px-4 py-4 sm:px-5">
           <div>
             <h2 className="text-base font-semibold text-[color:var(--color-text-primary)]">
               {titulo}
@@ -74,9 +74,9 @@ export function Modal({
             <X size={16} />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto p-4 sm:p-5">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-5 py-3">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-4 py-3 sm:px-5">
             {footer}
           </div>
         )}

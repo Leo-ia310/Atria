@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Calendar } from "lucide-react";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { asientosContables, periodosContables } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -12,17 +12,39 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { AccionesEstado, CrearProximoPeriodo } from "@/components/periodos/PeriodoAcciones";
 import { formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
 const MESES_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 export default async function PeriodosPage() {
   const user = await requireSession();
 
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, scope] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    getSucursalScope(user),
+  ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
+  const sucursalIds = selectedSucursalIds(scope);
+  const filtrosAsientos: SQL[] = [
+    eq(asientosContables.periodoId, periodosContables.id),
+    eq(asientosContables.estado, "registrado"),
+  ];
+  if (sucursalIds) {
+    filtrosAsientos.push(inArray(asientosContables.sucursalId, sucursalIds));
+  }
 
   const periodos = await db
     .select({
@@ -36,13 +58,7 @@ export default async function PeriodosPage() {
       numAsientos: count(asientosContables.id),
     })
     .from(periodosContables)
-    .leftJoin(
-      asientosContables,
-      and(
-        eq(asientosContables.periodoId, periodosContables.id),
-        eq(asientosContables.estado, "registrado"),
-      ),
-    )
+    .leftJoin(asientosContables, and(...filtrosAsientos))
     .where(eq(periodosContables.empresaId, user.empresaId))
     .groupBy(
       periodosContables.id,
@@ -55,7 +71,6 @@ export default async function PeriodosPage() {
     )
     .orderBy(desc(periodosContables.anio), desc(periodosContables.mes));
 
-  // Determine which period should be offered as "next to create"
   let nextAnio: number;
   let nextMes: number;
 
@@ -80,13 +95,13 @@ export default async function PeriodosPage() {
   return (
     <div>
       <PageHeader
-        title="Períodos Contables"
-        subtitle={`${periodos.length} período(s) · ${abiertos} abierto(s)`}
+        title="Periodos Contables"
+        subtitle={`${periodos.length} periodo(s) - ${abiertos} abierto(s)${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex items-center gap-2">
             <CrearProximoPeriodo anio={nextAnio} mes={nextMes} label={nextLabel} />
             <Link href="/contabilidad" className="arca-btn arca-btn-secondary arca-btn-sm">
-              ← Contabilidad
+              Volver
             </Link>
           </div>
         }
@@ -96,50 +111,50 @@ export default async function PeriodosPage() {
         <Card>
           <EmptyState
             icon={Calendar}
-            titulo="Sin períodos contables"
-            descripcion="Crea el primer período para poder registrar asientos contables."
+            titulo="Sin periodos contables"
+            descripcion="Crea el primer periodo para poder registrar asientos contables."
           />
         </Card>
       ) : (
         <Card>
           <CardBody className="p-0">
-            <table className="w-full text-small">
-              <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
-                <tr className="text-label">
-                  <th className="px-4 py-2 text-left">Período</th>
-                  <th className="px-4 py-2 text-left">Fechas</th>
-                  <th className="px-4 py-2 text-center">Asientos</th>
-                  <th className="px-4 py-2 text-center">Estado</th>
-                  <th className="px-4 py-2 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periodos.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="border-b border-[color:var(--color-border)] last:border-b-0"
-                  >
-                    <td className="px-4 py-3 font-semibold">
-                      {MESES_ES[p.mes - 1]} {p.anio}
-                    </td>
-                    <td className="px-4 py-3 text-[color:var(--color-text-muted)]">
-                      {formatearFecha(p.fechaInicio, pais)} – {formatearFecha(p.fechaFin, pais)}
-                    </td>
-                    <td className="px-4 py-3 text-center font-mono">
-                      {p.numAsientos}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant={p.estado === "abierto" ? "success" : "neutral"}>
-                        {p.estado === "abierto" ? "Abierto" : "Cerrado"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <AccionesEstado periodoId={p.id} estado={p.estado} />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-small">
+                <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
+                  <tr className="text-label">
+                    <th className="px-4 py-2 text-left">Periodo</th>
+                    <th className="px-4 py-2 text-left">Fechas</th>
+                    <th className="px-4 py-2 text-center">Asientos</th>
+                    <th className="px-4 py-2 text-center">Estado</th>
+                    <th className="px-4 py-2 text-right">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {periodos.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-b border-[color:var(--color-border)] last:border-b-0"
+                    >
+                      <td className="px-4 py-3 font-semibold">
+                        {MESES_ES[p.mes - 1]} {p.anio}
+                      </td>
+                      <td className="px-4 py-3 text-[color:var(--color-text-muted)]">
+                        {formatearFecha(p.fechaInicio, pais)} - {formatearFecha(p.fechaFin, pais)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono">{p.numAsientos}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant={p.estado === "abierto" ? "success" : "neutral"}>
+                          {p.estado === "abierto" ? "Abierto" : "Cerrado"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <AccionesEstado periodoId={p.id} estado={p.estado} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardBody>
         </Card>
       )}
