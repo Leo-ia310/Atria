@@ -62,6 +62,11 @@ export default function UsoAceptablePage() {
           <Link href="/legal/inteligencia-artificial">Política de Inteligencia Artificial</Link> o
           para generar contenido ilícito o engañoso.
         </li>
+        <li>
+          Intentar manipular, vulnerar o eludir las protecciones de las Funciones de IA mediante
+          prompt injection, jailbreaks, cambios de rol, solicitudes de prompts internos, claves API,
+          tokens, credenciales, variables de entorno o información de seguridad.
+        </li>
       </ul>
 
       <h2 id="responsabilidad-cuenta">2. Responsabilidad sobre tu cuenta</h2>

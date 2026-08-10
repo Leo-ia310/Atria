@@ -15,6 +15,10 @@ type Mensaje = {
   modulos?: SoporteModulo[];
 };
 
+function textoHistorial(content: string): string {
+  return content.replace(/\s+/g, " ").trim().slice(0, 600);
+}
+
 export function SoporteAssistant() {
   const { mostrar } = useToast();
   const [texto, setTexto] = useState("");
@@ -31,8 +35,8 @@ export function SoporteAssistant() {
     () =>
       mensajes
         .filter((mensaje) => mensaje.content.trim())
-        .slice(-6)
-        .map((mensaje) => ({ role: mensaje.role, content: mensaje.content })),
+        .slice(-4)
+        .map((mensaje) => ({ role: mensaje.role, content: textoHistorial(mensaje.content) })),
     [mensajes],
   );
 
@@ -48,7 +52,7 @@ export function SoporteAssistant() {
     setEnviando(false);
 
     if (!res.ok) {
-      mostrar("error", res.error);
+      mostrar(res.tipo ?? "error", res.error);
       return;
     }
 
@@ -124,7 +128,7 @@ export function SoporteAssistant() {
                   }
                 }}
                 rows={2}
-                maxLength={1200}
+                maxLength={900}
                 className="arca-input min-h-12 flex-1 resize-none"
                 placeholder="Escribe tu consulta..."
               />

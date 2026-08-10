@@ -95,6 +95,14 @@ export default function IaPage() {
         contenido ilícito, engañoso o que vulnere derechos de terceros, ni ingresar datos sobre los
         que no tengas base legal para tratarlos.
       </p>
+      <p>
+        También queda prohibido intentar burlar las protecciones del asistente mediante prompt
+        injection, jailbreaks, cambios de rol, instrucciones para ignorar reglas internas, o
+        solicitudes para revelar prompts, claves API, tokens, credenciales, variables de entorno o
+        información de seguridad. Estos intentos pueden ser bloqueados, revisados y, si se repiten
+        o representan riesgo para la Plataforma, ocasionar la suspensión parcial o total de la
+        Cuenta.
+      </p>
 
       <h2 id="responsabilidad">6. Responsabilidad</h2>
       <p>

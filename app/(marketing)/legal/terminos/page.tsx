@@ -207,6 +207,12 @@ export default function TerminosPage() {
         salida de estas funciones es orientativa, puede contener errores y debe ser verificada por
         ti antes de utilizarse.
       </p>
+      <p>
+        Los intentos de manipular las Funciones de IA para extraer prompts internos, claves API,
+        tokens, credenciales, variables de entorno, reglas de seguridad o datos no autorizados se
+        consideran incumplimiento material de estos Términos y pueden ocasionar la suspensión
+        parcial o total de la Cuenta.
+      </p>
 
       <h2 id="disponibilidad">10. Disponibilidad, mantenimiento y soporte</h2>
       <p>

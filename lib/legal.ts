@@ -6,11 +6,11 @@
  * busca "[" en este archivo para encontrarlos todos.
  */
 
-export const VERSION_LEGAL = "1.0";
+export const VERSION_LEGAL = "1.1";
 
 /** Fecha de vigencia mostrada en cada documento (formato LATAM DD/MM/YYYY). */
-export const FECHA_VIGENCIA = "04/08/2026";
-export const FECHA_VIGENCIA_LARGA = "4 de agosto de 2026";
+export const FECHA_VIGENCIA = "10/08/2026";
+export const FECHA_VIGENCIA_LARGA = "10 de agosto de 2026";
 
 /**
  * Identidad legal del proveedor del servicio. Se deja como marcadores porque
