@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { formatearMoneda } from "@/lib/utils";
+import { cn, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
 const SEMANAS = [
@@ -51,6 +51,7 @@ export function DeduccionesManager({
   const [nuevoTipo, setNuevoTipo] = useState(false);
   const [nombreTipo, setNombreTipo] = useState("");
   const [guardandoTipo, setGuardandoTipo] = useState(false);
+  const [vista, setVista] = useState<"registro" | "historial">("registro");
 
   async function crearTipo() {
     const nombre = nombreTipo.trim();
@@ -79,7 +80,35 @@ export function DeduccionesManager({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <div className="inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-1 text-small">
+        <button
+          type="button"
+          onClick={() => setVista("registro")}
+          className={cn(
+            "rounded px-3 py-1.5 transition",
+            vista === "registro"
+              ? "bg-[color:var(--color-surface)] font-medium text-[color:var(--color-text-primary)] shadow-sm"
+              : "text-[color:var(--color-text-muted)]",
+          )}
+        >
+          Registro
+        </button>
+        <button
+          type="button"
+          onClick={() => setVista("historial")}
+          className={cn(
+            "rounded px-3 py-1.5 transition",
+            vista === "historial"
+              ? "bg-[color:var(--color-surface)] font-medium text-[color:var(--color-text-primary)] shadow-sm"
+              : "text-[color:var(--color-text-muted)]",
+          )}
+        >
+          Historial ({historial.length})
+        </button>
+      </div>
+
+      {vista === "registro" && (
     <Card>
       <CardHeader
         title="Deducciones por empleado"
@@ -146,7 +175,9 @@ export function DeduccionesManager({
         />
       </Modal>
     </Card>
+      )}
 
+      {vista === "historial" && (
     <Card>
       <CardHeader
         title="Historial de deducciones"
@@ -198,6 +229,7 @@ export function DeduccionesManager({
         </div>
       )}
     </Card>
+      )}
     </div>
   );
 }
