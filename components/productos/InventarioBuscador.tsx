@@ -68,7 +68,7 @@ export function InventarioBuscador({
                 ? "Escanea o escribe el código de barras…"
                 : "Buscar por SKU o nombre de producto…"
             }
-            className="arca-input w-full pl-9 pr-9"
+            className="arca-input arca-input-con-icono arca-input-pw w-full"
           />
           {query && (
             <button

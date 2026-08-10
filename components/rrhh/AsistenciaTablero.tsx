@@ -181,10 +181,10 @@ function FilaAsistencia({
               onClick={() => marcar(e.value)}
               disabled={Boolean(guardando)}
               className={cn(
-                "mx-auto flex h-5 w-5 items-center justify-center rounded-[5px] border transition disabled:opacity-60",
+                "mx-auto flex h-5 w-5 items-center justify-center rounded-[5px] border-2 transition disabled:opacity-60",
                 activo
                   ? TONO_ACTIVO[e.tono]
-                  : "border-[color:var(--color-border-strong)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-secondary)]",
+                  : "border-[color:var(--color-text-secondary)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-secondary)]",
               )}
             >
               {cargando ? (
