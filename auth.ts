@@ -16,6 +16,17 @@ import { rateLimit } from "@/lib/redis/rate-limit";
 
 const LOGIN_MAX_INTENTOS = 10;
 const LOGIN_VENTANA_SEG = 5 * 60;
+
+// Correos del dueño del SaaS que se promueven a super-admin automáticamente al
+// iniciar sesión, sin editar la DB a mano. Acepta lista separada por comas.
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAIL ?? "")
+  .split(",")
+  .map((correo) => correo.trim().toLowerCase())
+  .filter(Boolean);
+
+function esCorreoDueno(email: string): boolean {
+  return SUPER_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
 // Límite por IP: frena el "password spraying" (una IP probando muchos correos
 // distintos), que el límite por-email no detecta. Más holgado que el de email
 // porque una IP puede ser NAT/oficina compartida con varios usuarios legítimos.
@@ -78,10 +89,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
+        const promoverSuperAdmin = !user.esSuperAdmin && esCorreoDueno(user.email);
+        const esSuperAdmin = user.esSuperAdmin || promoverSuperAdmin;
+
         await dbSuperAdmin((tx) =>
           tx
             .update(usuarios)
-            .set({ ultimoLogin: new Date() })
+            .set({
+              ultimoLogin: new Date(),
+              ...(promoverSuperAdmin ? { esSuperAdmin: true } : {}),
+            })
             .where(eq(usuarios.id, user.id)),
         );
 
@@ -92,7 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           empresaId: user.empresaId,
           rolId: user.rolId,
           nombre: user.nombre,
-          esSuperAdmin: user.esSuperAdmin,
+          esSuperAdmin,
         };
       },
     }),
