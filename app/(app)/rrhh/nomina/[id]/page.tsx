@@ -275,7 +275,7 @@ export default async function NominaDetallePage({
       <Card>
         <CardHeader title="Recibos por empleado" subtitle={`Seguridad social: ${ssNombre}`} />
         <div className="overflow-x-auto">
-          <table className="w-full text-small">
+          <table className="w-full min-w-[980px] text-small">
             <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
               <tr>
                 <th className="text-label px-4 py-3 text-left font-semibold">Empleado</th>

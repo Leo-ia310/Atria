@@ -9,13 +9,15 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmpresaTipoForm } from "@/components/configuracion/EmpresaTipoForm";
 import { PoliticasNegocioForm } from "@/components/configuracion/PoliticasNegocioForm";
+import { ConfiguracionNegocioForm } from "@/components/configuracion/ConfiguracionNegocioForm";
 import { getPoliticasNegocio } from "@/lib/politicas-negocio";
+import { getConfiguracionNegocio } from "@/lib/configuracion-negocio";
 
 export default async function EmpresaConfiguracionPage() {
   const user = await requireSession();
   await requireModulo(user, "configuracion");
 
-  const [[empresa], [menus], [pedidos], politicas] = await Promise.all([
+  const [[empresa], [menus], [pedidos], politicas, configNegocio] = await Promise.all([
     db
       .select({
         razonSocial: empresas.razonSocial,
@@ -37,6 +39,7 @@ export default async function EmpresaConfiguracionPage() {
       .from(pedidosCocina)
       .where(eq(pedidosCocina.empresaId, user.empresaId)),
     getPoliticasNegocio(user.empresaId),
+    getConfiguracionNegocio(user.empresaId),
   ]);
   const datosRestaurante = {
     menus: menus?.n ?? 0,
@@ -75,6 +78,8 @@ export default async function EmpresaConfiguracionPage() {
           </div>
         </CardBody>
       </Card>
+
+      <ConfiguracionNegocioForm defaults={configNegocio} />
 
       <PoliticasNegocioForm defaults={politicas} />
 

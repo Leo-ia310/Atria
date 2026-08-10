@@ -6,20 +6,20 @@ import { almacenes, existencias, productoAdvertencias, productos } from "@/lib/d
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { formatearMoneda, desdeDecimal } from "@/lib/utils";
+import { desdeDecimal } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { InventarioImportador } from "@/components/productos/InventarioImportador";
 import { InventarioAdvertencias } from "@/components/productos/InventarioAdvertencias";
 import { InventarioLectorBarras } from "@/components/productos/InventarioLectorBarras";
+import { InventarioBuscador } from "@/components/productos/InventarioBuscador";
 
 type Fila = {
   id: string;
   sku: string;
   nombre: string;
+  codigoBarras: string;
   precio: string;
   costo: string;
   existencia: number;
@@ -98,6 +98,7 @@ export default async function InventarioPage() {
             id: productos.id,
             sku: productos.sku,
             nombre: productos.nombre,
+            codigoBarras: productos.codigoBarras,
             precio: productos.precioBase,
             costo: productos.costoPromedio,
             stockMinimo: productos.stockMinimo,
@@ -115,6 +116,7 @@ export default async function InventarioPage() {
           .limit(200);
   const filas: Fila[] = productosRows.map((producto) => ({
     ...producto,
+    codigoBarras: producto.codigoBarras ?? "",
     existencia: existenciaPorProducto.get(producto.id) ?? 0,
   }));
   const advertencias = await db
@@ -140,69 +142,6 @@ export default async function InventarioPage() {
     )
     .orderBy(desc(productoAdvertencias.creadoEn))
     .limit(100);
-
-  const columnas: Columna<Fila>[] = [
-    { key: "sku", header: "SKU", cell: (r) => <span className="font-mono text-[12px]">{r.sku}</span>, width: "120px" },
-    {
-      key: "nombre",
-      header: "Producto",
-      cell: (r) => <span className="font-medium">{r.nombre}</span>,
-    },
-    {
-      key: "precio",
-      header: "Precio",
-      align: "right",
-      cell: (r) => formatearMoneda(desdeDecimal(r.precio), empresa?.pais ?? "NI"),
-    },
-    {
-      key: "costo",
-      header: "Costo prom.",
-      align: "right",
-      cell: (r) => (
-        <span className="text-[color:var(--color-text-muted)]">
-          {formatearMoneda(desdeDecimal(r.costo), empresa?.pais ?? "NI")}
-        </span>
-      ),
-    },
-    {
-      key: "existencia",
-      header: "Existencia",
-      align: "right",
-      cell: (r) => r.existencia.toFixed(2),
-      width: "110px",
-    },
-    {
-      key: "stockMinimo",
-      header: "Stock mín.",
-      align: "right",
-      cell: (r) => desdeDecimal(r.stockMinimo).toFixed(0),
-    },
-    {
-      key: "estado",
-      header: "Estado",
-      cell: (r) =>
-        r.activo ? (
-          <Badge variant="success">Activo</Badge>
-        ) : (
-          <Badge variant="neutral">Inactivo</Badge>
-        ),
-      width: "100px",
-    },
-    {
-      key: "accion",
-      header: "",
-      cell: (r) => (
-        <Link
-          href={`/inventario/${r.id}`}
-          className="text-[color:var(--color-secondary)] hover:underline"
-        >
-          Editar →
-        </Link>
-      ),
-      align: "right",
-      width: "100px",
-    },
-  ];
 
   return (
     <div>
@@ -232,11 +171,8 @@ export default async function InventarioPage() {
         }
       />
 
-      <DataTable<Fila>
-        data={filas}
-        columns={columnas}
-        rowKey={(r) => r.id}
-        empty={
+      {filas.length === 0 ? (
+        <div className="arca-card p-8">
           <EmptyState
             icon={Package}
             titulo={sucursalIds ? "Sin productos en esta sucursal" : "Aun no hay productos"}
@@ -253,8 +189,10 @@ export default async function InventarioPage() {
               </Link>
             }
           />
-        }
-      />
+        </div>
+      ) : (
+        <InventarioBuscador filas={filas} pais={empresa?.pais ?? "NI"} />
+      )}
     </div>
   );
 }

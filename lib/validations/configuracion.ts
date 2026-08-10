@@ -99,6 +99,29 @@ export const politicasNegocioSchema = z.object({
 });
 export type PoliticasNegocioInput = z.infer<typeof politicasNegocioSchema>;
 
+export const configuracionNegocioSchema = z.object({
+  frecuenciaNomina: z.enum(["semanal", "quincenal", "mensual"]).default("quincenal"),
+  diaPagoNomina: z.coerce
+    .number()
+    .int("Usa un dia completo")
+    .min(1, "Dia minimo 1")
+    .max(31, "Dia maximo 31")
+    .default(30),
+  horasJornada: z.coerce
+    .number()
+    .min(1, "Minimo 1 hora")
+    .max(24, "Maximo 24 horas")
+    .default(8),
+  diasLaboralesSemana: z.coerce
+    .number()
+    .int("Usa dias completos")
+    .min(1, "Minimo 1 dia")
+    .max(7, "Maximo 7 dias")
+    .default(6),
+  inicioSemana: z.enum(["lunes", "domingo"]).default("lunes"),
+});
+export type ConfiguracionNegocioInput = z.infer<typeof configuracionNegocioSchema>;
+
 export const cambiarPasswordSchema = z
   .object({
     actual: z.string().min(1, "Ingresa tu contraseña actual"),

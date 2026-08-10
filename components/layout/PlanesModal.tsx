@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X, Check, ArrowLeft } from "lucide-react";
 import { cambiarPlan } from "@/lib/actions/planes";
@@ -29,6 +30,11 @@ export function PlanesModal({
   const [vista, setVista] = useState<Vista>("planes");
   const [planCheckout, setPlanCheckout] = useState<Plan | null>(null);
   const [recibo, setRecibo] = useState<ReciboData | null>(null);
+  const [montado, setMontado] = useState(false);
+
+  useEffect(() => {
+    setMontado(true);
+  }, []);
 
   useEffect(() => {
     function esc(e: KeyboardEvent) {
@@ -53,7 +59,7 @@ export function PlanesModal({
     }
   }, [abierto]);
 
-  if (!abierto) return null;
+  if (!abierto || !montado) return null;
 
   async function elegirPlan(plan: Plan) {
     if (plan.id === "demo") {
@@ -91,13 +97,13 @@ export function PlanesModal({
       : planCheckout.precioMensual
     : 0;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3 backdrop-blur-md sm:p-4"
       onClick={() => vista !== "recibo" && onCerrar()}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 text-[color:var(--color-text-primary)] shadow-2xl"
+        className="relative my-auto max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 text-[color:var(--color-text-primary)] shadow-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {vista !== "recibo" && (
@@ -137,7 +143,8 @@ export function PlanesModal({
           <ReciboExito recibo={recibo} onCerrar={cerrarTrasRecibo} />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

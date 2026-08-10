@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useBarcodeScanner } from "@/components/dispositivos/useBarcodeScanner";
+import { PagoTarjetaPanel, referenciaTarjeta, type ResultadoTarjeta } from "@/components/pos/PagoTarjetaPanel";
 import { procesarVenta } from "@/lib/actions/ventas";
 import { abrirSesion } from "@/lib/actions/caja";
 import type { PaisCodigo } from "@/lib/paises";
@@ -1037,6 +1038,8 @@ function ModalPago({
   const [referencias, setReferencias] = useState<Record<string, string>>({});
   const confirmarRef = useRef<() => void>(() => {});
   const totalCobro = dineroPos(total);
+  const formaSeleccionada = formasPago.find((f) => f.id === formaUnica);
+  const esTarjeta = modo === "contado" && formaSeleccionada?.codigo === "TAR";
 
   useEffect(() => {
     setMontoEfectivoStr(totalCobro.toFixed(2));
@@ -1049,9 +1052,25 @@ function ModalPago({
   const montoEfectivo = dineroPos(Number.isFinite(montoEfectivoRaw) ? montoEfectivoRaw : 0);
   const cambio = Math.max(0, dineroPos(montoEfectivo - totalCobro));
 
+  function confirmarTarjeta(info: ResultadoTarjeta) {
+    if (procesando || !formaSeleccionada) return;
+    onConfirmar({
+      pagos: [
+        {
+          formaPagoId: formaSeleccionada.id,
+          monto: totalCobro,
+          referencia: referenciaTarjeta(info),
+        },
+      ],
+      esCredito: false,
+    });
+  }
+
   function confirmar() {
     if (procesando) return;
     if (modo === "contado") {
+      // El cobro con tarjeta se confirma con "Pago aprobado" en el datáfono, no aquí.
+      if (esTarjeta) return;
       if (formaUnica === efectivo?.id && montoEfectivo + 0.001 < totalCobro) {
         return;
       }
@@ -1109,17 +1128,19 @@ function ModalPago({
           <Button variant="ghost" onClick={onCerrar} disabled={procesando}>
             Cancelar
           </Button>
-          <Button onClick={confirmar} loading={procesando}>
-            {procesando ? (
-              <>
-                <Loader2 className="animate-spin" size={14} /> Procesando
-              </>
-            ) : (
-              <>
-                <Check size={14} /> Confirmar venta (F12)
-              </>
-            )}
-          </Button>
+          {!esTarjeta && (
+            <Button onClick={confirmar} loading={procesando}>
+              {procesando ? (
+                <>
+                  <Loader2 className="animate-spin" size={14} /> Procesando
+                </>
+              ) : (
+                <>
+                  <Check size={14} /> Confirmar venta (F12)
+                </>
+              )}
+            </Button>
+          )}
         </>
       }
     >
@@ -1151,7 +1172,7 @@ function ModalPago({
               onChange={(e) => setFormaUnica(e.target.value)}
               options={noCredito.map((f) => ({ value: f.id, label: f.nombre }))}
             />
-            {formasPago.find((f) => f.id === formaUnica)?.codigo === "EFE" ? (
+            {formaSeleccionada?.codigo === "EFE" ? (
               <>
                 <Input
                   label="Monto recibido"
@@ -1171,7 +1192,15 @@ function ModalPago({
                   </div>
                 </div>
               </>
-            ) : formasPago.find((f) => f.id === formaUnica)?.requiereReferencia ? (
+            ) : esTarjeta ? (
+              <PagoTarjetaPanel
+                total={totalCobro}
+                pais={pais}
+                procesando={procesando}
+                onAprobado={confirmarTarjeta}
+                onRechazado={() => {}}
+              />
+            ) : formaSeleccionada?.requiereReferencia ? (
               <Input
                 label="Número de referencia / autorización"
                 value={referencias[formaUnica] ?? ""}
