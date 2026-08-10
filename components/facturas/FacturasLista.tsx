@@ -21,6 +21,7 @@ import { ImprimirFacturasLote } from "@/components/facturas/ImprimirFacturasLote
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { reciboDesdeSnapshot } from "@/lib/facturas";
+import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export type ModoFacturas = "cobradas" | "credito";
 
@@ -71,13 +72,14 @@ export async function FacturasLista({
   const user = await requireSession();
   const configVista = CONFIG[modo];
   const esCredito = modo === "credito";
-  const [scope, empresa, vendedores] = await Promise.all([
+  const [scope, empresa, vendedores, politicas] = await Promise.all([
     getSucursalScope(user),
     getEmpresaMetadata(user.empresaId),
     db
       .select({ id: usuarios.id, nombre: usuarios.nombre })
       .from(usuarios)
       .where(eq(usuarios.empresaId, user.empresaId)),
+    getPoliticasNegocio(user.empresaId),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
 
@@ -140,6 +142,8 @@ export async function FacturasLista({
 
   const totalFiltrado = filas.reduce((a, f) => a + parseFloat(f.total), 0);
   const totalPendiente = filas.reduce((a, f) => a + parseFloat(f.cxcSaldo ?? "0"), 0);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const diasGraciaCobro = politicas.diasGraciaCobroCliente;
   const hayFiltro = Boolean(
     searchParams.numero ||
       searchParams.desde ||
@@ -323,7 +327,12 @@ export async function FacturasLista({
                             {formatearMoneda(parseFloat(f.cxcSaldo ?? f.total), pais)}
                           </td>
                           <td className="px-4 py-2">
-                            {estadoCreditoBadge(f.cxcEstado, f.cxcVencimiento)}
+                            {estadoCreditoBadge(
+                              f.cxcEstado,
+                              f.cxcVencimiento,
+                              diasGraciaCobro,
+                              hoy,
+                            )}
                           </td>
                         </>
                       ) : (
@@ -352,10 +361,14 @@ export async function FacturasLista({
   );
 }
 
-function estadoCreditoBadge(estado: string | null, fechaVencimiento: string | null) {
-  const hoy = new Date().toISOString().slice(0, 10);
+function estadoCreditoBadge(
+  estado: string | null,
+  fechaVencimiento: string | null,
+  diasGracia: number,
+  hoy: string,
+) {
   if (!estado) return <Badge variant="warning">Sin CxC</Badge>;
-  if (estado !== "pagada" && fechaVencimiento && fechaVencimiento < hoy) {
+  if (estado !== "pagada" && fechaEstaVencida(fechaVencimiento, diasGracia, hoy)) {
     return <Badge variant="error">Vencida</Badge>;
   }
   if (estado === "pagada") return <Badge variant="success">Pagada</Badge>;

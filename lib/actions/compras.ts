@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
   compras,
@@ -13,12 +13,14 @@ import {
   cuentasPorPagar,
   productos,
   almacenes,
+  proveedores,
 } from "@/lib/db/schema";
 import { procesarCompraSchema } from "@/lib/validations/compras";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import { registrarCompra } from "@/lib/contabilidad/motor-asientos";
 import { siguienteNumero, dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
+import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 type Resultado =
   | { ok: true; compraId: string; asientoId: string }
@@ -60,11 +62,34 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
   );
   const impuesto = dinero(...data.items.map((i) => i.impuesto));
   const total = dinero(subtotal + impuesto);
+  let diasCreditoCompra = data.esCredito ? data.diasCredito : 0;
+
+  if (data.esCredito && diasCreditoCompra <= 0) {
+    const [proveedor] = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({ dias: proveedores.diasCredito })
+        .from(proveedores)
+        .where(
+          and(
+            eq(proveedores.id, data.proveedorId),
+            eq(proveedores.empresaId, user.empresaId),
+            isNull(proveedores.eliminadoEn),
+          ),
+        )
+        .limit(1),
+    );
+    if (!proveedor) return { ok: false, error: "Proveedor no encontrado" };
+    const politicas = await getPoliticasNegocio(user.empresaId);
+    diasCreditoCompra =
+      proveedor.dias > 0
+        ? proveedor.dias
+        : politicas.diasCreditoProveedorDefault;
+  }
 
   try {
     const fecha = new Date(data.fecha);
     const fechaVencimiento = data.esCredito
-      ? new Date(fecha.getTime() + data.diasCredito * 24 * 3600 * 1000)
+      ? new Date(fecha.getTime() + diasCreditoCompra * 24 * 3600 * 1000)
       : null;
 
     const compraResult = await dbConEmpresa(user.empresaId, async (tx) => {
@@ -88,7 +113,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
           fecha: data.fecha,
           estado: "recibida",
           esCredito: data.esCredito,
-          diasCredito: data.diasCredito,
+          diasCredito: diasCreditoCompra,
           fechaVencimiento: fechaVencimiento?.toISOString().slice(0, 10) ?? null,
           subtotal: aDecimalStr(subtotal),
           impuesto: aDecimalStr(impuesto),

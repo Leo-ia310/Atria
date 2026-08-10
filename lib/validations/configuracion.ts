@@ -66,6 +66,39 @@ export const empresaTipoSchema = z.object({
 });
 export type EmpresaTipoInput = z.infer<typeof empresaTipoSchema>;
 
+export const politicasNegocioSchema = z.object({
+  diasCreditoClienteDefault: z.coerce
+    .number()
+    .int("Usa dias completos")
+    .min(0, "No puede ser negativo")
+    .max(365, "Maximo 365 dias")
+    .default(30),
+  limiteCreditoClienteDefault: z.coerce
+    .number()
+    .min(0, "No puede ser negativo")
+    .max(999999999, "El limite es demasiado alto")
+    .default(0),
+  diasGraciaCobroCliente: z.coerce
+    .number()
+    .int("Usa dias completos")
+    .min(0, "No puede ser negativo")
+    .max(90, "Maximo 90 dias")
+    .default(0),
+  diasCreditoProveedorDefault: z.coerce
+    .number()
+    .int("Usa dias completos")
+    .min(0, "No puede ser negativo")
+    .max(365, "Maximo 365 dias")
+    .default(30),
+  diasGraciaPagoProveedor: z.coerce
+    .number()
+    .int("Usa dias completos")
+    .min(0, "No puede ser negativo")
+    .max(90, "Maximo 90 dias")
+    .default(0),
+});
+export type PoliticasNegocioInput = z.infer<typeof politicasNegocioSchema>;
+
 export const cambiarPasswordSchema = z
   .object({
     actual: z.string().min(1, "Ingresa tu contraseña actual"),

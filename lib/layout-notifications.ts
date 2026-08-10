@@ -10,6 +10,7 @@ import {
   solicitudesRrhh,
   ventas,
 } from "@/lib/db/schema";
+import { getPoliticasNegocio, sumarDiasIso } from "@/lib/politicas-negocio";
 
 export type LayoutNotificationCounts = {
   cxcVencidas: number;
@@ -21,7 +22,8 @@ const cargarConteos = unstable_cache(
   async (
     empresaId: string,
     sucursalIdsKey: string,
-    hoy: string,
+    fechaCorteCxc: string,
+    fechaCorteCxp: string,
     puedeVerCxc: boolean,
     puedeVerCxp: boolean,
     puedeVerRrhh: boolean,
@@ -40,7 +42,7 @@ const cargarConteos = unstable_cache(
               and(
                 eq(cuentasPorCobrar.empresaId, empresaId),
                 eq(cuentasPorCobrar.estado, "pendiente"),
-                lt(cuentasPorCobrar.fechaVencimiento, hoy),
+                lt(cuentasPorCobrar.fechaVencimiento, fechaCorteCxc),
                 sucursalIds
                   ? inArray(ventas.sucursalId, sucursalIds)
                   : undefined,
@@ -56,7 +58,7 @@ const cargarConteos = unstable_cache(
               and(
                 eq(cuentasPorPagar.empresaId, empresaId),
                 eq(cuentasPorPagar.estado, "pendiente"),
-                lt(cuentasPorPagar.fechaVencimiento, hoy),
+                lt(cuentasPorPagar.fechaVencimiento, fechaCorteCxp),
                 sucursalIds
                   ? inArray(compras.sucursalId, sucursalIds)
                   : undefined,
@@ -94,19 +96,24 @@ const cargarConteos = unstable_cache(
 );
 
 export const getLayoutNotificationCounts = cache(
-  (
+  async (
     empresaId: string,
     sucursalIds: string[] | null,
     puedeVerCxc: boolean,
     puedeVerCxp: boolean,
     puedeVerRrhh: boolean,
-  ) =>
-    cargarConteos(
+  ) => {
+    const politicas = await getPoliticasNegocio(empresaId);
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    return cargarConteos(
       empresaId,
       sucursalIds ? [...sucursalIds].sort().join(",") : "",
-      new Date().toISOString().slice(0, 10),
+      sumarDiasIso(hoy, -politicas.diasGraciaCobroCliente),
+      sumarDiasIso(hoy, -politicas.diasGraciaPagoProveedor),
       puedeVerCxc,
       puedeVerCxp,
       puedeVerRrhh,
-    ),
+    );
+  },
 );

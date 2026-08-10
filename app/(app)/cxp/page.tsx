@@ -13,6 +13,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 type Fila = {
   id: string;
@@ -26,9 +27,13 @@ type Fila = {
   estado: string;
 };
 
-function estadoBadge(estado: string, fechaVencimiento: string) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const vencida = estado !== "pagada" && fechaVencimiento < hoy;
+function estadoBadge(
+  estado: string,
+  fechaVencimiento: string,
+  diasGracia: number,
+  hoy: string,
+) {
+  const vencida = estado !== "pagada" && fechaEstaVencida(fechaVencimiento, diasGracia, hoy);
   if (vencida) return <Badge variant="error">Vencida</Badge>;
   if (estado === "pagada") return <Badge variant="success">Pagada</Badge>;
   if (estado === "parcial") return <Badge variant="warning">Parcial</Badge>;
@@ -44,9 +49,10 @@ export default async function CxPPage({
     requireSession(),
     searchParams,
   ]);
-  const [empresa, scope] = await Promise.all([
+  const [empresa, scope, politicas] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
+    getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const sucursalIds = selectedSucursalIds(scope);
@@ -79,7 +85,10 @@ export default async function CxPPage({
     .limit(500);
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const vencidas = filas.filter((f) => f.fechaVencimiento < hoy);
+  const diasGracia = politicas.diasGraciaPagoProveedor;
+  const vencidas = filas.filter((f) =>
+    fechaEstaVencida(f.fechaVencimiento, diasGracia, hoy),
+  );
   const totalPendiente = filas.reduce((a, f) => a + parseFloat(f.saldo), 0);
   const totalVencido = vencidas.reduce((a, f) => a + parseFloat(f.saldo), 0);
 
@@ -122,7 +131,9 @@ export default async function CxPPage({
       cell: (r) => (
         <span
           className={
-            r.fechaVencimiento < hoy ? "text-[color:var(--color-error)] font-medium" : ""
+            fechaEstaVencida(r.fechaVencimiento, diasGracia, hoy)
+              ? "text-[color:var(--color-error)] font-medium"
+              : ""
           }
         >
           {formatearFecha(r.fechaVencimiento, pais)}
@@ -151,7 +162,7 @@ export default async function CxPPage({
     {
       key: "estado",
       header: "Estado",
-      cell: (r) => estadoBadge(r.estado, r.fechaVencimiento),
+      cell: (r) => estadoBadge(r.estado, r.fechaVencimiento, diasGracia, hoy),
       width: "110px",
     },
     {

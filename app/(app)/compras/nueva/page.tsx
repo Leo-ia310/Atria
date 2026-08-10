@@ -7,12 +7,14 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NuevaCompraForm } from "@/components/compras/NuevaCompraForm";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export default async function NuevaCompraPage() {
   const user = await requireSession();
-  const [empresa, scope] = await Promise.all([
+  const [empresa, scope, politicas] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
+    getPoliticasNegocio(user.empresaId),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
 
@@ -80,7 +82,10 @@ export default async function NuevaCompraPage() {
         proveedores={provs.map((p) => ({
           value: p.id,
           label: p.razonSocial,
-          diasCredito: p.diasCredito,
+          diasCredito:
+            p.diasCredito > 0
+              ? p.diasCredito
+              : politicas.diasCreditoProveedorDefault,
         }))}
         almacenes={alms.map((a) => ({
           value: a.id,

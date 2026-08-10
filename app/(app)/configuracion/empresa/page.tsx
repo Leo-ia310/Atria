@@ -8,12 +8,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmpresaTipoForm } from "@/components/configuracion/EmpresaTipoForm";
+import { PoliticasNegocioForm } from "@/components/configuracion/PoliticasNegocioForm";
+import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export default async function EmpresaConfiguracionPage() {
   const user = await requireSession();
   await requireModulo(user, "configuracion");
 
-  const [[empresa], [menus], [pedidos]] = await Promise.all([
+  const [[empresa], [menus], [pedidos], politicas] = await Promise.all([
     db
       .select({
         razonSocial: empresas.razonSocial,
@@ -34,6 +36,7 @@ export default async function EmpresaConfiguracionPage() {
       .select({ n: count() })
       .from(pedidosCocina)
       .where(eq(pedidosCocina.empresaId, user.empresaId)),
+    getPoliticasNegocio(user.empresaId),
   ]);
   const datosRestaurante = {
     menus: menus?.n ?? 0,
@@ -72,6 +75,8 @@ export default async function EmpresaConfiguracionPage() {
           </div>
         </CardBody>
       </Card>
+
+      <PoliticasNegocioForm defaults={politicas} />
 
       <EmpresaTipoForm
         tipoInicial={empresa?.tipoEmpresa ?? "general"}

@@ -16,6 +16,7 @@ import {
   sucursales,
   almacenes,
   empresas,
+  configuraciones,
   menusVirtuales,
   pedidosCocina,
 } from "@/lib/db/schema";
@@ -30,11 +31,16 @@ import {
   secuenciaFiscalSchema,
   perfilSchema,
   empresaTipoSchema,
+  politicasNegocioSchema,
   cambiarPasswordSchema,
 } from "@/lib/validations/configuracion";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { esPalabraConfirmacionRestaurante } from "@/lib/restaurante/confirmacion";
+import {
+  POLITICAS_NEGOCIO_CLAVE,
+  normalizarPoliticasNegocio,
+} from "@/lib/politicas-negocio";
 
 type Resultado = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -373,6 +379,52 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
   } catch (err) {
     console.error("[actualizarTipoEmpresa]", err);
     return { ok: false, error: "No pudimos actualizar el tipo de empresa." };
+  }
+}
+
+export async function actualizarPoliticasNegocio(
+  input: unknown,
+): Promise<Resultado> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, { soloAdmin: true });
+  if (!acceso.ok) return acceso;
+
+  const parsed = politicasNegocioSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const politicas = normalizarPoliticasNegocio(parsed.data);
+
+  try {
+    await db
+      .insert(configuraciones)
+      .values({
+        empresaId: user.empresaId,
+        clave: POLITICAS_NEGOCIO_CLAVE,
+        valor: politicas,
+      })
+      .onConflictDoUpdate({
+        target: [configuraciones.empresaId, configuraciones.clave],
+        set: {
+          valor: politicas,
+          actualizadoEn: new Date(),
+        },
+      });
+
+    revalidatePath("/", "layout");
+    revalidatePath("/configuracion/empresa");
+    revalidatePath("/pos");
+    revalidatePath("/clientes/nuevo");
+    revalidatePath("/compras/nueva");
+    revalidatePath("/compras/proveedores/nuevo");
+    revalidatePath("/cxc");
+    revalidatePath("/cxp");
+    revalidatePath("/facturas/credito");
+    return { ok: true };
+  } catch (err) {
+    console.error("[actualizarPoliticasNegocio]", err);
+    return { ok: false, error: "No pudimos actualizar las politicas." };
   }
 }
 

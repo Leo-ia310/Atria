@@ -28,6 +28,7 @@ import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
 import { siguienteNumero, dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
+import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 type Resultado =
   | { ok: true; ventaId: string; numero: string; asientoId: string }
@@ -78,6 +79,8 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     };
   }
 
+  let diasCreditoVenta = data.esCredito ? data.diasCredito : 0;
+
   if (data.esCredito) {
     if (!data.clienteId) {
       return { ok: false, error: "Venta al crédito requiere cliente" };
@@ -99,6 +102,13 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     if (!cliente) return { ok: false, error: "Cliente no encontrado" };
     if (parseFloat(cliente.limite) <= 0) {
       return { ok: false, error: "Cliente no tiene crédito habilitado" };
+    }
+    if (diasCreditoVenta <= 0) {
+      const politicas = await getPoliticasNegocio(user.empresaId);
+      diasCreditoVenta =
+        cliente.dias > 0
+          ? cliente.dias
+          : politicas.diasCreditoClienteDefault;
     }
   }
 
@@ -219,7 +229,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   try {
     const fechaVenta = new Date();
     const fechaVencimiento = data.esCredito
-      ? new Date(fechaVenta.getTime() + data.diasCredito * 24 * 3600 * 1000)
+      ? new Date(fechaVenta.getTime() + diasCreditoVenta * 24 * 3600 * 1000)
       : null;
 
     const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
@@ -242,7 +252,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           fecha: fechaVenta,
           estado: "completada",
           esCredito: data.esCredito,
-          diasCredito: data.diasCredito,
+          diasCredito: diasCreditoVenta,
           fechaVencimiento: fechaVencimiento?.toISOString().slice(0, 10) ?? null,
           subtotal: aDecimalStr(subtotal),
           descuento: aDecimalStr(descuentoTotal),

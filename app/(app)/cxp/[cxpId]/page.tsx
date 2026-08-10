@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PagoForm } from "@/components/cxp/PagoForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 
 export default async function CxPDetallePage({
   params,
@@ -65,11 +66,12 @@ export default async function CxPDetallePage({
     .from(cuentasFinancieras)
     .where(and(eq(cuentasFinancieras.empresaId, user.empresaId), eq(cuentasFinancieras.activa, true)));
 
-  const [empresa, cxpRows, pagos, cuentasList] = await Promise.all([
+  const [empresa, cxpRows, pagos, cuentasList, politicas] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     cxpPromise,
     pagosPromise,
     cuentasPromise,
+    getPoliticasNegocio(user.empresaId),
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const cxp = cxpRows[0];
@@ -77,7 +79,9 @@ export default async function CxPDetallePage({
   if (!cxp) notFound();
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const estaVencida = cxp.estado !== "pagada" && cxp.fechaVencimiento < hoy;
+  const estaVencida =
+    cxp.estado !== "pagada" &&
+    fechaEstaVencida(cxp.fechaVencimiento, politicas.diasGraciaPagoProveedor, hoy);
   const montoOriginal = parseFloat(cxp.monto);
   const saldoPendiente = parseFloat(cxp.saldo);
   const pagado = montoOriginal - saldoPendiente;
