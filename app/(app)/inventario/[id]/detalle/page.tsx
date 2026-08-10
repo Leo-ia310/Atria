@@ -17,12 +17,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Badge } from "@/components/ui/Badge";
-import { formatearMoneda, formatearFecha, desdeDecimal } from "@/lib/utils";
-import {
-  GraficaEgresos,
-  GraficaIngresos,
-  GraficaVendedores,
-} from "@/components/productos/ProductoGraficas";
+import { formatearMoneda, desdeDecimal } from "@/lib/utils";
+import { GraficaVendedores } from "@/components/productos/ProductoGraficas";
+import { RegistroMovimientos } from "@/components/productos/RegistroMovimientos";
 import type { PaisCodigo } from "@/lib/paises";
 
 const TIPOS_ENTRADA = [
@@ -74,7 +71,7 @@ export default async function ProductoDetallePage({
   const hace90 = new Date();
   hace90.setDate(hace90.getDate() - 90);
 
-  const [egresosRows, ingresosRows, vendedoresRows, recientesRows, existenciaRow] =
+  const [egresosRows, ingresosRows, vendedoresRows, movimientosRows, existenciaRow] =
     await Promise.all([
       db
         .select({
@@ -134,25 +131,22 @@ export default async function ProductoDetallePage({
         .limit(8),
       db
         .select({
-          numero: ventas.numero,
-          fecha: ventas.fecha,
-          vendedor: usuarios.nombre,
-          cantidad: ventaDetalle.cantidad,
-          subtotal: ventaDetalle.subtotal,
+          fecha: movimientosInventario.creadoEn,
+          tipo: movimientosInventario.tipo,
+          cantidad: movimientosInventario.cantidad,
+          usuario: usuarios.nombre,
+          nota: movimientosInventario.notas,
         })
-        .from(ventaDetalle)
-        .innerJoin(ventas, eq(ventas.id, ventaDetalle.ventaId))
-        .leftJoin(usuarios, eq(usuarios.id, ventas.usuarioId))
+        .from(movimientosInventario)
+        .leftJoin(usuarios, eq(usuarios.id, movimientosInventario.usuarioId))
         .where(
           and(
-            eq(ventaDetalle.productoId, id),
-            eq(ventas.empresaId, user.empresaId),
-            eq(ventas.estado, "completada"),
-            isNull(ventas.anuladoEn),
+            eq(movimientosInventario.productoId, id),
+            eq(movimientosInventario.empresaId, user.empresaId),
           ),
         )
-        .orderBy(desc(ventas.fecha))
-        .limit(12),
+        .orderBy(desc(movimientosInventario.creadoEn))
+        .limit(1000),
       db
         .select({ total: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)` })
         .from(existencias)
@@ -180,6 +174,13 @@ export default async function ProductoDetallePage({
     nombre: r.nombre,
     unidades: parseFloat(r.unidades),
     monto: parseFloat(r.monto),
+  }));
+  const movimientos = movimientosRows.map((m) => ({
+    fecha: m.fecha.toISOString(),
+    tipo: m.tipo,
+    cantidad: parseFloat(m.cantidad),
+    usuario: m.usuario,
+    nota: m.nota,
   }));
 
   const unidadesVendidas = egresos.reduce((a, d) => a + d.unidades, 0);
@@ -267,81 +268,13 @@ export default async function ProductoDetallePage({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-            <Card>
-              <CardHeader
-                title={
-                  <span className="inline-flex items-center gap-2">
-                    <TrendingDown size={16} className="text-[color:var(--color-primary)]" /> Egresos (ventas)
-                  </span>
-                }
-                subtitle="Unidades vendidas por día. El día pico se resalta."
-              />
-              <CardBody>
-                <GraficaEgresos data={egresos} pais={pais} mejorLabel={mejorDia?.label ?? null} />
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHeader
-                title={
-                  <span className="inline-flex items-center gap-2">
-                    <Package size={16} className="text-[color:var(--color-success)]" /> Ingresos (entradas)
-                  </span>
-                }
-                subtitle="Unidades que entraron al inventario por día."
-              />
-              <CardBody>
-                <GraficaIngresos data={ingresos} />
-              </CardBody>
-            </Card>
-          </div>
+          <RegistroMovimientos movimientos={movimientos} />
 
           <Card>
             <CardHeader title="Quién lo vendió" subtitle="Unidades vendidas por cada cajero (90 días)" />
             <CardBody>
               <GraficaVendedores data={vendedores} pais={pais} />
             </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Últimas ventas" subtitle="Movimientos de salida más recientes" />
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-small">
-                <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
-                  <tr>
-                    <th className="text-label px-4 py-2.5 text-left font-semibold">Venta</th>
-                    <th className="text-label px-4 py-2.5 text-left font-semibold">Fecha</th>
-                    <th className="text-label px-4 py-2.5 text-left font-semibold">Vendedor</th>
-                    <th className="text-label px-4 py-2.5 text-right font-semibold">Cant.</th>
-                    <th className="text-label px-4 py-2.5 text-right font-semibold">Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recientesRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-[color:var(--color-text-muted)]">
-                        Este producto aún no tiene ventas registradas.
-                      </td>
-                    </tr>
-                  ) : (
-                    recientesRows.map((r, i) => (
-                      <tr key={i} className="border-b border-[color:var(--color-border)] last:border-b-0">
-                        <td className="px-4 py-2.5 font-medium">{r.numero}</td>
-                        <td className="px-4 py-2.5 text-[color:var(--color-text-muted)]">
-                          {formatearFecha(r.fecha)}
-                        </td>
-                        <td className="px-4 py-2.5">{r.vendedor ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-right">{parseFloat(r.cantidad).toFixed(0)}</td>
-                        <td className="px-4 py-2.5 text-right">
-                          {formatearMoneda(parseFloat(r.subtotal), pais)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
           </Card>
         </div>
       </div>

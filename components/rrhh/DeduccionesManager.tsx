@@ -67,14 +67,26 @@ export function DeduccionesManager({
     mostrar("success", `Tipo "${res.nombre}" creado`);
   }
 
+  async function quitar(id: string) {
+    const res = await eliminarDeduccionVariable(id);
+    if (!res.ok) return mostrar("error", res.error);
+    mostrar("success", "Deduccion quitada");
+    router.refresh();
+  }
+
+  const historial = empleados.flatMap((e) =>
+    e.deducciones.map((d) => ({ ...d, empleado: e.nombre })),
+  );
+
   return (
+    <div className="space-y-5">
     <Card>
       <CardHeader
         title="Deducciones por empleado"
         subtitle={
           editable
             ? "Deducciones no fijas mientras la nomina esta en borrador."
-            : "Historial de deducciones registradas en esta nomina."
+            : "Registro de deducciones de esta nomina."
         }
         actions={
           editable ? (
@@ -134,6 +146,59 @@ export function DeduccionesManager({
         />
       </Modal>
     </Card>
+
+    <Card>
+      <CardHeader
+        title="Historial de deducciones"
+        subtitle={`${historial.length} registro${historial.length === 1 ? "" : "s"} en esta nomina`}
+      />
+      {historial.length === 0 ? (
+        <div className="p-6 text-center text-small text-[color:var(--color-text-muted)]">
+          Aun no hay deducciones registradas.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-small">
+            <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
+              <tr>
+                <th className="text-label px-4 py-2.5 text-left font-semibold">Empleado</th>
+                <th className="text-label px-4 py-2.5 text-left font-semibold">Concepto</th>
+                <th className="text-label px-4 py-2.5 text-left font-semibold">Aplica a</th>
+                <th className="text-label px-4 py-2.5 text-right font-semibold">Monto</th>
+                {editable && <th className="px-4 py-2.5" />}
+              </tr>
+            </thead>
+            <tbody>
+              {historial.map((d) => (
+                <tr key={d.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                  <td className="px-4 py-2.5 font-medium">{d.empleado}</td>
+                  <td className="px-4 py-2.5">{d.tipo}</td>
+                  <td className="px-4 py-2.5 text-[color:var(--color-text-muted)]">
+                    {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-[color:var(--color-error)]">
+                    − {formatearMoneda(d.monto, pais)}
+                  </td>
+                  {editable && (
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => quitar(d.id)}
+                        className="text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
+                        aria-label="Quitar"
+                      >
+                        <X size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+    </div>
   );
 }
 
@@ -175,13 +240,6 @@ function FilaEmpleado({
     setMonto("");
     setNota("");
     mostrar("success", "Deduccion agregada");
-    onCambio();
-  }
-
-  async function quitar(id: string) {
-    const res = await eliminarDeduccionVariable(id);
-    if (!res.ok) return mostrar("error", res.error);
-    mostrar("success", "Deduccion quitada");
     onCambio();
   }
 
@@ -227,49 +285,6 @@ function FilaEmpleado({
           <Button size="md" onClick={agregar} loading={guardando} disabled={tipos.length === 0}>
             <Plus size={14} /> Agregar
           </Button>
-        </div>
-      )}
-
-      {empleado.deducciones.length > 0 && (
-        <div className="mt-3 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
-          <div className="text-label border-b border-[color:var(--color-border)] px-3 py-1.5 font-semibold text-[color:var(--color-text-muted)]">
-            Historial · {empleado.deducciones.length}
-          </div>
-          <ul className="divide-y divide-[color:var(--color-border)]">
-            {empleado.deducciones.map((d) => (
-              <li
-                key={d.id}
-                className="flex items-center justify-between gap-3 px-3 py-2 text-[12px]"
-              >
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
-                  <span className="font-medium text-[color:var(--color-text-primary)]">
-                    {d.tipo}
-                  </span>
-                  <span className="text-[color:var(--color-error)]">
-                    - {formatearMoneda(d.monto, pais)}
-                  </span>
-                  <span className="text-[color:var(--color-text-muted)]">
-                    {SEMANAS.find((s) => s.value === d.semana)?.label ?? "Periodo"}
-                  </span>
-                  {d.nota && (
-                    <span className="truncate text-[color:var(--color-text-muted)] italic">
-                      {d.nota}
-                    </span>
-                  )}
-                </div>
-                {editable && (
-                  <button
-                    type="button"
-                    onClick={() => quitar(d.id)}
-                    className="shrink-0 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-error)]"
-                    aria-label="Quitar"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </div>

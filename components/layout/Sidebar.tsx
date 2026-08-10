@@ -3,15 +3,24 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleAlert, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { ChevronRight, CircleAlert, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlanesModal } from "@/components/layout/PlanesModal";
-import { NAV_GROUPS } from "@/components/layout/nav-items";
+import { NAV_GROUPS, type NavItem } from "@/components/layout/nav-items";
 import type { ModuloAcceso } from "@/lib/access-control";
 
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
 const STORAGE_KEY = "arca:sidebar-colapsado";
+
+function agruparNav(items: NavItem[]): { item: NavItem; children: NavItem[] }[] {
+  const nodos: { item: NavItem; children: NavItem[] }[] = [];
+  for (const it of items) {
+    if (it.subitem && nodos.length) nodos[nodos.length - 1].children.push(it);
+    else nodos.push({ item: it, children: [] });
+  }
+  return nodos;
+}
 
 export function Sidebar({
   nombreEmpresa,
@@ -34,7 +43,12 @@ export function Sidebar({
   const [colapsado, setColapsado] = useState(false);
   const [esMovil, setEsMovil] = useState(false);
   const [planesAbierto, setPlanesAbierto] = useState(false);
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
   const colapsadoVisual = !esMovil && colapsado;
+  const esActivo = (it: NavItem) =>
+    it.exact
+      ? pathname === it.href
+      : pathname === it.href || pathname.startsWith(it.href + "/");
   const permitidos = new Set(modulosPermitidos);
   const grupos = NAV_GROUPS.map((grupo) => ({
     ...grupo,
@@ -162,30 +176,90 @@ export function Sidebar({
                 </div>
               )}
               <div className="space-y-0.5">
-                {g.items.map(({ href, label, icon: Icon, subitem, exact }) => {
-                  const activo = exact
-                    ? pathname === href
-                    : pathname === href || pathname.startsWith(href + "/");
+                {agruparNav(g.items).map(({ item, children }) => {
+                  const Icon = item.icon;
+                  const activo = esActivo(item);
+
+                  if (children.length === 0 || colapsadoVisual) {
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={colapsadoVisual ? item.label : undefined}
+                        className={cn(
+                          "flex items-center rounded-md py-2 text-[13px] transition-colors",
+                          colapsadoVisual
+                            ? "justify-center px-0"
+                            : item.subitem
+                              ? "gap-2.5 px-2.5 pl-8 text-[12px]"
+                              : "gap-2.5 px-2.5",
+                          activo
+                            ? "bg-[color:var(--color-tertiary)]/20 text-white font-medium"
+                            : "text-white/70 hover:bg-white/5 hover:text-white",
+                        )}
+                      >
+                        <Icon size={item.subitem ? 14 : 16} className="shrink-0" />
+                        {!colapsadoVisual && item.label}
+                      </Link>
+                    );
+                  }
+
+                  const hijoActivo = children.some((c) => esActivo(c));
+                  const abierto = expandidos[item.href] ?? (activo || hijoActivo);
                   return (
-                    <Link
-                      key={href}
-                      href={href}
-                      title={colapsadoVisual ? label : undefined}
-                      className={cn(
-                        "flex items-center rounded-md py-2 text-[13px] transition-colors",
-                        colapsadoVisual
-                          ? "justify-center px-0"
-                          : subitem
-                            ? "gap-2.5 px-2.5 pl-8 text-[12px]"
-                            : "gap-2.5 px-2.5",
-                        activo
-                          ? "bg-[color:var(--color-tertiary)]/20 text-white font-medium"
-                          : "text-white/70 hover:bg-white/5 hover:text-white",
+                    <div key={item.href}>
+                      <div className="flex items-center gap-0.5">
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex flex-1 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition-colors",
+                            activo
+                              ? "bg-[color:var(--color-tertiary)]/20 text-white font-medium"
+                              : "text-white/70 hover:bg-white/5 hover:text-white",
+                          )}
+                        >
+                          <Icon size={16} className="shrink-0" />
+                          {item.label}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandidos((p) => ({ ...p, [item.href]: !abierto }))
+                          }
+                          aria-label={abierto ? "Colapsar" : "Expandir"}
+                          aria-expanded={abierto}
+                          className="rounded p-1.5 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                        >
+                          <ChevronRight
+                            size={15}
+                            className={cn("transition-transform", abierto && "rotate-90")}
+                          />
+                        </button>
+                      </div>
+                      {abierto && (
+                        <div className="mt-0.5 space-y-0.5">
+                          {children.map((c) => {
+                            const CIcon = c.icon;
+                            const cActivo = esActivo(c);
+                            return (
+                              <Link
+                                key={c.href}
+                                href={c.href}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-md py-2 pl-8 pr-2.5 text-[12px] transition-colors",
+                                  cActivo
+                                    ? "bg-[color:var(--color-tertiary)]/20 text-white font-medium"
+                                    : "text-white/70 hover:bg-white/5 hover:text-white",
+                                )}
+                              >
+                                <CIcon size={14} className="shrink-0" />
+                                {c.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       )}
-                    >
-                      <Icon size={subitem ? 14 : 16} className="shrink-0" />
-                      {!colapsadoVisual && label}
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
