@@ -9,6 +9,7 @@ import {
   PLANES_ARRAY,
   PROMO_LANZAMIENTO,
   descuentoPromoPorcentaje,
+  descripcionLimiteIA,
   precioPromocional,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -22,10 +23,12 @@ const VENTAJAS_POR_PLAN: Record<string, string[]> = {
     "Hasta 10 facturas al mes",
     "1 sucursal",
     "1 usuario",
+    descripcionLimiteIA("demo"),
   ],
   pro: [
     "15 dias gratis antes de pagar",
     "Todo en Demo, sin limites de productos",
+    descripcionLimiteIA("pro"),
     "Contabilidad de partida doble automatica",
     "Nomina incluida para tu equipo",
     "Cotizaciones y notas de credito",
@@ -42,7 +45,7 @@ const VENTAJAS_POR_PLAN: Record<string, string[]> = {
     "Multi-sucursal (5 incluidas, +$30/mes c/u)",
     "Contabilidad consolidada por sucursal",
     "Transferencias de inventario entre sucursales",
-    "IA integrada para asistencia, reportes y predicciones",
+    descripcionLimiteIA("enterprise"),
     "20 usuarios incluidos ($5/mes c/u extra)",
     "API REST completa y webhooks",
     "Auditoria detallada y rol Auditor",

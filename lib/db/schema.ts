@@ -448,6 +448,60 @@ export const usuarios = pgTable(
   ],
 );
 
+export const gastosPlataforma = pgTable(
+  "gastos_plataforma",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fecha: date("fecha").notNull(),
+    categoria: text("categoria").notNull(),
+    proveedor: text("proveedor"),
+    descripcion: text("descripcion").notNull(),
+    monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
+    moneda: text("moneda").notNull().default("USD"),
+    metodoPago: text("metodo_pago"),
+    recurrente: boolean("recurrente").notNull().default(false),
+    notas: text("notas"),
+    creadoPorId: uuid("creado_por_id").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("gastos_plataforma_fecha_idx").on(t.fecha),
+    index("gastos_plataforma_categoria_idx").on(t.categoria),
+  ],
+);
+
+export const asistenteIaUso = pgTable(
+  "asistente_ia_uso",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id, { onDelete: "cascade" }),
+    planCodigo: planTipoEnum("plan_codigo").notNull(),
+    fecha: date("fecha").notNull(),
+    preguntas: integer("preguntas").notNull().default(0),
+    palabrasEntrada: integer("palabras_entrada").notNull().default(0),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("asistente_ia_uso_empresa_usuario_fecha_uq").on(
+      t.empresaId,
+      t.usuarioId,
+      t.fecha,
+    ),
+    index("asistente_ia_uso_empresa_fecha_idx").on(t.empresaId, t.fecha),
+  ],
+);
+
 export const codigosRecuperacion = pgTable(
   "codigos_recuperacion",
   {
@@ -2515,6 +2569,8 @@ export type CuentaContable = typeof catalogoCuentas.$inferSelect;
 export type Plan = typeof planes.$inferSelect;
 export type Suscripcion = typeof suscripciones.$inferSelect;
 export type PagoSuscripcion = typeof pagosSuscripcion.$inferSelect;
+export type GastoPlataforma = typeof gastosPlataforma.$inferSelect;
+export type AsistenteIaUso = typeof asistenteIaUso.$inferSelect;
 export type ReferidoAtribucion = typeof referidosAtribuciones.$inferSelect;
 export type ReferidoPago = typeof referidosPagos.$inferSelect;
 export type Sucursal = typeof sucursales.$inferSelect;

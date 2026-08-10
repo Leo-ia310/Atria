@@ -55,7 +55,7 @@ DECLARE
     'secuencias_fiscales', 'documentos_fiscales', 'catalogo_cuentas',
     'centros_costo', 'periodos_contables', 'asientos_contables',
     'cuentas_financieras', 'movimientos_tesoreria', 'categorias_gasto',
-    'gastos_recurrentes', 'gastos', 'empleados', 'producto_advertencias',
+    'gastos_recurrentes', 'gastos', 'asistente_ia_uso', 'empleados', 'producto_advertencias',
     'asistencias', 'feriados', 'nominas', 'nomina_detalles', 'tipos_deduccion',
     'nomina_deducciones', 'tipos_ingreso', 'nomina_ingresos', 'nomina_colillas',
     'solicitudes_rrhh', 'vacantes', 'candidatos'

@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,7 +43,13 @@ function LoginForm() {
       setErrorGlobal("Correo o contraseña incorrectos");
       return;
     }
-    const destino = params.get("redirect") ?? "/dashboard";
+    const session = await getSession();
+    const redirectParam = params.get("redirect");
+    const destino = session?.user?.esSuperAdmin
+      ? redirectParam?.startsWith("/superadmin")
+        ? redirectParam
+        : "/superadmin"
+      : redirectParam ?? "/dashboard";
     router.push(destino);
     router.refresh();
   }

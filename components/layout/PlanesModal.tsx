@@ -5,11 +5,19 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X, Check, ArrowLeft } from "lucide-react";
 import { cambiarPlan, iniciarTrialPlanPago } from "@/lib/actions/planes";
-import { PLANES_ARRAY, precioPromocional, type Plan, type PlanId } from "@/lib/pricing";
+import {
+  DIAS_TRIAL_PLAN_PAGO,
+  PLANES_ARRAY,
+  descripcionLimiteIA,
+  precioPromocional,
+  type Plan,
+  type PlanId,
+} from "@/lib/pricing";
 import { cn, formatearFecha } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { PayPalCheckout } from "@/components/pagos/PayPalCheckout";
 import { ReciboExito } from "@/components/pagos/ReciboExito";
+import { TransferenciaCheckout } from "@/components/pagos/TransferenciaCheckout";
 import type { ReciboData } from "@/lib/pagos/recibo";
 
 type Vista = "planes" | "checkout" | "recibo";
@@ -273,13 +281,20 @@ function VistaPlanes({
                   : "border-[color:var(--color-border)]",
               )}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-base font-semibold">{plan.nombre}</span>
-                {plan.destacado && (
-                  <span className="rounded-full bg-[color:var(--color-primary)] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-                    Popular
-                  </span>
-                )}
+                <div className="flex flex-wrap justify-end gap-1">
+                  {plan.id !== "demo" && (
+                    <span className="rounded-full bg-[color:var(--color-success)]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[color:var(--color-success)]">
+                      {DIAS_TRIAL_PLAN_PAGO} dias gratis
+                    </span>
+                  )}
+                  {plan.destacado && (
+                    <span className="rounded-full bg-[color:var(--color-primary)] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                      Popular
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="mt-1 text-[12px] text-[color:var(--color-text-muted)]">
                 {plan.descripcionCorta}
@@ -294,6 +309,11 @@ function VistaPlanes({
                     Ahorra {plan.ahorroAnualPorcentaje}% al año
                   </div>
                 )}
+                {plan.id !== "demo" && (
+                  <div className="text-[11px] text-[color:var(--color-success)]">
+                    {DIAS_TRIAL_PLAN_PAGO} dias gratis sin tarjeta
+                  </div>
+                )}
               </div>
               <ul className="mt-3 flex-1 space-y-1.5 text-[12px]">
                 <LiP ok>{plan.maxSucursales ?? "∞"} sucursal(es)</LiP>
@@ -306,7 +326,7 @@ function VistaPlanes({
                 <LiP ok={plan.features.modulo_nomina}>Nómina</LiP>
                 <LiP ok={plan.features.reportes_avanzados}>Reportes avanzados</LiP>
                 <LiP ok={plan.features.multi_sucursal}>Multi-sucursal</LiP>
-                <LiP ok={plan.features.ia_asistente}>IA integrada</LiP>
+                <LiP ok={plan.features.ia_asistente}>{descripcionLimiteIA(plan.id)}</LiP>
               </ul>
               {esActual && !puedePagarActual ? (
                 <div className="mt-4 rounded-md bg-[color:var(--color-surface-2)] py-2 text-center text-small font-medium text-[color:var(--color-text-muted)]">
@@ -410,6 +430,18 @@ function VistaCheckout({
           onError={onError}
         />
       </div>
+
+      <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-[color:var(--color-text-muted)]">
+        <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+        O paga por transferencia
+        <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+      </div>
+
+      <TransferenciaCheckout
+        plan={plan}
+        ciclo={anual ? "anual" : "mensual"}
+        precio={precio}
+      />
     </div>
   );
 }

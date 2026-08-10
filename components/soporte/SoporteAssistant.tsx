@@ -15,11 +15,25 @@ type Mensaje = {
   modulos?: SoporteModulo[];
 };
 
+type SoporteAssistantProps = {
+  planNombre: string;
+  preguntasDiarias: number | null;
+  palabrasPorPregunta: number | null;
+};
+
 function textoHistorial(content: string): string {
   return content.replace(/\s+/g, " ").trim().slice(0, 600);
 }
 
-export function SoporteAssistant() {
+function contarPalabras(texto: string): number {
+  return texto.trim().match(/\S+/g)?.length ?? 0;
+}
+
+export function SoporteAssistant({
+  planNombre,
+  preguntasDiarias,
+  palabrasPorPregunta,
+}: SoporteAssistantProps) {
   const { mostrar } = useToast();
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -30,6 +44,9 @@ export function SoporteAssistant() {
         "Hola. Soy el asistente de ARCA. Puedo ayudarte con ventas, inventario, facturas, caja, contabilidad, cobros, pagos, reportes y configuracion.",
     },
   ]);
+  const palabrasActuales = useMemo(() => contarPalabras(texto), [texto]);
+  const excedePalabras =
+    palabrasPorPregunta !== null && palabrasActuales > palabrasPorPregunta;
 
   const historial = useMemo(
     () =>
@@ -43,6 +60,14 @@ export function SoporteAssistant() {
   async function enviar() {
     const mensaje = texto.trim();
     if (!mensaje || enviando) return;
+    const palabrasMensaje = contarPalabras(mensaje);
+    if (palabrasPorPregunta !== null && palabrasMensaje > palabrasPorPregunta) {
+      mostrar(
+        "warning",
+        `Tu plan ${planNombre} permite hasta ${palabrasPorPregunta} palabras por pregunta.`,
+      );
+      return;
+    }
 
     setTexto("");
     setEnviando(true);
@@ -128,19 +153,58 @@ export function SoporteAssistant() {
                   }
                 }}
                 rows={2}
-                maxLength={900}
+                maxLength={3500}
                 className="arca-input min-h-12 flex-1 resize-none"
-                placeholder="Escribe tu consulta..."
+                placeholder={
+                  palabrasPorPregunta === null
+                    ? "Escribe tu consulta..."
+                    : `Escribe tu consulta (max. ${palabrasPorPregunta} palabras)...`
+                }
               />
-              <Button type="button" onClick={enviar} loading={enviando} disabled={!texto.trim()}>
+              <Button
+                type="button"
+                onClick={enviar}
+                loading={enviando}
+                disabled={!texto.trim() || excedePalabras}
+              >
                 <Send size={14} /> Enviar
               </Button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]">
+              <span>
+                Plan {planNombre}:{" "}
+                {preguntasDiarias === null
+                  ? "sin limite diario"
+                  : `${preguntasDiarias} preguntas al dia`}
+              </span>
+              {palabrasPorPregunta !== null && (
+                <span
+                  className={
+                    excedePalabras
+                      ? "font-medium text-[color:var(--color-danger)]"
+                      : undefined
+                  }
+                >
+                  {palabrasActuales}/{palabrasPorPregunta} palabras
+                </span>
+              )}
             </div>
           </div>
         </CardBody>
       </Card>
 
       <aside className="space-y-3">
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-small">
+          <div className="font-medium text-[color:var(--color-text-primary)]">IA incluida</div>
+          <div className="mt-1 text-[color:var(--color-text-muted)]">
+            {preguntasDiarias === null
+              ? "Sin limite diario"
+              : `${preguntasDiarias} preguntas cortas por dia`}
+            {palabrasPorPregunta !== null
+              ? `, hasta ${palabrasPorPregunta} palabras cada una.`
+              : "."}
+          </div>
+        </div>
         {[
           ["Configurar factura", "Como configuro impuestos y formas de pago?"],
           ["Buscar por SKU", "Como encuentro rapido productos por categoria?"],

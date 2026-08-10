@@ -92,6 +92,7 @@ export function puedeAccederModulo(
   const regla = REGLAS_ACCESO[modulo];
   if (regla.siempre) return true;
   if (regla.soloAdmin && !access.esAdminEmpresa) return false;
+  if (access.plan.id === "demo" && regla.soloRestaurante) return false;
   if (regla.soloRestaurante && access.tipoEmpresa !== "restaurante") return false;
 
   if (regla.permisos?.length && !tienePermiso(access, regla.permisos)) {

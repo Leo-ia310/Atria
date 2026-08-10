@@ -4,6 +4,7 @@ import { count, eq, isNull, notInArray, sql, sum, and, type SQL } from "drizzle-
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
+  asistenteIaUso,
   cuentasPorCobrar,
   facturas,
   productos,
@@ -15,13 +16,14 @@ import { modulosPermitidos } from "@/lib/access-control";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { fechaISOEnZona, inicioMesISO } from "@/lib/dates";
 import { sugerirModulosSoporte, type SoporteModulo } from "@/lib/soporte/modulos";
+import { getLimitesIA, type PlanId } from "@/lib/pricing";
 
 const soporteSchema = z.object({
   mensaje: z
     .string()
     .trim()
     .min(2, "Escribe una consulta")
-    .max(900, "La consulta es muy larga. Resume tu pregunta en menos de 900 caracteres."),
+    .max(3500, "La consulta es muy larga. Resume tu pregunta."),
   historial: z
     .array(
       z.object({
@@ -39,6 +41,11 @@ type ResultadoSoporte =
       respuesta: string;
       modulos: SoporteModulo[];
       modelo: string;
+      limites: {
+        preguntasDiarias: number | null;
+        palabrasPorPregunta: number | null;
+        restantesDia: number | null;
+      };
     }
   | { ok: false; error: string; tipo?: "error" | "warning" };
 
@@ -84,6 +91,20 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
     };
   }
 
+  const planId = acceso.access.plan.id as PlanId;
+  const limitesIA = getLimitesIA(planId);
+  const palabrasEntrada = contarPalabras(pregunta);
+  if (
+    limitesIA.palabrasPorPregunta !== null &&
+    palabrasEntrada > limitesIA.palabrasPorPregunta
+  ) {
+    return {
+      ok: false,
+      error: `Tu plan ${acceso.access.plan.nombre} permite preguntas de hasta ${limitesIA.palabrasPorPregunta} palabras. Resume la consulta y vuelve a intentar.`,
+      tipo: "warning",
+    };
+  }
+
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
   const modelo = process.env.CLOUDFLARE_AI_MODEL || "@cf/meta/llama-3.2-1b-instruct";
@@ -94,6 +115,17 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
   const empresa = await getEmpresaMetadata(user.empresaId);
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
+  const usoIA = await reservarUsoIA({
+    empresaId: user.empresaId,
+    usuarioId: user.id,
+    planId,
+    fecha: hoyLocal,
+    palabras: palabrasEntrada,
+    limiteDiario: limitesIA.preguntasDiarias,
+    planNombre: acceso.access.plan.nombre,
+  });
+  if (!usoIA.ok) return usoIA;
+
   const inicioMesLocal = inicioMesISO(hoyLocal);
   const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
 
@@ -123,6 +155,20 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
           acceso.access.plan.maxSucursales === null
             ? "sin limite de sucursales"
             : `${acceso.access.plan.maxSucursales + acceso.access.sucursalesExtra} sucursales`,
+      },
+      limitesIA: {
+        preguntasDiarias:
+          limitesIA.preguntasDiarias === null
+            ? "sin limite diario"
+            : `${limitesIA.preguntasDiarias} preguntas al dia`,
+        palabrasPorPregunta:
+          limitesIA.palabrasPorPregunta === null
+            ? "sin limite de palabras por pregunta"
+            : `${limitesIA.palabrasPorPregunta} palabras por pregunta`,
+        restantesHoy:
+          usoIA.restantesDia === null
+            ? "sin limite diario"
+            : `${usoIA.restantesDia} preguntas restantes hoy`,
       },
     },
     usuario: {
@@ -163,7 +209,7 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
         },
         body: JSON.stringify({
           messages: mensajes,
-          max_tokens: 420,
+          max_tokens: limitesIA.respuestaMaxTokens,
           temperature: 0.2,
           top_p: 0.75,
           repetition_penalty: 1.08,
@@ -182,15 +228,135 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
     if (!res.ok || !data?.success) {
       const detalle = data?.errors?.[0]?.message ?? `HTTP ${res.status}`;
       console.error("[soporte:cloudflare]", detalle);
+      await liberarUsoIA({
+        empresaId: user.empresaId,
+        usuarioId: user.id,
+        fecha: hoyLocal,
+        palabras: palabrasEntrada,
+      });
       return { ok: false, error: "El asistente no pudo responder en este momento." };
     }
 
     const respuesta = optimizarRespuesta(data.result?.response ?? "", acceso.access.plan.maxProductos);
     const modulos = sugerirModulosSoporte(`${pregunta}\n${respuesta}`, permitidos);
-    return { ok: true, respuesta, modulos, modelo };
+    return {
+      ok: true,
+      respuesta,
+      modulos,
+      modelo,
+      limites: {
+        preguntasDiarias: limitesIA.preguntasDiarias,
+        palabrasPorPregunta: limitesIA.palabrasPorPregunta,
+        restantesDia: usoIA.restantesDia,
+      },
+    };
   } catch (err) {
     console.error("[soporte]", err);
+    await liberarUsoIA({
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      fecha: hoyLocal,
+      palabras: palabrasEntrada,
+    });
     return { ok: false, error: "No pudimos conectar con el asistente de soporte." };
+  }
+}
+
+function contarPalabras(texto: string): number {
+  return texto.trim().match(/\S+/g)?.length ?? 0;
+}
+
+async function reservarUsoIA({
+  empresaId,
+  usuarioId,
+  planId,
+  fecha,
+  palabras,
+  limiteDiario,
+  planNombre,
+}: {
+  empresaId: string;
+  usuarioId: string;
+  planId: PlanId;
+  fecha: string;
+  palabras: number;
+  limiteDiario: number | null;
+  planNombre: string;
+}): Promise<{ ok: true; restantesDia: number | null } | { ok: false; error: string; tipo?: "error" | "warning" }> {
+  await db
+    .insert(asistenteIaUso)
+    .values({
+      empresaId,
+      usuarioId,
+      planCodigo: planId,
+      fecha,
+      preguntas: 0,
+      palabrasEntrada: 0,
+    })
+    .onConflictDoNothing({
+      target: [asistenteIaUso.empresaId, asistenteIaUso.usuarioId, asistenteIaUso.fecha],
+    });
+
+  const [row] = await db
+    .update(asistenteIaUso)
+    .set({
+      planCodigo: planId,
+      preguntas: sql`${asistenteIaUso.preguntas} + 1`,
+      palabrasEntrada: sql`${asistenteIaUso.palabrasEntrada} + ${palabras}`,
+      actualizadoEn: new Date(),
+    })
+    .where(
+      and(
+        eq(asistenteIaUso.empresaId, empresaId),
+        eq(asistenteIaUso.usuarioId, usuarioId),
+        eq(asistenteIaUso.fecha, fecha),
+        limiteDiario === null ? undefined : sql`${asistenteIaUso.preguntas} < ${limiteDiario}`,
+      ),
+    )
+    .returning({ preguntas: asistenteIaUso.preguntas });
+
+  if (!row) {
+    return {
+      ok: false,
+      error: `Tu plan ${planNombre} permite ${limiteDiario} preguntas al dia. Vuelve manana o cambia a Pro para usarlo sin limite diario.`,
+      tipo: "warning",
+    };
+  }
+
+  return {
+    ok: true,
+    restantesDia: limiteDiario === null ? null : Math.max(0, limiteDiario - row.preguntas),
+  };
+}
+
+async function liberarUsoIA({
+  empresaId,
+  usuarioId,
+  fecha,
+  palabras,
+}: {
+  empresaId: string;
+  usuarioId: string;
+  fecha: string;
+  palabras: number;
+}) {
+  try {
+    await db
+      .update(asistenteIaUso)
+      .set({
+        preguntas: sql`GREATEST(${asistenteIaUso.preguntas} - 1, 0)`,
+        palabrasEntrada: sql`GREATEST(${asistenteIaUso.palabrasEntrada} - ${palabras}, 0)`,
+        actualizadoEn: new Date(),
+      })
+      .where(
+        and(
+          eq(asistenteIaUso.empresaId, empresaId),
+          eq(asistenteIaUso.usuarioId, usuarioId),
+          eq(asistenteIaUso.fecha, fecha),
+        ),
+      );
+  } catch (err) {
+    console.error("[soporte:uso-ia:rollback]", err);
   }
 }
 

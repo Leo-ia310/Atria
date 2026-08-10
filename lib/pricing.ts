@@ -149,7 +149,19 @@ export const PLANES: Record<PlanId, Plan> = {
       ...FEATURES_VACIAS,
       pos: true,
       inventario_basico: true,
+      inventario_avanzado: true,
       facturacion: true,
+      contabilidad: true,
+      cotizaciones: true,
+      gestion_proveedores: true,
+      modulo_gastos: true,
+      cuentas_por_cobrar: true,
+      reportes_avanzados: true,
+      permisos_granulares: true,
+      ia_asistente: true,
+      modulo_nomina: true,
+      soporte_chat: true,
+      exportacion_datos: true,
     },
   },
   pro: {
@@ -182,6 +194,7 @@ export const PLANES: Record<PlanId, Plan> = {
       cuentas_por_cobrar: true,
       reportes_avanzados: true,
       permisos_granulares: true,
+      ia_asistente: true,
       modulo_nomina: true,
       soporte_chat: true,
       exportacion_datos: true,
@@ -241,6 +254,45 @@ export const PLANES: Record<PlanId, Plan> = {
 };
 
 export const PLANES_ARRAY: Plan[] = [PLANES.demo, PLANES.pro, PLANES.enterprise];
+
+export type PlanAiLimits = {
+  preguntasDiarias: number | null;
+  palabrasPorPregunta: number | null;
+  respuestaMaxTokens: number;
+};
+
+export const LIMITES_IA_POR_PLAN: Record<PlanId, PlanAiLimits> = {
+  demo: {
+    preguntasDiarias: 5,
+    palabrasPorPregunta: 35,
+    respuestaMaxTokens: 180,
+  },
+  pro: {
+    preguntasDiarias: null,
+    palabrasPorPregunta: 150,
+    respuestaMaxTokens: 420,
+  },
+  enterprise: {
+    preguntasDiarias: null,
+    palabrasPorPregunta: 500,
+    respuestaMaxTokens: 700,
+  },
+};
+
+export function getLimitesIA(planId: PlanId): PlanAiLimits {
+  return LIMITES_IA_POR_PLAN[planId] ?? LIMITES_IA_POR_PLAN.demo;
+}
+
+export function descripcionLimiteIA(planId: PlanId): string {
+  const limites = getLimitesIA(planId);
+  if (planId === "demo") {
+    return `IA: ${limites.preguntasDiarias} preguntas cortas al dia`;
+  }
+  if (planId === "pro") {
+    return `IA sin limite diario, ${limites.palabrasPorPregunta} palabras/pregunta`;
+  }
+  return `IA avanzada, ${limites.palabrasPorPregunta} palabras/pregunta`;
+}
 
 export function getPlan(id: string): Plan {
   return PLANES[id as PlanId] ?? PLANES.demo;
