@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { crearOrdenPlan, capturarOrdenPlan } from "@/lib/actions/pagos";
+import { cn } from "@/lib/utils";
 import type { PlanId } from "@/lib/pricing";
 import type { ReciboData } from "@/lib/pagos/recibo";
 import type { Ciclo } from "@/lib/suscripciones/core";
@@ -87,7 +88,7 @@ export function PayPalCheckout({
         contenedor.current.innerHTML = "";
 
         botones = window.paypal.Buttons({
-          style: { layout: "vertical", color: "gold", shape: "pill", label: "pay", height: 46 },
+          style: { layout: "vertical", color: "black", shape: "rect", label: "pay", height: 46 },
           createOrder: async () => {
             setMensaje(null);
             const res = await crearOrdenPlan(planId, ciclo, readReferralCode());
@@ -161,7 +162,15 @@ export function PayPalCheckout({
         </div>
       )}
 
-      <div ref={contenedor} className={estado === "procesando" ? "hidden" : ""} />
+      <div
+        className={cn(
+          "overflow-hidden rounded-lg",
+          estado === "listo" && "bg-black/90 p-1",
+          estado === "procesando" && "hidden",
+        )}
+      >
+        <div ref={contenedor} />
+      </div>
 
       {mensaje && (
         <p className="mt-3 rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-center text-[12px] text-[color:var(--color-error)]">

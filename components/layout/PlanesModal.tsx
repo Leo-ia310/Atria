@@ -431,9 +431,9 @@ function VistaCheckout({
         />
       </div>
 
-      <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-[color:var(--color-text-muted)]">
+      <div className="my-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--color-text-muted)]">
         <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-        O paga por transferencia
+        o
         <span className="h-px flex-1 bg-[color:var(--color-border)]" />
       </div>
 
