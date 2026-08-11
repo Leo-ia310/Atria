@@ -190,9 +190,13 @@ export function SavingsCalculator() {
 
   const handleUserInput = (value: string) => {
     setUserInput(value);
+    if (value.trim() === "") return;
     const parsed = Number(value);
-    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= ARCA_PRICING.maxUsers) {
-      setUsers(parsed);
+    // El calculo siempre refleja un valor valido: al teclear fuera de rango
+    // (500, 3.7, 0) se clampa en vez de congelarse en el ultimo valor tecleado,
+    // evitando que el campo muestre un numero distinto al del resumen.
+    if (Number.isFinite(parsed)) {
+      setUsers(clampUserCount(parsed, ARCA_PRICING.maxUsers));
     }
   };
 

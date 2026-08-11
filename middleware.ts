@@ -72,6 +72,19 @@ export default auth((req) => {
     esMenuPublico ||
     PREFIJOS_PUBLICOS.some((prefijo) => pathname.startsWith(prefijo));
 
+  // Un usuario ya autenticado no debe ver pantallas de invitado (login /
+  // recuperar): se le manda a su panel en vez de renderizar el formulario.
+  const RUTAS_SOLO_INVITADO = ["/login", "/recuperar"];
+  const esRutaSoloInvitado = RUTAS_SOLO_INVITADO.some(
+    (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`),
+  );
+  if (esRutaSoloInvitado && session?.user) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return Response.redirect(url);
+  }
+
   if (esRutaPublica) return continuar();
 
   if (!session?.user) {
@@ -91,5 +104,11 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Se excluyen los assets estaticos de /public (por extension): sin esto el
+  // middleware redirige `/LogoARCA-mark.png` a /login (302) para visitantes no
+  // autenticados, y el optimizador de Next recibe el redirect en vez de la
+  // imagen y responde 400.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|bmp|woff|woff2|ttf|otf|css|js|map|txt|xml|mp4|webm|pdf)$).*)",
+  ],
 };

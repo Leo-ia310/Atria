@@ -15,7 +15,6 @@ function LoginForm() {
   const params = useSearchParams();
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const restablecida = params.get("restablecida") === "1";
 
   const {
@@ -25,12 +24,6 @@ function LoginForm() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(values: LoginInput) {
-    if (!aceptaTerminos) {
-      setErrorGlobal(
-        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.",
-      );
-      return;
-    }
     setErrorGlobal(null);
     setEnviando(true);
     const res = await signIn("credentials", {
@@ -44,12 +37,20 @@ function LoginForm() {
       return;
     }
     const session = await getSession();
+    // Solo se honran rutas internas: un `redirect` con URL absoluta o
+    // protocol-relative (`//host`) permitiria un open redirect a otro sitio.
     const redirectParam = params.get("redirect");
-    const destino = session?.user?.esSuperAdmin
-      ? redirectParam?.startsWith("/superadmin")
+    const rutaInterna =
+      redirectParam &&
+      redirectParam.startsWith("/") &&
+      !redirectParam.startsWith("//")
         ? redirectParam
+        : null;
+    const destino = session?.user?.esSuperAdmin
+      ? rutaInterna?.startsWith("/superadmin")
+        ? rutaInterna
         : "/superadmin"
-      : redirectParam ?? "/dashboard";
+      : rutaInterna ?? "/dashboard";
     router.push(destino);
     router.refresh();
   }
@@ -88,46 +89,13 @@ function LoginForm() {
             {...register("password")}
           />
 
-          <label className="flex cursor-pointer items-start gap-2.5 text-small text-[color:var(--color-text-secondary)]">
-            <input
-              type="checkbox"
-              checked={aceptaTerminos}
-              onChange={(e) => setAceptaTerminos(e.target.checked)}
-              className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[color:var(--color-primary)]"
-            />
-            <span>
-              Acepto los{" "}
-              <Link
-                href="/legal/terminos"
-                target="_blank"
-                className="font-medium text-[color:var(--color-primary)] hover:underline"
-              >
-                Términos y Condiciones
-              </Link>{" "}
-              y la{" "}
-              <Link
-                href="/legal/privacidad"
-                target="_blank"
-                className="font-medium text-[color:var(--color-primary)] hover:underline"
-              >
-                Política de Privacidad
-              </Link>
-              .
-            </span>
-          </label>
-
           {errorGlobal && (
             <div className="rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
               {errorGlobal}
             </div>
           )}
 
-          <Button
-            type="submit"
-            className="w-full"
-            loading={enviando}
-            disabled={!aceptaTerminos}
-          >
+          <Button type="submit" className="w-full" loading={enviando}>
             Iniciar sesión
           </Button>
         </form>
