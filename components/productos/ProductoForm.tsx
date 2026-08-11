@@ -171,6 +171,7 @@ export function ProductoForm({
               label="Precio base"
               type="number"
               step="0.0001"
+              min="0"
               error={errors.precioBase?.message}
               {...register("precioBase")}
             />
@@ -178,6 +179,7 @@ export function ProductoForm({
               label="Costo promedio"
               type="number"
               step="0.0001"
+              min="0"
               error={errors.costoPromedio?.message}
               {...register("costoPromedio")}
               hint="Se recalcula con cada compra"
@@ -200,6 +202,8 @@ export function ProductoForm({
               label="Stock mínimo"
               type="number"
               step="0.0001"
+              min="0"
+              error={errors.stockMinimo?.message}
               {...register("stockMinimo")}
               hint="Alerta al bajar de este nivel"
             />
@@ -207,6 +211,8 @@ export function ProductoForm({
               label="Stock máximo (opcional)"
               type="number"
               step="0.0001"
+              min="0"
+              error={errors.stockMaximo?.message}
               {...register("stockMaximo")}
             />
             <Select

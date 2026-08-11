@@ -34,9 +34,25 @@ export const recuperarCanjearSchema = z
 
 export type RecuperarCanjearInput = z.infer<typeof recuperarCanjearSchema>;
 
+// Nombres de negocio: letras (cualquier idioma), numeros, espacios y
+// puntuacion comercial comun. Bloquea `<>{}` y demas caracteres de inyeccion
+// para que no entren nombres tipo `<img onerror=...>` al catalogo.
+const NOMBRE_NEGOCIO_REGEX = /^[\p{L}\p{N}\s.,&'"()/#+\-]+$/u;
+
 export const registroEmpresaSchema = z.object({
-  razonSocial: z.string().min(2, "Mínimo 2 caracteres").max(200),
-  nombreComercial: z.string().max(200).optional().or(z.literal("")),
+  razonSocial: z
+    .string()
+    .trim()
+    .min(2, "Mínimo 2 caracteres")
+    .max(200)
+    .regex(NOMBRE_NEGOCIO_REGEX, "Contiene caracteres no permitidos"),
+  nombreComercial: z
+    .string()
+    .trim()
+    .max(200)
+    .regex(NOMBRE_NEGOCIO_REGEX, "Contiene caracteres no permitidos")
+    .optional()
+    .or(z.literal("")),
   identificacionFiscal: z.string().trim().max(50).optional().default(""),
   tipoEmpresa: z.enum(["general", "restaurante", "retail", "servicios"]).default("general"),
   pais: z.enum(["HN", "NI", "GT", "CR", "SV"]),
