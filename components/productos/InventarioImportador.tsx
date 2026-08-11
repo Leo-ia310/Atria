@@ -2,8 +2,16 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileSpreadsheet, Upload, XCircle, TriangleAlert, CheckCircle2 } from "lucide-react";
+import {
+  FileSpreadsheet,
+  Upload,
+  XCircle,
+  TriangleAlert,
+  CheckCircle2,
+  Sparkles,
+} from "lucide-react";
 import { importarProductosInventario } from "@/lib/actions/productos";
+import { supervisarImportacionIA } from "@/lib/actions/inventario-ia";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -41,6 +49,8 @@ type PreviewFila = {
   existenciaInicial: number;
   advertencias: AdvertenciaFila[];
   errores: string[];
+  celdas: string[];
+  revisadaIA?: boolean;
 };
 
 type ResultadoServidor = Awaited<ReturnType<typeof importarProductosInventario>>;
@@ -77,6 +87,8 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoServidor | null>(null);
   const [pendiente, startTransition] = useTransition();
+  const [revisandoIA, iniciarRevisionIA] = useTransition();
+  const [notasIA, setNotasIA] = useState<{ fila: number; nota: string }[]>([]);
   const router = useRouter();
   const { mostrar } = useToast();
 
@@ -86,10 +98,73 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
     errores: preview.filter((f) => f.estado === "error").length,
   };
   const validas = preview.filter((f) => f.estado !== "error");
+  const problematicas = preview.filter((f) => f.estado !== "ok" && !f.revisadaIA);
+
+  function revisarConIA() {
+    if (problematicas.length === 0) return;
+    iniciarRevisionIA(async () => {
+      const payload = {
+        filas: problematicas.slice(0, 40).map((f) => ({
+          fila: f.fila,
+          celdas: f.celdas,
+          interpretacion: {
+            sku: f.sku,
+            codigoBarras: f.codigoBarras,
+            nombre: f.nombre,
+            descripcion: f.descripcion,
+            precioBase: f.precioBase,
+            costoPromedio: f.costoPromedio,
+            stockMinimo: f.stockMinimo,
+            stockMaximo: f.stockMaximo,
+            existenciaInicial: f.existenciaInicial,
+          },
+          problemas: [...f.errores, ...f.advertencias.map((a) => a.mensaje)],
+        })),
+      };
+      const res = await supervisarImportacionIA(payload);
+      if (!res.ok) {
+        mostrar(res.tipo === "warning" ? "info" : "error", res.error);
+        return;
+      }
+      const correcciones = new Map(res.filas.map((f) => [f.fila, f]));
+      setPreview((prev) =>
+        prev.map((fila) => {
+          const c = correcciones.get(fila.fila);
+          if (!c) return fila;
+          let sku = c.sku.trim();
+          const nombre = c.nombre.trim();
+          if (!sku && nombre) sku = `IMP-${Date.now()}-${fila.fila}`;
+          const nuevoEstado: PreviewFila["estado"] =
+            !sku && !nombre ? "error" : "advertencia";
+          return {
+            ...fila,
+            sku,
+            nombre,
+            codigoBarras: c.codigoBarras.trim(),
+            descripcion: c.descripcion.trim(),
+            precioBase: c.precioBase,
+            costoPromedio: c.costoPromedio,
+            stockMinimo: c.stockMinimo,
+            stockMaximo: c.stockMaximo,
+            existenciaInicial: c.existenciaInicial,
+            estado: nuevoEstado,
+            errores: nuevoEstado === "error" ? ["La IA no pudo identificar el producto."] : [],
+            advertencias: c.nota
+              ? [{ campo: "ia", mensaje: c.nota }]
+              : fila.advertencias,
+            revisadaIA: true,
+          };
+        }),
+      );
+      setNotasIA(res.filas.map((f) => ({ fila: f.fila, nota: f.nota })).filter((n) => n.nota));
+      mostrar("success", `La IA reviso ${res.filas.length} fila(s).`);
+    });
+  }
 
   async function seleccionar(file: File | undefined) {
     if (!file) return;
     setResultado(null);
+    setNotasIA([]);
     setCargando(true);
     setNombreArchivo(file.name);
     try {
@@ -154,10 +229,24 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
         ancho="xl"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAbierto(false)} disabled={pendiente}>
+            <Button variant="ghost" onClick={() => setAbierto(false)} disabled={pendiente || revisandoIA}>
               Cerrar
             </Button>
-            <Button onClick={confirmar} loading={pendiente} disabled={validas.length === 0}>
+            {problematicas.length > 0 && (
+              <Button
+                variant="secondary"
+                onClick={revisarConIA}
+                loading={revisandoIA}
+                disabled={pendiente}
+              >
+                <Sparkles size={14} /> Revisar {problematicas.length} con IA
+              </Button>
+            )}
+            <Button
+              onClick={confirmar}
+              loading={pendiente}
+              disabled={validas.length === 0 || revisandoIA}
+            >
               <Upload size={14} /> Cargar {validas.length}
             </Button>
           </>
@@ -181,6 +270,34 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
                   {m}
                 </div>
               ))}
+            </div>
+          )}
+
+          {problematicas.length > 0 && notasIA.length === 0 && (
+            <div className="flex items-start gap-2 rounded-md border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10 p-3 text-small">
+              <Sparkles size={16} className="mt-0.5 shrink-0 text-[color:var(--color-primary)]" />
+              <span className="text-[color:var(--color-text-secondary)]">
+                Hay {problematicas.length} fila(s) con dudas. Deja que la IA las revise e interprete antes de cargar.
+              </span>
+            </div>
+          )}
+
+          {notasIA.length > 0 && (
+            <div className="rounded-md border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10 p-3 text-small">
+              <div className="flex items-center gap-2 font-medium text-[color:var(--color-text-primary)]">
+                <Sparkles size={15} className="text-[color:var(--color-primary)]" /> Lo que corrigio la IA
+              </div>
+              <ul className="mt-2 space-y-1 text-[color:var(--color-text-secondary)]">
+                {notasIA.map((n) => (
+                  <li key={n.fila}>
+                    <span className="font-mono text-[12px] text-[color:var(--color-text-muted)]">Fila {n.fila}:</span>{" "}
+                    {n.nota}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[12px] text-[color:var(--color-text-muted)]">
+                Revisa los valores en la tabla y ajusta lo que haga falta antes de cargar.
+              </p>
             </div>
           )}
 
@@ -414,6 +531,7 @@ function filaPreview(
     existenciaInicial: existencia ?? 0,
     advertencias,
     errores,
+    celdas: row.map(texto),
   };
 }
 

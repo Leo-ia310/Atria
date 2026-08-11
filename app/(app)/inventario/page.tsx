@@ -13,6 +13,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { InventarioImportador } from "@/components/productos/InventarioImportador";
 import { InventarioAdvertencias } from "@/components/productos/InventarioAdvertencias";
 import { InventarioLectorBarras } from "@/components/productos/InventarioLectorBarras";
+import { AsistenteProductoIA } from "@/components/productos/AsistenteProductoIA";
 import { InventarioBuscador } from "@/components/productos/InventarioBuscador";
 
 type Fila = {
@@ -173,6 +174,7 @@ export default async function InventarioPage() {
                 costoPromedio: desdeDecimal(p.costoPromedio),
               }))}
             />
+            <AsistenteProductoIA />
             <InventarioImportador pais={empresa?.pais ?? "NI"} />
             <Link href="/inventario/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
               <Plus size={14} /> Nuevo producto

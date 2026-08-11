@@ -17,6 +17,8 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { fechaISOEnZona, inicioMesISO } from "@/lib/dates";
 import { sugerirModulosSoporte, type SoporteModulo } from "@/lib/soporte/modulos";
 import { getLimitesIA, type PlanId } from "@/lib/pricing";
+import { ejecutarIA, iaConfigurada, type MensajeIA } from "@/lib/ai/cloudflare";
+import { contarPalabras, reservarUsoIA, liberarUsoIA } from "@/lib/ai/uso";
 
 const soporteSchema = z.object({
   mensaje: z
@@ -105,10 +107,7 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
     };
   }
 
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  const modelo = process.env.CLOUDFLARE_AI_MODEL || "@cf/meta/llama-3.2-1b-instruct";
-  if (!accountId || !apiToken) {
+  if (!iaConfigurada()) {
     return { ok: false, error: "Cloudflare AI no esta configurado para soporte." };
   }
 
@@ -182,7 +181,7 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
     },
   };
 
-  const mensajes = [
+  const mensajes: MensajeIA[] = [
     {
       role: "system",
       content:
@@ -198,166 +197,35 @@ export async function responderSoporte(input: unknown): Promise<ResultadoSoporte
     },
   ];
 
-  try {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${modelo}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: mensajes,
-          max_tokens: limitesIA.respuestaMaxTokens,
-          temperature: 0.2,
-          top_p: 0.75,
-          repetition_penalty: 1.08,
-        }),
-      },
-    );
+  const ia = await ejecutarIA(mensajes, {
+    maxTokens: limitesIA.respuestaMaxTokens,
+    temperature: 0.2,
+    topP: 0.75,
+  });
 
-    const data = (await res.json().catch(() => null)) as
-      | {
-          success?: boolean;
-          result?: { response?: string };
-          errors?: { message?: string }[];
-        }
-      | null;
-
-    if (!res.ok || !data?.success) {
-      const detalle = data?.errors?.[0]?.message ?? `HTTP ${res.status}`;
-      console.error("[soporte:cloudflare]", detalle);
-      await liberarUsoIA({
-        empresaId: user.empresaId,
-        usuarioId: user.id,
-        fecha: hoyLocal,
-        palabras: palabrasEntrada,
-      });
-      return { ok: false, error: "El asistente no pudo responder en este momento." };
-    }
-
-    const respuesta = optimizarRespuesta(data.result?.response ?? "", acceso.access.plan.maxProductos);
-    const modulos = sugerirModulosSoporte(`${pregunta}\n${respuesta}`, permitidos);
-    return {
-      ok: true,
-      respuesta,
-      modulos,
-      modelo,
-      limites: {
-        preguntasDiarias: limitesIA.preguntasDiarias,
-        palabrasPorPregunta: limitesIA.palabrasPorPregunta,
-        restantesDia: usoIA.restantesDia,
-      },
-    };
-  } catch (err) {
-    console.error("[soporte]", err);
+  if (!ia.ok) {
     await liberarUsoIA({
       empresaId: user.empresaId,
       usuarioId: user.id,
       fecha: hoyLocal,
       palabras: palabrasEntrada,
     });
-    return { ok: false, error: "No pudimos conectar con el asistente de soporte." };
-  }
-}
-
-function contarPalabras(texto: string): number {
-  return texto.trim().match(/\S+/g)?.length ?? 0;
-}
-
-async function reservarUsoIA({
-  empresaId,
-  usuarioId,
-  planId,
-  fecha,
-  palabras,
-  limiteDiario,
-  planNombre,
-}: {
-  empresaId: string;
-  usuarioId: string;
-  planId: PlanId;
-  fecha: string;
-  palabras: number;
-  limiteDiario: number | null;
-  planNombre: string;
-}): Promise<{ ok: true; restantesDia: number | null } | { ok: false; error: string; tipo?: "error" | "warning" }> {
-  await db
-    .insert(asistenteIaUso)
-    .values({
-      empresaId,
-      usuarioId,
-      planCodigo: planId,
-      fecha,
-      preguntas: 0,
-      palabrasEntrada: 0,
-    })
-    .onConflictDoNothing({
-      target: [asistenteIaUso.empresaId, asistenteIaUso.usuarioId, asistenteIaUso.fecha],
-    });
-
-  const [row] = await db
-    .update(asistenteIaUso)
-    .set({
-      planCodigo: planId,
-      preguntas: sql`${asistenteIaUso.preguntas} + 1`,
-      palabrasEntrada: sql`${asistenteIaUso.palabrasEntrada} + ${palabras}`,
-      actualizadoEn: new Date(),
-    })
-    .where(
-      and(
-        eq(asistenteIaUso.empresaId, empresaId),
-        eq(asistenteIaUso.usuarioId, usuarioId),
-        eq(asistenteIaUso.fecha, fecha),
-        limiteDiario === null ? undefined : sql`${asistenteIaUso.preguntas} < ${limiteDiario}`,
-      ),
-    )
-    .returning({ preguntas: asistenteIaUso.preguntas });
-
-  if (!row) {
-    return {
-      ok: false,
-      error: `Tu plan ${planNombre} permite ${limiteDiario} preguntas al dia. Vuelve manana o cambia a Pro para usarlo sin limite diario.`,
-      tipo: "warning",
-    };
+    return { ok: false, error: "El asistente no pudo responder en este momento." };
   }
 
+  const respuesta = optimizarRespuesta(ia.texto, acceso.access.plan.maxProductos);
+  const modulos = sugerirModulosSoporte(`${pregunta}\n${respuesta}`, permitidos);
   return {
     ok: true,
-    restantesDia: limiteDiario === null ? null : Math.max(0, limiteDiario - row.preguntas),
+    respuesta,
+    modulos,
+    modelo: ia.modelo,
+    limites: {
+      preguntasDiarias: limitesIA.preguntasDiarias,
+      palabrasPorPregunta: limitesIA.palabrasPorPregunta,
+      restantesDia: usoIA.restantesDia,
+    },
   };
-}
-
-async function liberarUsoIA({
-  empresaId,
-  usuarioId,
-  fecha,
-  palabras,
-}: {
-  empresaId: string;
-  usuarioId: string;
-  fecha: string;
-  palabras: number;
-}) {
-  try {
-    await db
-      .update(asistenteIaUso)
-      .set({
-        preguntas: sql`GREATEST(${asistenteIaUso.preguntas} - 1, 0)`,
-        palabrasEntrada: sql`GREATEST(${asistenteIaUso.palabrasEntrada} - ${palabras}, 0)`,
-        actualizadoEn: new Date(),
-      })
-      .where(
-        and(
-          eq(asistenteIaUso.empresaId, empresaId),
-          eq(asistenteIaUso.usuarioId, usuarioId),
-          eq(asistenteIaUso.fecha, fecha),
-        ),
-      );
-  } catch (err) {
-    console.error("[soporte:uso-ia:rollback]", err);
-  }
 }
 
 async function cargarMetricas(
