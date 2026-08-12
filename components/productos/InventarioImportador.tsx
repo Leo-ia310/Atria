@@ -9,6 +9,7 @@ import {
   TriangleAlert,
   CheckCircle2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { importarProductosInventario } from "@/lib/actions/productos";
 import { supervisarImportacionIA } from "@/lib/actions/inventario-ia";
@@ -37,7 +38,7 @@ type AdvertenciaFila = {
 
 type PreviewFila = {
   fila: number;
-  estado: "ok" | "advertencia" | "error";
+  estado: "ok" | "advertencia" | "error" | "descartada";
   sku: string;
   codigoBarras: string;
   nombre: string;
@@ -88,23 +89,25 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
   const [resultado, setResultado] = useState<ResultadoServidor | null>(null);
   const [pendiente, startTransition] = useTransition();
   const [revisandoIA, iniciarRevisionIA] = useTransition();
-  const [notasIA, setNotasIA] = useState<{ fila: number; nota: string }[]>([]);
+  const [notasIA, setNotasIA] = useState<{ fila: number; nota: string; descartada: boolean }[]>([]);
+  const [iaEstado, setIaEstado] = useState<"idle" | "hecho" | "error">("idle");
   const router = useRouter();
   const { mostrar } = useToast();
 
   const listas = {
     ok: preview.filter((f) => f.estado === "ok").length,
     advertencias: preview.filter((f) => f.estado === "advertencia").length,
+    descartadas: preview.filter((f) => f.estado === "descartada").length,
     errores: preview.filter((f) => f.estado === "error").length,
   };
-  const validas = preview.filter((f) => f.estado !== "error");
-  const problematicas = preview.filter((f) => f.estado !== "ok" && !f.revisadaIA);
+  const validas = preview.filter((f) => f.estado !== "error" && f.estado !== "descartada");
 
-  function revisarConIA() {
-    if (problematicas.length === 0) return;
+  function ejecutarSupervision(base: PreviewFila[], auto: boolean) {
+    const revisables = base.filter((f) => f.estado !== "descartada");
+    if (revisables.length === 0) return;
     iniciarRevisionIA(async () => {
       const payload = {
-        filas: problematicas.slice(0, 40).map((f) => ({
+        filas: revisables.slice(0, 80).map((f) => ({
           fila: f.fila,
           celdas: f.celdas,
           interpretacion: {
@@ -123,7 +126,8 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
       };
       const res = await supervisarImportacionIA(payload);
       if (!res.ok) {
-        mostrar(res.tipo === "warning" ? "info" : "error", res.error);
+        setIaEstado("error");
+        if (!auto) mostrar(res.tipo === "warning" ? "info" : "error", res.error);
         return;
       }
       const correcciones = new Map(res.filas.map((f) => [f.fila, f]));
@@ -131,6 +135,15 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
         prev.map((fila) => {
           const c = correcciones.get(fila.fila);
           if (!c) return fila;
+          if (c.descartar) {
+            return {
+              ...fila,
+              estado: "descartada",
+              errores: [],
+              advertencias: c.nota ? [{ campo: "ia", mensaje: c.nota }] : fila.advertencias,
+              revisadaIA: true,
+            };
+          }
           let sku = c.sku.trim();
           const nombre = c.nombre.trim();
           if (!sku && nombre) sku = `IMP-${Date.now()}-${fila.fila}`;
@@ -149,15 +162,24 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             existenciaInicial: c.existenciaInicial,
             estado: nuevoEstado,
             errores: nuevoEstado === "error" ? ["La IA no pudo identificar el producto."] : [],
-            advertencias: c.nota
-              ? [{ campo: "ia", mensaje: c.nota }]
-              : fila.advertencias,
+            advertencias: c.nota ? [{ campo: "ia", mensaje: c.nota }] : fila.advertencias,
             revisadaIA: true,
           };
         }),
       );
-      setNotasIA(res.filas.map((f) => ({ fila: f.fila, nota: f.nota })).filter((n) => n.nota));
-      mostrar("success", `La IA reviso ${res.filas.length} fila(s).`);
+      setNotasIA(
+        res.filas
+          .map((f) => ({ fila: f.fila, nota: f.nota, descartada: f.descartar }))
+          .filter((n) => n.nota),
+      );
+      setIaEstado("hecho");
+      const descartadas = res.filas.filter((f) => f.descartar).length;
+      const corregidas = res.filas.length - descartadas;
+      if (res.filas.length === 0) {
+        if (!auto) mostrar("success", "La IA reviso el archivo: todo en orden.");
+      } else {
+        mostrar("success", `IA: ${corregidas} corregida(s), ${descartadas} descartada(s).`);
+      }
     });
   }
 
@@ -165,6 +187,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
     if (!file) return;
     setResultado(null);
     setNotasIA([]);
+    setIaEstado("idle");
     setCargando(true);
     setNombreArchivo(file.name);
     try {
@@ -174,6 +197,9 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
       setAbierto(true);
       if (filas.length === 0) {
         mostrar("error", "No encontramos filas con datos.");
+      } else {
+        // Capa 2: la IA verifica todo automaticamente (descarta basura, corrige).
+        ejecutarSupervision(filas, true);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "No pudimos leer el archivo.";
@@ -191,7 +217,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
     }
     startTransition(async () => {
       const res = await importarProductosInventario({
-        filas: validas.map(({ errores, estado, ...fila }) => fila),
+        filas: validas.map(({ errores, estado, celdas, revisadaIA, ...fila }) => fila),
       });
       setResultado(res);
       if (!res.ok) {
@@ -232,14 +258,14 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             <Button variant="ghost" onClick={() => setAbierto(false)} disabled={pendiente || revisandoIA}>
               Cerrar
             </Button>
-            {problematicas.length > 0 && (
+            {preview.length > 0 && (
               <Button
                 variant="secondary"
-                onClick={revisarConIA}
+                onClick={() => ejecutarSupervision(preview, false)}
                 loading={revisandoIA}
                 disabled={pendiente}
               >
-                <Sparkles size={14} /> Revisar {problematicas.length} con IA
+                <Sparkles size={14} /> {iaEstado === "idle" ? "Revisar con IA" : "Revisar de nuevo con IA"}
               </Button>
             )}
             <Button
@@ -253,9 +279,10 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
         }
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Resumen icon={CheckCircle2} label="Listas" value={listas.ok} />
             <Resumen icon={TriangleAlert} label="Advertencias" value={listas.advertencias} />
+            <Resumen icon={Trash2} label="Descartadas" value={listas.descartadas} />
             <Resumen icon={XCircle} label="Errores criticos" value={listas.errores} />
           </div>
 
@@ -273,30 +300,51 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             </div>
           )}
 
-          {problematicas.length > 0 && notasIA.length === 0 && (
-            <div className="flex items-start gap-2 rounded-md border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10 p-3 text-small">
-              <Sparkles size={16} className="mt-0.5 shrink-0 text-[color:var(--color-primary)]" />
+          {revisandoIA && (
+            <div className="flex items-center gap-2 rounded-md border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10 p-3 text-small">
+              <Sparkles size={16} className="shrink-0 animate-pulse text-[color:var(--color-primary)]" />
               <span className="text-[color:var(--color-text-secondary)]">
-                Hay {problematicas.length} fila(s) con dudas. Deja que la IA las revise e interprete antes de cargar.
+                La IA esta verificando el archivo: descarta encabezados o datos que no son productos y corrige lo mal interpretado...
               </span>
             </div>
           )}
 
-          {notasIA.length > 0 && (
+          {!revisandoIA && iaEstado === "error" && (
+            <div className="flex items-start gap-2 rounded-md border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 p-3 text-small">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[color:var(--color-warning)]" />
+              <span className="text-[color:var(--color-text-secondary)]">
+                No se pudo verificar con IA (puede ser el limite diario o una falla temporal). Puedes cargar la revision automatica o reintentar con el boton.
+              </span>
+            </div>
+          )}
+
+          {!revisandoIA && iaEstado === "hecho" && notasIA.length === 0 && (
+            <div className="flex items-start gap-2 rounded-md border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 p-3 text-small">
+              <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[color:var(--color-success)]" />
+              <span className="text-[color:var(--color-text-secondary)]">
+                La IA reviso el archivo y no encontro basura ni datos que corregir.
+              </span>
+            </div>
+          )}
+
+          {!revisandoIA && notasIA.length > 0 && (
             <div className="rounded-md border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10 p-3 text-small">
               <div className="flex items-center gap-2 font-medium text-[color:var(--color-text-primary)]">
-                <Sparkles size={15} className="text-[color:var(--color-primary)]" /> Lo que corrigio la IA
+                <Sparkles size={15} className="text-[color:var(--color-primary)]" /> Reporte de la IA
               </div>
               <ul className="mt-2 space-y-1 text-[color:var(--color-text-secondary)]">
                 {notasIA.map((n) => (
                   <li key={n.fila}>
                     <span className="font-mono text-[12px] text-[color:var(--color-text-muted)]">Fila {n.fila}:</span>{" "}
+                    {n.descartada && (
+                      <span className="mr-1 text-[color:var(--color-text-muted)]">(descartada)</span>
+                    )}
                     {n.nota}
                   </li>
                 ))}
               </ul>
               <p className="mt-2 text-[12px] text-[color:var(--color-text-muted)]">
-                Revisa los valores en la tabla y ajusta lo que haga falta antes de cargar.
+                Revisa los valores en la tabla. Si quieres otra pasada, usa &quot;Revisar de nuevo con IA&quot;.
               </p>
             </div>
           )}
@@ -316,11 +364,19 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
               </thead>
               <tbody>
                 {preview.map((f) => (
-                  <tr key={f.fila} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                  <tr
+                    key={f.fila}
+                    className={
+                      "border-b border-[color:var(--color-border)] last:border-b-0" +
+                      (f.estado === "descartada" ? " opacity-50" : "")
+                    }
+                  >
                     <td className="px-3 py-2">{f.fila}</td>
                     <td className="px-3 py-2">
                       {f.estado === "error" ? (
                         <span className="arca-badge arca-badge-error">Error</span>
+                      ) : f.estado === "descartada" ? (
+                        <span className="arca-badge arca-badge-neutral">Descartada</span>
                       ) : f.estado === "advertencia" ? (
                         <span className="arca-badge arca-badge-warning">Advertencia</span>
                       ) : (

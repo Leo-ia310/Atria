@@ -34,6 +34,7 @@ type ResultadoPropuesta =
 
 type FilaSupervisada = {
   fila: number;
+  descartar: boolean;
   sku: string;
   codigoBarras: string;
   nombre: string;
@@ -195,11 +196,11 @@ export async function supervisarImportacionIA(input: unknown): Promise<Resultado
     {
       role: "system",
       content:
-        "Eres el supervisor de una importacion de inventario en espanol. Recibes filas de un Excel que las reglas automaticas no pudieron resolver: cada una trae sus celdas originales, la interpretacion tentativa y los problemas detectados. Corrige cada fila usando el sentido comun del rubro. Devuelve UNICAMENTE un arreglo JSON, sin markdown ni texto extra, con un objeto por fila y esta estructura exacta: {\"fila\":number,\"sku\":string,\"codigoBarras\":string,\"nombre\":string,\"descripcion\":string,\"precioBase\":number,\"costoPromedio\":number,\"stockMinimo\":number,\"stockMaximo\":number,\"existenciaInicial\":number,\"nota\":string}. Interpreta numeros escritos en palabras o con simbolos de moneda. Si falta el nombre pero hay pistas en las celdas, deducelo; si falta el precio, dejalo en 0. Nunca inventes codigos de barra. En 'nota' explica en una frase corta que corregiste en esa fila. Conserva el mismo numero de fila que recibiste.",
+        "Eres el supervisor de una importacion de inventario en espanol. Recibes filas de un Excel con sus celdas originales, la interpretacion tentativa del sistema y los problemas detectados. Tu tarea es dejar la lista limpia para cargar productos reales. Haz dos cosas: (1) DESCARTA las filas que NO son un producto real (encabezados, titulos, filas de TOTAL o SUBTOTAL, notas, separadores, o datos que no tienen que ver con un inventario); marcarlas con \"descartar\":true. (2) CORRIGE las filas que si son un producto pero tienen datos mal interpretados (precio en palabras, nombre en la columna equivocada, existencia como texto, etc.). Interpreta numeros escritos en palabras o con simbolos de moneda. Nunca inventes codigos de barra. Devuelve UNICAMENTE un arreglo JSON, sin markdown ni texto extra, e incluye SOLO las filas que descartas o corriges (omite las que ya estan bien). Cada objeto con esta estructura exacta: {\"fila\":number,\"descartar\":boolean,\"sku\":string,\"codigoBarras\":string,\"nombre\":string,\"descripcion\":string,\"precioBase\":number,\"costoPromedio\":number,\"stockMinimo\":number,\"stockMaximo\":number,\"existenciaInicial\":number,\"nota\":string}. En 'nota' explica en una frase corta por que la descartaste o que corregiste. Conserva el mismo numero de fila que recibiste.",
     },
     {
       role: "user",
-      content: `Moneda del negocio: ${paisConfig.moneda} (${paisConfig.simbolo}).\nFilas a revisar:\n${JSON.stringify(filas)}`,
+      content: `Moneda del negocio: ${paisConfig.moneda} (${paisConfig.simbolo}).\nFilas del Excel:\n${JSON.stringify(filas)}`,
     },
   ];
 
@@ -232,6 +233,7 @@ export async function supervisarImportacionIA(input: unknown): Promise<Resultado
     const stockMaximo = num(obj.stockMaximo);
     corregidas.push({
       fila,
+      descartar: obj.descartar === true || obj.descartar === "true",
       sku: str(obj.sku, 50),
       codigoBarras: str(obj.codigoBarras, 50),
       nombre: str(obj.nombre, 200),
@@ -243,11 +245,6 @@ export async function supervisarImportacionIA(input: unknown): Promise<Resultado
       existenciaInicial: num(obj.existenciaInicial),
       nota: str(obj.nota, 240),
     });
-  }
-
-  if (corregidas.length === 0) {
-    await liberarUsoIA({ empresaId: user.empresaId, usuarioId: user.id, fecha: hoyLocal, palabras: filas.length });
-    return { ok: false, error: "La IA no pudo corregir estas filas. Revisa el archivo manualmente." };
   }
 
   return { ok: true, filas: corregidas, restantesDia: uso.restantesDia };
