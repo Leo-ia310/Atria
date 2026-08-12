@@ -45,8 +45,12 @@ export default async function ProductoDetallePage({
   const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
-  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
-  const fechaMovimientoLocal = sql<string>`(${movimientosInventario.creadoEn} AT TIME ZONE ${zonaHoraria})::date`;
+  // La zona va como literal (no parametro) para que la misma expresion en SELECT,
+  // GROUP BY y ORDER BY sea textualmente identica; con un placeholder ($1, $2, ...)
+  // Postgres no reconoce que coinciden y exige la columna cruda en el GROUP BY.
+  const tzLiteral = sql.raw(`'${zonaHoraria.replace(/[^A-Za-z0-9_+\-/]/g, "")}'`);
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${tzLiteral})::date`;
+  const fechaMovimientoLocal = sql<string>`(${movimientosInventario.creadoEn} AT TIME ZONE ${tzLiteral})::date`;
 
   const [producto] = await db
     .select({

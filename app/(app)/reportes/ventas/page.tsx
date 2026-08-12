@@ -24,7 +24,10 @@ export default async function ReporteVentasPage() {
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
   const hace30Local = sumarDiasISO(hoyLocal, -30);
-  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
+  // Zona como literal (no parametro): la expresion debe ser textualmente
+  // identica en SELECT, GROUP BY y ORDER BY o Postgres rechaza el agrupamiento.
+  const tzLiteral = sql.raw(`'${zonaHoraria.replace(/[^A-Za-z0-9_+\-/]/g, "")}'`);
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${tzLiteral})::date`;
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
