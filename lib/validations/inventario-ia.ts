@@ -37,7 +37,7 @@ const filaProblematicaSchema = z.object({
 });
 
 export const supervisarImportacionSchema = z.object({
-  filas: z.array(filaProblematicaSchema).min(1, "No hay filas para revisar").max(40),
+  filas: z.array(filaProblematicaSchema).min(1, "No hay filas para revisar").max(80),
 });
 
 export type AsistenteProductoTextoInput = z.infer<typeof asistenteProductoTextoSchema>;

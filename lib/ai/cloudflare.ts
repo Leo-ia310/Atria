@@ -45,7 +45,7 @@ export async function ejecutarIA(
     );
 
     const data = (await res.json().catch(() => null)) as
-      | { success?: boolean; result?: { response?: string }; errors?: { message?: string }[] }
+      | { success?: boolean; result?: { response?: unknown }; errors?: { message?: string }[] }
       | null;
 
     if (!res.ok || !data?.success) {
@@ -54,14 +54,25 @@ export async function ejecutarIA(
       return { ok: false, error: "La IA no pudo responder en este momento." };
     }
 
-    return { ok: true, texto: data.result?.response ?? "", modelo };
+    // Algunos modelos devuelven `response` como string y otros (cuando la salida
+    // es JSON) como objeto/array ya parseado. Normalizamos siempre a string.
+    const respuesta = data.result?.response;
+    const texto =
+      respuesta == null
+        ? ""
+        : typeof respuesta === "string"
+          ? respuesta
+          : JSON.stringify(respuesta);
+    return { ok: true, texto, modelo };
   } catch (err) {
     console.error("[ia:cloudflare]", err);
     return { ok: false, error: "No pudimos conectar con la IA." };
   }
 }
 
-export function extraerJSON<T = unknown>(texto: string): T | null {
+export function extraerJSON<T = unknown>(texto: unknown): T | null {
+  if (texto == null) return null;
+  if (typeof texto !== "string") return texto as T;
   if (!texto) return null;
   let limpio = texto.trim();
   const fence = limpio.match(/```(?:json)?\s*([\s\S]*?)```/i);
