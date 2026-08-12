@@ -63,6 +63,7 @@ const presentacionStyles = `
   @keyframes arca-floatY{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-12px,0)}}
   @keyframes arca-floatY2{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-9px,0)}}
   @keyframes arca-pulse{0%{transform:scale(.85);opacity:.6}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+  @keyframes arca-bar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
   @keyframes arca-gradient-flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
   @keyframes arca-orb-a{0%,100%{transform:translate3d(-8vw,-4vh,0) scale(1)}50%{transform:translate3d(34vw,20vh,0) scale(1.12)}}
   @keyframes arca-orb-b{0%,100%{transform:translate3d(8vw,-8vh,0) scale(1.05)}50%{transform:translate3d(-32vw,28vh,0) scale(.92)}}
@@ -78,6 +79,7 @@ const presentacionStyles = `
   .arca-orb-b{right:-14vmin;top:10vh;width:64vmin;height:64vmin;background:radial-gradient(circle,rgba(37,99,235,.9) 0%,rgba(79,70,229,.48) 44%,rgba(37,99,235,0) 72%);animation:arca-orb-b 23s ease-in-out infinite;}
   .arca-orb-c{left:22vw;bottom:-24vmin;width:60vmin;height:60vmin;background:radial-gradient(circle,rgba(192,38,211,.78) 0%,rgba(109,40,217,.44) 43%,rgba(109,40,217,0) 72%);animation:arca-orb-c 27s ease-in-out infinite;}
   .arca-scanline{position:absolute;left:0;right:0;top:0;height:34%;background:linear-gradient(180deg,transparent,rgba(167,139,250,.16),transparent);animation:arca-scan 6s ease-in-out infinite;pointer-events:none;z-index:20;}
+  .arca-bar{transform-origin:bottom;animation:arca-bar .9s cubic-bezier(.16,1,.3,1) both;}
   .arca-tilt{transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .5s cubic-bezier(.16,1,.3,1),border-color .5s ease,background-color .5s ease;}
   .arca-tilt:hover{transform:translateY(-6px);}
   .arca-check-pop{animation:arca-check-pop .4s cubic-bezier(.16,1,.3,1) both;}
@@ -97,7 +99,7 @@ const presentacionStyles = `
     .arca-orb-c{display:none;}
   }
   @media (prefers-reduced-motion: reduce){
-    .arca-rainbow,.arca-grad-text,.arca-orb,.arca-scanline,.arca-gradborder::before,.arca-marquee{animation:none !important;}
+    .arca-rainbow,.arca-grad-text,.arca-orb,.arca-bar,.arca-scanline,.arca-gradborder::before,.arca-marquee{animation:none !important;}
     .arca-marquee{transform:none !important;}
   }
 `;
@@ -127,9 +129,261 @@ function Stars({ rating, size = 15 }: { rating: number; size?: number }) {
 
 /* ---------------- Video ---------------- */
 
+const previewPantallas = ["Dashboard", "Punto de venta", "Inventario"] as const;
+
+function PreviewDashboard() {
+  return (
+    <div className="grid h-full gap-2 sm:grid-cols-[1.1fr_0.9fr] sm:gap-3">
+      <div className="flex min-h-0 flex-col gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          {[
+            { label: "Ventas hoy", value: "C$ 48,260", color: "text-[#5b21b6]" },
+            { label: "Margen", value: "34.8%", color: "text-[#0b8043]" },
+            { label: "Stock bajo", value: "12 SKU", color: "text-[#b06000]" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[7px] border border-[#e3ebf6] bg-white p-2 sm:p-3">
+              <p className="text-[9px] text-[#7b8496] sm:text-[10px]">{item.label}</p>
+              <p className={`mt-1 text-[13px] font-semibold sm:text-[16px] ${item.color}`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1 rounded-[8px] border border-[#e3ebf6] bg-white p-3 sm:p-4">
+          <div className="mb-2 flex items-center justify-between sm:mb-3">
+            <p className="text-[11px] font-medium text-[#273042] sm:text-[12px]">Ventas y reposicion</p>
+            <span className="text-[9px] text-[#7b8496] sm:text-[10px]">Ultimos 7 dias</span>
+          </div>
+          <div className="flex h-24 items-end gap-1.5 sm:h-32 sm:gap-2">
+            {[48, 64, 42, 78, 56, 88, 72].map((height, index) => (
+              <div key={index} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className="arca-bar w-full rounded-t-[5px] bg-[linear-gradient(180deg,#a78bfa_0%,#2563eb_100%)]"
+                  style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="hidden rounded-[8px] border border-[#e9d5ff]/40 bg-[#190b2b] p-4 text-white sm:block">
+        <p className="text-[12px] font-medium">Cierre inteligente</p>
+        <p className="mt-1 text-[11px] text-white/55">Caja, inventario y asiento listos.</p>
+        <div className="mt-4 space-y-2.5">
+          {["Caja cuadrada", "CxC actualizada", "Libro diario"].map((item) => (
+            <div key={item} className="flex items-center gap-2 text-[11px]">
+              <Check size={13} className="text-[#34a853]" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-[6px] bg-white/10 p-3">
+          <p className="text-[9px] uppercase text-white/45">Siguiente accion</p>
+          <p className="mt-1 text-[12px] font-medium">Reponer 12 productos antes del viernes.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewPOS() {
+  const productos = [
+    { n: "Cemento gris 42.5kg", p: "C$ 385" },
+    { n: "Tubo PVC 1/2\"", p: "C$ 62" },
+    { n: "Pintura blanca 1gal", p: "C$ 540" },
+    { n: "Clavos 2\" (lb)", p: "C$ 28" },
+    { n: "Cable THHN 12", p: "C$ 18" },
+    { n: "Foco LED 9W", p: "C$ 95" },
+  ];
+  const carrito = [
+    { n: "Cemento gris 42.5kg", c: 3, t: "C$ 1,155" },
+    { n: "Pintura blanca 1gal", c: 1, t: "C$ 540" },
+    { n: "Foco LED 9W", c: 4, t: "C$ 380" },
+  ];
+
+  return (
+    <div className="grid h-full gap-2 sm:grid-cols-[1.15fr_0.85fr] sm:gap-3">
+      <div className="min-h-0">
+        <div className="mb-2 flex items-center gap-2 rounded-[7px] border border-[#e3ebf6] bg-white px-3 py-2 text-[10px] text-[#7b8496] sm:text-[11px]">
+          <ShoppingCart size={13} className="text-[#5b21b6]" />
+          Buscar producto o escanear codigo...
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
+          {productos.map((item) => (
+            <div key={item.n} className="rounded-[7px] border border-[#e3ebf6] bg-white p-2 sm:p-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-[linear-gradient(135deg,#f0e7ff,#eef2ff)] text-[#5b21b6] sm:h-9 sm:w-9">
+                <Package size={15} />
+              </div>
+              <p className="mt-1.5 line-clamp-2 text-[9px] font-medium leading-tight text-[#273042] sm:mt-2 sm:text-[10px]">
+                {item.n}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold text-[#5b21b6] sm:text-[11px]">{item.p}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden min-h-0 flex-col rounded-[8px] border border-[#e3ebf6] bg-white p-3 sm:flex">
+        <p className="text-[12px] font-semibold text-[#273042]">Ticket #1042</p>
+        <div className="mt-2 flex-1 space-y-2">
+          {carrito.map((item) => (
+            <div key={item.n} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="flex items-center gap-1.5 text-[#5b667a]">
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-[#efe7ff] px-1 text-[9px] font-semibold text-[#5b21b6]">
+                  {item.c}
+                </span>
+                <span className="line-clamp-1">{item.n}</span>
+              </span>
+              <span className="font-medium text-[#273042]">{item.t}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 border-t border-[#e7edf6] pt-2">
+          <div className="flex items-center justify-between text-[13px] font-semibold text-[#151b2c]">
+            <span>Total</span>
+            <span className="text-[#5b21b6]">C$ 2,075</span>
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-2 rounded-[7px] bg-[linear-gradient(135deg,#7c3aed,#2563eb)] py-2 text-[12px] font-semibold text-white">
+            <CreditCard size={14} /> Cobrar
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewInventario() {
+  const filas = [
+    { n: "Cemento gris 42.5kg", sku: "CEM-425", stock: "128", estado: "ok" },
+    { n: "Pintura blanca 1gal", sku: "PIN-BLA", stock: "34", estado: "ok" },
+    { n: "Tubo PVC 1/2\"", sku: "PVC-012", stock: "9", estado: "bajo" },
+    { n: "Foco LED 9W", sku: "LED-009", stock: "6", estado: "bajo" },
+    { n: "Cable THHN 12", sku: "CAB-012", stock: "260", estado: "ok" },
+  ];
+
+  return (
+    <div className="h-full overflow-hidden rounded-[8px] border border-[#e3ebf6] bg-white p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-[#273042] sm:text-[12px]">Inventario - Sucursal Central</p>
+        <span className="rounded-full bg-[#efe7ff] px-2 py-0.5 text-[9px] font-medium text-[#5b21b6] sm:text-[10px]">
+          437 productos
+        </span>
+      </div>
+      <div className="grid grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr] gap-2 border-b border-[#e7edf6] pb-2 text-[9px] font-semibold uppercase text-[#8b95a6]">
+        <span>Producto</span>
+        <span>SKU</span>
+        <span>Stock</span>
+        <span>Estado</span>
+      </div>
+      {filas.map((f) => (
+        <div
+          key={f.sku}
+          className="grid grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr] items-center gap-2 border-b border-[#f0f3f8] py-2 text-[10px] last:border-b-0 sm:text-[11px]"
+        >
+          <span className="flex items-center gap-1.5 font-medium text-[#273042]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-[5px] bg-[#f4f0ff] text-[#5b21b6]">
+              <Package size={12} />
+            </span>
+            <span className="line-clamp-1">{f.n}</span>
+          </span>
+          <span className="text-[#7b8496]">{f.sku}</span>
+          <span className="font-semibold text-[#273042]">{f.stock}</span>
+          <span>
+            {f.estado === "ok" ? (
+              <span className="rounded-full bg-[#ecfdf5] px-2 py-0.5 text-[9px] font-medium text-[#16803c] sm:text-[10px]">
+                En stock
+              </span>
+            ) : (
+              <span className="rounded-full bg-[#fff7ed] px-2 py-0.5 text-[9px] font-medium text-[#b06000] sm:text-[10px]">
+                Stock bajo
+              </span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LandingVideoPreview() {
+  const [activa, setActiva] = useState(0);
+  const [pausa, setPausa] = useState(false);
+
+  useEffect(() => {
+    if (pausa) return;
+    const t = setInterval(() => setActiva((a) => (a + 1) % previewPantallas.length), 3800);
+    return () => clearInterval(t);
+  }, [pausa]);
+
+  return (
+    <div
+      className="flex h-full flex-col bg-[#0c0518]/95"
+      onMouseEnter={() => setPausa(true)}
+      onMouseLeave={() => setPausa(false)}
+    >
+      <div className="arca-scanline" />
+      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#160827] px-3 py-2.5 sm:px-4">
+        <div className="hidden items-center gap-2 sm:flex">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ea4335]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#fbbc05]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#34a853]" />
+        </div>
+        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+          {previewPantallas.map((p, i) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setActiva(i)}
+              className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition sm:px-3 sm:text-[11px] ${
+                activa === i ? "bg-white text-[#160827]" : "text-white/55 hover:text-white/80"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+        <div className="hidden items-center gap-1.5 text-[11px] font-medium text-[#34d399] sm:flex">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#34d399] opacity-75 [animation:arca-pulse_2s_ease-out_infinite]" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#34d399]" />
+          </span>
+          En vivo
+        </div>
+      </div>
+
+      <div className="relative min-h-0 flex-1 bg-[#f7f4fc] p-2.5 sm:p-4">
+        {[<PreviewDashboard key="d" />, <PreviewPOS key="p" />, <PreviewInventario key="i" />].map(
+          (pantalla, i) => (
+            <div
+              key={i}
+              className={`absolute inset-0 p-2.5 transition-all duration-700 sm:p-4 ${
+                activa === i ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+              }`}
+            >
+              {pantalla}
+            </div>
+          ),
+        )}
+      </div>
+
+      <div className="relative z-10 flex items-center justify-center gap-1.5 border-t border-white/10 bg-[#160827] py-2.5">
+        {previewPantallas.map((p, i) => (
+          <button
+            key={p}
+            type="button"
+            aria-label={p}
+            onClick={() => setActiva(i)}
+            className={`h-1.5 rounded-full transition-all ${
+              activa === i ? "w-6 bg-[#a78bfa]" : "w-1.5 bg-white/25"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VideoBloque() {
   const [reproducir, setReproducir] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const tieneVideo = Boolean(VIDEO_URL);
   const esArchivo = /\.(mp4|webm|mov)(\?|$)/i.test(VIDEO_URL);
   const esYoutube = /youtu\.?be/i.test(VIDEO_URL);
   const embedYoutube = esYoutube
@@ -137,8 +391,8 @@ function VideoBloque() {
     : "";
 
   return (
-    <div className="arca-gradborder mx-auto max-w-3xl">
-      <div className="relative aspect-video overflow-hidden rounded-[16px] border border-white/12 bg-[#0c0518]">
+    <div className="arca-gradborder mx-auto max-w-4xl">
+      <div className="relative aspect-video min-h-[340px] overflow-hidden rounded-[16px] border border-white/12 bg-[#0c0518]">
         {reproducir && esArchivo && (
           <video ref={videoRef} src={VIDEO_URL} controls autoPlay playsInline className="h-full w-full object-cover" />
         )}
@@ -151,10 +405,11 @@ function VideoBloque() {
             className="h-full w-full"
           />
         )}
-        {!reproducir && (
+        {!reproducir && !tieneVideo && <LandingVideoPreview />}
+        {!reproducir && tieneVideo && (
           <button
             type="button"
-            onClick={() => VIDEO_URL && setReproducir(true)}
+            onClick={() => setReproducir(true)}
             className="group absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.35),rgba(12,5,24,0.9))]"
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#160827] shadow-[0_18px_50px_rgba(124,58,237,0.5)] transition group-hover:scale-110">
