@@ -77,14 +77,14 @@ export function CrearSecuenciaForm({ idFiscalNombre }: { idFiscalNombre: string 
         }
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input
               label="Código doc."
               error={errors.tipoCodigo?.message}
               {...register("tipoCodigo")}
               placeholder="FAC"
             />
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Input
                 label="Tipo de documento"
                 error={errors.tipoNombre?.message}
@@ -101,7 +101,7 @@ export function CrearSecuenciaForm({ idFiscalNombre }: { idFiscalNombre: string 
               placeholder="CAI o autorización"
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input
               label="Rango inicial"
               type="number"
