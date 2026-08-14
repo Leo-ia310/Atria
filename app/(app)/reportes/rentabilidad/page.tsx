@@ -141,7 +141,8 @@ export default async function ReporteRentabilidadPage() {
           <Card>
             <CardHeader title="Detalle por mes" />
             <CardBody className="p-0">
-              <table className="w-full text-small">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-small">
                 <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
                   <tr className="text-label">
                     <th className="px-4 py-2 text-left">Período</th>
@@ -200,6 +201,7 @@ export default async function ReporteRentabilidadPage() {
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </CardBody>
           </Card>
         </div>

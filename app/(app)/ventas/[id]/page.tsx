@@ -144,7 +144,8 @@ export default async function VentaDetallePage({
         <Card className="lg:col-span-2">
           <CardHeader title="Productos vendidos" />
           <CardBody>
-            <table className="w-full text-small">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-small">
               <thead className="border-b border-[color:var(--color-border)]">
                 <tr className="text-label">
                   <th className="px-2 py-2 text-left">Producto</th>
@@ -173,6 +174,7 @@ export default async function VentaDetallePage({
                 ))}
               </tbody>
             </table>
+            </div>
           </CardBody>
         </Card>
 
@@ -208,6 +210,7 @@ export default async function VentaDetallePage({
                 Sin pagos registrados (venta al crédito)
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-small">
                 <tbody>
                   {pagos.map((p, i) => (
@@ -223,6 +226,7 @@ export default async function VentaDetallePage({
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardBody>
         </Card>

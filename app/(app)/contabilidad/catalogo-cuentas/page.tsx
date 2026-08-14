@@ -23,7 +23,8 @@ export default async function CatalogoCuentasPage() {
       />
       <Card>
         <CardBody className="p-0">
-          <table className="w-full text-small">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-small">
             <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
               <tr className="text-label">
                 <th className="px-4 py-2 text-left">Código</th>
@@ -63,6 +64,7 @@ export default async function CatalogoCuentasPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </CardBody>
       </Card>
     </div>
