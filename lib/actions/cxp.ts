@@ -56,7 +56,7 @@ export async function registrarPago(
             eq(cuentasPorPagar.empresaId, user.empresaId),
           ),
         )
-        .for("update")
+        .for("update", { of: cuentasPorPagar })
         .limit(1);
 
       if (!cxp) throw new Error("Cuenta por pagar no encontrada");

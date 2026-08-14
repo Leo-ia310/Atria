@@ -405,7 +405,7 @@ export function POSContenedor({
   }, [ventaExito]);
 
   return (
-    <div className="flex h-screen flex-col bg-[color:var(--color-neutral)]">
+    <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-neutral)] lg:h-[100dvh] lg:overflow-hidden">
       {/* Aviso de entorno de prueba (sin caja abierta) */}
       {!cajaAbierta && (
         <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-[color:var(--color-warning)]/15 px-4 py-1.5 text-center text-[12px] font-medium text-[color:var(--color-warning)]">
@@ -462,9 +462,9 @@ export function POSContenedor({
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-12">
+      <div className="grid flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-12 lg:overflow-hidden">
         {/* Productos */}
-        <section className="lg:col-span-7 arca-card flex flex-col overflow-hidden">
+        <section className="lg:col-span-7 arca-card flex min-h-[55vh] flex-col overflow-hidden lg:min-h-0">
           <div className="border-b border-[color:var(--color-border)] p-3">
             <div className="space-y-2">
             <div className="relative">
@@ -532,7 +532,7 @@ export function POSContenedor({
         </section>
 
         {/* Carrito */}
-        <section className="lg:col-span-5 arca-card flex flex-col overflow-hidden">
+        <section className="lg:col-span-5 arca-card flex min-h-[55vh] flex-col overflow-hidden lg:min-h-0">
           <div className="flex items-center justify-between border-b border-[color:var(--color-border)] p-3">
             <div>
               <div className="text-base font-semibold text-[color:var(--color-text-primary)]">
@@ -1033,17 +1033,13 @@ function ModalPago({
 
   const [modo, setModo] = useState<"contado" | "mixto" | "credito">("contado");
   const [formaUnica, setFormaUnica] = useState<string>(efectivo?.id ?? noCredito[0]?.id ?? "");
-  const [montoEfectivoStr, setMontoEfectivoStr] = useState<string>(total.toFixed(2));
+  const [montoEfectivoStr, setMontoEfectivoStr] = useState<string>("");
   const [montoMixto, setMontoMixto] = useState<Record<string, string>>({});
   const [referencias, setReferencias] = useState<Record<string, string>>({});
   const confirmarRef = useRef<() => void>(() => {});
   const totalCobro = dineroPos(total);
   const formaSeleccionada = formasPago.find((f) => f.id === formaUnica);
   const esTarjeta = modo === "contado" && formaSeleccionada?.codigo === "TAR";
-
-  useEffect(() => {
-    setMontoEfectivoStr(totalCobro.toFixed(2));
-  }, [totalCobro]);
 
   void carrito; // referenciado para tipo
 
@@ -1155,7 +1151,7 @@ function ModalPago({
               className={cn(
                 "flex-1 rounded px-3 py-1.5 text-small transition disabled:opacity-30",
                 modo === m
-                  ? "bg-white font-medium text-[color:var(--color-text-primary)] shadow-sm"
+                  ? "bg-[color:var(--color-surface)] font-medium text-[color:var(--color-text-primary)] shadow-sm"
                   : "text-[color:var(--color-text-muted)]",
               )}
             >
@@ -1178,6 +1174,7 @@ function ModalPago({
                   label="Monto recibido"
                   type="text"
                   inputMode="decimal"
+                  placeholder={totalCobro.toFixed(2)}
                   value={montoEfectivoStr}
                   onChange={(e) =>
                     setMontoEfectivoStr(e.target.value.replace(/[^0-9.]/g, ""))
@@ -1185,6 +1182,13 @@ function ModalPago({
                   onFocus={(e) => e.target.select()}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={() => setMontoEfectivoStr(totalCobro.toFixed(2))}
+                  className="text-small font-medium text-[color:var(--color-primary)] hover:underline"
+                >
+                  Pago exacto ({formatearMoneda(totalCobro, pais)})
+                </button>
                 <div className="rounded-md bg-[color:var(--color-surface-2)] p-3 text-center">
                   <div className="text-label">Cambio</div>
                   <div className="text-2xl text-[color:var(--color-primary)]">

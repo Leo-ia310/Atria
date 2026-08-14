@@ -70,7 +70,7 @@ export async function registrarAbono(
             eq(cuentasPorCobrar.empresaId, user.empresaId),
           ),
         )
-        .for("update")
+        .for("update", { of: cuentasPorCobrar })
         .limit(1);
 
       if (!cxc) throw new Error("Cuenta por cobrar no encontrada");
