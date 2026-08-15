@@ -18,6 +18,7 @@ import { formatearFecha, formatearFechaHora, formatearMoneda } from "@/lib/utils
 import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { FacturaVer } from "@/components/facturas/FacturaVer";
 import { ImprimirFacturasLote } from "@/components/facturas/ImprimirFacturasLote";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { reciboDesdeSnapshot } from "@/lib/facturas";
@@ -165,11 +166,23 @@ export async function FacturasLista({
         title={configVista.titulo}
         subtitle={`${filas.length} facturas - ${formatearMoneda(totalFiltrado, pais)}${esCredito ? ` - saldo CxC ${formatearMoneda(totalPendiente, pais)}` : ""}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
-          <ImprimirFacturasLote
-            href={imprimirHref}
-            total={filas.length}
-            label={hayFiltro ? "Imprimir filtradas" : configVista.printLabel}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel
+              recurso={esCredito ? "facturas-credito" : "facturas-cobradas"}
+              params={{
+                numero: searchParams.numero,
+                desde: searchParams.desde,
+                hasta: searchParams.hasta,
+                vendedor: searchParams.vendedor,
+                forma: searchParams.forma,
+              }}
+            />
+            <ImprimirFacturasLote
+              href={imprimirHref}
+              total={filas.length}
+              label={hayFiltro ? "Imprimir filtradas" : configVista.printLabel}
+            />
+          </div>
         }
       />
 

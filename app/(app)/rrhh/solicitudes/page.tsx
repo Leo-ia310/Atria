@@ -6,6 +6,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SolicitudesPanel } from "@/components/rrhh/SolicitudesPanel";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function SolicitudesPage() {
   const user = await requireSession();
@@ -63,6 +64,7 @@ export default async function SolicitudesPage() {
       <PageHeader
         title="Solicitudes"
         subtitle={`${lista.length} solicitudes · ${pendientes} pendientes${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        actions={<BotonExportarExcel recurso="solicitudes" />}
       />
       <SolicitudesPanel
         pais={empresa?.pais ?? "NI"}

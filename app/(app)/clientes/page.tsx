@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, desdeDecimal } from "@/lib/utils";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -109,9 +110,12 @@ export default async function ClientesPage() {
         title="Clientes"
         subtitle={`${filas.length} clientes registrados`}
         actions={
-          <Link href="/clientes/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
-            <Plus size={14} /> Nuevo cliente
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="clientes" />
+            <Link href="/clientes/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+              <Plus size={14} /> Nuevo cliente
+            </Link>
+          </div>
         }
       />
       <DataTable

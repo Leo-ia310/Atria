@@ -5,6 +5,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { calcularEstadoResultados, saldosPorCuenta } from "@/lib/contabilidad/queries";
 import { formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function EstadoResultadosPage() {
   const user = await requireSession();
@@ -23,7 +24,11 @@ export default async function EstadoResultadosPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Estado de Resultados" subtitle={subtitulo} />
+      <PageHeader
+        title="Estado de Resultados"
+        subtitle={subtitulo}
+        actions={<BotonExportarExcel recurso="estado-resultados" />}
+      />
 
       <Card>
         <CardBody>

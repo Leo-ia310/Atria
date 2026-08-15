@@ -15,6 +15,7 @@ import { InventarioAdvertencias } from "@/components/productos/InventarioAdverte
 import { InventarioLectorBarras } from "@/components/productos/InventarioLectorBarras";
 import { AsistenteProductoIA } from "@/components/productos/AsistenteProductoIA";
 import { InventarioBuscador } from "@/components/productos/InventarioBuscador";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -161,6 +162,7 @@ export default async function InventarioPage() {
         subtitle={`${filas.length} productos en el catálogo${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="inventario" />
             <InventarioAdvertencias advertencias={advertencias} />
             <InventarioLectorBarras
               pais={empresa?.pais ?? "NI"}

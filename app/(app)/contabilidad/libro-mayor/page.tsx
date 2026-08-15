@@ -10,6 +10,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearFecha, formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function LibroMayorPage({
   searchParams,
@@ -90,12 +91,18 @@ export default async function LibroMayorPage({
         title="Libro Mayor"
         subtitle={`Movimientos por cuenta contable${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
-          <Link
-            href="/contabilidad/libro-diario"
-            className="arca-btn arca-btn-secondary arca-btn-sm"
-          >
-            Ver libro diario
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel
+              recurso="libro-mayor"
+              params={{ cuenta: cuentaSeleccionada?.id }}
+            />
+            <Link
+              href="/contabilidad/libro-diario"
+              className="arca-btn arca-btn-secondary arca-btn-sm"
+            >
+              Ver libro diario
+            </Link>
+          </div>
         }
       />
 

@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function CatalogoCuentasPage() {
   const user = await requireSession();
@@ -20,6 +21,7 @@ export default async function CatalogoCuentasPage() {
       <PageHeader
         title="Catálogo de Cuentas"
         subtitle={`${cuentas.length} cuentas en el plan`}
+        actions={<BotonExportarExcel recurso="catalogo-cuentas" />}
       />
       <Card>
         <CardBody className="p-0">

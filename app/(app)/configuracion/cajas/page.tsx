@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { cajas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -57,6 +58,7 @@ export default async function CajasPage() {
       <PageHeader
         title="Cajas"
         subtitle={`${filas.length} cajas registradas${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
+        actions={<BotonExportarExcel recurso="cajas" />}
       />
 
       <Card>

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -84,12 +85,15 @@ export default async function ProveedoresPage() {
         title="Proveedores"
         subtitle={`${filas.length} proveedores activos`}
         actions={
-          <Link
-            href="/compras/proveedores/nuevo"
-            className="arca-btn arca-btn-primary arca-btn-sm"
-          >
-            <Plus size={14} /> Nuevo proveedor
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="proveedores" />
+            <Link
+              href="/compras/proveedores/nuevo"
+              className="arca-btn arca-btn-primary arca-btn-sm"
+            >
+              <Plus size={14} /> Nuevo proveedor
+            </Link>
+          </div>
         }
       />
       <DataTable

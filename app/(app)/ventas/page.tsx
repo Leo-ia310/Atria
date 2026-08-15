@@ -15,6 +15,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import type { PaisCodigo } from "@/lib/paises";
 import { ImprimirFacturasLote } from "@/components/facturas/ImprimirFacturasLote";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -181,6 +182,10 @@ export default async function VentasPage({
         subtitle={`${filas.length} ventas - ${formatearMoneda(totalFiltrado, pais)}${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel
+              recurso="ventas"
+              params={{ q: sp.q, desde: sp.desde, hasta: sp.hasta, tipo: sp.tipo, estado: sp.estado }}
+            />
             <ImprimirFacturasLote
               href={`/facturas/imprimir?${parametrosImpresion}`}
               total={totalFacturas}

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import { NominaGenerarButton } from "@/components/rrhh/NominaGenerarButton";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -120,7 +121,12 @@ export default async function NominaPage() {
       <PageHeader
         title="Nómina"
         subtitle="Planillas de pago y deducciones"
-        actions={<NominaGenerarButton />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="nomina" />
+            <NominaGenerarButton />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

@@ -13,6 +13,7 @@ import { AccionesEstado, CrearProximoPeriodo } from "@/components/periodos/Perio
 import { formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 const MESES_ES = [
   "Enero",
@@ -99,6 +100,7 @@ export default async function PeriodosPage() {
         subtitle={`${periodos.length} periodo(s) - ${abiertos} abierto(s)${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex items-center gap-2">
+            <BotonExportarExcel recurso="periodos" />
             <CrearProximoPeriodo anio={nextAnio} mes={nextMes} label={nextLabel} />
             <Link href="/contabilidad" className="arca-btn arca-btn-secondary arca-btn-sm">
               Volver

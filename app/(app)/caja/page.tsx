@@ -14,6 +14,7 @@ import { CrearCajaForm } from "@/components/caja/CrearCajaForm";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function CajaPage() {
   const user = await requireSession();
@@ -111,6 +112,7 @@ export default async function CajaPage() {
       <PageHeader
         title="Sesion de caja"
         subtitle={`Control de apertura y cierre de caja${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
+        actions={<BotonExportarExcel recurso="caja" />}
       />
 
       {sesionAbierta && (

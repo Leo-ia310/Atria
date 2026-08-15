@@ -9,6 +9,7 @@ import { CrearUsuarioForm } from "@/components/configuracion/CrearUsuarioForm";
 import { UsuarioAcciones } from "@/components/configuracion/UsuarioAcciones";
 import { formatearFechaHora } from "@/lib/utils";
 import { getAccessContext } from "@/lib/server-access";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -121,11 +122,14 @@ export default async function UsuariosPage() {
         title="Usuarios"
         subtitle={`${filas.length} usuarios con acceso`}
         actions={
-          <CrearUsuarioForm
-            roles={rolesOptions}
-            puedeCrear={puedeCrearUsuario}
-            limiteTexto={limiteTexto}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="usuarios" />
+            <CrearUsuarioForm
+              roles={rolesOptions}
+              puedeCrear={puedeCrearUsuario}
+              limiteTexto={limiteTexto}
+            />
+          </div>
         }
       />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />

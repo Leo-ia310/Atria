@@ -11,6 +11,7 @@ import {
   type GastoRecurrenteFila,
 } from "@/components/tesoreria/GastosRecurrentesManager";
 import type { PaisCodigo } from "@/lib/paises";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function GastosRecurrentesPage() {
   const user = await requireSession();
@@ -62,9 +63,12 @@ export default async function GastosRecurrentesPage() {
         title="Gastos recurrentes"
         subtitle={`${filas.length} cobros mensuales configurados`}
         actions={
-          <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
-            <Plus size={14} /> Nuevo gasto
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="gastos-recurrentes" />
+            <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+              <Plus size={14} /> Nuevo gasto
+            </Link>
+          </div>
         }
       />
       <GastosRecurrentesManager

@@ -17,6 +17,7 @@ import {
   FRECUENCIA_LABEL,
 } from "@/lib/rrhh";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -171,9 +172,12 @@ export default async function EmpleadosPage() {
         title="Empleados"
         subtitle={`${filas.length} empleados · ${activos} activos${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/rrhh/empleados/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
-            <Plus size={14} /> Nuevo empleado
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="empleados" />
+            <Link href="/rrhh/empleados/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+              <Plus size={14} /> Nuevo empleado
+            </Link>
+          </div>
         }
       />
       <DataTable

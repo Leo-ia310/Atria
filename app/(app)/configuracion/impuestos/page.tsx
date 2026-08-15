@@ -4,6 +4,7 @@ import { impuestos } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { CrearImpuestoForm } from "@/components/configuracion/CrearImpuestoForm";
@@ -76,7 +77,12 @@ export default async function ImpuestosPage() {
       <PageHeader
         title="Impuestos"
         subtitle={`${filas.length} impuestos configurados`}
-        actions={<CrearImpuestoForm tasaInssPct={tasaInss} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="impuestos" />
+            <CrearImpuestoForm tasaInssPct={tasaInss} />
+          </div>
+        }
       />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />
     </div>

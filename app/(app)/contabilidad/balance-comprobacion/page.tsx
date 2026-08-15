@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { saldosPorCuenta } from "@/lib/contabilidad/queries";
 import { formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function BalanceComprobacionPage() {
   const user = await requireSession();
@@ -34,11 +35,14 @@ export default async function BalanceComprobacionPage() {
         title="Balance de Comprobacion"
         subtitle={`${saldos.length} cuentas con movimiento${scope.visible ? ` - ${scope.etiqueta}` : ""}`}
         actions={
-          balanceado ? (
-            <Badge variant="success">Balanceado</Badge>
-          ) : (
-            <Badge variant="error">Desbalance</Badge>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="balance-comprobacion" />
+            {balanceado ? (
+              <Badge variant="success">Balanceado</Badge>
+            ) : (
+              <Badge variant="error">Desbalance</Badge>
+            )}
+          </div>
         }
       />
 

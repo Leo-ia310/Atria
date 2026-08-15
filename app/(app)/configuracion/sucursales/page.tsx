@@ -7,6 +7,7 @@ import { DataTable, type Columna } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { CrearSucursalButton } from "@/components/configuracion/CrearSucursalButton";
 import { getAccessContext } from "@/lib/server-access";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -77,16 +78,19 @@ export default async function SucursalesPage() {
         title="Sucursales"
         subtitle={limiteTexto}
         actions={
-          access.esAdminEmpresa ? (
-            <CrearSucursalButton
-              puedeCrear={!limiteAlcanzado}
-              limiteTexto={
-                limite === null
-                  ? undefined
-                  : `Tu plan ${access.plan.nombre} permite ${limite} sucursales activas. Ya tienes ${activas}.`
-              }
-            />
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="sucursales" />
+            {access.esAdminEmpresa ? (
+              <CrearSucursalButton
+                puedeCrear={!limiteAlcanzado}
+                limiteTexto={
+                  limite === null
+                    ? undefined
+                    : `Tu plan ${access.plan.nombre} permite ${limite} sucursales activas. Ya tienes ${activas}.`
+                }
+              />
+            ) : null}
+          </div>
         }
       />
       <DataTable data={filas} columns={columnas} rowKey={(r) => r.id} />

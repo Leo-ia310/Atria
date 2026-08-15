@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -122,9 +123,12 @@ export default async function GastosPage() {
         title="Gastos"
         subtitle={`${filas.length} gastos registrados`}
         actions={
-          <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
-            <Plus size={14} /> Nuevo gasto
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="gastos" />
+            <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+              <Plus size={14} /> Nuevo gasto
+            </Link>
+          </div>
         }
       />
       <DataTable

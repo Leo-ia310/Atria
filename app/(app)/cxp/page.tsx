@@ -15,6 +15,7 @@ import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 import { fechaISOEnZona } from "@/lib/dates";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -188,6 +189,7 @@ export default async function CxPPage({
       <PageHeader
         title={proveedorId ? "Pagos del proveedor" : "Cuentas por pagar"}
         subtitle={`${filas.length} deudas activas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        actions={<BotonExportarExcel recurso="cxp" params={{ proveedorId }} />}
       />
 
       {filas.length > 0 && (

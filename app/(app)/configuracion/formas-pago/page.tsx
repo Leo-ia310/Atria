@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { formasPago, cuentasFinancieras } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 import { FormasPagoManager } from "@/components/configuracion/FormasPagoManager";
 
 export default async function FormasPagoPage() {
@@ -41,6 +42,7 @@ export default async function FormasPagoPage() {
       <PageHeader
         title="Formas de pago"
         subtitle={`${filas.length} formas disponibles en el POS`}
+        actions={<BotonExportarExcel recurso="formas-pago" />}
       />
       <FormasPagoManager
         formas={filas}

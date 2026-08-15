@@ -16,6 +16,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function ReporteInventarioPage() {
   const user = await requireSession();
@@ -115,9 +116,12 @@ export default async function ReporteInventarioPage() {
         title="Reporte de inventario"
         subtitle={`Stock valorizado al costo promedio${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
-            ← Reportes
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="reportes-inventario" />
+            <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
+              ← Reportes
+            </Link>
+          </div>
         }
       />
 

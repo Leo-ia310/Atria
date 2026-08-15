@@ -13,6 +13,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
 import { fechaISOEnZona, sumarDiasISO } from "@/lib/dates";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function ReporteVentasPage() {
   const user = await requireSession();
@@ -104,6 +105,7 @@ export default async function ReporteVentasPage() {
       <PageHeader
         title="Reporte de ventas"
         subtitle={`Últimos 30 días${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        actions={<BotonExportarExcel recurso="reportes-ventas" />}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

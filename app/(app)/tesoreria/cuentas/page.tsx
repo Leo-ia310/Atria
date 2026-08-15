@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 const ICONO = {
   caja: Wallet,
@@ -57,12 +58,15 @@ export default async function CuentasFinancierasPage() {
         title="Cuentas financieras"
         subtitle={`${cuentas.length} cuentas · Total disponible: ${formatearMoneda(totalSaldo, pais)}`}
         actions={
-          <Link
-            href="/tesoreria/cuentas/nueva"
-            className="arca-btn arca-btn-primary arca-btn-sm"
-          >
-            <Plus size={14} /> Nueva cuenta
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="tesoreria-cuentas" />
+            <Link
+              href="/tesoreria/cuentas/nueva"
+              className="arca-btn arca-btn-primary arca-btn-sm"
+            >
+              <Plus size={14} /> Nueva cuenta
+            </Link>
+          </div>
         }
       />
 

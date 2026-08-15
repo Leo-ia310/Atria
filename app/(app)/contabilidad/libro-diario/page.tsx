@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function LibroDiarioPage({
   searchParams,
@@ -91,6 +92,10 @@ export default async function LibroDiarioPage({
       actions={
         <div className="flex flex-wrap items-end gap-3">
           {filterBar}
+          <BotonExportarExcel
+            recurso="libro-diario"
+            params={{ desde: params.desde, hasta: params.hasta }}
+          />
           <Link
             href="/contabilidad/libro-mayor"
             className="arca-btn arca-btn-secondary arca-btn-sm"

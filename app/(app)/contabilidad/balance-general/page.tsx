@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { calcularBalanceGeneral, saldosPorCuenta } from "@/lib/contabilidad/queries";
 import { formatearMoneda } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function BalanceGeneralPage() {
   const user = await requireSession();
@@ -28,13 +29,16 @@ export default async function BalanceGeneralPage() {
         title="Balance General"
         subtitle={subtitulo}
         actions={
-          bg.balanceado ? (
-            <Badge variant="success">Balanceado</Badge>
-          ) : (
-            <Badge variant="error">
-              Diferencia: {formatearMoneda(bg.totalActivos - bg.totalPasivoMasPatrimonio, pais)}
-            </Badge>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="balance-general" />
+            {bg.balanceado ? (
+              <Badge variant="success">Balanceado</Badge>
+            ) : (
+              <Badge variant="error">
+                Diferencia: {formatearMoneda(bg.totalActivos - bg.totalPasivoMasPatrimonio, pais)}
+              </Badge>
+            )}
+          </div>
         }
       />
 

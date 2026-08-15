@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 type Fila = {
   id: string;
@@ -117,6 +118,7 @@ export default async function ComprasPage() {
         subtitle={`${filas.length} compras registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex gap-2">
+            <BotonExportarExcel recurso="compras" />
             <Link href="/compras/proveedores" className="arca-btn arca-btn-secondary arca-btn-sm">
               <Truck size={14} /> Proveedores
             </Link>

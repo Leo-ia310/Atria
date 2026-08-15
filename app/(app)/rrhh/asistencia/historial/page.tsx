@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearFecha } from "@/lib/utils";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 const ESTADO_VARIANTE: Record<
   string,
@@ -116,12 +117,18 @@ export default async function HistorialAsistenciaPage({
         title="Historial de asistencias"
         subtitle={`${registros.length} registros en el rango seleccionado${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link
-            href="/rrhh/asistencia"
-            className="arca-btn arca-btn-secondary arca-btn-sm"
-          >
-            Registro diario
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel
+              recurso="asistencia-historial"
+              params={{ desde: rangoDesde, hasta: rangoHasta, empleado }}
+            />
+            <Link
+              href="/rrhh/asistencia"
+              className="arca-btn arca-btn-secondary arca-btn-sm"
+            >
+              Registro diario
+            </Link>
+          </div>
         }
       />
 

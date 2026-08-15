@@ -15,6 +15,7 @@ import type { PaisCodigo } from "@/lib/paises";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
@@ -87,9 +88,12 @@ export default async function ReporteRentabilidadPage() {
         title="Rentabilidad"
         subtitle={`Ingresos vs costo de ventas — últimos 12 meses${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
-          <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
-            ← Reportes
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel recurso="reportes-rentabilidad" />
+            <Link href="/reportes" className="arca-btn arca-btn-secondary arca-btn-sm">
+              ← Reportes
+            </Link>
+          </div>
         }
       />
 
