@@ -62,8 +62,8 @@ lib/
 | Plan | Mensual | Anual | Sucursales | Usuarios | Contabilidad |
 |------|---------|-------|------------|----------|--------------|
 | **Demo** | Gratis | — | 1 | 1 | ✗ |
-| **Pro** | $45.99 | $386.32 ($32.19/mes) | 1 | 5 | ✓ |
-| **Enterprise** | $199.00 | $1,671.60 ($139.30/mes) | 3 (+$30/extra) | 10 (+$5/extra) | ✓ multi-sucursal |
+| **Pro** | $20.00 | $168.00 ($14.00/mes) | 1 | 7 (+$5/extra) | ✓ |
+| **Enterprise** | $99.00 | $831.60 ($69.30/mes) | 5 (+$30/extra) | 20 (+$5/extra) | ✓ multi-sucursal |
 
 ## Estado del proyecto
 

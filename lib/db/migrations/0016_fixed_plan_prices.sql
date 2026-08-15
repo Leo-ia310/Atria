@@ -7,5 +7,7 @@ WHERE "codigo" = 'pro';--> statement-breakpoint
 UPDATE "planes"
 SET
   "precio_mensual" = '99.00',
-  "precio_anual" = '831.60'
+  "precio_anual" = '831.60',
+  "max_sucursales" = 5,
+  "max_usuarios" = 20
 WHERE "codigo" = 'enterprise';

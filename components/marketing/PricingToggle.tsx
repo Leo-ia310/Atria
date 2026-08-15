@@ -7,10 +7,7 @@ import {
   DESCUENTO_ANUAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
-  PROMO_LANZAMIENTO,
-  descuentoPromoPorcentaje,
   descripcionLimiteIA,
-  precioPromocional,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -87,10 +84,7 @@ export function PricingToggle() {
 
       <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
         {PLANES_ARRAY.map((p) => {
-          const precioNormal = ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
-          const promo = ciclo === "mensual" ? precioPromocional(p.id) : null;
-          const promoPorcentaje = promo !== null ? descuentoPromoPorcentaje(p.id) : null;
-          const precio = promo ?? precioNormal;
+          const precio = ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
           const ventajas = VENTAJAS_POR_PLAN[p.id] ?? [];
           return (
             <div
@@ -116,11 +110,6 @@ export function PricingToggle() {
                         {DIAS_TRIAL_PLAN_PAGO} dias gratis
                       </span>
                     )}
-                    {promoPorcentaje !== null && (
-                      <span className="inline-flex items-center rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
-                        -{promoPorcentaje}% x {PROMO_LANZAMIENTO.meses} meses
-                      </span>
-                    )}
                     {p.destacado && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-[linear-gradient(135deg,#7c3aed,#2563eb)] px-2.5 py-1 text-[11px] font-semibold text-white">
                         <Sparkles size={11} /> Popular
@@ -131,11 +120,6 @@ export function PricingToggle() {
                 <p className="mt-1 text-[13px] text-white/55">{p.descripcionCorta}</p>
 
                 <div className="mt-5 flex items-baseline gap-1.5">
-                  {promo !== null && (
-                    <span className="text-[16px] font-medium text-white/40 line-through">
-                      ${precioNormal.toFixed(2)}
-                    </span>
-                  )}
                   <span className="text-[44px] font-bold leading-none text-white">
                     ${precio === 0 ? "0" : precio.toFixed(2)}
                   </span>
@@ -143,21 +127,13 @@ export function PricingToggle() {
                     {precio === 0 ? "/siempre" : "/mes"}
                   </span>
                 </div>
-                {promo !== null ? (
+                {ciclo === "anual" && p.precioAnual > 0 && (
                   <p className="mt-1 text-[12px] text-white/45">
-                    {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego ${promo.toFixed(2)}/mes por {PROMO_LANZAMIENTO.meses} meses.
+                    {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}
                   </p>
-                ) : (
-                  <>
-                    {ciclo === "anual" && p.precioAnual > 0 && (
-                      <p className="mt-1 text-[12px] text-white/45">
-                        {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}
-                      </p>
-                    )}
-                    {ciclo === "mensual" && p.precioMensual > 0 && (
-                      <p className="mt-1 text-[12px] text-white/45">Sin contrato anual</p>
-                    )}
-                  </>
+                )}
+                {ciclo === "mensual" && p.precioMensual > 0 && (
+                  <p className="mt-1 text-[12px] text-white/45">Sin contrato anual</p>
                 )}
 
                 <Link

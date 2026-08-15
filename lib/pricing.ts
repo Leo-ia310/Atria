@@ -11,35 +11,6 @@ export const DIAS_TRIAL_PLAN_PAGO = 15;
 export const DIAS_GRACIA_PAGO = 7;
 export const DIAS_VIGENCIA_DEMO = 36500;
 
-/**
- * Promo de lanzamiento: precio especial mensual durante los primeros
- * `meses` de suscripcion paga (Pro/Enterprise). Solo aplica a ciclo
- * mensual — el anual ya es un compromiso prepago de 12 meses.
- */
-export const PROMO_LANZAMIENTO = {
-  activa: true,
-  meses: 3,
-  precios: {
-    pro: 20,
-    enterprise: 99,
-  } as Record<"pro" | "enterprise", number>,
-} as const;
-
-export function precioPromocional(planId: PlanId): number | null {
-  if (!PROMO_LANZAMIENTO.activa) return null;
-  if (planId !== "pro" && planId !== "enterprise") return null;
-  return PROMO_LANZAMIENTO.precios[planId];
-}
-
-/** Porcentaje de descuento de la promo vs. el precio mensual normal, redondeado. */
-export function descuentoPromoPorcentaje(planId: PlanId): number | null {
-  const promo = precioPromocional(planId);
-  if (promo === null) return null;
-  const plan = getPlan(planId);
-  if (plan.precioMensual <= 0) return null;
-  return Math.round((1 - promo / plan.precioMensual) * 100);
-}
-
 export type PlanFeatures = {
   pos: boolean;
   inventario_basico: boolean;
@@ -168,9 +139,9 @@ export const PLANES: Record<PlanId, Plan> = {
     id: "pro",
     nombre: "Pro",
     descripcionCorta: "Operacion completa para una sucursal: ventas, finanzas y nomina.",
-    precioMensual: 39,
-    precioAnual: 327.6,
-    precioAnualMensualizado: 27.3,
+    precioMensual: 20,
+    precioAnual: 168,
+    precioAnualMensualizado: 14,
     ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 1,
     maxUsuarios: 7,
@@ -204,9 +175,9 @@ export const PLANES: Record<PlanId, Plan> = {
     id: "enterprise",
     nombre: "Enterprise",
     descripcionCorta: "Multi-sucursal, IA integrada, API y control corporativo.",
-    precioMensual: 149,
-    precioAnual: 1251.6,
-    precioAnualMensualizado: 104.3,
+    precioMensual: 99,
+    precioAnual: 831.6,
+    precioAnualMensualizado: 69.3,
     ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 5,
     maxUsuarios: 20,

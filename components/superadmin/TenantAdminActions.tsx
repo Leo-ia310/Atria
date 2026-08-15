@@ -9,7 +9,7 @@ import {
   suspenderEmpresaAction,
   type SuperAdminActionState,
 } from "@/lib/actions/superadmin";
-import { getPlan, precioPromocional, type PlanId } from "@/lib/pricing";
+import { getPlan, type PlanId } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 const INITIAL_STATE: SuperAdminActionState = { ok: false, mensaje: "" };
@@ -63,7 +63,7 @@ function ActivarForm({ tenant }: { tenant: TenantInfo }) {
   const monto = useMemo(() => {
     const plan = getPlan(planId);
     if (ciclo === "anual") return plan.precioAnual.toFixed(2);
-    return (precioPromocional(planId) ?? plan.precioMensual).toFixed(2);
+    return plan.precioMensual.toFixed(2);
   }, [planId, ciclo]);
   const codigo = `PAGO ${shortCode(tenant.id)}`;
 

@@ -3,13 +3,13 @@ export const ARCA_PRICING = {
   maxUsers: 100,
   pro: {
     name: "Pro",
-    monthlyPrice: 39,
+    monthlyPrice: 20,
     includedUsers: 7,
   },
   enterprise: {
     name: "Enterprise",
-    monthlyPrice: 149,
-    includedUsers: 10,
+    monthlyPrice: 99,
+    includedUsers: 20,
     additionalUserPrice: 5,
   },
 } as const;
@@ -22,12 +22,12 @@ export const USER_QUANTITY_MARKS = [
   },
   {
     id: "enterprise",
-    label: "8 a 10 usuarios",
+    label: "8 a 20 usuarios",
     detail: "Enterprise base",
   },
   {
     id: "additional",
-    label: "Mas de 10",
+    label: "Mas de 20",
     detail: "Usuarios adicionales",
   },
 ] as const;

@@ -311,7 +311,7 @@ function UserQuantitySelector({
   onInputChange,
   onInputBlur,
 }: UserQuantitySelectorProps) {
-  const activeMarkId = users <= 7 ? "pro" : users <= 10 ? "enterprise" : "additional";
+  const activeMarkId = users <= 7 ? "pro" : users <= 20 ? "enterprise" : "additional";
 
   return (
     <div className="rounded-[14px] border border-white/12 bg-[#160827]/88 p-5 shadow-[0_22px_70px_rgba(7,2,18,0.35)]">

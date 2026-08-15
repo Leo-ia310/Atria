@@ -132,17 +132,14 @@ arca/
 | Plan | Mensual | Anual mensualizado | Sucursales | Usuarios | Contabilidad |
 |---|---|---|---|---|---|
 | **Demo** | Gratis | — | 1 | 1 | ✗ |
-| **Pro** | $39.00 | $27.30 | 1 | 7 (+$5/extra) | ✓ |
-| **Enterprise** | $149.00 | $104.30 | 5 (+$30/extra) | 20 (+$5/extra) | ✓ multi-sucursal |
+| **Pro** | $20.00 | $14.00 | 1 | 7 (+$5/extra) | ✓ |
+| **Enterprise** | $99.00 | $69.30 | 5 (+$30/extra) | 20 (+$5/extra) | ✓ multi-sucursal |
 
 Limites Demo: 10 productos, 50 transacciones/mes, 10 clientes, 5 facturas/mes.
 
-**Promo de lanzamiento** (`PROMO_LANZAMIENTO` en `lib/pricing.ts`): los primeros 3 meses
-de ciclo mensual, Pro cuesta $20 (-49%) y Enterprise $99 (-34%); luego vuelve al precio
-normal. Solo aplica a mensual (el anual ya es prepago de 12 meses). El cobro real la
-respeta vía `precioAPagar()` en `lib/actions/pagos.ts`, que cuenta los meses ya pagados
-por la empresa (`pagosSuscripcion`, ciclo mensual, plan pago) para saber si sigue dentro
-de la ventana. Para apagar la promo, `PROMO_LANZAMIENTO.activa = false`.
+Pro y Enterprise usan precio mensual fijo: Pro $20 y Enterprise $99. No hay promo
+temporal. El cobro real usa `precioAPagar()` en `lib/actions/pagos.ts` y toma el
+precio base del plan o el total anual correspondiente.
 
 Las features están tipadas en `PlanFeatures` (`lib/pricing.ts`). Para gatear UI/lógica:
 ```ts

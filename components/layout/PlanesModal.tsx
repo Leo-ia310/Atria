@@ -9,7 +9,6 @@ import {
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
   descripcionLimiteIA,
-  precioPromocional,
   type Plan,
   type PlanId,
 } from "@/lib/pricing";
@@ -150,7 +149,7 @@ export function PlanesModal({
   const precioCheckout = planCheckout
     ? anual
       ? planCheckout.precioAnual
-      : precioPromocional(planCheckout.id) ?? planCheckout.precioMensual
+      : planCheckout.precioMensual
     : 0;
 
   return createPortal(
@@ -270,7 +269,7 @@ function VistaPlanes({
           const planPagoBloqueadoPorTrial = trialPagoActivo && plan.id !== "demo";
           const precio = anual
             ? plan.precioAnualMensualizado
-            : precioPromocional(plan.id) ?? plan.precioMensual;
+            : plan.precioMensual;
           return (
             <div
               key={plan.id}

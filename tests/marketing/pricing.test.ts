@@ -58,30 +58,30 @@ describe("calculateArcaPrice", () => {
   it("calcula Plan Pro de 1 a 7 usuarios", () => {
     assert.deepEqual(
       pickArca(calculateArcaPrice(1)),
-      { plan: "Pro", users: 1, includedUsers: 7, additionalUsers: 0, monthlyTotal: 39 },
+      { plan: "Pro", users: 1, includedUsers: 7, additionalUsers: 0, monthlyTotal: 20 },
     );
     assert.deepEqual(
       pickArca(calculateArcaPrice(7)),
-      { plan: "Pro", users: 7, includedUsers: 7, additionalUsers: 0, monthlyTotal: 39 },
+      { plan: "Pro", users: 7, includedUsers: 7, additionalUsers: 0, monthlyTotal: 20 },
     );
   });
 
-  it("calcula Enterprise base de 8 a 10 usuarios", () => {
+  it("calcula Enterprise base de 8 a 20 usuarios", () => {
     assert.deepEqual(
       pickArca(calculateArcaPrice(8)),
-      { plan: "Enterprise", users: 8, includedUsers: 10, additionalUsers: 0, monthlyTotal: 149 },
+      { plan: "Enterprise", users: 8, includedUsers: 20, additionalUsers: 0, monthlyTotal: 99 },
     );
     assert.deepEqual(
-      pickArca(calculateArcaPrice(10)),
-      { plan: "Enterprise", users: 10, includedUsers: 10, additionalUsers: 0, monthlyTotal: 149 },
+      pickArca(calculateArcaPrice(20)),
+      { plan: "Enterprise", users: 20, includedUsers: 20, additionalUsers: 0, monthlyTotal: 99 },
     );
   });
 
-  it("calcula usuarios adicionales despues de 10", () => {
-    assert.equal(calculateArcaPrice(11).monthlyTotal, 154);
-    assert.equal(calculateArcaPrice(20).monthlyTotal, 199);
-    assert.equal(calculateArcaPrice(20).additionalUsersCost, 50);
-    assert.equal(calculateArcaPrice(20).annualTotal, 2388);
+  it("calcula usuarios adicionales despues de 20", () => {
+    assert.equal(calculateArcaPrice(21).monthlyTotal, 104);
+    assert.equal(calculateArcaPrice(30).monthlyTotal, 149);
+    assert.equal(calculateArcaPrice(30).additionalUsersCost, 50);
+    assert.equal(calculateArcaPrice(30).annualTotal, 1788);
   });
 
   it("rechaza valores invalidos", () => {
@@ -148,14 +148,14 @@ describe("calculateSavings", () => {
     const result = calculateSavings(SOFTWARE_FIXTURES, ["crm-user", "accounting-flat"], 7);
     assert.equal(result.arca.plan, "Pro");
     assert.equal(result.external.monthlyTotal, 145);
-    assert.equal(result.monthlySavings, 106);
-    assert.equal(result.annualSavings, 1272);
+    assert.equal(result.monthlySavings, 125);
+    assert.equal(result.annualSavings, 1500);
     assert.equal(result.isPositiveSavings, true);
   });
 
   it("maneja ahorro cero", () => {
     const result = calculateSavings(
-      [{ ...SOFTWARE_FIXTURES[1], monthlyPrice: 39 }],
+      [{ ...SOFTWARE_FIXTURES[1], monthlyPrice: 20 }],
       ["accounting-flat"],
       1,
     );
@@ -167,8 +167,8 @@ describe("calculateSavings", () => {
   it("maneja ARCA mas caro", () => {
     const result = calculateSavings(SOFTWARE_FIXTURES, ["accounting-flat"], 9);
     assert.equal(result.arca.plan, "Enterprise");
-    assert.equal(result.monthlySavings, -109);
-    assert.equal(result.annualSavings, -1308);
+    assert.equal(result.monthlySavings, -59);
+    assert.equal(result.annualSavings, -708);
     assert.equal(result.isPositiveSavings, false);
   });
 
@@ -180,11 +180,11 @@ describe("calculateSavings", () => {
 
   it("refleja cambio de plan y usuarios adicionales", () => {
     const enterprise = calculateSavings(SOFTWARE_FIXTURES, ["crm-user"], 8);
-    const additional = calculateSavings(SOFTWARE_FIXTURES, ["crm-user"], 12);
+    const additional = calculateSavings(SOFTWARE_FIXTURES, ["crm-user"], 22);
     assert.equal(enterprise.arca.plan, "Enterprise");
     assert.equal(enterprise.arca.additionalUsers, 0);
     assert.equal(additional.arca.additionalUsers, 2);
-    assert.equal(additional.arca.monthlyTotal, 159);
+    assert.equal(additional.arca.monthlyTotal, 109);
   });
 });
 
