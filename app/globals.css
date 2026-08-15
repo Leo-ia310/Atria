@@ -107,7 +107,13 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+}
+
+/* `overflow-x: clip` (no `hidden`) evita el scroll horizontal / "zoom out"
+   igual que hidden, pero SIN convertir a body en contenedor de scroll —
+   que es lo que rompe `position: sticky` del header en móvil. */
+body {
+  overflow-x: clip;
 }
 
 ::selection {
