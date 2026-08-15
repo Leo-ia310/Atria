@@ -1525,3 +1525,27 @@ async function queryFacturas(ctx: ExportCtx, esCredito: boolean): Promise<Record
     estadoCxc: f.cxcEstado ? f.cxcEstado.charAt(0).toUpperCase() + f.cxcEstado.slice(1) : "—",
   }));
 }
+
+/**
+ * Hojas incluidas en el "libro completo del negocio" (Exportar todo).
+ * Orden = orden de las pestañas. Solo recursos sin parámetros obligatorios.
+ */
+export const HOJAS_NEGOCIO: { recurso: string; hoja: string }[] = [
+  { recurso: "ventas", hoja: "Ventas" },
+  { recurso: "facturas-credito", hoja: "Facturas al credito" },
+  { recurso: "facturas-cobradas", hoja: "Facturas cobradas" },
+  { recurso: "inventario", hoja: "Inventario" },
+  { recurso: "clientes", hoja: "Clientes" },
+  { recurso: "compras", hoja: "Compras" },
+  { recurso: "proveedores", hoja: "Proveedores" },
+  { recurso: "cxc", hoja: "Cuentas por cobrar" },
+  { recurso: "cxp", hoja: "Cuentas por pagar" },
+  { recurso: "gastos", hoja: "Gastos" },
+  { recurso: "caja", hoja: "Caja" },
+  { recurso: "libro-diario", hoja: "Libro Diario" },
+  { recurso: "balance-comprobacion", hoja: "Balance de Comprobacion" },
+  { recurso: "estado-resultados", hoja: "Estado de Resultados" },
+  { recurso: "balance-general", hoja: "Balance General" },
+  { recurso: "empleados", hoja: "Empleados" },
+  { recurso: "nomina", hoja: "Nomina" },
+];

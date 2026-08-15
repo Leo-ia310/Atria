@@ -144,15 +144,29 @@ function nombreHoja(titulo: string): string {
   return titulo.replace(/[[\]*?/\\:]/g, " ").slice(0, 31) || "Reporte";
 }
 
-export async function construirLibro(opts: OpcionesLibro): Promise<Buffer> {
+/** Nombre de hoja saneado y único dentro del libro (Excel prohíbe duplicados). */
+function nombreHojaUnico(wb: ExcelJS.Workbook, base: string): string {
+  const nombre = nombreHoja(base);
+  const existentes = new Set(wb.worksheets.map((w) => w.name));
+  if (!existentes.has(nombre)) return nombre;
+  let i = 2;
+  let candidato = `${nombre.slice(0, 28)} ${i}`;
+  while (existentes.has(candidato)) {
+    i++;
+    candidato = `${nombre.slice(0, 28)} ${i}`;
+  }
+  return candidato;
+}
+
+/** Una hoja del libro: mismas opciones que un reporte, con nombre de pestaña opcional. */
+export type HojaExport = OpcionesLibro & { nombreHoja?: string };
+
+function agregarHoja(wb: ExcelJS.Workbook, opts: HojaExport): void {
   const { empresa, titulo, subtitulo, columnas, filas, zonaHoraria } = opts;
   const pais = empresa.pais;
   const ncol = columnas.length;
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "ARCA";
-  wb.created = new Date();
-  const ws = wb.addWorksheet(nombreHoja(titulo), {
+  const ws = wb.addWorksheet(nombreHojaUnico(wb, opts.nombreHoja ?? titulo), {
     views: [{ showGridLines: false }],
     properties: { defaultRowHeight: 18 },
   });
@@ -317,7 +331,22 @@ export async function construirLibro(opts: OpcionesLibro): Promise<Buffer> {
     vacio.font = { italic: true, color: { argb: TEXTO_TENUE } };
     vacio.alignment = { horizontal: "center", vertical: "middle" };
   }
+}
 
-  const buffer = await wb.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+/** Libro de una sola hoja. */
+export async function construirLibro(opts: OpcionesLibro): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "ARCA";
+  wb.created = new Date();
+  agregarHoja(wb, opts);
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/** Libro con varias hojas (una por reporte). */
+export async function construirLibroMultiHoja(hojas: HojaExport[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "ARCA";
+  wb.created = new Date();
+  for (const hoja of hojas) agregarHoja(wb, hoja);
+  return Buffer.from(await wb.xlsx.writeBuffer());
 }

@@ -28,6 +28,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheAside } from "@/lib/redis/cache";
 import { keys, TTL } from "@/lib/redis/keys";
 import { fechaISOEnZona, inicioMesISO } from "@/lib/dates";
+import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function DashboardPage({
   searchParams,
@@ -149,10 +150,17 @@ export default async function DashboardPage({
         title="Operaciones del día"
         subtitle={`Bienvenido, ${user.nombre}. Sistema sincronizado.`}
         actions={
-          <span className="arca-badge arca-badge-success">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-            En línea
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportarExcel
+              recurso="negocio-completo"
+              etiqueta="Exportar todo"
+              className="arca-btn arca-btn-primary arca-btn-sm"
+            />
+            <span className="arca-badge arca-badge-success">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+              En línea
+            </span>
+          </div>
         }
       />
 
