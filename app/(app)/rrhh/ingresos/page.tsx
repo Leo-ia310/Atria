@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { CircleDollarSign } from "lucide-react";
 import { db } from "@/lib/db";
@@ -14,18 +13,11 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Badge } from "@/components/ui/Badge";
+import { SelectorNomina } from "@/components/rrhh/SelectorNomina";
 import { IngresosManager } from "@/components/rrhh/IngresosManager";
 import { FRECUENCIA_LABEL } from "@/lib/rrhh";
 import { formatearFecha, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
-
-const VARIANTE: Record<string, "success" | "warning" | "neutral" | "error" | "info"> = {
-  borrador: "warning",
-  aprobada: "info",
-  pagada: "success",
-  anulada: "error",
-};
 
 export default async function IngresosPage({
   searchParams,
@@ -154,31 +146,16 @@ export default async function IngresosPage({
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {nominasLista.map((b) => {
-              const activa = b.id === seleccionada?.id;
-              return (
-                <Link
-                  key={b.id}
-                  href={`/rrhh/ingresos?nomina=${b.id}`}
-                  className={`rounded-md border px-3 py-2 text-small transition ${
-                    activa
-                      ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)] font-medium"
-                      : "border-[color:var(--color-border)] hover:border-[color:var(--color-border-strong)]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>{b.numero}</span>
-                    <Badge variant={VARIANTE[b.estado] ?? "neutral"}>{b.estado}</Badge>
-                  </div>
-                  <div className="text-[11px] text-[color:var(--color-text-muted)]">
-                    {FRECUENCIA_LABEL[b.frecuencia] ?? b.frecuencia} -{" "}
-                    {formatearFecha(b.periodoInicio)} - {formatearFecha(b.periodoFin)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <SelectorNomina
+            basePath="/rrhh/ingresos"
+            selectedId={seleccionada?.id}
+            items={nominasLista.map((b) => ({
+              id: b.id,
+              numero: b.numero,
+              estado: b.estado,
+              periodo: `${FRECUENCIA_LABEL[b.frecuencia] ?? b.frecuencia} · ${formatearFecha(b.periodoInicio)} - ${formatearFecha(b.periodoFin)}`,
+            }))}
+          />
 
           {seleccionada && (
             <IngresosManager
