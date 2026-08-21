@@ -7,6 +7,7 @@ import { ChevronRight, CircleAlert, PanelLeftClose, PanelLeftOpen, X } from "luc
 import { cn } from "@/lib/utils";
 import { PlanesModal } from "@/components/layout/PlanesModal";
 import { NAV_GROUPS, type NavItem } from "@/components/layout/nav-items";
+import { ArcaLogo } from "@/components/marketing/ArcaLogo";
 import type { ModuloAcceso } from "@/lib/access-control";
 
 const ANCHO_ABIERTO = "240px";
@@ -128,8 +129,8 @@ export function Sidebar({
           )}
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--color-tertiary)]/15 text-[color:var(--color-tertiary-light)]">
-              <span className="text-lg font-bold">A</span>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/5 ring-1 ring-white/10">
+              <ArcaLogo className="h-6 w-auto object-contain" eager />
             </div>
             {!colapsadoVisual && (
               <div className="min-w-0">
