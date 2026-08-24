@@ -129,7 +129,7 @@ export function Sidebar({
           )}
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/5 ring-1 ring-white/10">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden">
               <ArcaLogo className="h-6 w-auto object-contain" eager />
             </div>
             {!colapsadoVisual && (
