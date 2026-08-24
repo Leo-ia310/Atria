@@ -49,7 +49,9 @@ const REDES_SOCIALES = [
   },
   {
     nombre: "Facebook",
-    href: process.env.NEXT_PUBLIC_ARCA_FACEBOOK_URL || "https://www.facebook.com/",
+    href:
+      process.env.NEXT_PUBLIC_ARCA_FACEBOOK_URL ||
+      "https://www.facebook.com/share/1XtDCnM5M9/",
     icono: Facebook,
   },
   {
