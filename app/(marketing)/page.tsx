@@ -43,7 +43,8 @@ const REDES_SOCIALES = [
   {
     nombre: "Instagram",
     href:
-      process.env.NEXT_PUBLIC_ARCA_INSTAGRAM_URL || "https://www.instagram.com/",
+      process.env.NEXT_PUBLIC_ARCA_INSTAGRAM_URL ||
+      "https://www.instagram.com/arca_contac?igsi=NWM1MngyZjczN3kw",
     icono: Instagram,
   },
   {
