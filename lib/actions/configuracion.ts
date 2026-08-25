@@ -334,6 +334,7 @@ export async function actualizarPerfil(input: unknown): Promise<Resultado> {
       .set({ nombre: d.nombre, email: d.email, telefono: d.telefono || null })
       .where(eq(usuarios.id, user.id));
     revalidatePath("/mi-cuenta");
+    revalidatePath("/restaurante/mi-cuenta");
     return { ok: true };
   } catch (err) {
     console.error("[actualizarPerfil]", err);
@@ -409,6 +410,9 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
     revalidatePath("/restaurante");
+    revalidatePath("/restaurante/configuracion");
+    revalidatePath("/restaurante/empresa");
+    revalidatePath("/restaurante/plan");
     revalidatePath("/restaurante/kds");
     revalidatePath("/restaurante/menu");
     revalidatePath("/menu-virtual");
@@ -592,6 +596,9 @@ export async function eliminarDatosRestaurante(input: unknown): Promise<Resultad
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
     revalidatePath("/restaurante");
+    revalidatePath("/restaurante/configuracion");
+    revalidatePath("/restaurante/empresa");
+    revalidatePath("/restaurante/plan");
     revalidatePath("/restaurante/kds");
     revalidatePath("/restaurante/menu");
     revalidatePath("/menu-virtual");

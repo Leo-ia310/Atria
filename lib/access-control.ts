@@ -22,6 +22,7 @@ export type ModuloAcceso =
   | "restaurante-promociones"
   | "restaurante-soporte"
   | "restaurante-configuracion"
+  | "restaurante-plan"
   | "inventario"
   | "clientes"
   | "compras"
@@ -128,6 +129,9 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
   },
   "restaurante-configuracion": {
     soloAdmin: true,
+    soloRestaurante: true,
+  },
+  "restaurante-plan": {
     soloRestaurante: true,
   },
   facturas: { permisos: ["ventas.ver", "ventas.crear"], features: ["facturacion"] },
@@ -241,6 +245,10 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
     if (subruta === "promociones") return "restaurante-promociones";
     if (subruta === "soporte") return "restaurante-soporte";
     if (subruta === "configuracion") return "restaurante-configuracion";
+    if (subruta === "empresa") return "restaurante-configuracion";
+    if (subruta === "dispositivos") return "restaurante-configuracion";
+    if (subruta === "plan") return "restaurante-plan";
+    if (subruta === "mi-cuenta") return "mi-cuenta";
     return "restaurante-dashboard";
   }
   if (base === "inventario") return "inventario";

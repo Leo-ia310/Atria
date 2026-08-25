@@ -1,12 +1,17 @@
 import Link from "next/link";
 import {
+  Building2,
   CalendarDays,
   ChefHat,
+  CreditCard,
   Gift,
+  LifeBuoy,
+  MonitorSmartphone,
   Package,
   QrCode,
   Settings,
   Table2,
+  UserRound,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +65,39 @@ const CONFIG_RESTAURANTE: ConfigCard[] = [
   },
 ];
 
+const CUENTA_RESTAURANTE: ConfigCard[] = [
+  {
+    href: "/restaurante/empresa",
+    title: "Empresa",
+    text: "Datos generales, giro de negocio, politicas comerciales y vertical restaurante.",
+    icon: Building2,
+  },
+  {
+    href: "/restaurante/dispositivos",
+    title: "Dispositivos",
+    text: "Lector de barras, impresora, caja y equipos usados en salon o barra.",
+    icon: MonitorSmartphone,
+  },
+  {
+    href: "/restaurante/plan",
+    title: "Plan actual",
+    text: "Suscripcion, limites, periodo vigente y opciones de pago o mejora.",
+    icon: CreditCard,
+  },
+  {
+    href: "/restaurante/mi-cuenta",
+    title: "Mi perfil",
+    text: "Datos del usuario, correo, telefono y cambio de contrasena.",
+    icon: UserRound,
+  },
+  {
+    href: "/restaurante/soporte",
+    title: "Soporte restaurante",
+    text: "Ayuda enfocada en salon, cocina, QR, reservas, insumos y reportes.",
+    icon: LifeBuoy,
+  },
+];
+
 const ADMINISTRACION: ConfigCard[] = [
   {
     href: "/restaurante/comensales",
@@ -89,6 +127,15 @@ export default async function RestauranteConfiguracionPage() {
           el mismo entorno de restaurante.
         </p>
       </header>
+
+      <section className="space-y-3">
+        <SectionTitle title="Empresa y cuenta" subtitle="Administracion general dentro de ARCA Restaurante." />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {CUENTA_RESTAURANTE.map((item) => (
+            <ConfigTile key={item.href} {...item} />
+          ))}
+        </div>
+      </section>
 
       <section className="space-y-3">
         <SectionTitle title="Operacion" subtitle="Configuracion diaria del servicio." />

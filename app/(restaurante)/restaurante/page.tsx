@@ -3,9 +3,14 @@ import {
   BarChart3,
   CalendarDays,
   ChefHat,
+  ClipboardList,
   Clock,
+  Gift,
+  LifeBuoy,
   Package,
   Receipt,
+  Settings,
+  ShoppingCart,
   Table2,
   TrendingDown,
   TrendingUp,
@@ -46,48 +51,147 @@ export default async function RestauranteDashboardPage({
   const mesasDisponibles = data.mesas.disponible ?? 0;
   const mesasOcupadas = data.mesas.ocupada ?? 0;
   const mesasPorLimpiar = data.mesas.por_limpiar ?? 0;
-  const accesosPorArea: ModuleTileProps[] = [
+  const totalMesas = Object.values(data.mesas).reduce((total, n) => total + n, 0);
+  const accesosPorSeccion: Array<{
+    title: string;
+    subtitle: string;
+    items: ModuleTileProps[];
+  }> = [
     {
-      href: "/restaurante/mesas",
-      title: "Salon",
-      subtitle: "Mesas, areas y estados",
-      icon: Table2,
-      metric: `${mesasOcupadas} ocupadas`,
+      title: "Atencion",
+      subtitle: "Venta, salon y seguimiento del cliente.",
+      items: [
+        {
+          href: "/restaurante/pos",
+          title: "POS restaurante",
+          subtitle: "Cobro rapido para mesas, barra y pedidos para llevar",
+          icon: ShoppingCart,
+          metricLabel: "Ventas de hoy",
+          metricValue: formatearMoneda(data.ventasHoy, pais),
+        },
+        {
+          href: "/restaurante/mesas",
+          title: "Salon",
+          subtitle: "Mesas, areas, capacidades y estados",
+          icon: Table2,
+          metricLabel: "Mesas ocupadas",
+          metricValue: `${mesasOcupadas}/${totalMesas}`,
+        },
+        {
+          href: "/restaurante/ordenes",
+          title: "Ordenes",
+          subtitle: "Cuentas abiertas, comandas enviadas y cierre",
+          icon: ClipboardList,
+          metricLabel: "Ordenes abiertas",
+          metricValue: String(data.ordenesAbiertas),
+        },
+        {
+          href: "/restaurante/comensales",
+          title: "Comensales",
+          subtitle: "CRM, preferencias, historial y fidelizacion",
+          icon: UsersRound,
+          metricLabel: "Atendidos hoy",
+          metricValue: String(data.comensalesAtendidos),
+        },
+      ],
     },
     {
-      href: "/restaurante/kds",
       title: "Cocina",
-      subtitle: "KDS y tiempos de preparacion",
-      icon: ChefHat,
-      metric: `${data.pedidosCocina} en cola`,
+      subtitle: "Preparacion, carta QR, recetas e inventario.",
+      items: [
+        {
+          href: "/restaurante/kds",
+          title: "KDS",
+          subtitle: "Pantalla de cocina por estacion y prioridad",
+          icon: ChefHat,
+          metricLabel: "Pedidos en cocina",
+          metricValue: String(data.pedidosCocina),
+        },
+        {
+          href: "/restaurante/menu",
+          title: "Carta QR",
+          subtitle: "Menu publico, platillos, QR y disponibilidad",
+          icon: Utensils,
+          metricLabel: "Platillos destacados",
+          metricValue: String(data.topPlatillos.length),
+        },
+        {
+          href: "/restaurante/recetas",
+          title: "Recetas",
+          subtitle: "Preparaciones, porciones, costos y margenes",
+          icon: Receipt,
+          metricLabel: "Food cost estimado",
+          metricValue: `${data.foodCostPct.toFixed(2)}%`,
+        },
+        {
+          href: "/restaurante/inventario",
+          title: "Insumos",
+          subtitle: "Stock minimo, vencimientos y compras sugeridas",
+          icon: Package,
+          metricLabel: "Alertas de stock",
+          metricValue: String(data.insumosBajos.length),
+        },
+        {
+          href: "/restaurante/mermas",
+          title: "Mermas",
+          subtitle: "Caducidad, preparacion, accidentes y cortesia",
+          icon: Package,
+          metricLabel: "Registros hoy",
+          metricValue: String(data.mermasHoy),
+        },
+      ],
     },
     {
-      href: "/restaurante/menu",
-      title: "Carta QR",
-      subtitle: "Menu publico, platillos y QR",
-      icon: Utensils,
-      metric: `${data.topPlatillos.length} destacados`,
+      title: "Reservas",
+      subtitle: "Recepcion, agenda y promociones.",
+      items: [
+        {
+          href: "/restaurante/reservaciones",
+          title: "Reservas",
+          subtitle: "Agenda, lista de espera y ocasiones especiales",
+          icon: CalendarDays,
+          metricLabel: "Reservas proximas",
+          metricValue: String(data.reservacionesProximas),
+        },
+        {
+          href: "/restaurante/promociones",
+          title: "Promociones",
+          subtitle: "Ofertas por horario, segmento o platillo",
+          icon: Gift,
+          metricLabel: "Promos activas",
+          metricValue: String(data.promocionesActivas),
+        },
+      ],
     },
     {
-      href: "/restaurante/inventario",
-      title: "Insumos",
-      subtitle: "Stock, vencimientos y food cost",
-      icon: Package,
-      metric: `${data.insumosBajos.length} alertas`,
-    },
-    {
-      href: "/restaurante/reservaciones",
-      title: "Recepcion",
-      subtitle: "Reservas y lista de espera",
-      icon: CalendarDays,
-      metric: `${data.reservacionesProximas} reservas`,
-    },
-    {
-      href: "/restaurante/reportes",
-      title: "Reportes",
-      subtitle: "Ventas, margen y ranking",
-      icon: BarChart3,
-      metric: formatearMoneda(data.margenBruto, pais),
+      title: "Gestion",
+      subtitle: "Indicadores, configuracion y ayuda.",
+      items: [
+        {
+          href: "/restaurante/reportes",
+          title: "Reportes",
+          subtitle: "Ventas, margen, ranking y food cost",
+          icon: BarChart3,
+          metricLabel: "Margen bruto",
+          metricValue: formatearMoneda(data.margenBruto, pais),
+        },
+        {
+          href: "/restaurante/configuracion",
+          title: "Configuracion",
+          subtitle: "Empresa, dispositivos, plan y ajustes del restaurante",
+          icon: Settings,
+          metricLabel: "Entorno",
+          metricValue: "Restaurante",
+        },
+        {
+          href: "/restaurante/soporte",
+          title: "Soporte",
+          subtitle: "Ayuda enfocada en salon, cocina, QR y reservas",
+          icon: LifeBuoy,
+          metricLabel: "Canal",
+          metricValue: "ARCA",
+        },
+      ],
     },
   ];
 
@@ -215,11 +319,18 @@ export default async function RestauranteDashboardPage({
         title="Accesos por area"
         subtitle="Todos estos accesos se quedan dentro de /restaurante."
       />
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {accesosPorArea.map((item) => (
-          <ModuleTile key={item.href} {...item} />
+      <div className="space-y-5">
+        {accesosPorSeccion.map((grupo) => (
+          <section key={grupo.title} className="space-y-3">
+            <SectionTitle title={grupo.title} subtitle={grupo.subtitle} />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {grupo.items.map((item) => (
+                <ModuleTile key={item.href} {...item} />
+              ))}
+            </div>
+          </section>
         ))}
-      </section>
+      </div>
 
       <SectionHeader
         eyebrow="Control"
@@ -314,12 +425,24 @@ function SectionHeader({
   );
 }
 
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div>
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+        {subtitle}
+      </p>
+    </div>
+  );
+}
+
 type ModuleTileProps = {
   href: string;
   title: string;
   subtitle: string;
   icon: LucideIcon;
-  metric: string;
+  metricLabel: string;
+  metricValue: string;
 };
 
 function ModuleTile({
@@ -327,7 +450,8 @@ function ModuleTile({
   title,
   subtitle,
   icon: Icon,
-  metric,
+  metricLabel,
+  metricValue,
 }: ModuleTileProps) {
   return (
     <Link
@@ -345,8 +469,11 @@ function ModuleTile({
           <Icon size={18} />
         </span>
       </div>
-      <div className="mt-4 text-small font-medium text-[color:var(--color-text-secondary)]">
-        {metric}
+      <div className="mt-4 flex items-end justify-between gap-3 text-small">
+        <span className="text-[color:var(--color-text-muted)]">{metricLabel}</span>
+        <span className="font-semibold text-[color:var(--color-text-primary)]">
+          {metricValue}
+        </span>
       </div>
     </Link>
   );

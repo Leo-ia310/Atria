@@ -8,8 +8,10 @@ import {
   restauranteComandas,
   restauranteListaEspera,
   restauranteMesas,
+  restauranteMermas,
   restauranteOrdenItems,
   restauranteOrdenes,
+  restaurantePromociones,
   restauranteRecetas,
   restauranteReservaciones,
   restauranteProductos,
@@ -31,6 +33,8 @@ export type DashboardRestauranteData = {
   tiempoPromedioPreparacionMin: number;
   foodCostPct: number;
   margenBruto: number;
+  mermasHoy: number;
+  promocionesActivas: number;
   topPlatillos: Array<{ nombre: string; unidades: number; ingresos: number }>;
   insumosBajos: Array<{ id: string; nombre: string; stock: number; minimo: number }>;
   insumosVencen: Array<{ id: string; nombre: string; fecha: string }>;
@@ -63,6 +67,9 @@ export async function cargarDashboardRestaurante({
   const filtroSucursalEspera = sucursalIds
     ? inArray(restauranteListaEspera.sucursalId, sucursalIds)
     : undefined;
+  const filtroSucursalMerma = sucursalIds
+    ? inArray(restauranteMermas.sucursalId, sucursalIds)
+    : undefined;
 
   return dbConEmpresa(empresaId, async (tx) => {
     const [
@@ -76,6 +83,8 @@ export async function cargarDashboardRestaurante({
       esperaRows,
       cocinaRows,
       prepRows,
+      mermasRows,
+      promosRows,
       topRows,
       stockRows,
       vencenRows,
@@ -190,6 +199,25 @@ export async function cargarDashboardRestaurante({
           ),
         ),
       tx
+        .select({ n: count() })
+        .from(restauranteMermas)
+        .where(
+          and(
+            eq(restauranteMermas.empresaId, empresaId),
+            sql`(${restauranteMermas.fecha} AT TIME ZONE ${zonaHoraria})::date = ${hoy}`,
+            filtroSucursalMerma,
+          ),
+        ),
+      tx
+        .select({ n: count() })
+        .from(restaurantePromociones)
+        .where(
+          and(
+            eq(restaurantePromociones.empresaId, empresaId),
+            eq(restaurantePromociones.activa, true),
+          ),
+        ),
+      tx
         .select({
           nombre: restauranteOrdenItems.nombreSnapshot,
           unidades: sql<string>`COALESCE(SUM(${restauranteOrdenItems.cantidad}), 0)`,
@@ -271,6 +299,8 @@ export async function cargarDashboardRestaurante({
       tiempoPromedioPreparacionMin: parseFloat(prepRows[0]?.min ?? "0"),
       foodCostPct: ventasHoy > 0 ? Math.round((costoHoy / ventasHoy) * 10000) / 100 : 0,
       margenBruto,
+      mermasHoy: mermasRows[0]?.n ?? 0,
+      promocionesActivas: promosRows[0]?.n ?? 0,
       topPlatillos: topRows.map((row) => ({
         nombre: row.nombre,
         unidades: parseFloat(row.unidades),
