@@ -19,6 +19,31 @@ import {
   configuraciones,
   menusVirtuales,
   pedidosCocina,
+  restauranteAreas,
+  restauranteComandaItems,
+  restauranteComandas,
+  restauranteComensalTokens,
+  restauranteComensales,
+  restauranteComprasSugeridas,
+  restauranteEncuestaRespuestas,
+  restauranteEncuestas,
+  restauranteEstaciones,
+  restauranteFidelizacionConfig,
+  restauranteListaEspera,
+  restauranteMermas,
+  restauranteMesas,
+  restauranteMeseros,
+  restauranteModificadorGrupos,
+  restauranteModificadores,
+  restauranteMovimientosPuntos,
+  restauranteOrdenItems,
+  restauranteOrdenes,
+  restauranteProductos,
+  restaurantePromociones,
+  restauranteRecetaIngredientes,
+  restauranteRecetas,
+  restauranteReservaciones,
+  restauranteVisitasComensal,
 } from "@/lib/db/schema";
 import {
   crearUsuarioSchema,
@@ -372,12 +397,18 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
 
     await db
       .update(empresas)
-      .set({ tipoEmpresa: parsed.data.tipoEmpresa, actualizadoEn: new Date() })
+      .set({
+        tipoEmpresa: parsed.data.tipoEmpresa,
+        verticalEmpresa:
+          parsed.data.tipoEmpresa === "restaurante" ? "restaurante" : "retail",
+        actualizadoEn: new Date(),
+      })
       .where(eq(empresas.id, user.empresaId));
 
     revalidatePath("/configuracion");
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
+    revalidatePath("/restaurante");
     revalidatePath("/menu-virtual");
     revalidatePath("/pedidos-cocina");
     return { ok: true };
@@ -493,6 +524,63 @@ export async function eliminarDatosRestaurante(input: unknown): Promise<Resultad
 
   try {
     await db.transaction(async (tx) => {
+      await tx
+        .delete(restauranteEncuestaRespuestas)
+        .where(eq(restauranteEncuestaRespuestas.empresaId, user.empresaId));
+      await tx.delete(restauranteEncuestas).where(eq(restauranteEncuestas.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteMovimientosPuntos)
+        .where(eq(restauranteMovimientosPuntos.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteFidelizacionConfig)
+        .where(eq(restauranteFidelizacionConfig.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteComensalTokens)
+        .where(eq(restauranteComensalTokens.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteVisitasComensal)
+        .where(eq(restauranteVisitasComensal.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteListaEspera)
+        .where(eq(restauranteListaEspera.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteReservaciones)
+        .where(eq(restauranteReservaciones.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteComandaItems)
+        .where(eq(restauranteComandaItems.empresaId, user.empresaId));
+      await tx.delete(restauranteComandas).where(eq(restauranteComandas.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteOrdenItems)
+        .where(eq(restauranteOrdenItems.empresaId, user.empresaId));
+      await tx.delete(restauranteOrdenes).where(eq(restauranteOrdenes.empresaId, user.empresaId));
+      await tx.delete(restauranteMermas).where(eq(restauranteMermas.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteComprasSugeridas)
+        .where(eq(restauranteComprasSugeridas.empresaId, user.empresaId));
+      await tx
+        .delete(restaurantePromociones)
+        .where(eq(restaurantePromociones.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteModificadores)
+        .where(eq(restauranteModificadores.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteModificadorGrupos)
+        .where(eq(restauranteModificadorGrupos.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteRecetaIngredientes)
+        .where(eq(restauranteRecetaIngredientes.empresaId, user.empresaId));
+      await tx.delete(restauranteRecetas).where(eq(restauranteRecetas.empresaId, user.empresaId));
+      await tx.delete(restauranteMeseros).where(eq(restauranteMeseros.empresaId, user.empresaId));
+      await tx.delete(restauranteMesas).where(eq(restauranteMesas.empresaId, user.empresaId));
+      await tx.delete(restauranteAreas).where(eq(restauranteAreas.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteProductos)
+        .where(eq(restauranteProductos.empresaId, user.empresaId));
+      await tx
+        .delete(restauranteEstaciones)
+        .where(eq(restauranteEstaciones.empresaId, user.empresaId));
+      await tx.delete(restauranteComensales).where(eq(restauranteComensales.empresaId, user.empresaId));
       await tx.delete(menusVirtuales).where(eq(menusVirtuales.empresaId, user.empresaId));
       await tx.delete(pedidosCocina).where(eq(pedidosCocina.empresaId, user.empresaId));
     });
@@ -500,6 +588,7 @@ export async function eliminarDatosRestaurante(input: unknown): Promise<Resultad
     revalidatePath("/configuracion");
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
+    revalidatePath("/restaurante");
     revalidatePath("/menu-virtual");
     revalidatePath("/pedidos-cocina");
     return { ok: true };
@@ -512,9 +601,10 @@ export async function eliminarDatosRestaurante(input: unknown): Promise<Resultad
 async function contarDatosRestaurante(empresaId: string): Promise<{
   menus: number;
   pedidos: number;
+  dominio: number;
   total: number;
 }> {
-  const [[menus], [pedidos]] = await Promise.all([
+  const [[menus], [pedidos], [dominio]] = await Promise.all([
     db
       .select({ n: count() })
       .from(menusVirtuales)
@@ -523,10 +613,20 @@ async function contarDatosRestaurante(empresaId: string): Promise<{
       .select({ n: count() })
       .from(pedidosCocina)
       .where(eq(pedidosCocina.empresaId, empresaId)),
+    db
+      .select({ n: count() })
+      .from(restauranteOrdenes)
+      .where(eq(restauranteOrdenes.empresaId, empresaId)),
   ]);
   const menusN = menus?.n ?? 0;
   const pedidosN = pedidos?.n ?? 0;
-  return { menus: menusN, pedidos: pedidosN, total: menusN + pedidosN };
+  const dominioN = dominio?.n ?? 0;
+  return {
+    menus: menusN,
+    pedidos: pedidosN,
+    dominio: dominioN,
+    total: menusN + pedidosN + dominioN,
+  };
 }
 
 /* ------------------------------ Roles ------------------------------ */

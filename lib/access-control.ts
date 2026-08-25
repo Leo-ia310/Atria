@@ -7,6 +7,19 @@ export type ModuloAcceso =
   | "ventas"
   | "menu-virtual"
   | "pedidos-cocina"
+  | "restaurante-dashboard"
+  | "restaurante-pos"
+  | "restaurante-mesas"
+  | "restaurante-ordenes"
+  | "restaurante-kds"
+  | "restaurante-menu"
+  | "restaurante-recetas"
+  | "restaurante-inventario"
+  | "restaurante-mermas"
+  | "restaurante-reservaciones"
+  | "restaurante-comensales"
+  | "restaurante-reportes"
+  | "restaurante-promociones"
   | "inventario"
   | "clientes"
   | "compras"
@@ -27,6 +40,7 @@ export type AccessSnapshot = {
   permisos: string[];
   plan: Plan;
   tipoEmpresa: "general" | "restaurante" | "retail" | "servicios";
+  verticalEmpresa: "retail" | "restaurante";
 };
 
 type ReglaAcceso = {
@@ -50,6 +64,60 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
   },
   "pedidos-cocina": {
     permisos: ["restaurante.pedidos"],
+    soloRestaurante: true,
+  },
+  "restaurante-dashboard": {
+    permisos: ["restaurante.dashboard.ver", "restaurante.pedidos"],
+    soloRestaurante: true,
+  },
+  "restaurante-pos": {
+    permisos: ["restaurante.ordenes.crear", "ventas.crear"],
+    features: ["pos"],
+    soloRestaurante: true,
+  },
+  "restaurante-mesas": {
+    permisos: ["restaurante.mesas.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-ordenes": {
+    permisos: ["restaurante.ordenes.crear", "restaurante.ordenes.editar"],
+    soloRestaurante: true,
+  },
+  "restaurante-kds": {
+    permisos: ["restaurante.kds.ver", "restaurante.pedidos"],
+    soloRestaurante: true,
+  },
+  "restaurante-menu": {
+    permisos: ["restaurante.menu", "restaurante.recetas.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-recetas": {
+    permisos: ["restaurante.recetas.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-inventario": {
+    permisos: ["restaurante.recetas.ver", "inventario.ver"],
+    cualquierFeature: ["inventario_basico", "inventario_avanzado"],
+    soloRestaurante: true,
+  },
+  "restaurante-mermas": {
+    permisos: ["restaurante.mermas.ver", "restaurante.mermas.crear"],
+    soloRestaurante: true,
+  },
+  "restaurante-reservaciones": {
+    permisos: ["restaurante.reservaciones.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-comensales": {
+    permisos: ["restaurante.crm.ver", "restaurante.reservaciones.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-reportes": {
+    permisos: ["restaurante.reportes.ver", "reportes.ver"],
+    soloRestaurante: true,
+  },
+  "restaurante-promociones": {
+    permisos: ["restaurante.promociones.ver", "restaurante.promociones.editar"],
     soloRestaurante: true,
   },
   facturas: { permisos: ["ventas.ver", "ventas.crear"], features: ["facturacion"] },
@@ -93,7 +161,13 @@ export function puedeAccederModulo(
   if (regla.siempre) return true;
   if (regla.soloAdmin && !access.esAdminEmpresa) return false;
   if (access.plan.id === "demo" && regla.soloRestaurante) return false;
-  if (regla.soloRestaurante && access.tipoEmpresa !== "restaurante") return false;
+  if (
+    regla.soloRestaurante &&
+    access.verticalEmpresa !== "restaurante" &&
+    access.tipoEmpresa !== "restaurante"
+  ) {
+    return false;
+  }
 
   if (regla.permisos?.length && !tienePermiso(access, regla.permisos)) {
     return false;
@@ -134,6 +208,23 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
   if (base === "ventas" || base === "ticket") return "ventas";
   if (base === "menu-virtual") return "menu-virtual";
   if (base === "pedidos-cocina") return "pedidos-cocina";
+  if (base === "restaurante") {
+    const subruta = partes[1] ?? "";
+    if (!subruta) return "restaurante-dashboard";
+    if (subruta === "pos") return "restaurante-pos";
+    if (subruta === "mesas") return "restaurante-mesas";
+    if (subruta === "ordenes") return "restaurante-ordenes";
+    if (subruta === "kds") return "restaurante-kds";
+    if (subruta === "menu") return "restaurante-menu";
+    if (subruta === "recetas") return "restaurante-recetas";
+    if (subruta === "inventario") return "restaurante-inventario";
+    if (subruta === "mermas") return "restaurante-mermas";
+    if (subruta === "reservaciones") return "restaurante-reservaciones";
+    if (subruta === "comensales") return "restaurante-comensales";
+    if (subruta === "reportes") return "restaurante-reportes";
+    if (subruta === "promociones") return "restaurante-promociones";
+    return "restaurante-dashboard";
+  }
   if (base === "inventario") return "inventario";
   if (base === "clientes") return "clientes";
   if (base === "compras") return "compras";

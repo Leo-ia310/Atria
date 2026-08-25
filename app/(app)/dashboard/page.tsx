@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Receipt,
   Package,
@@ -12,6 +13,7 @@ import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { requireSession } from "@/lib/actions/session-helpers";
+import { getAccessContext } from "@/lib/server-access";
 import { db } from "@/lib/db";
 import {
   sucursales,
@@ -36,11 +38,15 @@ export default async function DashboardPage({
   searchParams: Promise<{ bienvenida?: string }>;
 }) {
   const user = await requireSession();
-  const [params, empresa, scope] = await Promise.all([
+  const [params, access, empresa, scope] = await Promise.all([
     searchParams,
+    getAccessContext(user),
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
   ]);
+  if (access.verticalEmpresa === "restaurante") {
+    redirect(`/restaurante${params.bienvenida === "1" ? "?bienvenida=1" : ""}`);
+  }
   const esBienvenida = params.bienvenida === "1";
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;

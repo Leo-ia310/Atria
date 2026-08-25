@@ -4,17 +4,66 @@ import { authConfig } from "@/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
+const THEME_SCRIPT_HASH =
+  "'sha256-fj3uVOKymipvmZN6ABubq+sYuMwg7OqNj44K2e4/QwI='";
+
+function buildContentSecurityPolicy(nonce: string, strictScripts: boolean): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  const scriptSrc = strictScripts
+    ? [
+        "'self'",
+        `'nonce-${nonce}'`,
+        THEME_SCRIPT_HASH,
+        "'strict-dynamic'",
+        "https:",
+        "https://www.paypal.com",
+        "https://www.paypalobjects.com",
+        isDev ? "'unsafe-eval'" : "",
+        isDev ? "http:" : "",
+      ].filter(Boolean)
+    : [
+        "'self'",
+        "'unsafe-inline'",
+        "https://www.paypal.com",
+        "https://www.paypalobjects.com",
+        isDev ? "'unsafe-eval'" : "",
+      ].filter(Boolean);
+
+  const connectSrc = ["'self'", "https:", "wss:", isDev ? "http:" : "", isDev ? "ws:" : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  const directives = [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(" ")}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src ${connectSrc}`,
+    "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    isDev ? "" : "upgrade-insecure-requests",
+  ].filter(Boolean);
+
+  return directives.join("; ");
+}
+
+function withContentSecurityPolicy<T extends Response>(response: T, csp: string): T {
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
+  const nonce = crypto.randomUUID().replace(/-/g, "");
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-arca-pathname", pathname);
-  const continuar = () =>
-    NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
 
   // Allowlist explícita de prefijos públicos. Todo lo demás requiere sesión.
   // No abrimos rutas "por defecto": añadir un módulo nuevo queda protegido
@@ -41,6 +90,7 @@ export default auth((req) => {
     "ticket",
     "menu-virtual",
     "pedidos-cocina",
+    "restaurante",
     "inventario",
     "clientes",
     "compras",
@@ -72,6 +122,22 @@ export default auth((req) => {
     esMenuPublico ||
     PREFIJOS_PUBLICOS.some((prefijo) => pathname.startsWith(prefijo));
 
+  // Las rutas protegidas se renderizan por request y pueden usar nonce estricto.
+  // Las publicas incluyen paginas estaticas prerenderizadas; ahi evitamos exigir
+  // nonce para no bloquear los scripts que ya vienen en el HTML estatico.
+  const csp = buildContentSecurityPolicy(nonce, !esRutaPublica);
+  requestHeaders.set("Content-Security-Policy", csp);
+  requestHeaders.set("x-nonce", nonce);
+  const continuar = () =>
+    withContentSecurityPolicy(
+      NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      }),
+      csp,
+    );
+
   // Un usuario ya autenticado no debe ver pantallas de invitado (login /
   // recuperar): se le manda a su panel en vez de renderizar el formulario.
   const RUTAS_SOLO_INVITADO = ["/login", "/recuperar"];
@@ -82,7 +148,7 @@ export default auth((req) => {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
-    return Response.redirect(url);
+    return withContentSecurityPolicy(NextResponse.redirect(url), csp);
   }
 
   if (esRutaPublica) return continuar();
@@ -91,13 +157,13 @@ export default auth((req) => {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
-    return Response.redirect(url);
+    return withContentSecurityPolicy(NextResponse.redirect(url), csp);
   }
 
   if (pathname.startsWith("/superadmin") && !session.user.esSuperAdmin) {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
-    return Response.redirect(url);
+    return withContentSecurityPolicy(NextResponse.redirect(url), csp);
   }
 
   return continuar();

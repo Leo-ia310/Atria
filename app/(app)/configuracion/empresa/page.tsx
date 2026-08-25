@@ -1,6 +1,11 @@
 import { count, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { empresas, menusVirtuales, pedidosCocina } from "@/lib/db/schema";
+import {
+  empresas,
+  menusVirtuales,
+  pedidosCocina,
+  restauranteOrdenes,
+} from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
 import { palabraConfirmacionAleatoria } from "@/lib/restaurante/confirmacion";
@@ -17,13 +22,14 @@ export default async function EmpresaConfiguracionPage() {
   const user = await requireSession();
   await requireModulo(user, "configuracion");
 
-  const [[empresa], [menus], [pedidos], politicas, configNegocio] = await Promise.all([
+  const [[empresa], [menus], [pedidos], [ordenes], politicas, configNegocio] = await Promise.all([
     db
       .select({
         razonSocial: empresas.razonSocial,
         nombreComercial: empresas.nombreComercial,
         identificacionFiscal: empresas.identificacionFiscal,
         tipoEmpresa: empresas.tipoEmpresa,
+        verticalEmpresa: empresas.verticalEmpresa,
         pais: empresas.pais,
         moneda: empresas.moneda,
       })
@@ -38,13 +44,18 @@ export default async function EmpresaConfiguracionPage() {
       .select({ n: count() })
       .from(pedidosCocina)
       .where(eq(pedidosCocina.empresaId, user.empresaId)),
+    db
+      .select({ n: count() })
+      .from(restauranteOrdenes)
+      .where(eq(restauranteOrdenes.empresaId, user.empresaId)),
     getPoliticasNegocio(user.empresaId),
     getConfiguracionNegocio(user.empresaId),
   ]);
   const datosRestaurante = {
     menus: menus?.n ?? 0,
     pedidos: pedidos?.n ?? 0,
-    total: (menus?.n ?? 0) + (pedidos?.n ?? 0),
+    dominio: ordenes?.n ?? 0,
+    total: (menus?.n ?? 0) + (pedidos?.n ?? 0) + (ordenes?.n ?? 0),
   };
 
   return (
@@ -72,9 +83,14 @@ export default async function EmpresaConfiguracionPage() {
                 {empresa?.moneda && <Badge variant="success">{empresa.moneda}</Badge>}
               </div>
             </div>
-            <Badge variant={empresa?.tipoEmpresa === "restaurante" ? "warning" : "neutral"}>
-              {labelTipo(empresa?.tipoEmpresa ?? "general")}
-            </Badge>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Badge variant={empresa?.tipoEmpresa === "restaurante" ? "warning" : "neutral"}>
+                {labelTipo(empresa?.tipoEmpresa ?? "general")}
+              </Badge>
+              <Badge variant={empresa?.verticalEmpresa === "restaurante" ? "warning" : "neutral"}>
+                Vertical {empresa?.verticalEmpresa === "restaurante" ? "Restaurante" : "Retail"}
+              </Badge>
+            </div>
           </div>
         </CardBody>
       </Card>

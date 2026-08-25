@@ -168,6 +168,7 @@ export const empresaTipoEnum = pgEnum("empresa_tipo", [
   "retail",
   "servicios",
 ]);
+export const empresaVerticalEnum = pgEnum("empresa_vertical", ["retail", "restaurante"]);
 export const menuVirtualPlantillaEnum = pgEnum("menu_virtual_plantilla", [
   "bistro",
   "minimal",
@@ -185,6 +186,101 @@ export const pedidoCocinaEstadoEnum = pgEnum("pedido_cocina_estado", [
   "entregado",
   "cancelado",
 ]);
+export const restauranteCatalogoTipoEnum = pgEnum("restaurante_catalogo_tipo", [
+  "insumo",
+  "producto_directo",
+  "preparacion",
+  "platillo",
+  "combo",
+]);
+export const restauranteMesaEstadoEnum = pgEnum("restaurante_mesa_estado", [
+  "disponible",
+  "ocupada",
+  "reservada",
+  "por_limpiar",
+  "cuenta_solicitada",
+  "deshabilitada",
+]);
+export const restauranteMesaFormaEnum = pgEnum("restaurante_mesa_forma", [
+  "redonda",
+  "cuadrada",
+  "rectangular",
+  "barra",
+]);
+export const restauranteOrdenCanalEnum = pgEnum("restaurante_orden_canal", [
+  "salon",
+  "qr_mesa",
+  "para_llevar",
+  "delivery_propio",
+  "delivery_externo",
+  "pedido_web",
+]);
+export const restauranteOrdenEstadoEnum = pgEnum("restaurante_orden_estado", [
+  "borrador",
+  "abierta",
+  "en_cocina",
+  "cuenta_solicitada",
+  "pagada",
+  "cancelada",
+]);
+export const restauranteOrdenItemEstadoEnum = pgEnum("restaurante_orden_item_estado", [
+  "borrador",
+  "enviado",
+  "preparando",
+  "listo",
+  "entregado",
+  "cancelado",
+]);
+export const restauranteComandaEstadoEnum = pgEnum("restaurante_comanda_estado", [
+  "borrador",
+  "enviada",
+  "recibida",
+  "preparando",
+  "lista",
+  "entregada",
+  "cancelada",
+]);
+export const restauranteEstacionTipoEnum = pgEnum("restaurante_estacion_tipo", [
+  "cocina",
+  "parrilla",
+  "bar",
+  "postres",
+  "otra",
+]);
+export const restauranteReservacionEstadoEnum = pgEnum("restaurante_reservacion_estado", [
+  "pendiente",
+  "confirmada",
+  "sentada",
+  "completada",
+  "cancelada",
+  "no_show",
+]);
+export const restauranteEsperaEstadoEnum = pgEnum("restaurante_espera_estado", [
+  "esperando",
+  "notificado",
+  "sentado",
+  "cancelado",
+  "no_show",
+]);
+export const restauranteMermaMotivoEnum = pgEnum("restaurante_merma_motivo", [
+  "caducidad",
+  "preparacion",
+  "accidente",
+  "desperdicio",
+  "devolucion",
+  "cortesia",
+  "otro",
+]);
+export const restaurantePromocionTipoEnum = pgEnum("restaurante_promocion_tipo", [
+  "porcentaje",
+  "monto",
+  "precio_fijo",
+  "dos_por_uno",
+]);
+export const restauranteFidelizacionMovimientoTipoEnum = pgEnum(
+  "restaurante_fidelizacion_movimiento_tipo",
+  ["acumulacion", "redencion", "ajuste", "expiracion"],
+);
 
 /* =========================================================
  * MÓDULO 1 — NÚCLEO SAAS
@@ -216,6 +312,7 @@ export const empresas = pgTable(
     nombreComercial: text("nombre_comercial"),
     identificacionFiscal: text("identificacion_fiscal").notNull(),
     tipoEmpresa: empresaTipoEnum("tipo_empresa").notNull().default("general"),
+    verticalEmpresa: empresaVerticalEnum("vertical_empresa").notNull().default("retail"),
     pais: paisEnum("pais").notNull(),
     moneda: monedaEnum("moneda").notNull(),
     telefono: text("telefono"),
@@ -1523,6 +1620,883 @@ export const pedidoCocinaItems = pgTable(
   ],
 );
 
+export const restauranteProductos = pgTable(
+  "restaurante_productos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "cascade" }),
+    tipo: restauranteCatalogoTipoEnum("tipo").notNull(),
+    estacionId: uuid("estacion_id").references(() => restauranteEstaciones.id, {
+      onDelete: "set null",
+    }),
+    disponibleQr: boolean("disponible_qr").notNull().default(true),
+    consumeInventario: boolean("consume_inventario").notNull().default(true),
+    tiempoPreparacionMin: integer("tiempo_preparacion_min").notNull().default(0),
+    alergenos: text("alergenos")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    etiquetas: text("etiquetas")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_productos_empresa_producto_uq").on(t.empresaId, t.productoId),
+    index("restaurante_productos_empresa_tipo_idx").on(t.empresaId, t.tipo),
+    index("restaurante_productos_estacion_idx").on(t.estacionId),
+  ],
+);
+
+export const restauranteAreas = pgTable(
+  "restaurante_areas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    orden: integer("orden").notNull().default(0),
+    activa: boolean("activa").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_areas_empresa_sucursal_nombre_uq").on(
+      t.empresaId,
+      t.sucursalId,
+      t.nombre,
+    ),
+    index("restaurante_areas_empresa_sucursal_idx").on(t.empresaId, t.sucursalId),
+  ],
+);
+
+export const restauranteMesas = pgTable(
+  "restaurante_mesas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id, { onDelete: "cascade" }),
+    areaId: uuid("area_id").references(() => restauranteAreas.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    capacidad: integer("capacidad").notNull().default(2),
+    posX: numeric("pos_x", { precision: 8, scale: 4 }).notNull().default("0.5"),
+    posY: numeric("pos_y", { precision: 8, scale: 4 }).notNull().default("0.5"),
+    ancho: numeric("ancho", { precision: 8, scale: 4 }).notNull().default("0.14"),
+    alto: numeric("alto", { precision: 8, scale: 4 }).notNull().default("0.1"),
+    forma: restauranteMesaFormaEnum("forma").notNull().default("rectangular"),
+    estado: restauranteMesaEstadoEnum("estado").notNull().default("disponible"),
+    qrTokenHash: text("qr_token_hash"),
+    qrTokenUltimos4: text("qr_token_ultimos4"),
+    qrTokenVersion: integer("qr_token_version").notNull().default(1),
+    qrTokenRevocadoEn: timestamp("qr_token_revocado_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_mesas_empresa_sucursal_nombre_uq").on(
+      t.empresaId,
+      t.sucursalId,
+      t.nombre,
+    ),
+    index("restaurante_mesas_empresa_sucursal_estado_idx").on(
+      t.empresaId,
+      t.sucursalId,
+      t.estado,
+    ),
+    index("restaurante_mesas_area_idx").on(t.areaId),
+    index("restaurante_mesas_qr_hash_idx").on(t.qrTokenHash),
+  ],
+);
+
+export const restauranteEstaciones = pgTable(
+  "restaurante_estaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id").references(() => sucursales.id, {
+      onDelete: "cascade",
+    }),
+    nombre: text("nombre").notNull(),
+    tipo: restauranteEstacionTipoEnum("tipo").notNull().default("cocina"),
+    activa: boolean("activa").notNull().default(true),
+    orden: integer("orden").notNull().default(0),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_estaciones_empresa_sucursal_nombre_uq").on(
+      t.empresaId,
+      t.sucursalId,
+      t.nombre,
+    ),
+    index("restaurante_estaciones_empresa_tipo_idx").on(t.empresaId, t.tipo),
+  ],
+);
+
+export const restauranteMeseros = pgTable(
+  "restaurante_meseros",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    empleadoId: uuid("empleado_id").references(() => empleados.id, {
+      onDelete: "set null",
+    }),
+    usuarioId: uuid("usuario_id").references(() => usuarios.id, {
+      onDelete: "set null",
+    }),
+    codigo: text("codigo").notNull(),
+    nombrePublico: text("nombre_publico"),
+    activo: boolean("activo").notNull().default(true),
+    metas: jsonb("metas").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_meseros_empresa_codigo_uq").on(t.empresaId, t.codigo),
+    index("restaurante_meseros_empresa_activo_idx").on(t.empresaId, t.activo),
+    index("restaurante_meseros_usuario_idx").on(t.usuarioId),
+    index("restaurante_meseros_empleado_idx").on(t.empleadoId),
+  ],
+);
+
+export const restauranteRecetas = pgTable(
+  "restaurante_recetas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    tipo: restauranteCatalogoTipoEnum("tipo").notNull().default("platillo"),
+    rendimientoCantidad: numeric("rendimiento_cantidad", {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default("1"),
+    rendimientoUnidadId: uuid("rendimiento_unidad_id").references(() => unidadesMedida.id),
+    costoTotal: numeric("costo_total", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    costoPorPorcion: numeric("costo_por_porcion", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    precioVenta: numeric("precio_venta", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    foodCostPct: numeric("food_cost_pct", { precision: 9, scale: 4 })
+      .notNull()
+      .default("0"),
+    activa: boolean("activa").notNull().default(true),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_recetas_empresa_producto_uq").on(t.empresaId, t.productoId),
+    index("restaurante_recetas_empresa_tipo_idx").on(t.empresaId, t.tipo),
+  ],
+);
+
+export const restauranteRecetaIngredientes = pgTable(
+  "restaurante_receta_ingredientes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    recetaId: uuid("receta_id")
+      .notNull()
+      .references(() => restauranteRecetas.id, { onDelete: "cascade" }),
+    ingredienteProductoId: uuid("ingrediente_producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "restrict" }),
+    unidadId: uuid("unidad_id").references(() => unidadesMedida.id),
+    cantidad: numeric("cantidad", { precision: 18, scale: 4 }).notNull(),
+    costoUnitario: numeric("costo_unitario", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    mermaPct: numeric("merma_pct", { precision: 9, scale: 4 })
+      .notNull()
+      .default("0"),
+    notas: text("notas"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_receta_ingredientes_empresa_receta_idx").on(
+      t.empresaId,
+      t.recetaId,
+    ),
+    index("restaurante_receta_ingredientes_producto_idx").on(t.ingredienteProductoId),
+  ],
+);
+
+export const restauranteModificadorGrupos = pgTable(
+  "restaurante_modificador_grupos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    obligatorio: boolean("obligatorio").notNull().default(false),
+    minimo: integer("minimo").notNull().default(0),
+    maximo: integer("maximo").notNull().default(1),
+    orden: integer("orden").notNull().default(0),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_modificador_grupos_empresa_producto_idx").on(
+      t.empresaId,
+      t.productoId,
+    ),
+  ],
+);
+
+export const restauranteModificadores = pgTable(
+  "restaurante_modificadores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    grupoId: uuid("grupo_id")
+      .notNull()
+      .references(() => restauranteModificadorGrupos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    precioDelta: numeric("precio_delta", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    ingredienteProductoId: uuid("ingrediente_producto_id").references(() => productos.id, {
+      onDelete: "set null",
+    }),
+    cantidadIngrediente: numeric("cantidad_ingrediente", {
+      precision: 18,
+      scale: 4,
+    }),
+    unidadIngredienteId: uuid("unidad_ingrediente_id").references(() => unidadesMedida.id),
+    remueveIngredienteProductoId: uuid("remueve_ingrediente_producto_id").references(
+      () => productos.id,
+      { onDelete: "set null" },
+    ),
+    instruccionCocina: text("instruccion_cocina"),
+    orden: integer("orden").notNull().default(0),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_modificadores_empresa_grupo_idx").on(t.empresaId, t.grupoId),
+  ],
+);
+
+export const restauranteOrdenes = pgTable(
+  "restaurante_ordenes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    mesaId: uuid("mesa_id").references(() => restauranteMesas.id, {
+      onDelete: "set null",
+    }),
+    meseroId: uuid("mesero_id").references(() => restauranteMeseros.id, {
+      onDelete: "set null",
+    }),
+    comensalId: uuid("comensal_id").references(() => restauranteComensales.id, {
+      onDelete: "set null",
+    }),
+    clienteId: uuid("cliente_id").references(() => clientes.id, {
+      onDelete: "set null",
+    }),
+    ventaId: uuid("venta_id").references(() => ventas.id, {
+      onDelete: "set null",
+    }),
+    numero: text("numero").notNull(),
+    canal: restauranteOrdenCanalEnum("canal").notNull().default("salon"),
+    estado: restauranteOrdenEstadoEnum("estado").notNull().default("abierta"),
+    personas: integer("personas").notNull().default(1),
+    subtotal: numeric("subtotal", { precision: 18, scale: 4 }).notNull().default("0"),
+    descuento: numeric("descuento", { precision: 18, scale: 4 }).notNull().default("0"),
+    impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull().default("0"),
+    propina: numeric("propina", { precision: 18, scale: 4 }).notNull().default("0"),
+    total: numeric("total", { precision: 18, scale: 4 }).notNull().default("0"),
+    notas: text("notas"),
+    idempotencyKey: text("idempotency_key"),
+    version: integer("version").notNull().default(1),
+    abiertoPor: uuid("abierto_por").references(() => usuarios.id),
+    abiertoEn: timestamp("abierto_en", { withTimezone: true }).notNull().defaultNow(),
+    cuentaSolicitadaEn: timestamp("cuenta_solicitada_en", { withTimezone: true }),
+    cerradoEn: timestamp("cerrado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    motivoCancelacion: text("motivo_cancelacion"),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_ordenes_empresa_numero_uq").on(t.empresaId, t.numero),
+    unique("restaurante_ordenes_empresa_idempotency_uq").on(t.empresaId, t.idempotencyKey),
+    index("restaurante_ordenes_empresa_estado_idx").on(t.empresaId, t.estado),
+    index("restaurante_ordenes_sucursal_estado_idx").on(t.sucursalId, t.estado),
+    index("restaurante_ordenes_mesa_estado_idx").on(t.mesaId, t.estado),
+    index("restaurante_ordenes_abierto_idx").on(t.abiertoEn),
+  ],
+);
+
+export const restauranteOrdenItems = pgTable(
+  "restaurante_orden_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    ordenId: uuid("orden_id")
+      .notNull()
+      .references(() => restauranteOrdenes.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id),
+    menuPlatilloId: uuid("menu_platillo_id").references(() => menuPlatillos.id, {
+      onDelete: "set null",
+    }),
+    nombreSnapshot: text("nombre_snapshot").notNull(),
+    cantidad: numeric("cantidad", { precision: 18, scale: 4 }).notNull(),
+    precioUnitario: numeric("precio_unitario", { precision: 18, scale: 4 }).notNull(),
+    descuento: numeric("descuento", { precision: 18, scale: 4 }).notNull().default("0"),
+    impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull().default("0"),
+    costoUnitario: numeric("costo_unitario", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    estado: restauranteOrdenItemEstadoEnum("estado").notNull().default("borrador"),
+    notasCocina: text("notas_cocina"),
+    modificadoresSnapshot: jsonb("modificadores_snapshot")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    enviadoCocinaEn: timestamp("enviado_cocina_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    canceladoPor: uuid("cancelado_por").references(() => usuarios.id),
+    motivoCancelacion: text("motivo_cancelacion"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("restaurante_orden_items_empresa_orden_idx").on(t.empresaId, t.ordenId),
+    index("restaurante_orden_items_producto_idx").on(t.productoId),
+    index("restaurante_orden_items_estado_idx").on(t.estado),
+  ],
+);
+
+export const restauranteComandas = pgTable(
+  "restaurante_comandas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    ordenId: uuid("orden_id")
+      .notNull()
+      .references(() => restauranteOrdenes.id, { onDelete: "cascade" }),
+    estacionId: uuid("estacion_id").references(() => restauranteEstaciones.id, {
+      onDelete: "set null",
+    }),
+    numero: text("numero").notNull(),
+    estado: restauranteComandaEstadoEnum("estado").notNull().default("enviada"),
+    prioridad: integer("prioridad").notNull().default(0),
+    notas: text("notas"),
+    enviadaPor: uuid("enviada_por").references(() => usuarios.id),
+    enviadaEn: timestamp("enviada_en", { withTimezone: true }).notNull().defaultNow(),
+    recibidaEn: timestamp("recibida_en", { withTimezone: true }),
+    preparandoEn: timestamp("preparando_en", { withTimezone: true }),
+    listaEn: timestamp("lista_en", { withTimezone: true }),
+    entregadaEn: timestamp("entregada_en", { withTimezone: true }),
+    canceladaEn: timestamp("cancelada_en", { withTimezone: true }),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_comandas_empresa_numero_uq").on(t.empresaId, t.numero),
+    index("restaurante_comandas_empresa_estado_idx").on(t.empresaId, t.estado),
+    index("restaurante_comandas_estacion_estado_idx").on(t.estacionId, t.estado),
+    index("restaurante_comandas_orden_idx").on(t.ordenId),
+  ],
+);
+
+export const restauranteComandaItems = pgTable(
+  "restaurante_comanda_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    comandaId: uuid("comanda_id")
+      .notNull()
+      .references(() => restauranteComandas.id, { onDelete: "cascade" }),
+    ordenItemId: uuid("orden_item_id")
+      .notNull()
+      .references(() => restauranteOrdenItems.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id").references(() => productos.id, {
+      onDelete: "set null",
+    }),
+    nombreSnapshot: text("nombre_snapshot").notNull(),
+    cantidad: numeric("cantidad", { precision: 18, scale: 4 }).notNull(),
+    notasCocina: text("notas_cocina"),
+    modificadoresSnapshot: jsonb("modificadores_snapshot")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    estado: restauranteComandaEstadoEnum("estado").notNull().default("enviada"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_comanda_items_empresa_comanda_idx").on(t.empresaId, t.comandaId),
+    index("restaurante_comanda_items_orden_item_idx").on(t.ordenItemId),
+  ],
+);
+
+export const restauranteReservaciones = pgTable(
+  "restaurante_reservaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    comensalId: uuid("comensal_id").references(() => restauranteComensales.id, {
+      onDelete: "set null",
+    }),
+    mesaId: uuid("mesa_id").references(() => restauranteMesas.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    telefono: text("telefono"),
+    email: text("email"),
+    fecha: date("fecha").notNull(),
+    hora: text("hora").notNull(),
+    personas: integer("personas").notNull(),
+    ocasionEspecial: text("ocasion_especial"),
+    notas: text("notas"),
+    estado: restauranteReservacionEstadoEnum("estado").notNull().default("pendiente"),
+    depositoMonto: numeric("deposito_monto", { precision: 18, scale: 4 }),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("restaurante_reservaciones_empresa_fecha_estado_idx").on(
+      t.empresaId,
+      t.fecha,
+      t.estado,
+    ),
+    index("restaurante_reservaciones_sucursal_fecha_idx").on(t.sucursalId, t.fecha),
+    index("restaurante_reservaciones_mesa_idx").on(t.mesaId),
+  ],
+);
+
+export const restauranteListaEspera = pgTable(
+  "restaurante_lista_espera",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    comensalId: uuid("comensal_id").references(() => restauranteComensales.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    telefono: text("telefono"),
+    personas: integer("personas").notNull(),
+    llegadaEn: timestamp("llegada_en", { withTimezone: true }).notNull().defaultNow(),
+    esperaEstimadaMin: integer("espera_estimada_min"),
+    preferencia: text("preferencia"),
+    notas: text("notas"),
+    estado: restauranteEsperaEstadoEnum("estado").notNull().default("esperando"),
+    notificadoEn: timestamp("notificado_en", { withTimezone: true }),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("restaurante_lista_espera_empresa_estado_idx").on(t.empresaId, t.estado),
+    index("restaurante_lista_espera_sucursal_estado_idx").on(t.sucursalId, t.estado),
+    index("restaurante_lista_espera_llegada_idx").on(t.llegadaEn),
+  ],
+);
+
+export const restauranteComensales = pgTable(
+  "restaurante_comensales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    clienteId: uuid("cliente_id").references(() => clientes.id, {
+      onDelete: "set null",
+    }),
+    nombre: text("nombre").notNull(),
+    telefono: text("telefono"),
+    email: text("email"),
+    cumpleanos: date("cumpleanos"),
+    genero: text("genero"),
+    visitas: integer("visitas").notNull().default(0),
+    gastoHistorico: numeric("gasto_historico", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    ticketPromedio: numeric("ticket_promedio", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    ultimaVisitaEn: timestamp("ultima_visita_en", { withTimezone: true }),
+    platillosFrecuentes: jsonb("platillos_frecuentes")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    preferencias: text("preferencias"),
+    alergias: text("alergias"),
+    notas: text("notas"),
+    ocasionesEspeciales: text("ocasiones_especiales"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_comensales_empresa_email_uq").on(t.empresaId, t.email),
+    unique("restaurante_comensales_empresa_telefono_uq").on(t.empresaId, t.telefono),
+    index("restaurante_comensales_empresa_ultima_idx").on(t.empresaId, t.ultimaVisitaEn),
+    index("restaurante_comensales_cliente_idx").on(t.clienteId),
+  ],
+);
+
+export const restauranteComensalTokens = pgTable(
+  "restaurante_comensal_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id")
+      .notNull()
+      .references(() => restauranteComensales.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    tokenUltimos4: text("token_ultimos4").notNull(),
+    expiraEn: timestamp("expira_en", { withTimezone: true }).notNull(),
+    ultimoUsoEn: timestamp("ultimo_uso_en", { withTimezone: true }),
+    revocadoEn: timestamp("revocado_en", { withTimezone: true }),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("restaurante_comensal_tokens_hash_uq").on(t.tokenHash),
+    index("restaurante_comensal_tokens_empresa_comensal_idx").on(
+      t.empresaId,
+      t.comensalId,
+    ),
+  ],
+);
+
+export const restauranteVisitasComensal = pgTable(
+  "restaurante_visitas_comensal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id")
+      .notNull()
+      .references(() => restauranteComensales.id, { onDelete: "cascade" }),
+    ordenId: uuid("orden_id").references(() => restauranteOrdenes.id, {
+      onDelete: "set null",
+    }),
+    ventaId: uuid("venta_id").references(() => ventas.id, {
+      onDelete: "set null",
+    }),
+    canal: restauranteOrdenCanalEnum("canal").notNull().default("qr_mesa"),
+    visitadoEn: timestamp("visitado_en", { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [
+    index("restaurante_visitas_empresa_comensal_idx").on(t.empresaId, t.comensalId),
+    index("restaurante_visitas_empresa_fecha_idx").on(t.empresaId, t.visitadoEn),
+  ],
+);
+
+export const restauranteMermas = pgTable(
+  "restaurante_mermas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    almacenId: uuid("almacen_id")
+      .notNull()
+      .references(() => almacenes.id),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id),
+    unidadId: uuid("unidad_id").references(() => unidadesMedida.id),
+    cantidad: numeric("cantidad", { precision: 18, scale: 4 }).notNull(),
+    costoUnitario: numeric("costo_unitario", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    motivo: restauranteMermaMotivoEnum("motivo").notNull(),
+    observacion: text("observacion"),
+    movimientoInventarioId: uuid("movimiento_inventario_id").references(
+      () => movimientosInventario.id,
+    ),
+    empleadoId: uuid("empleado_id").references(() => empleados.id, {
+      onDelete: "set null",
+    }),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_mermas_empresa_fecha_idx").on(t.empresaId, t.fecha),
+    index("restaurante_mermas_producto_idx").on(t.productoId),
+    index("restaurante_mermas_sucursal_idx").on(t.sucursalId),
+  ],
+);
+
+export const restaurantePromociones = pgTable(
+  "restaurante_promociones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    tipo: restaurantePromocionTipoEnum("tipo").notNull().default("porcentaje"),
+    valor: numeric("valor", { precision: 18, scale: 4 }).notNull().default("0"),
+    productoId: uuid("producto_id").references(() => productos.id, {
+      onDelete: "cascade",
+    }),
+    categoriaId: uuid("categoria_id").references(() => categorias.id, {
+      onDelete: "set null",
+    }),
+    diasSemana: integer("dias_semana")
+      .array()
+      .notNull()
+      .default(sql`'{}'::integer[]`),
+    horaInicio: text("hora_inicio"),
+    horaFin: text("hora_fin"),
+    fechaInicio: date("fecha_inicio"),
+    fechaFin: date("fecha_fin"),
+    clienteSegmento: text("cliente_segmento"),
+    activa: boolean("activa").notNull().default(true),
+    reglas: jsonb("reglas").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("restaurante_promociones_empresa_activa_idx").on(t.empresaId, t.activa),
+    index("restaurante_promociones_producto_idx").on(t.productoId),
+    index("restaurante_promociones_categoria_idx").on(t.categoriaId),
+  ],
+);
+
+export const restauranteFidelizacionConfig = pgTable(
+  "restaurante_fidelizacion_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    puntosPorMonto: numeric("puntos_por_monto", { precision: 18, scale: 4 })
+      .notNull()
+      .default("1"),
+    montoBase: numeric("monto_base", { precision: 18, scale: 4 })
+      .notNull()
+      .default("1"),
+    reglas: jsonb("reglas").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    activa: boolean("activa").notNull().default(false),
+    actualizadoPor: uuid("actualizado_por").references(() => usuarios.id),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("restaurante_fidelizacion_config_empresa_uq").on(t.empresaId)],
+);
+
+export const restauranteMovimientosPuntos = pgTable(
+  "restaurante_movimientos_puntos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id")
+      .notNull()
+      .references(() => restauranteComensales.id, { onDelete: "cascade" }),
+    tipo: restauranteFidelizacionMovimientoTipoEnum("tipo").notNull(),
+    puntos: numeric("puntos", { precision: 18, scale: 4 }).notNull(),
+    referenciaTabla: text("referencia_tabla"),
+    referenciaId: uuid("referencia_id"),
+    notas: text("notas"),
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_puntos_empresa_comensal_idx").on(t.empresaId, t.comensalId),
+    index("restaurante_puntos_referencia_idx").on(t.referenciaTabla, t.referenciaId),
+  ],
+);
+
+export const restauranteEncuestas = pgTable(
+  "restaurante_encuestas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    activa: boolean("activa").notNull().default(true),
+    preguntas: jsonb("preguntas")
+      .$type<Array<{ clave: string; texto: string; tipo: string }>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("restaurante_encuestas_empresa_activa_idx").on(t.empresaId, t.activa)],
+);
+
+export const restauranteEncuestaRespuestas = pgTable(
+  "restaurante_encuesta_respuestas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    encuestaId: uuid("encuesta_id")
+      .notNull()
+      .references(() => restauranteEncuestas.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id").references(() => restauranteComensales.id, {
+      onDelete: "set null",
+    }),
+    ventaId: uuid("venta_id").references(() => ventas.id, {
+      onDelete: "set null",
+    }),
+    respuestas: jsonb("respuestas").$type<Record<string, unknown>>().notNull(),
+    comentario: text("comentario"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("restaurante_encuesta_respuestas_empresa_fecha_idx").on(t.empresaId, t.creadoEn),
+    index("restaurante_encuesta_respuestas_encuesta_idx").on(t.encuestaId),
+  ],
+);
+
+export const restauranteComprasSugeridas = pgTable(
+  "restaurante_compras_sugeridas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    sucursalId: uuid("sucursal_id")
+      .notNull()
+      .references(() => sucursales.id),
+    productoId: uuid("producto_id")
+      .notNull()
+      .references(() => productos.id),
+    proveedorId: uuid("proveedor_id").references(() => proveedores.id, {
+      onDelete: "set null",
+    }),
+    existenciaActual: numeric("existencia_actual", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    consumoEsperadoDiario: numeric("consumo_esperado_diario", {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default("0"),
+    stockMinimo: numeric("stock_minimo", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    diasCobertura: integer("dias_cobertura").notNull().default(3),
+    cantidadSugerida: numeric("cantidad_sugerida", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    estado: text("estado").notNull().default("sugerida"),
+    ordenCompraId: uuid("orden_compra_id").references(() => ordenesCompra.id, {
+      onDelete: "set null",
+    }),
+    generadoEn: timestamp("generado_en", { withTimezone: true }).notNull().defaultNow(),
+    revisadoPor: uuid("revisado_por").references(() => usuarios.id),
+    revisadoEn: timestamp("revisado_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("restaurante_compras_sugeridas_empresa_estado_idx").on(t.empresaId, t.estado),
+    index("restaurante_compras_sugeridas_producto_idx").on(t.productoId),
+  ],
+);
+
 export const notasCredito = pgTable(
   "notas_credito",
   {
@@ -2562,6 +3536,21 @@ export type MenuSeccion = typeof menuSecciones.$inferSelect;
 export type MenuPlatillo = typeof menuPlatillos.$inferSelect;
 export type MenuPromocion = typeof menuPromociones.$inferSelect;
 export type PedidoCocina = typeof pedidosCocina.$inferSelect;
+export type RestauranteProducto = typeof restauranteProductos.$inferSelect;
+export type RestauranteArea = typeof restauranteAreas.$inferSelect;
+export type RestauranteMesa = typeof restauranteMesas.$inferSelect;
+export type RestauranteEstacion = typeof restauranteEstaciones.$inferSelect;
+export type RestauranteMesero = typeof restauranteMeseros.$inferSelect;
+export type RestauranteReceta = typeof restauranteRecetas.$inferSelect;
+export type RestauranteRecetaIngrediente =
+  typeof restauranteRecetaIngredientes.$inferSelect;
+export type RestauranteOrden = typeof restauranteOrdenes.$inferSelect;
+export type RestauranteOrdenItem = typeof restauranteOrdenItems.$inferSelect;
+export type RestauranteComanda = typeof restauranteComandas.$inferSelect;
+export type RestauranteComandaItem = typeof restauranteComandaItems.$inferSelect;
+export type RestauranteReservacion = typeof restauranteReservaciones.$inferSelect;
+export type RestauranteComensal = typeof restauranteComensales.$inferSelect;
+export type RestauranteMerma = typeof restauranteMermas.$inferSelect;
 export type Compra = typeof compras.$inferSelect;
 export type AsientoContable = typeof asientosContables.$inferSelect;
 export type AsientoPartida = typeof asientoPartidas.$inferSelect;

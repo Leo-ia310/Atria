@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { dbSuperAdmin } from "@/lib/db";
 import {
   almacenes,
   empresas,
@@ -30,21 +30,29 @@ export async function crearPedidoMenuPublico(
   }
   const data = parsed.data;
 
-  const [row] = await db
+  const [row] = await dbSuperAdmin((tx) =>
+    tx
     .select({
       menu: menusVirtuales,
       empresa: {
         id: empresas.id,
         activa: empresas.activa,
         tipoEmpresa: empresas.tipoEmpresa,
+        verticalEmpresa: empresas.verticalEmpresa,
       },
     })
     .from(menusVirtuales)
     .innerJoin(empresas, eq(empresas.id, menusVirtuales.empresaId))
     .where(and(eq(menusVirtuales.slug, data.slug), eq(menusVirtuales.publicado, true)))
-    .limit(1);
+    .limit(1),
+  );
 
-  if (!row || !row.empresa.activa || row.empresa.tipoEmpresa !== "restaurante") {
+  if (
+    !row ||
+    !row.empresa.activa ||
+    (row.empresa.verticalEmpresa !== "restaurante" &&
+      row.empresa.tipoEmpresa !== "restaurante")
+  ) {
     return { ok: false, error: "Menu no disponible." };
   }
 
@@ -69,7 +77,8 @@ export async function crearPedidoMenuPublico(
   }
   const platilloIds = [...cantidades.keys()];
 
-  const platillos = await db
+  const platillos = await dbSuperAdmin((tx) =>
+    tx
     .select({
       id: menuPlatillos.id,
       nombre: menuPlatillos.nombre,
@@ -84,7 +93,8 @@ export async function crearPedidoMenuPublico(
         eq(menuPlatillos.disponible, true),
         inArray(menuPlatillos.id, platilloIds),
       ),
-    );
+    ),
+  );
   if (platillos.length !== platilloIds.length) {
     return { ok: false, error: "Uno o mas platillos ya no estan disponibles." };
   }
@@ -93,7 +103,8 @@ export async function crearPedidoMenuPublico(
     ...new Set(platillos.flatMap((platillo) => (platillo.productoId ? [platillo.productoId] : []))),
   ];
   const productosRows = productoIds.length
-    ? await db
+    ? await dbSuperAdmin((tx) =>
+        tx
         .select({ id: productos.id, tipo: productos.tipo })
         .from(productos)
         .where(
@@ -103,7 +114,8 @@ export async function crearPedidoMenuPublico(
             isNull(productos.eliminadoEn),
             inArray(productos.id, productoIds),
           ),
-        )
+        ),
+      )
     : [];
   const tipoPorProducto = new Map(productosRows.map((producto) => [producto.id, producto.tipo]));
   const stockPorProducto = productoIds.length
@@ -131,7 +143,7 @@ export async function crearPedidoMenuPublico(
   }
 
   const numero = `M-${Date.now().toString(36).toUpperCase()}`;
-  await db.transaction(async (tx) => {
+  await dbSuperAdmin(async (tx) => {
     const [pedido] = await tx
       .insert(pedidosCocina)
       .values({
@@ -175,7 +187,8 @@ function limpiarVacio(valor?: string | null): string | null {
 }
 
 async function buscarSucursal(empresaId: string, sucursalId: string) {
-  const [sucursal] = await db
+  const [sucursal] = await dbSuperAdmin((tx) =>
+    tx
     .select({ id: sucursales.id })
     .from(sucursales)
     .where(
@@ -186,12 +199,14 @@ async function buscarSucursal(empresaId: string, sucursalId: string) {
         isNull(sucursales.eliminadoEn),
       ),
     )
-    .limit(1);
+    .limit(1),
+  );
   return sucursal ?? null;
 }
 
 async function buscarSucursalPrincipal(empresaId: string) {
-  const [sucursal] = await db
+  const [sucursal] = await dbSuperAdmin((tx) =>
+    tx
     .select({ id: sucursales.id })
     .from(sucursales)
     .where(
@@ -202,7 +217,8 @@ async function buscarSucursalPrincipal(empresaId: string) {
       ),
     )
     .orderBy(sql`${sucursales.esPrincipal} desc`, sucursales.nombre)
-    .limit(1);
+    .limit(1),
+  );
   return sucursal ?? null;
 }
 
@@ -211,7 +227,8 @@ async function stockDisponiblePorProducto(
   sucursalId: string,
   productoIds: string[],
 ): Promise<Map<string, number>> {
-  const rows = await db
+  const rows = await dbSuperAdmin((tx) =>
+    tx
     .select({
       productoId: existencias.productoId,
       cantidad: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
@@ -227,6 +244,7 @@ async function stockDisponiblePorProducto(
         inArray(existencias.productoId, productoIds),
       ),
     )
-    .groupBy(existencias.productoId);
+    .groupBy(existencias.productoId),
+  );
   return new Map(rows.map((row) => [row.productoId, parseFloat(row.cantidad)]));
 }

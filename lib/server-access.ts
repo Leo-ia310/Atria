@@ -103,6 +103,7 @@ const getAccessContextCached = cache(
           tx
             .select({
               tipoEmpresa: empresas.tipoEmpresa,
+              verticalEmpresa: empresas.verticalEmpresa,
             })
             .from(empresas)
             .where(eq(empresas.id, empresaId))
@@ -159,6 +160,9 @@ const getAccessContextCached = cache(
         : [],
       plan,
       tipoEmpresa: empresa?.tipoEmpresa ?? "general",
+      verticalEmpresa:
+        empresa?.verticalEmpresa ??
+        (empresa?.tipoEmpresa === "restaurante" ? "restaurante" : "retail"),
       rolNombre,
       usuariosExtra: vigente || suscripcionBloqueada ? suscripcion?.usuariosExtra ?? 0 : 0,
       sucursalesExtra: vigente || suscripcionBloqueada ? suscripcion?.sucursalesExtra ?? 0 : 0,

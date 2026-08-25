@@ -20,7 +20,7 @@ export function EmpresaTipoForm({
   palabraConfirmacion,
 }: {
   tipoInicial: TipoEmpresa;
-  datosRestaurante: { menus: number; pedidos: number; total: number };
+  datosRestaurante: { menus: number; pedidos: number; dominio?: number; total: number };
   palabraConfirmacion: string;
 }) {
   const router = useRouter();
@@ -68,8 +68,8 @@ export function EmpresaTipoForm({
     <>
       <Card>
       <CardHeader
-        title="Tipo de empresa"
-        subtitle="Si seleccionas restaurante, ARCA activa Menu virtual y Pedidos cocina."
+        title="Vertical de negocio"
+        subtitle="Restaurante abre una experiencia operativa propia de ARCA Restaurante."
       />
       <CardBody className="space-y-4">
         <Select
@@ -86,7 +86,7 @@ export function EmpresaTipoForm({
         {cambioBloqueado && (
           <div className="rounded-md bg-[color:var(--color-warning-bg)] px-3 py-2 text-small text-[color:var(--color-warning)]">
             No puedes cambiar fuera de restaurante porque hay informacion creada.
-            Elimina primero los datos de restaurante.
+            Elimina primero los datos operativos de restaurante.
           </div>
         )}
         <div className="flex justify-end">
@@ -101,7 +101,7 @@ export function EmpresaTipoForm({
         <Card>
           <CardHeader
             title="Eliminar datos de restaurante"
-            subtitle="Borra menus virtuales, platillos, promociones y pedidos de cocina. Las ventas y facturas no se eliminan."
+            subtitle="Borra menus, ordenes, comandas, mesas, recetas y CRM restaurante. Las ventas y facturas no se eliminan."
           />
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-center text-small">
@@ -119,6 +119,14 @@ export function EmpresaTipoForm({
                 </div>
                 <div className="text-[color:var(--color-text-muted)]">
                   Pedidos cocina
+                </div>
+              </div>
+              <div className="col-span-2 rounded-md bg-[color:var(--color-surface-2)] p-3">
+                <div className="text-lg font-semibold text-[color:var(--color-text-primary)]">
+                  {datosRestaurante.dominio ?? 0}
+                </div>
+                <div className="text-[color:var(--color-text-muted)]">
+                  Ordenes ARCA Restaurante
                 </div>
               </div>
             </div>

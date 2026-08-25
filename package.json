@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:marketing": "node --import tsx --test tests/marketing/*.test.ts",
+    "test:restaurante": "node --import tsx --test tests/restaurante/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

@@ -120,6 +120,13 @@
       "when": 1786502400000,
       "tag": "0016_fixed_plan_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786588800000,
+      "tag": "0017_arca_restaurante_vertical",
+      "breakpoints": true
     }
   ]
 }

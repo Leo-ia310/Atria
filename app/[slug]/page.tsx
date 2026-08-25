@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Facebook, Globe, Instagram, Phone, Send, Sparkles, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { db } from "@/lib/db";
+import { dbSuperAdmin } from "@/lib/db";
 import {
   empresas,
   almacenes,
@@ -22,6 +22,8 @@ import {
 import { cn, desdeDecimal, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { PedidoMenuPublico } from "@/components/restaurante/PedidoMenuPublico";
+import { GuestOnboardingPrompt } from "@/components/restaurante/GuestOnboardingPrompt";
+import { resolverComensalDesdeCookie } from "@/lib/actions/restaurante-vertical";
 
 type PlatilloPublico = typeof menuPlatillos.$inferSelect & {
   agotado: boolean;
@@ -57,6 +59,7 @@ export default async function MenuPublicoPage({ params, searchParams }: PageProp
   const accent = menu.colorSecundario;
   const agrupados = agruparPlatillos(platillos, secciones);
   const promosVisibles = promocionesActivas.slice(0, 4);
+  const comensal = await resolverComensalDesdeCookie(empresa.id);
 
   return (
     <main
@@ -135,6 +138,10 @@ export default async function MenuPublicoPage({ params, searchParams }: PageProp
             </div>
           </div>
         </section>
+      )}
+
+      {!comensal && (
+        <GuestOnboardingPrompt slug={menu.slug} colorPrimario={menu.colorPrimario} />
       )}
 
       {platillos.length > 0 && (
@@ -255,7 +262,8 @@ function normalizarMesa(valor: string | undefined, cantidadMesas: number): strin
 }
 
 async function cargarMenuPublico(slug: string) {
-  const [row] = await db
+  return dbSuperAdmin(async (tx) => {
+  const [row] = await tx
     .select({
       menu: menusVirtuales,
       empresa: {
@@ -265,6 +273,7 @@ async function cargarMenuPublico(slug: string) {
         pais: empresas.pais,
         activa: empresas.activa,
         tipoEmpresa: empresas.tipoEmpresa,
+        verticalEmpresa: empresas.verticalEmpresa,
         zonaHoraria: empresas.zonaHoraria,
       },
     })
@@ -273,22 +282,27 @@ async function cargarMenuPublico(slug: string) {
     .where(and(eq(menusVirtuales.slug, slug), eq(menusVirtuales.publicado, true)))
     .limit(1);
 
-  if (!row || !row.empresa.activa || row.empresa.tipoEmpresa !== "restaurante") {
+  if (
+    !row ||
+    !row.empresa.activa ||
+    (row.empresa.verticalEmpresa !== "restaurante" &&
+      row.empresa.tipoEmpresa !== "restaurante")
+  ) {
     return null;
   }
 
   const [secciones, platillos, promociones] = await Promise.all([
-    db
+    tx
       .select()
       .from(menuSecciones)
       .where(and(eq(menuSecciones.menuId, row.menu.id), eq(menuSecciones.visible, true)))
       .orderBy(asc(menuSecciones.orden), asc(menuSecciones.nombre)),
-    db
+    tx
       .select()
       .from(menuPlatillos)
       .where(and(eq(menuPlatillos.menuId, row.menu.id), eq(menuPlatillos.disponible, true)))
       .orderBy(asc(menuPlatillos.orden), asc(menuPlatillos.nombre)),
-    db
+    tx
       .select()
       .from(menuPromociones)
       .where(and(eq(menuPromociones.menuId, row.menu.id), eq(menuPromociones.activa, true))),
@@ -299,7 +313,7 @@ async function cargarMenuPublico(slug: string) {
   ];
   const [productosRows, stockRows] = productoIds.length
     ? await Promise.all([
-        db
+        tx
           .select({ id: productos.id, tipo: productos.tipo })
           .from(productos)
           .where(
@@ -310,7 +324,7 @@ async function cargarMenuPublico(slug: string) {
               inArray(productos.id, productoIds),
             ),
           ),
-        db
+        tx
           .select({
             productoId: existencias.productoId,
             cantidad: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
@@ -363,6 +377,7 @@ async function cargarMenuPublico(slug: string) {
     platillos: platillosConStock,
     promocionesActivas,
   };
+  });
 }
 
 function fechaLocal(timeZone: string): { fecha: string; diaSemana: number } {

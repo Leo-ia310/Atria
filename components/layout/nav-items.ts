@@ -3,7 +3,6 @@ import {
   BarChart3,
   BookOpen,
   CalendarCheck,
-  ChefHat,
   CircleDollarSign,
   Coins,
   FileText,
@@ -18,7 +17,6 @@ import {
   ShoppingCart,
   Store,
   Truck,
-  Utensils,
   UserRound,
   Users,
   UsersRound,
@@ -60,13 +58,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/inventario", label: "Inventario", icon: Package, modulo: "inventario" },
       { href: "/clientes", label: "Clientes", icon: Users, modulo: "clientes" },
       { href: "/compras", label: "Compras", icon: Truck, modulo: "compras" },
-    ],
-  },
-  {
-    titulo: "Restaurante",
-    items: [
-      { href: "/menu-virtual", label: "Menu virtual", icon: Utensils, modulo: "menu-virtual" },
-      { href: "/pedidos-cocina", label: "Pedidos cocina", icon: ChefHat, modulo: "pedidos-cocina" },
     ],
   },
   {
@@ -120,8 +111,6 @@ export const COMMAND_ITEMS: CommandItem[] = [
   { label: "Punto de Venta (POS)", href: "/pos", grupo: "Operativo", modulo: "pos", keywords: "caja cobrar vender" },
   { label: "Caja / Sesiones", href: "/caja", grupo: "Operativo", modulo: "caja", keywords: "arqueo apertura cierre" },
   { label: "Ventas", href: "/ventas", grupo: "Operativo", modulo: "ventas" },
-  { label: "Menu virtual", href: "/menu-virtual", grupo: "Restaurante", modulo: "menu-virtual", keywords: "restaurante qr platillos promos" },
-  { label: "Pedidos cocina", href: "/pedidos-cocina", grupo: "Restaurante", modulo: "pedidos-cocina", keywords: "kitchen tickets restaurante" },
   { label: "Inventario", href: "/inventario", grupo: "Operativo", modulo: "inventario", keywords: "productos stock" },
   { label: "Nuevo producto", href: "/inventario/nuevo", grupo: "Operativo", modulo: "inventario" },
   { label: "Clientes", href: "/clientes", grupo: "Operativo", modulo: "clientes" },

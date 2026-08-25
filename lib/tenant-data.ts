@@ -13,6 +13,7 @@ const cargarEmpresa = unstable_cache(
           pais: empresas.pais,
           moneda: empresas.moneda,
           tipoEmpresa: empresas.tipoEmpresa,
+          verticalEmpresa: empresas.verticalEmpresa,
           razonSocial: empresas.razonSocial,
           nombreComercial: empresas.nombreComercial,
           identificacionFiscal: empresas.identificacionFiscal,
