@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  BarChart3,
   CalendarDays,
   ChefHat,
   Clock,
@@ -8,7 +9,9 @@ import {
   Table2,
   TrendingDown,
   TrendingUp,
+  Utensils,
   UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
@@ -24,7 +27,7 @@ import { Badge } from "@/components/ui/Badge";
 export default async function RestauranteDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ bienvenida?: string }>;
+  searchParams: Promise<{ bienvenida?: string; acceso?: string; cuenta?: string }>;
 }) {
   const [params, user] = await Promise.all([searchParams, requireSession()]);
   await requireModulo(user, "restaurante-dashboard");
@@ -43,6 +46,50 @@ export default async function RestauranteDashboardPage({
   const mesasDisponibles = data.mesas.disponible ?? 0;
   const mesasOcupadas = data.mesas.ocupada ?? 0;
   const mesasPorLimpiar = data.mesas.por_limpiar ?? 0;
+  const accesosPorArea: ModuleTileProps[] = [
+    {
+      href: "/restaurante/mesas",
+      title: "Salon",
+      subtitle: "Mesas, areas y estados",
+      icon: Table2,
+      metric: `${mesasOcupadas} ocupadas`,
+    },
+    {
+      href: "/restaurante/kds",
+      title: "Cocina",
+      subtitle: "KDS y tiempos de preparacion",
+      icon: ChefHat,
+      metric: `${data.pedidosCocina} en cola`,
+    },
+    {
+      href: "/restaurante/menu",
+      title: "Carta QR",
+      subtitle: "Menu publico, platillos y QR",
+      icon: Utensils,
+      metric: `${data.topPlatillos.length} destacados`,
+    },
+    {
+      href: "/restaurante/inventario",
+      title: "Insumos",
+      subtitle: "Stock, vencimientos y food cost",
+      icon: Package,
+      metric: `${data.insumosBajos.length} alertas`,
+    },
+    {
+      href: "/restaurante/reservaciones",
+      title: "Recepcion",
+      subtitle: "Reservas y lista de espera",
+      icon: CalendarDays,
+      metric: `${data.reservacionesProximas} reservas`,
+    },
+    {
+      href: "/restaurante/reportes",
+      title: "Reportes",
+      subtitle: "Ventas, margen y ranking",
+      icon: BarChart3,
+      metric: formatearMoneda(data.margenBruto, pais),
+    },
+  ];
 
   return (
     <div className="space-y-5">
@@ -71,6 +118,17 @@ export default async function RestauranteDashboardPage({
         </div>
       )}
 
+      {params.acceso === "denegado" && (
+        <div className="rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning-bg)] px-4 py-3 text-small text-[color:var(--color-warning)]">
+          Ese modulo no esta disponible para tu usuario. Te mantuvimos dentro de ARCA Restaurante.
+        </div>
+      )}
+
+      <SectionHeader
+        eyebrow="Resumen"
+        title="Turno de hoy"
+        subtitle="Indicadores principales del restaurante en tiempo real."
+      />
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ventas de hoy"
@@ -102,6 +160,11 @@ export default async function RestauranteDashboardPage({
         />
       </section>
 
+      <SectionHeader
+        eyebrow="Operacion"
+        title="Salon, cocina y recepcion"
+        subtitle="Cada area abre una vista propia del vertical restaurante."
+      />
       <section className="grid gap-4 xl:grid-cols-3">
         <Card>
           <CardHeader title="Mesas" subtitle="Estado operativo del salon" />
@@ -147,6 +210,22 @@ export default async function RestauranteDashboardPage({
         </Card>
       </section>
 
+      <SectionHeader
+        eyebrow="Modulos"
+        title="Accesos por area"
+        subtitle="Todos estos accesos se quedan dentro de /restaurante."
+      />
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {accesosPorArea.map((item) => (
+          <ModuleTile key={item.href} {...item} />
+        ))}
+      </section>
+
+      <SectionHeader
+        eyebrow="Control"
+        title="Rendimiento e insumos"
+        subtitle="Ranking de venta y alertas para compras o preparacion."
+      />
       <section className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader title="Platillos mas vendidos" subtitle="Ultimos 30 dias" />
@@ -212,6 +291,64 @@ export default async function RestauranteDashboardPage({
         </Card>
       </section>
     </div>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="pt-2">
+      <p className="text-label">{eyebrow}</p>
+      <h2 className="mt-1 text-lg font-semibold">{title}</h2>
+      <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+        {subtitle}
+      </p>
+    </div>
+  );
+}
+
+type ModuleTileProps = {
+  href: string;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  metric: string;
+};
+
+function ModuleTile({
+  href,
+  title,
+  subtitle,
+  icon: Icon,
+  metric,
+}: ModuleTileProps) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-[116px] flex-col justify-between rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 transition hover:border-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold">{title}</h3>
+          <p className="mt-1 line-clamp-2 text-small text-[color:var(--color-text-muted)]">
+            {subtitle}
+          </p>
+        </div>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[color:var(--color-primary)]/10 text-[color:var(--color-primary)] transition group-hover:bg-[color:var(--color-primary)] group-hover:text-[color:var(--color-text-on-primary)]">
+          <Icon size={18} />
+        </span>
+      </div>
+      <div className="mt-4 text-small font-medium text-[color:var(--color-text-secondary)]">
+        {metric}
+      </div>
+    </Link>
   );
 }
 

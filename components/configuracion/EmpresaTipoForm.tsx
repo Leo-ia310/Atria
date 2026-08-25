@@ -49,7 +49,7 @@ export function EmpresaTipoForm({
     if (!res.ok) return mostrar("error", res.error);
     mostrar("success", "Tipo de empresa actualizado");
     if (tipoEmpresa === "restaurante") {
-      router.replace("/restaurante");
+      router.replace("/restaurante?bienvenida=1");
       router.refresh();
       return;
     }

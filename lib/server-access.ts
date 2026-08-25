@@ -188,11 +188,15 @@ export function getAccessContext(user: SessionUser): Promise<AccessContext> {
 
 export async function requireModulo(user: SessionUser, modulo: ModuloAcceso) {
   const access = await getAccessContext(user);
+  const rutaBase =
+    access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante"
+      ? "/restaurante"
+      : "/dashboard";
   if (access.suscripcionBloqueada) {
-    redirect("/dashboard?cuenta=bloqueada");
+    redirect(`${rutaBase}?cuenta=bloqueada`);
   }
   if (!puedeAccederModulo(access, modulo)) {
-    redirect("/dashboard?acceso=denegado");
+    redirect(`${rutaBase}?acceso=denegado`);
   }
   return access;
 }

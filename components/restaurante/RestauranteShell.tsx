@@ -12,7 +12,6 @@ import {
   Menu,
   Package,
   ReceiptText,
-  Settings,
   ShoppingCart,
   Table2,
   UsersRound,
@@ -43,13 +42,6 @@ const NAV_PRINCIPAL: NavItem[] = [
   { href: "/restaurante/comensales", label: "Comensales", icon: UsersRound },
   { href: "/restaurante/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/restaurante/promociones", label: "Promos", icon: Gift },
-];
-
-const NAV_CORE: NavItem[] = [
-  { href: "/compras", label: "Compras", icon: Package },
-  { href: "/caja", label: "Caja", icon: ShoppingCart },
-  { href: "/contabilidad", label: "Contabilidad", icon: BarChart3 },
-  { href: "/configuracion", label: "Configuracion", icon: Settings },
 ];
 
 export function RestauranteShell({
@@ -104,16 +96,8 @@ export function RestauranteShell({
             ))}
           </div>
 
-          <div className="mb-2 mt-6 px-2 text-label">ARCA Core</div>
-          <div className="space-y-1">
-            {NAV_CORE.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                activo={esActivo(pathname, item.href)}
-                onClick={() => setMobileOpen(false)}
-              />
-            ))}
+          <div className="mt-6 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3 text-[12px] text-[color:var(--color-text-muted)]">
+            Los accesos de esta vista se mantienen dentro de ARCA Restaurante.
           </div>
         </nav>
 
@@ -154,8 +138,8 @@ export function RestauranteShell({
               </div>
             </div>
           </div>
-          <Link href="/pos" className="arca-btn arca-btn-secondary arca-btn-sm">
-            POS retail
+          <Link href="/restaurante/pos" className="arca-btn arca-btn-secondary arca-btn-sm">
+            POS restaurante
           </Link>
         </header>
         <main className="min-w-0 p-4 sm:p-6">{children}</main>

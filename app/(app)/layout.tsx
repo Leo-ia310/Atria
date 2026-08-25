@@ -40,6 +40,8 @@ export default async function AppLayout({
   const planNombre = access.plan.nombre;
   const esDemo = access.plan.id === "demo";
   const esTrialPago = access.suscripcionEstado === "trial" && access.plan.id !== "demo";
+  const esRestaurante =
+    access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante";
 
   if (access.suscripcionBloqueada) {
     const permitidosBloqueo: ModuloAcceso[] = ["dashboard", "mi-cuenta"];
@@ -72,8 +74,12 @@ export default async function AppLayout({
     );
   }
 
+  if (esRestaurante && (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))) {
+    redirect("/restaurante");
+  }
+
   if (moduloActual && !puedeAccederModulo(access, moduloActual)) {
-    redirect("/dashboard?acceso=denegado");
+    redirect(esRestaurante ? "/restaurante?acceso=denegado" : "/dashboard?acceso=denegado");
   }
 
   const permitidos = modulosPermitidos(access);
