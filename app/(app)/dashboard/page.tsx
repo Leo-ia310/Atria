@@ -44,7 +44,7 @@ export default async function DashboardPage({
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
   ]);
-  if (access.verticalEmpresa === "restaurante") {
+  if (access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante") {
     redirect(`/restaurante${params.bienvenida === "1" ? "?bienvenida=1" : ""}`);
   }
   const esBienvenida = params.bienvenida === "1";

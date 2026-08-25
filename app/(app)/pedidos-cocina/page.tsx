@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { ChefHat, Clock, Receipt, Table2, Utensils } from "lucide-react";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -11,7 +12,7 @@ import {
   ventas,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
-import { requireModulo } from "@/lib/server-access";
+import { getAccessContext, requireModulo } from "@/lib/server-access";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { actualizarEstadoPedidoCocina } from "@/lib/actions/restaurante";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -33,6 +34,10 @@ export default async function PedidosCocinaPage({
   searchParams: Promise<{ error?: string; guardado?: string }>;
 }) {
   const [sp, user] = await Promise.all([searchParams, requireSession()]);
+  const access = await getAccessContext(user);
+  if (access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante") {
+    redirect("/restaurante/kds");
+  }
   await requireModulo(user, "pedidos-cocina");
   const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);

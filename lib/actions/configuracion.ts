@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { and, count, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -411,6 +411,7 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
     revalidatePath("/restaurante");
     revalidatePath("/menu-virtual");
     revalidatePath("/pedidos-cocina");
+    revalidateTag("empresa-metadata");
     return { ok: true };
   } catch (err) {
     console.error("[actualizarTipoEmpresa]", err);

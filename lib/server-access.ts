@@ -153,16 +153,18 @@ const getAccessContextCached = cache(
       ((usuarioActual?.esSuperAdmin ?? sessionEsSuperAdmin) ||
         rolNombre?.trim().toLowerCase() === ADMIN_ROLE);
 
+    const tipoEmpresa = empresa?.tipoEmpresa ?? "general";
+    const verticalEmpresa =
+      tipoEmpresa === "restaurante" ? "restaurante" : empresa?.verticalEmpresa ?? "retail";
+
     return {
       esAdminEmpresa,
       permisos: usuarioActivo
         ? rolRows.flatMap((row) => (row.permiso ? [row.permiso] : []))
         : [],
       plan,
-      tipoEmpresa: empresa?.tipoEmpresa ?? "general",
-      verticalEmpresa:
-        empresa?.verticalEmpresa ??
-        (empresa?.tipoEmpresa === "restaurante" ? "restaurante" : "retail"),
+      tipoEmpresa,
+      verticalEmpresa,
       rolNombre,
       usuariosExtra: vigente || suscripcionBloqueada ? suscripcion?.usuariosExtra ?? 0 : 0,
       sucursalesExtra: vigente || suscripcionBloqueada ? suscripcion?.sucursalesExtra ?? 0 : 0,

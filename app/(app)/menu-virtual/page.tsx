@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Plus, QrCode, Utensils } from "lucide-react";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { menuPlatillos, menuPromociones, menusVirtuales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
-import { requireModulo } from "@/lib/server-access";
+import { getAccessContext, requireModulo } from "@/lib/server-access";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { crearMenuVirtual } from "@/lib/actions/restaurante";
 import { slugifyMenu, getMenuPublicUrl } from "@/lib/restaurante/menu-utils";
@@ -22,6 +23,10 @@ export default async function MenuVirtualPage({
   searchParams: Promise<{ error?: string; guardado?: string }>;
 }) {
   const [sp, user] = await Promise.all([searchParams, requireSession()]);
+  const access = await getAccessContext(user);
+  if (access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante") {
+    redirect("/restaurante/menu");
+  }
   await requireModulo(user, "menu-virtual");
 
   const [empresa, menus] = await Promise.all([

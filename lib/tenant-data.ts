@@ -26,10 +26,15 @@ const cargarEmpresa = unstable_cache(
         .limit(1),
     );
 
-    return empresa ?? null;
+    if (!empresa) return null;
+    return {
+      ...empresa,
+      verticalEmpresa:
+        empresa.tipoEmpresa === "restaurante" ? "restaurante" : empresa.verticalEmpresa,
+    };
   },
   ["empresa-metadata-v1"],
-  { revalidate: 300 },
+  { revalidate: 300, tags: ["empresa-metadata"] },
 );
 
 const cargarSucursalesActivas = unstable_cache(
