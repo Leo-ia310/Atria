@@ -47,6 +47,12 @@ function volver(path: string, params: Record<string, string>): never {
   redirect(`${path}?${qs.toString()}`);
 }
 
+const RUTA_MENU_RESTAURANTE = "/restaurante/menu";
+
+function rutaMenuRestaurante(menuId: string): string {
+  return `${RUTA_MENU_RESTAURANTE}/${menuId}`;
+}
+
 async function asegurarAccesoMenu() {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
@@ -120,7 +126,7 @@ export async function crearMenuVirtual(formData: FormData) {
     plantilla: texto(formData, "plantilla") || "bistro",
   });
   if (!parsed.success) {
-    volver("/menu-virtual", {
+    volver(RUTA_MENU_RESTAURANTE, {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
@@ -139,8 +145,8 @@ export async function crearMenuVirtual(formData: FormData) {
     })
     .returning({ id: menusVirtuales.id });
 
-  revalidatePath("/menu-virtual");
-  redirect(`/menu-virtual/${menu.id}`);
+  revalidatePath(RUTA_MENU_RESTAURANTE);
+  redirect(rutaMenuRestaurante(menu.id));
 }
 
 export async function actualizarMenuVirtual(formData: FormData) {
@@ -167,16 +173,16 @@ export async function actualizarMenuVirtual(formData: FormData) {
     publicado: checkbox(formData, "publicado"),
   });
   if (!parsed.success) {
-    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+    volver(rutaMenuRestaurante(texto(formData, "menuId")), {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
 
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   if (await slugOcupado(parsed.data.slug, parsed.data.menuId)) {
-    volver(`/menu-virtual/${parsed.data.menuId}`, {
+    volver(rutaMenuRestaurante(parsed.data.menuId), {
       error: "Ese link ya esta en uso",
     });
   }
@@ -195,7 +201,7 @@ export async function actualizarMenuVirtual(formData: FormData) {
       )
       .limit(1);
     if (!sucursal) {
-      volver(`/menu-virtual/${parsed.data.menuId}`, {
+      volver(rutaMenuRestaurante(parsed.data.menuId), {
         error: "Sucursal no encontrada o inactiva",
       });
     }
@@ -226,11 +232,11 @@ export async function actualizarMenuVirtual(formData: FormData) {
     })
     .where(and(eq(menusVirtuales.id, parsed.data.menuId), eq(menusVirtuales.empresaId, user.empresaId)));
 
-  revalidatePath("/menu-virtual");
-  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(RUTA_MENU_RESTAURANTE);
+  revalidatePath(rutaMenuRestaurante(parsed.data.menuId));
   revalidatePath(`/${menu.slug}`);
   revalidatePath(`/${parsed.data.slug}`);
-  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(parsed.data.menuId), { guardado: "1" });
 }
 
 export async function crearMenuSeccion(formData: FormData) {
@@ -241,12 +247,12 @@ export async function crearMenuSeccion(formData: FormData) {
     descripcion: texto(formData, "descripcion"),
   });
   if (!parsed.success) {
-    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+    volver(rutaMenuRestaurante(texto(formData, "menuId")), {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   const [ultima] = await db
     .select({ orden: menuSecciones.orden })
@@ -263,9 +269,9 @@ export async function crearMenuSeccion(formData: FormData) {
     orden: (ultima?.orden ?? 0) + 10,
   });
 
-  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(rutaMenuRestaurante(parsed.data.menuId));
   revalidatePath(`/${menu.slug}`);
-  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(parsed.data.menuId), { guardado: "1" });
 }
 
 export async function crearMenuPlatillo(formData: FormData) {
@@ -284,12 +290,12 @@ export async function crearMenuPlatillo(formData: FormData) {
     disponible: checkbox(formData, "disponible"),
   });
   if (!parsed.success) {
-    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+    volver(rutaMenuRestaurante(texto(formData, "menuId")), {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   if (parsed.data.productoId) {
     const [productoLigado] = await db
@@ -305,7 +311,7 @@ export async function crearMenuPlatillo(formData: FormData) {
       )
       .limit(1);
     if (!productoLigado) {
-      volver(`/menu-virtual/${parsed.data.menuId}`, {
+      volver(rutaMenuRestaurante(parsed.data.menuId), {
         error: "Producto ligado no encontrado o inactivo",
       });
     }
@@ -337,9 +343,9 @@ export async function crearMenuPlatillo(formData: FormData) {
     orden: (ultima?.orden ?? 0) + 10,
   });
 
-  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(rutaMenuRestaurante(parsed.data.menuId));
   revalidatePath(`/${menu.slug}`);
-  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(parsed.data.menuId), { guardado: "1" });
 }
 
 export async function crearMenuPlatilloDesdeProducto(formData: FormData) {
@@ -351,12 +357,12 @@ export async function crearMenuPlatilloDesdeProducto(formData: FormData) {
     destacado: checkbox(formData, "destacado"),
   });
   if (!parsed.success) {
-    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+    volver(rutaMenuRestaurante(texto(formData, "menuId")), {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   const [producto] = await db
     .select({
@@ -377,7 +383,7 @@ export async function crearMenuPlatilloDesdeProducto(formData: FormData) {
     )
     .limit(1);
   if (!producto) {
-    volver(`/menu-virtual/${parsed.data.menuId}`, {
+    volver(rutaMenuRestaurante(parsed.data.menuId), {
       error: "Producto no encontrado o inactivo",
     });
   }
@@ -403,9 +409,9 @@ export async function crearMenuPlatilloDesdeProducto(formData: FormData) {
     orden: (ultima?.orden ?? 0) + 10,
   });
 
-  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(rutaMenuRestaurante(parsed.data.menuId));
   revalidatePath(`/${menu.slug}`);
-  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(parsed.data.menuId), { guardado: "1" });
 }
 
 export async function crearMenuPromocion(formData: FormData) {
@@ -422,12 +428,12 @@ export async function crearMenuPromocion(formData: FormData) {
     fechaFin: texto(formData, "fechaFin"),
   });
   if (!parsed.success) {
-    volver(`/menu-virtual/${texto(formData, "menuId")}`, {
+    volver(rutaMenuRestaurante(texto(formData, "menuId")), {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
   const menu = await obtenerMenuDeEmpresa(parsed.data.menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   await db.insert(menuPromociones).values({
     empresaId: user.empresaId,
@@ -442,9 +448,9 @@ export async function crearMenuPromocion(formData: FormData) {
     fechaFin: limpiarVacio(parsed.data.fechaFin),
   });
 
-  revalidatePath(`/menu-virtual/${parsed.data.menuId}`);
+  revalidatePath(rutaMenuRestaurante(parsed.data.menuId));
   revalidatePath(`/${menu.slug}`);
-  volver(`/menu-virtual/${parsed.data.menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(parsed.data.menuId), { guardado: "1" });
 }
 
 export async function actualizarDisponibilidadPlatillo(formData: FormData) {
@@ -453,7 +459,7 @@ export async function actualizarDisponibilidadPlatillo(formData: FormData) {
   const platilloId = texto(formData, "platilloId");
   const disponible = checkbox(formData, "disponible");
   const menu = await obtenerMenuDeEmpresa(menuId, user.empresaId);
-  if (!menu) volver("/menu-virtual", { error: "Menu no encontrado" });
+  if (!menu) volver(RUTA_MENU_RESTAURANTE, { error: "Menu no encontrado" });
 
   await db
     .update(menuPlatillos)
@@ -466,9 +472,9 @@ export async function actualizarDisponibilidadPlatillo(formData: FormData) {
       ),
     );
 
-  revalidatePath(`/menu-virtual/${menuId}`);
+  revalidatePath(rutaMenuRestaurante(menuId));
   revalidatePath(`/${menu.slug}`);
-  volver(`/menu-virtual/${menuId}`, { guardado: "1" });
+  volver(rutaMenuRestaurante(menuId), { guardado: "1" });
 }
 
 export async function actualizarEstadoPedidoCocina(formData: FormData) {
@@ -484,7 +490,7 @@ export async function actualizarEstadoPedidoCocina(formData: FormData) {
     estado: texto(formData, "estado"),
   });
   if (!parsed.success) {
-    volver("/pedidos-cocina", {
+    volver("/restaurante/kds", {
       error: parsed.error.issues[0]?.message ?? "Datos invalidos",
     });
   }
@@ -498,6 +504,6 @@ export async function actualizarEstadoPedidoCocina(formData: FormData) {
     })
     .where(and(eq(pedidosCocina.id, parsed.data.pedidoId), eq(pedidosCocina.empresaId, user.empresaId)));
 
-  revalidatePath("/pedidos-cocina");
-  volver("/pedidos-cocina", { guardado: "1" });
+  revalidatePath("/restaurante/kds");
+  volver("/restaurante/kds", { guardado: "1" });
 }

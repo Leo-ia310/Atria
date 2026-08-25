@@ -409,6 +409,8 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
     revalidatePath("/restaurante");
+    revalidatePath("/restaurante/kds");
+    revalidatePath("/restaurante/menu");
     revalidatePath("/menu-virtual");
     revalidatePath("/pedidos-cocina");
     revalidateTag("empresa-metadata");
@@ -590,6 +592,8 @@ export async function eliminarDatosRestaurante(input: unknown): Promise<Resultad
     revalidatePath("/configuracion/empresa");
     revalidatePath("/dashboard");
     revalidatePath("/restaurante");
+    revalidatePath("/restaurante/kds");
+    revalidatePath("/restaurante/menu");
     revalidatePath("/menu-virtual");
     revalidatePath("/pedidos-cocina");
     return { ok: true };

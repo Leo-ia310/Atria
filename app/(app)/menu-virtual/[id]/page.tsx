@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft, ExternalLink, Plus, Sparkles, Utensils } from "lucide-react";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
@@ -15,7 +16,7 @@ import {
   sucursales,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
-import { requireModulo } from "@/lib/server-access";
+import { getAccessContext, requireModulo } from "@/lib/server-access";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import {
   actualizarDisponibilidadPlatillo,
@@ -41,18 +42,26 @@ import { MenuMesaQrsCard } from "@/components/restaurante/MenuMesaQrsCard";
 import { MenuQrCard } from "@/components/restaurante/MenuQrCard";
 import { desdeDecimal, formatearMoneda } from "@/lib/utils";
 
-export default async function MenuVirtualDetallePage({
-  params,
-  searchParams,
-}: {
+type MenuVirtualDetallePageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string; guardado?: string }>;
-}) {
-  const [{ id }, sp, user] = await Promise.all([
-    params,
-    searchParams,
+};
+
+export default async function MenuVirtualDetallePage(props: MenuVirtualDetallePageProps) {
+  const [{ id }, sp, user, headerStore] = await Promise.all([
+    props.params,
+    props.searchParams,
     requireSession(),
+    headers(),
   ]);
+  const access = await getAccessContext(user);
+  const pathname = headerStore.get("x-arca-pathname") ?? "";
+  if (
+    pathname.startsWith("/menu-virtual") &&
+    (access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante")
+  ) {
+    redirect(`/restaurante/menu/${id}`);
+  }
   await requireModulo(user, "menu-virtual");
 
   const [empresa, menuRows, sucursalesEmpresa] = await Promise.all([
@@ -205,7 +214,7 @@ export default async function MenuVirtualDetallePage({
         subtitle="Administra el menu, agrega platillos y programa promociones temporales."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/menu-virtual" className="arca-btn arca-btn-ghost arca-btn-sm">
+            <Link href="/restaurante/menu" className="arca-btn arca-btn-ghost arca-btn-sm">
               <ArrowLeft size={14} /> Menus
             </Link>
             <Link href={`/${menu.slug}`} target="_blank" className="arca-btn arca-btn-secondary arca-btn-sm">

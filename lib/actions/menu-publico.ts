@@ -173,6 +173,7 @@ export async function crearPedidoMenuPublico(
   });
 
   revalidatePath("/pedidos-cocina");
+  revalidatePath("/restaurante/kds");
   return { ok: true, numero };
 }
 

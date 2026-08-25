@@ -6,8 +6,10 @@ import { dbConEmpresa } from "@/lib/db";
 import { menuPlatillos, menusVirtuales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
+import { crearMenuVirtual } from "@/lib/actions/restaurante";
 import { getMenuPublicUrl } from "@/lib/restaurante/menu-utils";
 import { MenuQrCard } from "@/components/restaurante/MenuQrCard";
+import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
@@ -55,9 +57,13 @@ export default async function RestauranteMenuPage() {
             Publicacion rapida, QR general y punto de control del menu publico.
           </p>
         </div>
-        <Link href="/menu-virtual" className="arca-btn arca-btn-secondary arca-btn-sm">
-          Editor de carta
-        </Link>
+        <form action={crearMenuVirtual}>
+          <input type="hidden" name="nombre" value="Menu principal" />
+          <input type="hidden" name="plantilla" value="bistro" />
+          <Button type="submit" size="sm" variant="secondary">
+            Crear menu
+          </Button>
+        </form>
       </header>
 
       {menusConQr.length === 0 ? (
@@ -68,9 +74,13 @@ export default async function RestauranteMenuPage() {
               <p className="mt-3 text-small text-[color:var(--color-text-muted)]">
                 No hay menus publicados. Crea la carta desde el editor.
               </p>
-              <Link href="/menu-virtual" className="arca-btn arca-btn-primary arca-btn-sm mt-4">
-                Crear menu
-              </Link>
+              <form action={crearMenuVirtual} className="mt-4">
+                <input type="hidden" name="nombre" value="Menu principal" />
+                <input type="hidden" name="plantilla" value="bistro" />
+                <Button type="submit" size="sm">
+                  Crear menu
+                </Button>
+              </form>
             </div>
           </CardBody>
         </Card>
@@ -98,7 +108,7 @@ export default async function RestauranteMenuPage() {
                     <a href={menu.url} target="_blank" rel="noreferrer" className="arca-btn arca-btn-primary arca-btn-sm">
                       <ExternalLink size={14} /> Ver publico
                     </a>
-                    <Link href={`/menu-virtual/${menu.id}`} className="arca-btn arca-btn-secondary arca-btn-sm">
+                    <Link href={`/restaurante/menu/${menu.id}`} className="arca-btn arca-btn-secondary arca-btn-sm">
                       Editar carta
                     </Link>
                   </div>
