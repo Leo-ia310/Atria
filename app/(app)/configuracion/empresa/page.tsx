@@ -87,8 +87,19 @@ export default async function EmpresaConfiguracionPage() {
               <Badge variant={empresa?.tipoEmpresa === "restaurante" ? "warning" : "neutral"}>
                 {labelTipo(empresa?.tipoEmpresa ?? "general")}
               </Badge>
-              <Badge variant={empresa?.verticalEmpresa === "restaurante" ? "warning" : "neutral"}>
-                Vertical {empresa?.verticalEmpresa === "restaurante" ? "Restaurante" : "Retail"}
+              <Badge
+                variant={
+                  empresa?.verticalEmpresa === "restaurante" ||
+                  empresa?.tipoEmpresa === "restaurante"
+                    ? "warning"
+                    : "neutral"
+                }
+              >
+                Vertical{" "}
+                {empresa?.verticalEmpresa === "restaurante" ||
+                empresa?.tipoEmpresa === "restaurante"
+                  ? "Restaurante"
+                  : "Retail"}
               </Badge>
             </div>
           </div>

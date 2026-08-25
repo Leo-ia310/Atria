@@ -48,6 +48,11 @@ export function EmpresaTipoForm({
     setGuardando(false);
     if (!res.ok) return mostrar("error", res.error);
     mostrar("success", "Tipo de empresa actualizado");
+    if (tipoEmpresa === "restaurante") {
+      router.replace("/restaurante");
+      router.refresh();
+      return;
+    }
     router.refresh();
   }
 
@@ -69,7 +74,7 @@ export function EmpresaTipoForm({
       <Card>
       <CardHeader
         title="Vertical de negocio"
-        subtitle="Restaurante abre una experiencia operativa propia de ARCA Restaurante."
+        subtitle="Restaurante abre el dashboard operativo propio de ARCA Restaurante."
       />
       <CardBody className="space-y-4">
         <Select

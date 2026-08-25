@@ -144,6 +144,11 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
   configuracion: { soloAdmin: true },
 };
 
+const MODULOS_LEGACY_RESTAURANTE_OCULTOS = new Set<ModuloAcceso>([
+  "menu-virtual",
+  "pedidos-cocina",
+]);
+
 export function tienePermiso(
   access: AccessSnapshot,
   permisos: string | string[],
@@ -192,7 +197,8 @@ export function puedeAccederModulo(
 
 export function modulosPermitidos(access: AccessSnapshot): ModuloAcceso[] {
   return (Object.keys(REGLAS_ACCESO) as ModuloAcceso[]).filter((modulo) =>
-    puedeAccederModulo(access, modulo),
+    puedeAccederModulo(access, modulo) &&
+      !MODULOS_LEGACY_RESTAURANTE_OCULTOS.has(modulo),
   );
 }
 
