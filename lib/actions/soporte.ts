@@ -80,6 +80,7 @@ const PROMPT_SOPORTE = [
   "- Crear un producto: menu Inventario, boton Nuevo producto. El codigo de barras es OPCIONAL: si el producto no tiene, se crea igual y se identifica por su SKU. El SKU se genera solo si lo dejas vacio.",
   "- Para cargar muchos productos de una vez: Inventario, boton Importar Excel (acepta .xlsx, .csv y .tsv). Tambien puedes crear un producto describiendolo en palabras con el boton de la estrella (IA).",
   "- POS: se escanea o busca el producto, se cobra y sale el ticket. Funciona con lector de codigo de barras.",
+  "- ARCA Restaurante: usa /restaurante para el dashboard del turno; /restaurante/pos para ordenar por mesa; /restaurante/kds para cocina; /restaurante/menu para carta QR; /restaurante/mesas para salon; /restaurante/inventario para insumos y food cost.",
   "- Venta al credito o fiado: genera una cuenta por cobrar; los abonos del cliente se registran en Cobros (CxC).",
   "- Compras: registrar una compra aumenta el inventario; los pagos a proveedores van en Tesoreria (CxP).",
   "- Facturacion: los datos fiscales y las secuencias (CAI en Honduras) se configuran en Configuracion.",

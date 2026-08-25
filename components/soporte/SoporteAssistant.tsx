@@ -19,6 +19,9 @@ type SoporteAssistantProps = {
   planNombre: string;
   preguntasDiarias: number | null;
   palabrasPorPregunta: number | null;
+  titulo?: string;
+  mensajeInicial?: string;
+  sugerencias?: [string, string][];
 };
 
 function textoHistorial(content: string): string {
@@ -33,6 +36,13 @@ export function SoporteAssistant({
   planNombre,
   preguntasDiarias,
   palabrasPorPregunta,
+  titulo = "Asistente ARCA",
+  mensajeInicial = "Hola. Soy el asistente de ARCA. Puedo ayudarte con ventas, inventario, facturas, caja, contabilidad, cobros, pagos, reportes y configuracion.",
+  sugerencias = [
+    ["Configurar factura", "Como configuro impuestos y formas de pago?"],
+    ["Buscar por SKU", "Como encuentro rapido productos por categoria?"],
+    ["Revisar asiento", "Donde veo el asiento contable de una venta?"],
+  ],
 }: SoporteAssistantProps) {
   const { mostrar } = useToast();
   const [texto, setTexto] = useState("");
@@ -40,8 +50,7 @@ export function SoporteAssistant({
   const [mensajes, setMensajes] = useState<Mensaje[]>([
     {
       role: "assistant",
-      content:
-        "Hola. Soy el asistente de ARCA. Puedo ayudarte con ventas, inventario, facturas, caja, contabilidad, cobros, pagos, reportes y configuracion.",
+      content: mensajeInicial,
     },
   ]);
   const palabrasActuales = useMemo(() => contarPalabras(texto), [texto]);
@@ -90,7 +99,7 @@ export function SoporteAssistant({
   return (
     <div className="grid min-h-[calc(100vh-170px)] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
       <Card className="flex min-h-[620px] flex-col overflow-hidden">
-        <CardHeader title="Asistente ARCA" />
+        <CardHeader title={titulo} />
         <CardBody className="flex flex-1 flex-col gap-4 p-0">
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
             {mensajes.map((mensaje, index) => (
@@ -205,11 +214,7 @@ export function SoporteAssistant({
               : "."}
           </div>
         </div>
-        {[
-          ["Configurar factura", "Como configuro impuestos y formas de pago?"],
-          ["Buscar por SKU", "Como encuentro rapido productos por categoria?"],
-          ["Revisar asiento", "Donde veo el asiento contable de una venta?"],
-        ].map(([label, prompt]) => (
+        {sugerencias.map(([label, prompt]) => (
           <button
             key={label}
             type="button"

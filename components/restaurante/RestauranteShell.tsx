@@ -9,9 +9,11 @@ import {
   ClipboardList,
   Gift,
   LayoutDashboard,
+  LifeBuoy,
   Menu,
   Package,
   ReceiptText,
+  Settings,
   ShoppingCart,
   Table2,
   UsersRound,
@@ -42,6 +44,11 @@ const NAV_PRINCIPAL: NavItem[] = [
   { href: "/restaurante/comensales", label: "Comensales", icon: UsersRound },
   { href: "/restaurante/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/restaurante/promociones", label: "Promos", icon: Gift },
+];
+
+const NAV_GESTION: NavItem[] = [
+  { href: "/restaurante/soporte", label: "Soporte", icon: LifeBuoy },
+  { href: "/restaurante/configuracion", label: "Configuracion", icon: Settings },
 ];
 
 export function RestauranteShell({
@@ -96,8 +103,21 @@ export function RestauranteShell({
             ))}
           </div>
 
-          <div className="mt-6 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3 text-[12px] text-[color:var(--color-text-muted)]">
-            Los accesos de esta vista se mantienen dentro de ARCA Restaurante.
+          <div className="mb-2 mt-6 px-2 text-label">Gestion restaurante</div>
+          <div className="space-y-1">
+            {NAV_GESTION.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                activo={esActivo(pathname, item.href)}
+                onClick={() => setMobileOpen(false)}
+              />
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3 text-[12px] leading-relaxed text-[color:var(--color-text-muted)]">
+            Soporte y configuracion estan adaptados a salon, cocina, QR,
+            reservas e insumos.
           </div>
         </nav>
 

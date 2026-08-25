@@ -23,6 +23,13 @@ export const SOPORTE_MODULOS: SoporteModulo[] = [
   { modulo: "rrhh", label: "RRHH", href: "/rrhh", keywords: ["rrhh", "nomina", "empleado", "asistencia", "solicitud"] },
   { modulo: "reportes", label: "Reportes", href: "/reportes", keywords: ["reporte", "reportes", "ventas", "rentabilidad"] },
   { modulo: "configuracion", label: "Configuracion", href: "/configuracion", keywords: ["configurar", "configuracion", "usuarios", "roles", "impuestos", "sucursales"] },
+  { modulo: "restaurante-dashboard", label: "Dashboard restaurante", href: "/restaurante", keywords: ["restaurante", "turno", "dashboard restaurante", "salon", "cocina"] },
+  { modulo: "restaurante-pos", label: "POS restaurante", href: "/restaurante/pos", keywords: ["pos restaurante", "orden", "ordenes", "mesa", "comanda"] },
+  { modulo: "restaurante-kds", label: "KDS", href: "/restaurante/kds", keywords: ["kds", "cocina", "comanda", "preparacion", "pedido cocina"] },
+  { modulo: "restaurante-menu", label: "Menu QR", href: "/restaurante/menu", keywords: ["menu qr", "qr", "carta", "menu publico", "platillo"] },
+  { modulo: "restaurante-mesas", label: "Mesas", href: "/restaurante/mesas", keywords: ["mesa", "mesas", "salon", "area", "qr mesa"] },
+  { modulo: "restaurante-inventario", label: "Insumos", href: "/restaurante/inventario", keywords: ["insumo", "insumos", "food cost", "merma", "stock cocina"] },
+  { modulo: "restaurante-configuracion", label: "Configuracion restaurante", href: "/restaurante/configuracion", keywords: ["configuracion restaurante", "configurar restaurante", "estacion", "sucursal restaurante"] },
 ];
 
 export function sugerirModulosSoporte(
