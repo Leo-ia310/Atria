@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { registrarComensalMenuPublico } from "@/lib/actions/restaurante-vertical";
 
@@ -65,41 +65,51 @@ export function GuestOnboardingPrompt({
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <input
-            value={nombre}
-            onChange={(event) => setNombre(event.target.value)}
-            placeholder="Nombre"
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={telefono}
-            onChange={(event) => setTelefono(event.target.value)}
-            placeholder="Telefono"
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Email opcional"
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={cumpleanos}
-            onChange={(event) => setCumpleanos(event.target.value)}
-            type="date"
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={alergias}
-            onChange={(event) => setAlergias(event.target.value)}
-            placeholder="Alergias que debamos conocer"
-            className="rounded-md border border-black/10 px-3 py-2 text-sm md:col-span-3"
-          />
+          <PublicField label="Nombre">
+            <input
+              value={nombre}
+              onChange={(event) => setNombre(event.target.value)}
+              placeholder="Nombre"
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Telefono">
+            <input
+              value={telefono}
+              onChange={(event) => setTelefono(event.target.value)}
+              placeholder="Telefono"
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Email">
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email opcional"
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Cumpleanos">
+            <input
+              value={cumpleanos}
+              onChange={(event) => setCumpleanos(event.target.value)}
+              type="date"
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Alergias" className="md:col-span-3">
+            <input
+              value={alergias}
+              onChange={(event) => setAlergias(event.target.value)}
+              placeholder="Alergias que debamos conocer"
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
           <button
             type="button"
             onClick={enviar}
             disabled={pending || nombre.trim().length < 2}
-            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="self-end rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
             style={{ background: colorPrimario }}
           >
             {pending ? "Guardando..." : "Continuar al menu"}
@@ -110,5 +120,24 @@ export function GuestOnboardingPrompt({
         {mensaje && <p className="mt-3 text-sm text-emerald-700">{mensaje}</p>}
       </div>
     </section>
+  );
+}
+
+function PublicField({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`flex flex-col gap-1 ${className ?? ""}`}>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

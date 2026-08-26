@@ -152,24 +152,27 @@ export function SoporteAssistant({
           </div>
           <div className="border-t border-[color:var(--color-border)] p-3 sm:p-4">
             <div className="flex items-end gap-2">
-              <textarea
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    enviar();
+              <label className="min-w-0 flex-1 space-y-1">
+                <span className="text-label">Mensaje</span>
+                <textarea
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      enviar();
+                    }
+                  }}
+                  rows={2}
+                  maxLength={3500}
+                  className="arca-input min-h-12 resize-none"
+                  placeholder={
+                    palabrasPorPregunta === null
+                      ? "Escribe tu consulta..."
+                      : `Escribe tu consulta (max. ${palabrasPorPregunta} palabras)...`
                   }
-                }}
-                rows={2}
-                maxLength={3500}
-                className="arca-input min-h-12 flex-1 resize-none"
-                placeholder={
-                  palabrasPorPregunta === null
-                    ? "Escribe tu consulta..."
-                    : `Escribe tu consulta (max. ${palabrasPorPregunta} palabras)...`
-                }
-              />
+                />
+              </label>
               <Button
                 type="button"
                 onClick={enviar}

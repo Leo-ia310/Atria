@@ -9,7 +9,7 @@ import { encode } from "@auth/core/jwt";
 const databaseUrl = process.env.DATABASE_POOL_URL || process.env.DATABASE_URL;
 const authSecret = process.env.AUTH_SECRET;
 
-test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 180_000 }, async (t) => {
+test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 300_000 }, async (t) => {
   assert.ok(databaseUrl, "DATABASE_POOL_URL o DATABASE_URL debe estar configurado");
   assert.ok(authSecret, "AUTH_SECRET debe estar configurado");
 
@@ -73,7 +73,12 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 180_0
   assert.doesNotMatch(restaurante, /Pedidos cocina<\/span>/);
 
   const rutas = [
+    ["/restaurante/pos", /Nueva orden/],
     ["/restaurante/mesas", /Mapa por areas/],
+    ["/restaurante/reservaciones", /Nombre del cliente/],
+    ["/restaurante/recetas", /Clasificar producto/],
+    ["/restaurante/promociones", /Dias de la semana/],
+    ["/restaurante/inventario", /Registrar merma/],
     ["/restaurante/configuracion", /Empresa y cuenta/],
     ["/restaurante/empresa", /Vertical de negocio/],
     ["/restaurante/dispositivos", /Dispositivos restaurante/],

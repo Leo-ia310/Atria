@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/Badge";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { FormField } from "@/components/ui/FormField";
 
 export default async function RestauranteInventarioPage() {
   const user = await requireSession();
@@ -70,6 +71,8 @@ export default async function RestauranteInventarioPage() {
 
   const sucursalDefault = sucursalesList[0];
   const almacenDefault = almacenesList.find((almacen) => almacen.sucursalId === sucursalDefault?.id) ?? almacenesList[0];
+  const puedeRegistrarMerma =
+    sucursalesList.length > 0 && almacenesList.length > 0 && insumos.length > 0;
 
   return (
     <div className="space-y-5">
@@ -137,50 +140,81 @@ export default async function RestauranteInventarioPage() {
           />
           <CardBody>
             <form action={registrarMermaRestauranteForm} className="space-y-3">
-              <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                {sucursalesList.map((sucursal) => (
-                  <option key={sucursal.id} value={sucursal.id}>
-                    {sucursal.nombre}
-                  </option>
-                ))}
-              </select>
-              <select name="almacenId" defaultValue={almacenDefault?.id} className="arca-input">
-                {almacenesList.map((almacen) => (
-                  <option key={almacen.id} value={almacen.id}>
-                    {almacen.nombre}
-                  </option>
-                ))}
-              </select>
-              <select name="productoId" className="arca-input">
-                {insumos.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nombre}
-                  </option>
-                ))}
-              </select>
-              <div className="grid grid-cols-2 gap-2">
-                <input name="cantidad" placeholder="Cantidad" className="arca-input" />
-                <select name="unidadId" defaultValue="" className="arca-input">
-                  <option value="">Unidad base</option>
-                  {unidades.map((unidad) => (
-                    <option key={unidad.id} value={unidad.id}>
-                      {unidad.codigo}
+              <FormField label="Sucursal">
+                <select
+                  name="sucursalId"
+                  defaultValue={sucursalDefault?.id}
+                  disabled={sucursalesList.length === 0}
+                  className="arca-input"
+                >
+                  {sucursalesList.map((sucursal) => (
+                    <option key={sucursal.id} value={sucursal.id}>
+                      {sucursal.nombre}
                     </option>
                   ))}
                 </select>
+              </FormField>
+              <FormField label="Almacen">
+                <select
+                  name="almacenId"
+                  defaultValue={almacenDefault?.id}
+                  disabled={almacenesList.length === 0}
+                  className="arca-input"
+                >
+                  {almacenesList.map((almacen) => (
+                    <option key={almacen.id} value={almacen.id}>
+                      {almacen.nombre}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Insumo">
+                <select name="productoId" disabled={insumos.length === 0} className="arca-input">
+                  {insumos.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nombre}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <div className="grid grid-cols-2 gap-2">
+                <FormField label="Cantidad">
+                  <input name="cantidad" placeholder="Cantidad" className="arca-input" />
+                </FormField>
+                <FormField label="Unidad">
+                  <select name="unidadId" defaultValue="" className="arca-input">
+                    <option value="">Unidad base</option>
+                    {unidades.map((unidad) => (
+                      <option key={unidad.id} value={unidad.id}>
+                        {unidad.codigo}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
               </div>
-              <input name="costoUnitario" placeholder="Costo unitario" className="arca-input" />
-              <select name="motivo" defaultValue="desperdicio" className="arca-input">
-                <option value="caducidad">Caducidad</option>
-                <option value="preparacion">Preparacion</option>
-                <option value="accidente">Accidente</option>
-                <option value="desperdicio">Desperdicio</option>
-                <option value="devolucion">Devolucion</option>
-                <option value="cortesia">Cortesia</option>
-                <option value="otro">Otro</option>
-              </select>
-              <textarea name="observacion" placeholder="Observacion" className="arca-input min-h-24" />
-              <button type="submit" className="arca-btn arca-btn-primary w-full">
+              <FormField label="Costo unitario">
+                <input name="costoUnitario" placeholder="Costo unitario" className="arca-input" />
+              </FormField>
+              <FormField label="Motivo">
+                <select name="motivo" defaultValue="desperdicio" className="arca-input">
+                  <option value="caducidad">Caducidad</option>
+                  <option value="preparacion">Preparacion</option>
+                  <option value="accidente">Accidente</option>
+                  <option value="desperdicio">Desperdicio</option>
+                  <option value="devolucion">Devolucion</option>
+                  <option value="cortesia">Cortesia</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </FormField>
+              <FormField label="Observacion">
+                <textarea name="observacion" placeholder="Observacion" className="arca-input min-h-24" />
+              </FormField>
+              {!puedeRegistrarMerma && (
+                <p className="text-[12px] text-[color:var(--color-warning)]">
+                  Necesitas sucursal, almacen e insumos clasificados antes de registrar mermas.
+                </p>
+              )}
+              <button type="submit" disabled={!puedeRegistrarMerma} className="arca-btn arca-btn-primary w-full">
                 <PackageSearch size={14} /> Registrar merma
               </button>
             </form>

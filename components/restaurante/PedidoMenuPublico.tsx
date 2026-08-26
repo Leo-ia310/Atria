@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { Check, Minus, Plus, Send } from "lucide-react";
 import { crearPedidoMenuPublico } from "@/lib/actions/menu-publico";
 
@@ -134,30 +134,38 @@ export function PedidoMenuPublico({
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <input
-            value={clienteNombre}
-            onChange={(e) => setClienteNombre(e.target.value)}
-            placeholder={mesaNumero ? "Nombre (opcional)" : "Nombre"}
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={clienteTelefono}
-            onChange={(e) => setClienteTelefono(e.target.value)}
-            placeholder={mesaNumero ? "Telefono / WhatsApp (opcional)" : "Telefono / WhatsApp"}
-            className="rounded-md border border-black/10 px-3 py-2 text-sm"
-          />
-          <input
-            value={clienteDireccion}
-            onChange={(e) => setClienteDireccion(e.target.value)}
-            placeholder={mesaNumero ? "Indicacion de mesa (opcional)" : "Direccion o mesa"}
-            className="rounded-md border border-black/10 px-3 py-2 text-sm md:col-span-2"
-          />
-          <textarea
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
-            placeholder="Notas del pedido"
-            className="min-h-20 rounded-md border border-black/10 px-3 py-2 text-sm md:col-span-2"
-          />
+          <PublicField label="Nombre">
+            <input
+              value={clienteNombre}
+              onChange={(e) => setClienteNombre(e.target.value)}
+              placeholder={mesaNumero ? "Nombre (opcional)" : "Nombre"}
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Telefono / WhatsApp">
+            <input
+              value={clienteTelefono}
+              onChange={(e) => setClienteTelefono(e.target.value)}
+              placeholder={mesaNumero ? "Telefono / WhatsApp (opcional)" : "Telefono / WhatsApp"}
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label={mesaNumero ? "Indicacion de mesa" : "Direccion o mesa"} className="md:col-span-2">
+            <input
+              value={clienteDireccion}
+              onChange={(e) => setClienteDireccion(e.target.value)}
+              placeholder={mesaNumero ? "Indicacion de mesa (opcional)" : "Direccion o mesa"}
+              className="rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
+          <PublicField label="Notas del pedido" className="md:col-span-2">
+            <textarea
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Notas del pedido"
+              className="min-h-20 rounded-md border border-black/10 px-3 py-2 text-sm"
+            />
+          </PublicField>
         </div>
 
         {error && (
@@ -189,5 +197,24 @@ export function PedidoMenuPublico({
         </div>
       </div>
     </section>
+  );
+}
+
+function PublicField({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`flex flex-col gap-1 ${className ?? ""}`}>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

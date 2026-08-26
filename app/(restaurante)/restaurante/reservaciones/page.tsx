@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/restaurante-vertical";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField } from "@/components/ui/FormField";
 
 export default async function RestauranteReservacionesPage() {
   const user = await requireSession();
@@ -73,6 +74,7 @@ export default async function RestauranteReservacionesPage() {
       ]),
   );
   const sucursalDefault = sucursalesList[0];
+  const tieneSucursales = sucursalesList.length > 0;
 
   return (
     <div className="space-y-5">
@@ -96,34 +98,64 @@ export default async function RestauranteReservacionesPage() {
             />
             <CardBody>
               <form action={crearReservacionRestauranteForm} className="space-y-3">
-                <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                  {sucursalesList.map((sucursal) => (
-                    <option key={sucursal.id} value={sucursal.id}>
-                      {sucursal.nombre}
-                    </option>
-                  ))}
-                </select>
-                <select name="mesaId" defaultValue="" className="arca-input">
-                  <option value="">Mesa sugerida despues</option>
-                  {mesas.map((mesa) => (
-                    <option key={mesa.id} value={mesa.id}>
-                      {mesa.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="nombre" placeholder="Nombre" className="arca-input" />
+                <FormField label="Sucursal">
+                  <select
+                    name="sucursalId"
+                    defaultValue={sucursalDefault?.id}
+                    disabled={!tieneSucursales}
+                    className="arca-input"
+                  >
+                    {sucursalesList.map((sucursal) => (
+                      <option key={sucursal.id} value={sucursal.id}>
+                        {sucursal.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Mesa">
+                  <select name="mesaId" defaultValue="" className="arca-input">
+                    <option value="">Mesa sugerida despues</option>
+                    {mesas.map((mesa) => (
+                      <option key={mesa.id} value={mesa.id}>
+                        {mesa.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Nombre del cliente">
+                  <input name="nombre" placeholder="Nombre" className="arca-input" />
+                </FormField>
                 <div className="grid grid-cols-2 gap-2">
-                  <input name="telefono" placeholder="Telefono" className="arca-input" />
-                  <input name="email" placeholder="Email" className="arca-input" />
+                  <FormField label="Telefono">
+                    <input name="telefono" placeholder="Telefono" className="arca-input" />
+                  </FormField>
+                  <FormField label="Email">
+                    <input name="email" placeholder="Email" className="arca-input" />
+                  </FormField>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <input name="fecha" type="date" className="arca-input" />
-                  <input name="hora" type="time" className="arca-input" />
-                  <input name="personas" placeholder="Pax" className="arca-input" />
+                  <FormField label="Fecha">
+                    <input name="fecha" type="date" className="arca-input" />
+                  </FormField>
+                  <FormField label="Hora">
+                    <input name="hora" type="time" className="arca-input" />
+                  </FormField>
+                  <FormField label="Personas">
+                    <input name="personas" placeholder="Pax" className="arca-input" />
+                  </FormField>
                 </div>
-                <input name="ocasionEspecial" placeholder="Ocasion especial" className="arca-input" />
-                <textarea name="notas" placeholder="Notas" className="arca-input min-h-20" />
-                <button type="submit" className="arca-btn arca-btn-primary w-full">
+                <FormField label="Ocasion especial">
+                  <input name="ocasionEspecial" placeholder="Ocasion especial" className="arca-input" />
+                </FormField>
+                <FormField label="Notas">
+                  <textarea name="notas" placeholder="Notas" className="arca-input min-h-20" />
+                </FormField>
+                {!tieneSucursales && (
+                  <p className="text-[12px] text-[color:var(--color-warning)]">
+                    Crea una sucursal antes de registrar reservaciones.
+                  </p>
+                )}
+                <button type="submit" disabled={!tieneSucursales} className="arca-btn arca-btn-primary w-full">
                   Crear reservacion
                 </button>
               </form>
@@ -140,22 +172,41 @@ export default async function RestauranteReservacionesPage() {
             />
             <CardBody>
               <form action={crearListaEsperaRestauranteForm} className="space-y-3">
-                <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                  {sucursalesList.map((sucursal) => (
-                    <option key={sucursal.id} value={sucursal.id}>
-                      {sucursal.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="nombreEspera" placeholder="Nombre" className="arca-input" />
+                <FormField label="Sucursal">
+                  <select
+                    name="sucursalId"
+                    defaultValue={sucursalDefault?.id}
+                    disabled={!tieneSucursales}
+                    className="arca-input"
+                  >
+                    {sucursalesList.map((sucursal) => (
+                      <option key={sucursal.id} value={sucursal.id}>
+                        {sucursal.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Nombre del cliente">
+                  <input name="nombreEspera" placeholder="Nombre" className="arca-input" />
+                </FormField>
                 <div className="grid grid-cols-2 gap-2">
-                  <input name="telefonoEspera" placeholder="Telefono" className="arca-input" />
-                  <input name="personasEspera" placeholder="Pax" className="arca-input" />
+                  <FormField label="Telefono">
+                    <input name="telefonoEspera" placeholder="Telefono" className="arca-input" />
+                  </FormField>
+                  <FormField label="Personas">
+                    <input name="personasEspera" placeholder="Pax" className="arca-input" />
+                  </FormField>
                 </div>
-                <input name="esperaEstimadaMin" placeholder="Espera min" className="arca-input" />
-                <input name="preferencia" placeholder="Preferencia" className="arca-input" />
-                <textarea name="notasEspera" placeholder="Notas" className="arca-input min-h-20" />
-                <button type="submit" className="arca-btn arca-btn-secondary w-full">
+                <FormField label="Espera estimada">
+                  <input name="esperaEstimadaMin" placeholder="Espera min" className="arca-input" />
+                </FormField>
+                <FormField label="Preferencia">
+                  <input name="preferencia" placeholder="Preferencia" className="arca-input" />
+                </FormField>
+                <FormField label="Notas">
+                  <textarea name="notasEspera" placeholder="Notas" className="arca-input min-h-20" />
+                </FormField>
+                <button type="submit" disabled={!tieneSucursales} className="arca-btn arca-btn-secondary w-full">
                   Agregar a espera
                 </button>
               </form>

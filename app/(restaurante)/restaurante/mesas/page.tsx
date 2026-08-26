@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/restaurante-vertical";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField } from "@/components/ui/FormField";
 
 const ESTADOS = [
   "disponible",
@@ -169,7 +170,7 @@ export default async function RestauranteMesasPage() {
             <CardHeader title="Nueva area" />
             <CardBody>
               <form action={crearAreaRestauranteForm} className="space-y-3">
-                <Field label="Sucursal">
+                <FormField label="Sucursal">
                   <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
                     {sucursalesList.map((sucursal) => (
                       <option key={sucursal.id} value={sucursal.id}>
@@ -177,10 +178,10 @@ export default async function RestauranteMesasPage() {
                       </option>
                     ))}
                   </select>
-                </Field>
-                <Field label="Nombre del area">
+                </FormField>
+                <FormField label="Nombre del area">
                   <input name="nombre" placeholder="Terraza" className="arca-input" />
-                </Field>
+                </FormField>
                 <button type="submit" className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear area
                 </button>
@@ -192,7 +193,7 @@ export default async function RestauranteMesasPage() {
             <CardHeader title="Nueva mesa" />
             <CardBody>
               <form action={crearMesaRestauranteForm} className="space-y-3">
-                <Field label="Sucursal">
+                <FormField label="Sucursal">
                   <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
                     {sucursalesList.map((sucursal) => (
                       <option key={sucursal.id} value={sucursal.id}>
@@ -200,8 +201,8 @@ export default async function RestauranteMesasPage() {
                       </option>
                     ))}
                   </select>
-                </Field>
-                <Field label="Area">
+                </FormField>
+                <FormField label="Area">
                   <select name="areaId" defaultValue="" className="arca-input">
                     <option value="">Sin area</option>
                     {areas.map((area) => (
@@ -210,22 +211,22 @@ export default async function RestauranteMesasPage() {
                       </option>
                     ))}
                   </select>
-                </Field>
-                <Field label="Nombre de mesa">
+                </FormField>
+                <FormField label="Nombre de mesa">
                   <input name="nombre" placeholder="Mesa 7" className="arca-input" />
-                </Field>
+                </FormField>
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Capacidad">
+                  <FormField label="Capacidad">
                     <input name="capacidad" placeholder="4" defaultValue="4" className="arca-input" />
-                  </Field>
-                  <Field label="Forma">
+                  </FormField>
+                  <FormField label="Forma">
                     <select name="forma" defaultValue="rectangular" className="arca-input">
                       <option value="rectangular">Rectangular</option>
                       <option value="redonda">Redonda</option>
                       <option value="cuadrada">Cuadrada</option>
                       <option value="barra">Barra</option>
                     </select>
-                  </Field>
+                  </FormField>
                 </div>
                 <input type="hidden" name="posX" value="0.5" />
                 <input type="hidden" name="posY" value="0.5" />
@@ -289,35 +290,25 @@ function MesaCard({
       <div className="mt-3">
         <Badge variant={variantEstado(mesa.estado)}>{labelEstado(mesa.estado)}</Badge>
       </div>
-      <form action={actualizarEstadoMesaRestauranteForm} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+      <form
+        action={actualizarEstadoMesaRestauranteForm}
+        className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+      >
         <input type="hidden" name="mesaId" value={mesa.id} />
-        <select name="estado" defaultValue={mesa.estado} className="arca-input h-10 py-1 text-[12px]">
-          {ESTADOS.map((estado) => (
-            <option key={estado} value={estado}>
-              {labelEstado(estado)}
-            </option>
-          ))}
-        </select>
+        <FormField label="Estado">
+          <select name="estado" defaultValue={mesa.estado} className="arca-input h-10 py-1 text-[12px]">
+            {ESTADOS.map((estado) => (
+              <option key={estado} value={estado}>
+                {labelEstado(estado)}
+              </option>
+            ))}
+          </select>
+        </FormField>
         <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm justify-center">
           Guardar
         </button>
       </form>
     </article>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-label">{label}</span>
-      {children}
-    </label>
   );
 }
 

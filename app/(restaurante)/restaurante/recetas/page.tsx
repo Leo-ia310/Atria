@@ -21,6 +21,7 @@ import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField } from "@/components/ui/FormField";
 
 export default async function RestauranteRecetasPage() {
   const user = await requireSession();
@@ -85,6 +86,7 @@ export default async function RestauranteRecetasPage() {
   const clasificacionPorProducto = new Map(
     clasificaciones.map((row) => [row.productoId, row]),
   );
+  const sinProductos = productosList.length === 0;
   const ingredientesPorReceta = new Map<string, typeof ingredientes>();
   for (const ingrediente of ingredientes) {
     const lista = ingredientesPorReceta.get(ingrediente.recetaId) ?? [];
@@ -108,31 +110,43 @@ export default async function RestauranteRecetasPage() {
             <CardHeader title="Clasificar producto" />
             <CardBody>
               <form action={configurarProductoRestauranteForm} className="space-y-3">
-                <select name="productoId" className="arca-input">
-                  {productosList.map((producto) => (
-                    <option key={producto.id} value={producto.id}>
-                      {producto.nombre}
-                    </option>
-                  ))}
-                </select>
-                <select name="tipo" defaultValue="platillo" className="arca-input">
-                  <option value="insumo">Insumo</option>
-                  <option value="producto_directo">Producto directo</option>
-                  <option value="preparacion">Preparacion</option>
-                  <option value="platillo">Platillo</option>
-                  <option value="combo">Combo</option>
-                </select>
-                <select name="estacionId" defaultValue="" className="arca-input">
-                  <option value="">Estacion automatica</option>
-                  {estaciones.map((estacion) => (
-                    <option key={estacion.id} value={estacion.id}>
-                      {estacion.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="tiempoPreparacionMin" defaultValue="0" className="arca-input" />
-                <input name="alergenos" placeholder="Alergenos separados por coma" className="arca-input" />
-                <input name="etiquetas" placeholder="Etiquetas separadas por coma" className="arca-input" />
+                <FormField label="Producto">
+                  <select name="productoId" disabled={sinProductos} className="arca-input">
+                    {productosList.map((producto) => (
+                      <option key={producto.id} value={producto.id}>
+                        {producto.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Tipo restaurante">
+                  <select name="tipo" defaultValue="platillo" className="arca-input">
+                    <option value="insumo">Insumo</option>
+                    <option value="producto_directo">Producto directo</option>
+                    <option value="preparacion">Preparacion</option>
+                    <option value="platillo">Platillo</option>
+                    <option value="combo">Combo</option>
+                  </select>
+                </FormField>
+                <FormField label="Estacion">
+                  <select name="estacionId" defaultValue="" className="arca-input">
+                    <option value="">Estacion automatica</option>
+                    {estaciones.map((estacion) => (
+                      <option key={estacion.id} value={estacion.id}>
+                        {estacion.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Tiempo de preparacion">
+                  <input name="tiempoPreparacionMin" defaultValue="0" className="arca-input" />
+                </FormField>
+                <FormField label="Alergenos">
+                  <input name="alergenos" placeholder="Alergenos separados por coma" className="arca-input" />
+                </FormField>
+                <FormField label="Etiquetas">
+                  <input name="etiquetas" placeholder="Etiquetas separadas por coma" className="arca-input" />
+                </FormField>
                 <label className="flex items-center gap-2 text-small">
                   <input type="checkbox" name="disponibleQr" defaultChecked />
                   Disponible en QR
@@ -141,7 +155,12 @@ export default async function RestauranteRecetasPage() {
                   <input type="checkbox" name="consumeInventario" defaultChecked />
                   Consume inventario
                 </label>
-                <button type="submit" className="arca-btn arca-btn-primary w-full">
+                {sinProductos && (
+                  <p className="text-[12px] text-[color:var(--color-warning)]">
+                    Agrega productos al inventario antes de clasificarlos para restaurante.
+                  </p>
+                )}
+                <button type="submit" disabled={sinProductos} className="arca-btn arca-btn-primary w-full">
                   Guardar clasificacion
                 </button>
               </form>
@@ -152,32 +171,44 @@ export default async function RestauranteRecetasPage() {
             <CardHeader title="Nueva receta" />
             <CardBody>
               <form action={crearRecetaRestauranteForm} className="space-y-3">
-                <select name="productoId" className="arca-input">
-                  {productosList.map((producto) => (
-                    <option key={producto.id} value={producto.id}>
-                      {producto.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="nombre" placeholder="Hamburguesa clasica" className="arca-input" />
-                <select name="tipo" defaultValue="platillo" className="arca-input">
-                  <option value="preparacion">Preparacion</option>
-                  <option value="platillo">Platillo</option>
-                  <option value="combo">Combo</option>
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <input name="rendimientoCantidad" defaultValue="1" className="arca-input" />
-                  <select name="rendimientoUnidadId" defaultValue="" className="arca-input">
-                    <option value="">Unidad base</option>
-                    {unidades.map((unidad) => (
-                      <option key={unidad.id} value={unidad.id}>
-                        {unidad.codigo}
+                <FormField label="Producto de venta">
+                  <select name="productoId" disabled={sinProductos} className="arca-input">
+                    {productosList.map((producto) => (
+                      <option key={producto.id} value={producto.id}>
+                        {producto.nombre}
                       </option>
                     ))}
                   </select>
+                </FormField>
+                <FormField label="Nombre de receta">
+                  <input name="nombre" placeholder="Hamburguesa clasica" className="arca-input" />
+                </FormField>
+                <FormField label="Tipo">
+                  <select name="tipo" defaultValue="platillo" className="arca-input">
+                    <option value="preparacion">Preparacion</option>
+                    <option value="platillo">Platillo</option>
+                    <option value="combo">Combo</option>
+                  </select>
+                </FormField>
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField label="Rendimiento">
+                    <input name="rendimientoCantidad" defaultValue="1" className="arca-input" />
+                  </FormField>
+                  <FormField label="Unidad">
+                    <select name="rendimientoUnidadId" defaultValue="" className="arca-input">
+                      <option value="">Unidad base</option>
+                      {unidades.map((unidad) => (
+                        <option key={unidad.id} value={unidad.id}>
+                          {unidad.codigo}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
                 </div>
-                <input name="precioVenta" placeholder="Precio de venta" className="arca-input" />
-                <button type="submit" className="arca-btn arca-btn-primary w-full">
+                <FormField label="Precio de venta">
+                  <input name="precioVenta" placeholder="Precio de venta" className="arca-input" />
+                </FormField>
+                <button type="submit" disabled={sinProductos} className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear receta
                 </button>
               </form>
@@ -242,18 +273,27 @@ export default async function RestauranteRecetasPage() {
                     </div>
                   ))}
                 </div>
-                <form action={agregarIngredienteRecetaRestauranteForm} className="grid gap-2 md:grid-cols-[1fr_90px_90px_auto]">
+                <form
+                  action={agregarIngredienteRecetaRestauranteForm}
+                  className="grid gap-2 md:grid-cols-[minmax(0,1fr)_110px_110px_auto] md:items-end"
+                >
                   <input type="hidden" name="recetaId" value={receta.id} />
-                  <select name="ingredienteProductoId" className="arca-input">
-                    {productosList.map((producto) => (
-                      <option key={producto.id} value={producto.id}>
-                        {producto.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <input name="cantidad" placeholder="150" className="arca-input" />
-                  <input name="costoUnitario" placeholder="0.00" className="arca-input" />
-                  <button type="submit" className="arca-btn arca-btn-secondary">
+                  <FormField label="Ingrediente">
+                    <select name="ingredienteProductoId" disabled={sinProductos} className="arca-input">
+                      {productosList.map((producto) => (
+                        <option key={producto.id} value={producto.id}>
+                          {producto.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="Cantidad">
+                    <input name="cantidad" placeholder="150" className="arca-input" />
+                  </FormField>
+                  <FormField label="Costo unit.">
+                    <input name="costoUnitario" placeholder="0.00" className="arca-input" />
+                  </FormField>
+                  <button type="submit" disabled={sinProductos} className="arca-btn arca-btn-secondary">
                     Agregar
                   </button>
                 </form>

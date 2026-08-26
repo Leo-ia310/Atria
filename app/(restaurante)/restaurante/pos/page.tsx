@@ -23,6 +23,7 @@ import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField } from "@/components/ui/FormField";
 
 export default async function RestaurantePosPage() {
   const user = await requireSession();
@@ -125,6 +126,8 @@ export default async function RestaurantePosPage() {
     itemsPorOrden.set(item.ordenId, lista);
   }
   const sucursalDefault = sucursalesList[0];
+  const tieneSucursales = sucursalesList.length > 0;
+  const tieneProductosVenta = productosVenta.length > 0;
 
   return (
     <div className="space-y-5">
@@ -189,23 +192,41 @@ export default async function RestaurantePosPage() {
           />
           <CardBody>
             <form action={crearOrdenRestauranteForm} className="space-y-3">
-              <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                {sucursalesList.map((sucursal) => (
-                  <option key={sucursal.id} value={sucursal.id}>
-                    {sucursal.nombre}
-                  </option>
-                ))}
-              </select>
-              <select name="canal" defaultValue="para_llevar" className="arca-input">
-                <option value="para_llevar">Para llevar</option>
-                <option value="delivery_propio">Delivery propio</option>
-                <option value="delivery_externo">Delivery externo</option>
-                <option value="pedido_web">Pedido web</option>
-              </select>
-              <input name="personas" defaultValue="1" className="arca-input" />
-              <input name="notas" placeholder="Notas" className="arca-input" />
+              <FormField label="Sucursal">
+                <select
+                  name="sucursalId"
+                  defaultValue={sucursalDefault?.id}
+                  disabled={!tieneSucursales}
+                  className="arca-input"
+                >
+                  {sucursalesList.map((sucursal) => (
+                    <option key={sucursal.id} value={sucursal.id}>
+                      {sucursal.nombre}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Canal">
+                <select name="canal" defaultValue="para_llevar" className="arca-input">
+                  <option value="para_llevar">Para llevar</option>
+                  <option value="delivery_propio">Delivery propio</option>
+                  <option value="delivery_externo">Delivery externo</option>
+                  <option value="pedido_web">Pedido web</option>
+                </select>
+              </FormField>
+              <FormField label="Personas">
+                <input name="personas" defaultValue="1" className="arca-input" />
+              </FormField>
+              <FormField label="Notas">
+                <input name="notas" placeholder="Notas" className="arca-input" />
+              </FormField>
               <input type="hidden" name="idempotencyKey" value={randomUUID()} />
-              <button type="submit" className="arca-btn arca-btn-primary w-full">
+              {!tieneSucursales && (
+                <p className="text-[12px] text-[color:var(--color-warning)]">
+                  Crea una sucursal antes de abrir ordenes.
+                </p>
+              )}
+              <button type="submit" disabled={!tieneSucursales} className="arca-btn arca-btn-primary w-full">
                 <Plus size={14} /> Crear orden
               </button>
             </form>
@@ -225,6 +246,7 @@ export default async function RestaurantePosPage() {
         ) : (
           ordenes.map((orden) => {
             const mesa = orden.mesaId ? mesaPorId.get(orden.mesaId) : null;
+            const ordenItems = itemsPorOrden.get(orden.id) ?? [];
             return (
               <Card key={orden.id}>
                 <CardHeader
@@ -238,7 +260,7 @@ export default async function RestaurantePosPage() {
                 />
                 <CardBody className="space-y-4">
                   <div className="space-y-2">
-                    {(itemsPorOrden.get(orden.id) ?? []).map((item) => (
+                    {ordenItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-small">
                         <div className="min-w-0">
                           <div className="truncate font-medium">{item.nombreSnapshot}</div>
@@ -249,19 +271,31 @@ export default async function RestaurantePosPage() {
                         <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
                       </div>
                     ))}
+                    {ordenItems.length === 0 && (
+                      <div className="rounded-md border border-dashed border-[color:var(--color-border)] px-3 py-4 text-center text-small text-[color:var(--color-text-muted)]">
+                        Agrega productos antes de enviar la comanda.
+                      </div>
+                    )}
                   </div>
 
-                  <form action={agregarItemOrdenRestauranteForm} className="grid gap-2 sm:grid-cols-[1fr_72px_auto]">
+                  <form
+                    action={agregarItemOrdenRestauranteForm}
+                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_90px_auto] sm:items-end"
+                  >
                     <input type="hidden" name="ordenId" value={orden.id} />
-                    <select name="productoId" className="arca-input">
-                      {productosVenta.map((producto) => (
-                        <option key={producto.id} value={producto.id}>
-                          {producto.nombre} · {formatearMoneda(producto.precioBase, pais)}
-                        </option>
-                      ))}
-                    </select>
-                    <input name="cantidad" defaultValue="1" className="arca-input" />
-                    <button type="submit" className="arca-btn arca-btn-secondary">
+                    <FormField label="Producto">
+                      <select name="productoId" disabled={!tieneProductosVenta} className="arca-input">
+                        {productosVenta.map((producto) => (
+                          <option key={producto.id} value={producto.id}>
+                            {producto.nombre} · {formatearMoneda(producto.precioBase, pais)}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                    <FormField label="Cantidad">
+                      <input name="cantidad" defaultValue="1" className="arca-input" />
+                    </FormField>
+                    <button type="submit" disabled={!tieneProductosVenta} className="arca-btn arca-btn-secondary">
                       <ShoppingCart size={14} /> Agregar
                     </button>
                   </form>
@@ -273,8 +307,13 @@ export default async function RestaurantePosPage() {
                     </div>
                     <form action={enviarComandasOrdenRestauranteForm}>
                       <input type="hidden" name="ordenId" value={orden.id} />
-                      <button type="submit" className="arca-btn arca-btn-primary">
-                        <ChefHat size={14} /> Enviar comanda
+                      <button
+                        type="submit"
+                        disabled={ordenItems.length === 0}
+                        className="arca-btn arca-btn-primary"
+                      >
+                        <ChefHat size={14} />
+                        {ordenItems.length === 0 ? "Agrega productos primero" : "Enviar comanda"}
                       </button>
                     </form>
                   </div>

@@ -7,6 +7,7 @@ import { requireModulo } from "@/lib/server-access";
 import { crearPromocionRestauranteForm } from "@/lib/actions/restaurante-vertical";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField, FormGroup } from "@/components/ui/FormField";
 
 const DIAS = [
   ["0", "Dom"],
@@ -64,48 +65,70 @@ export default async function RestaurantePromocionesPage() {
           />
           <CardBody>
             <form action={crearPromocionRestauranteForm} className="space-y-3">
-              <input name="nombre" placeholder="Happy Hour bebidas" className="arca-input" />
-              <textarea name="descripcion" placeholder="Descripcion" className="arca-input min-h-20" />
+              <FormField label="Nombre">
+                <input name="nombre" placeholder="Happy Hour bebidas" className="arca-input" />
+              </FormField>
+              <FormField label="Descripcion">
+                <textarea name="descripcion" placeholder="Descripcion" className="arca-input min-h-20" />
+              </FormField>
               <div className="grid grid-cols-2 gap-2">
-                <select name="tipo" defaultValue="porcentaje" className="arca-input">
-                  <option value="porcentaje">Porcentaje</option>
-                  <option value="monto">Monto</option>
-                  <option value="precio_fijo">Precio fijo</option>
-                  <option value="dos_por_uno">2x1</option>
+                <FormField label="Tipo">
+                  <select name="tipo" defaultValue="porcentaje" className="arca-input">
+                    <option value="porcentaje">Porcentaje</option>
+                    <option value="monto">Monto</option>
+                    <option value="precio_fijo">Precio fijo</option>
+                    <option value="dos_por_uno">2x1</option>
+                  </select>
+                </FormField>
+                <FormField label="Valor">
+                  <input name="valor" placeholder="20" className="arca-input" />
+                </FormField>
+              </div>
+              <FormField label="Producto">
+                <select name="productoId" defaultValue="" className="arca-input">
+                  <option value="">Todos los productos</option>
+                  {productosList.map((producto) => (
+                    <option key={producto.id} value={producto.id}>
+                      {producto.nombre}
+                    </option>
+                  ))}
                 </select>
-                <input name="valor" placeholder="20" className="arca-input" />
-              </div>
-              <select name="productoId" defaultValue="" className="arca-input">
-                <option value="">Todos los productos</option>
-                {productosList.map((producto) => (
-                  <option key={producto.id} value={producto.id}>
-                    {producto.nombre}
-                  </option>
-                ))}
-              </select>
-              <select name="categoriaId" defaultValue="" className="arca-input">
-                <option value="">Todas las categorias</option>
-                {categoriasList.map((categoria) => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nombre}
-                  </option>
-                ))}
-              </select>
-              <div className="grid grid-cols-4 gap-2">
-                {DIAS.map(([valor, label]) => (
-                  <label key={valor} className="flex items-center gap-1 rounded-md bg-[color:var(--color-surface-2)] px-2 py-2 text-[12px]">
-                    <input type="checkbox" name="diasSemana" value={valor} />
-                    {label}
-                  </label>
-                ))}
+              </FormField>
+              <FormField label="Categoria">
+                <select name="categoriaId" defaultValue="" className="arca-input">
+                  <option value="">Todas las categorias</option>
+                  {categoriasList.map((categoria) => (
+                    <option key={categoria.id} value={categoria.id}>
+                      {categoria.nombre}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormGroup label="Dias de la semana">
+                <div className="grid grid-cols-4 gap-2">
+                  {DIAS.map(([valor, label]) => (
+                    <label key={valor} className="flex items-center gap-1 rounded-md bg-[color:var(--color-surface-2)] px-2 py-2 text-[12px]">
+                      <input type="checkbox" name="diasSemana" value={valor} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </FormGroup>
+              <div className="grid grid-cols-2 gap-2">
+                <FormField label="Hora inicio">
+                  <input name="horaInicio" type="time" className="arca-input" />
+                </FormField>
+                <FormField label="Hora fin">
+                  <input name="horaFin" type="time" className="arca-input" />
+                </FormField>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input name="horaInicio" type="time" className="arca-input" />
-                <input name="horaFin" type="time" className="arca-input" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input name="fechaInicio" type="date" className="arca-input" />
-                <input name="fechaFin" type="date" className="arca-input" />
+                <FormField label="Fecha inicio">
+                  <input name="fechaInicio" type="date" className="arca-input" />
+                </FormField>
+                <FormField label="Fecha fin">
+                  <input name="fechaFin" type="date" className="arca-input" />
+                </FormField>
               </div>
               <label className="flex items-center gap-2 text-small">
                 <input type="checkbox" name="activa" defaultChecked />
