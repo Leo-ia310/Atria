@@ -68,6 +68,23 @@ export default async function RestauranteMesasPage() {
   );
   const sucursalDefault = sucursalesList[0];
   const areasPorId = new Map(areas.map((area) => [area.id, area]));
+  const mesasSinArea = mesas.filter((mesa) => !mesa.areaId || !areasPorId.has(mesa.areaId));
+  const gruposArea = [
+    ...areas.map((area) => ({
+      id: area.id,
+      nombre: area.nombre,
+      mesas: mesas.filter((mesa) => mesa.areaId === area.id),
+    })),
+    ...(mesasSinArea.length > 0
+      ? [{ id: "sin-area", nombre: "Sin area", mesas: mesasSinArea }]
+      : []),
+  ].filter((grupo) => grupo.mesas.length > 0);
+  const disponibles = mesas.filter((mesa) => mesa.estado === "disponible").length;
+  const ocupadas = mesas.filter((mesa) => mesa.estado === "ocupada").length;
+  const reservadas = mesas.filter((mesa) => mesa.estado === "reservada").length;
+  const requierenAtencion = mesas.filter((mesa) =>
+    ["por_limpiar", "cuenta_solicitada"].includes(mesa.estado),
+  ).length;
 
   return (
     <div className="space-y-5">
@@ -81,9 +98,16 @@ export default async function RestauranteMesasPage() {
         </div>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
+      <section className="grid gap-3 md:grid-cols-4">
+        <MesaResumen label="Mesas" value={mesas.length} hint="Configuradas" tone="neutral" />
+        <MesaResumen label="Disponibles" value={disponibles} hint="Listas para abrir orden" tone="success" />
+        <MesaResumen label="Ocupadas" value={ocupadas + reservadas} hint={`${reservadas} reservadas`} tone="warning" />
+        <MesaResumen label="Atencion" value={requierenAtencion} hint="Limpieza o cuenta" tone="info" />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card>
-          <CardHeader title="Plano de mesas" subtitle={`${mesas.length} mesas configuradas`} />
+          <CardHeader title="Mapa por areas" subtitle={`${mesas.length} mesas configuradas`} />
           <CardBody>
             {mesas.length === 0 ? (
               <div className="flex min-h-[420px] items-center justify-center rounded-md border border-dashed border-[color:var(--color-border)] text-center">
@@ -95,49 +119,46 @@ export default async function RestauranteMesasPage() {
                 </div>
               </div>
             ) : (
-              <div className="relative min-h-[520px] overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)]">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:48px_48px] opacity-40" />
-                {mesas.map((mesa) => {
-                  const area = mesa.areaId ? areasPorId.get(mesa.areaId) : null;
-                  const Icon = mesa.forma === "redonda" ? Circle : mesa.forma === "barra" ? Armchair : Square;
-                  return (
-                    <div
-                      key={mesa.id}
-                      className="absolute min-h-20 min-w-28 rounded-md border border-[color:var(--color-border-strong)] bg-[color:var(--color-surface)] p-3 shadow-sm"
-                      style={{
-                        left: `${parseFloat(mesa.posX) * 100}%`,
-                        top: `${parseFloat(mesa.posY) * 100}%`,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-small font-semibold">{mesa.nombre}</div>
-                          <div className="text-[11px] text-[color:var(--color-text-muted)]">
-                            {area?.nombre ?? "Sin area"} · {mesa.capacidad} pax
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {ESTADOS.map((estado) => (
+                    <Badge key={estado} variant={variantEstado(estado)}>
+                      {labelEstado(estado)}
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
+                  {gruposArea.map((grupo) => {
+                    const capacidad = grupo.mesas.reduce(
+                      (total, mesa) => total + mesa.capacidad,
+                      0,
+                    );
+                    return (
+                      <section
+                        key={grupo.id}
+                        className="overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+                      >
+                        <div className="flex flex-col gap-1 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h2 className="text-base font-semibold">{grupo.nombre}</h2>
+                            <p className="text-[12px] text-[color:var(--color-text-muted)]">
+                              {grupo.mesas.length} mesas · {capacidad} pax
+                            </p>
                           </div>
+                          <Badge variant="neutral">
+                            {grupo.mesas.filter((mesa) => mesa.estado === "disponible").length} disponibles
+                          </Badge>
                         </div>
-                        <Icon size={16} className="shrink-0 text-[color:var(--color-secondary)]" />
-                      </div>
-                      <div className="mt-2">
-                        <Badge variant={variantEstado(mesa.estado)}>{labelEstado(mesa.estado)}</Badge>
-                      </div>
-                      <form action={actualizarEstadoMesaRestauranteForm} className="mt-2">
-                        <input type="hidden" name="mesaId" value={mesa.id} />
-                        <select name="estado" defaultValue={mesa.estado} className="arca-input py-1 text-[12px]">
-                          {ESTADOS.map((estado) => (
-                            <option key={estado} value={estado}>
-                              {labelEstado(estado)}
-                            </option>
+                        <div className="grid gap-3 p-3 md:grid-cols-2 2xl:grid-cols-3">
+                          {grupo.mesas.map((mesa) => (
+                            <MesaCard key={mesa.id} mesa={mesa} />
                           ))}
-                        </select>
-                        <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm mt-2 w-full">
-                          Cambiar
-                        </button>
-                      </form>
-                    </div>
-                  );
-                })}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardBody>
@@ -148,14 +169,18 @@ export default async function RestauranteMesasPage() {
             <CardHeader title="Nueva area" />
             <CardBody>
               <form action={crearAreaRestauranteForm} className="space-y-3">
-                <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                  {sucursalesList.map((sucursal) => (
-                    <option key={sucursal.id} value={sucursal.id}>
-                      {sucursal.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="nombre" placeholder="Terraza" className="arca-input" />
+                <Field label="Sucursal">
+                  <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
+                    {sucursalesList.map((sucursal) => (
+                      <option key={sucursal.id} value={sucursal.id}>
+                        {sucursal.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nombre del area">
+                  <input name="nombre" placeholder="Terraza" className="arca-input" />
+                </Field>
                 <button type="submit" className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear area
                 </button>
@@ -167,35 +192,43 @@ export default async function RestauranteMesasPage() {
             <CardHeader title="Nueva mesa" />
             <CardBody>
               <form action={crearMesaRestauranteForm} className="space-y-3">
-                <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
-                  {sucursalesList.map((sucursal) => (
-                    <option key={sucursal.id} value={sucursal.id}>
-                      {sucursal.nombre}
-                    </option>
-                  ))}
-                </select>
-                <select name="areaId" defaultValue="" className="arca-input">
-                  <option value="">Sin area</option>
-                  {areas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.nombre}
-                    </option>
-                  ))}
-                </select>
-                <input name="nombre" placeholder="Mesa 7" className="arca-input" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input name="capacidad" placeholder="4" defaultValue="4" className="arca-input" />
-                  <select name="forma" defaultValue="rectangular" className="arca-input">
-                    <option value="rectangular">Rectangular</option>
-                    <option value="redonda">Redonda</option>
-                    <option value="cuadrada">Cuadrada</option>
-                    <option value="barra">Barra</option>
+                <Field label="Sucursal">
+                  <select name="sucursalId" defaultValue={sucursalDefault?.id} className="arca-input">
+                    {sucursalesList.map((sucursal) => (
+                      <option key={sucursal.id} value={sucursal.id}>
+                        {sucursal.nombre}
+                      </option>
+                    ))}
                   </select>
-                </div>
+                </Field>
+                <Field label="Area">
+                  <select name="areaId" defaultValue="" className="arca-input">
+                    <option value="">Sin area</option>
+                    {areas.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nombre de mesa">
+                  <input name="nombre" placeholder="Mesa 7" className="arca-input" />
+                </Field>
                 <div className="grid grid-cols-2 gap-2">
-                  <input name="posX" placeholder="0.5" defaultValue="0.5" className="arca-input" />
-                  <input name="posY" placeholder="0.5" defaultValue="0.5" className="arca-input" />
+                  <Field label="Capacidad">
+                    <input name="capacidad" placeholder="4" defaultValue="4" className="arca-input" />
+                  </Field>
+                  <Field label="Forma">
+                    <select name="forma" defaultValue="rectangular" className="arca-input">
+                      <option value="rectangular">Rectangular</option>
+                      <option value="redonda">Redonda</option>
+                      <option value="cuadrada">Cuadrada</option>
+                      <option value="barra">Barra</option>
+                    </select>
+                  </Field>
                 </div>
+                <input type="hidden" name="posX" value="0.5" />
+                <input type="hidden" name="posY" value="0.5" />
                 <button type="submit" className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear mesa
                 </button>
@@ -205,6 +238,86 @@ export default async function RestauranteMesasPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function MesaResumen({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  tone: "success" | "warning" | "info" | "neutral";
+}) {
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+      <Badge variant={tone}>{label}</Badge>
+      <div className="mt-3 text-2xl font-semibold text-[color:var(--color-text-primary)]">
+        {value}
+      </div>
+      <p className="mt-1 text-[12px] text-[color:var(--color-text-muted)]">{hint}</p>
+    </div>
+  );
+}
+
+function MesaCard({
+  mesa,
+}: {
+  mesa: typeof restauranteMesas.$inferSelect;
+}) {
+  const Icon = mesa.forma === "redonda" ? Circle : mesa.forma === "barra" ? Armchair : Square;
+  return (
+    <article
+      className={`min-h-[168px] rounded-md border bg-[color:var(--color-surface)] p-3 shadow-sm ${estadoBorde(
+        mesa.estado,
+      )}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold">{mesa.nombre}</h3>
+          <p className="text-[12px] text-[color:var(--color-text-muted)]">
+            {mesa.capacidad} pax · {labelForma(mesa.forma)}
+          </p>
+        </div>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[color:var(--color-surface-2)] text-[color:var(--color-secondary)]">
+          <Icon size={17} />
+        </span>
+      </div>
+      <div className="mt-3">
+        <Badge variant={variantEstado(mesa.estado)}>{labelEstado(mesa.estado)}</Badge>
+      </div>
+      <form action={actualizarEstadoMesaRestauranteForm} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <input type="hidden" name="mesaId" value={mesa.id} />
+        <select name="estado" defaultValue={mesa.estado} className="arca-input h-10 py-1 text-[12px]">
+          {ESTADOS.map((estado) => (
+            <option key={estado} value={estado}>
+              {labelEstado(estado)}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm justify-center">
+          Guardar
+        </button>
+      </form>
+    </article>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-label">{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -220,10 +333,29 @@ function labelEstado(estado: string): string {
   return labels[estado] ?? estado;
 }
 
+function labelForma(forma: string): string {
+  const labels: Record<string, string> = {
+    rectangular: "Rectangular",
+    redonda: "Redonda",
+    cuadrada: "Cuadrada",
+    barra: "Barra",
+  };
+  return labels[forma] ?? forma;
+}
+
 function variantEstado(estado: string): "success" | "warning" | "error" | "info" | "neutral" {
   if (estado === "disponible") return "success";
   if (estado === "ocupada" || estado === "reservada") return "warning";
   if (estado === "por_limpiar") return "error";
   if (estado === "cuenta_solicitada") return "info";
   return "neutral";
+}
+
+function estadoBorde(estado: string): string {
+  if (estado === "disponible") return "border-[color:var(--color-success)]/35";
+  if (estado === "ocupada") return "border-[color:var(--color-warning)]/45";
+  if (estado === "reservada") return "border-[color:var(--color-warning)]/35";
+  if (estado === "por_limpiar") return "border-[color:var(--color-error)]/35";
+  if (estado === "cuenta_solicitada") return "border-[color:var(--color-info)]/35";
+  return "border-[color:var(--color-border)]";
 }

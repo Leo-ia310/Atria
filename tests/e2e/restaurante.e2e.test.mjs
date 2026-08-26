@@ -73,6 +73,7 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 180_0
   assert.doesNotMatch(restaurante, /Pedidos cocina<\/span>/);
 
   const rutas = [
+    ["/restaurante/mesas", /Mapa por areas/],
     ["/restaurante/configuracion", /Empresa y cuenta/],
     ["/restaurante/empresa", /Vertical de negocio/],
     ["/restaurante/dispositivos", /Dispositivos restaurante/],
