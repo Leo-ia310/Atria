@@ -121,14 +121,6 @@ export default async function RestauranteMesasPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {ESTADOS.map((estado) => (
-                    <Badge key={estado} variant={variantEstado(estado)}>
-                      {labelEstado(estado)}
-                    </Badge>
-                  ))}
-                </div>
-
                 <div className="space-y-4">
                   {gruposArea.map((grupo) => {
                     const capacidad = grupo.mesas.reduce(

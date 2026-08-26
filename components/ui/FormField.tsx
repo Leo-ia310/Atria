@@ -14,7 +14,9 @@ export function FormField({
 }) {
   return (
     <label className={cn("block space-y-1", className)}>
-      <span className="text-label">{label}</span>
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)]">
+        {label}
+      </span>
       {children}
       {hint ? (
         <span className="block text-[11px] text-[color:var(--color-text-muted)]">
@@ -38,7 +40,9 @@ export function FormGroup({
 }) {
   return (
     <fieldset className={cn("space-y-2", className)}>
-      <legend className="text-label">{label}</legend>
+      <legend className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)]">
+        {label}
+      </legend>
       {children}
       {hint ? (
         <p className="text-[11px] text-[color:var(--color-text-muted)]">{hint}</p>

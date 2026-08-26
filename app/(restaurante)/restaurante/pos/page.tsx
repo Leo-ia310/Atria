@@ -128,6 +128,14 @@ export default async function RestaurantePosPage() {
   const sucursalDefault = sucursalesList[0];
   const tieneSucursales = sucursalesList.length > 0;
   const tieneProductosVenta = productosVenta.length > 0;
+  const mesasConOrden = new Set(
+    ordenes
+      .map((orden) => orden.mesaId)
+      .filter((mesaId): mesaId is string => Boolean(mesaId)),
+  );
+  const mesasParaNuevaOrden = mesas.filter(
+    (mesa) => mesa.estado !== "deshabilitada" && !mesasConOrden.has(mesa.id),
+  );
 
   return (
     <div className="space-y-5">
@@ -188,7 +196,7 @@ export default async function RestaurantePosPage() {
         <Card>
           <CardHeader
             title="Nueva orden"
-            subtitle="Para llevar, delivery o pedido web"
+            subtitle="Comer en el lugar, para llevar, delivery o pedido web"
           />
           <CardBody>
             <form action={crearOrdenRestauranteForm} className="space-y-3">
@@ -207,17 +215,36 @@ export default async function RestaurantePosPage() {
                 </select>
               </FormField>
               <FormField label="Canal">
-                <select name="canal" defaultValue="para_llevar" className="arca-input">
+                <select name="canal" defaultValue="salon" className="arca-input">
+                  <option value="salon">Comer en el lugar</option>
                   <option value="para_llevar">Para llevar</option>
                   <option value="delivery_propio">Delivery propio</option>
                   <option value="delivery_externo">Delivery externo</option>
                   <option value="pedido_web">Pedido web</option>
                 </select>
               </FormField>
+              <FormField
+                label="Mesa"
+                hint="Usala para Comer en el lugar; puedes dejarla vacia si es barra."
+              >
+                <select
+                  name="mesaId"
+                  defaultValue=""
+                  disabled={mesasParaNuevaOrden.length === 0}
+                  className="arca-input"
+                >
+                  <option value="">Sin mesa asignada</option>
+                  {mesasParaNuevaOrden.map((mesa) => (
+                    <option key={mesa.id} value={mesa.id}>
+                      {mesa.nombre} · {mesa.capacidad} pax
+                    </option>
+                  ))}
+                </select>
+              </FormField>
               <FormField label="Personas">
                 <input name="personas" defaultValue="1" className="arca-input" />
               </FormField>
-              <FormField label="Notas">
+              <FormField label="Notas de atencion">
                 <input name="notas" placeholder="Notas" className="arca-input" />
               </FormField>
               <input type="hidden" name="idempotencyKey" value={randomUUID()} />
@@ -255,7 +282,11 @@ export default async function RestaurantePosPage() {
                       <Receipt size={16} /> {orden.numero}
                     </span>
                   }
-                  subtitle={mesa ? `${mesa.nombre} · ${orden.personas} personas` : orden.canal}
+                  subtitle={
+                    mesa
+                      ? `${mesa.nombre} · ${orden.personas} personas`
+                      : `${labelCanal(orden.canal)} · ${orden.personas} personas`
+                  }
                   actions={<Badge variant="warning">{labelOrden(orden.estado)}</Badge>}
                 />
                 <CardBody className="space-y-4">
@@ -355,4 +386,16 @@ function labelOrden(estado: string): string {
     cuenta_solicitada: "Cuenta solicitada",
   };
   return labels[estado] ?? estado;
+}
+
+function labelCanal(canal: string): string {
+  const labels: Record<string, string> = {
+    salon: "Comer en el lugar",
+    qr_mesa: "QR mesa",
+    para_llevar: "Para llevar",
+    delivery_propio: "Delivery propio",
+    delivery_externo: "Delivery externo",
+    pedido_web: "Pedido web",
+  };
+  return labels[canal] ?? canal;
 }

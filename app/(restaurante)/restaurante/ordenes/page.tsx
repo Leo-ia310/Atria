@@ -90,50 +90,64 @@ export default async function RestauranteOrdenesPage() {
         </Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {ordenes.map((orden) => (
-            <Card key={orden.id}>
-              <CardHeader
-                title={
-                  <span className="inline-flex items-center gap-2">
-                    <Receipt size={16} /> {orden.numero}
-                  </span>
-                }
-                subtitle={formatearFechaHora(orden.abiertoEn, pais, empresa?.zonaHoraria)}
-                actions={<Badge variant={variantEstado(orden.estado)}>{labelEstado(orden.estado)}</Badge>}
-              />
-              <CardBody className="space-y-4">
-                <div className="flex flex-wrap gap-2 text-small text-[color:var(--color-text-muted)]">
-                  {orden.mesaNombre && (
-                    <span className="inline-flex items-center gap-1">
-                      <Table2 size={13} /> {orden.mesaNombre}
+          {ordenes.map((orden) => {
+            const ordenItems = itemsPorOrden.get(orden.id) ?? [];
+            const nuevos = ordenItems.filter((item) => item.estado === "borrador");
+            return (
+              <Card key={orden.id}>
+                <CardHeader
+                  title={
+                    <span className="inline-flex items-center gap-2">
+                      <Receipt size={16} /> {orden.numero}
                     </span>
-                  )}
-                  <span>{orden.personas} personas</span>
-                  <span>{orden.canal}</span>
-                </div>
-                <div className="space-y-2">
-                  {(itemsPorOrden.get(orden.id) ?? []).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-small">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{item.nombreSnapshot}</div>
-                        <div className="text-[11px] text-[color:var(--color-text-muted)]">{item.estado}</div>
+                  }
+                  subtitle={formatearFechaHora(orden.abiertoEn, pais, empresa?.zonaHoraria)}
+                  actions={<Badge variant={variantEstado(orden.estado)}>{labelEstado(orden.estado)}</Badge>}
+                />
+                <CardBody className="space-y-4">
+                  <div className="flex flex-wrap gap-2 text-small text-[color:var(--color-text-muted)]">
+                    {orden.mesaNombre && (
+                      <span className="inline-flex items-center gap-1">
+                        <Table2 size={13} /> {orden.mesaNombre}
+                      </span>
+                    )}
+                    <span>{orden.personas} personas</span>
+                    <span>{labelCanal(orden.canal)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {ordenItems.length === 0 ? (
+                      <div className="rounded-md border border-dashed border-[color:var(--color-border)] px-3 py-4 text-center text-small text-[color:var(--color-text-muted)]">
+                        Esta orden aun no tiene productos.
                       </div>
-                      <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
+                    ) : (
+                      ordenItems.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-small">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{item.nombreSnapshot}</div>
+                            <div className="text-[11px] text-[color:var(--color-text-muted)]">{labelItemEstado(item.estado)}</div>
+                          </div>
+                          <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
+                    <div>
+                      <div className="text-label">Total abierto</div>
+                      <div className="font-semibold">{formatearMoneda(orden.total, pais)}</div>
                     </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
-                  <div className="font-semibold">{formatearMoneda(orden.total, pais)}</div>
-                  <form action={enviarComandasOrdenRestauranteForm}>
-                    <input type="hidden" name="ordenId" value={orden.id} />
-                    <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm">
-                      <ChefHat size={14} /> Enviar nuevos
-                    </button>
-                  </form>
-                </div>
-              </CardBody>
-            </Card>
-          ))}
+                    <form action={enviarComandasOrdenRestauranteForm}>
+                      <input type="hidden" name="ordenId" value={orden.id} />
+                      <button type="submit" disabled={nuevos.length === 0} className="arca-btn arca-btn-secondary arca-btn-sm">
+                        <ChefHat size={14} />
+                        {nuevos.length === 0 ? "Sin nuevos" : "Enviar nuevos"}
+                      </button>
+                    </form>
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
@@ -150,6 +164,30 @@ function labelEstado(estado: string): string {
     cancelada: "Cancelada",
   };
   return labels[estado] ?? estado;
+}
+
+function labelItemEstado(estado: string): string {
+  const labels: Record<string, string> = {
+    borrador: "Nuevo sin enviar",
+    enviado: "Enviado a cocina",
+    preparando: "Preparando",
+    listo: "Listo",
+    entregado: "Entregado",
+    cancelado: "Cancelado",
+  };
+  return labels[estado] ?? estado;
+}
+
+function labelCanal(canal: string): string {
+  const labels: Record<string, string> = {
+    salon: "Comer en el lugar",
+    qr_mesa: "QR mesa",
+    para_llevar: "Para llevar",
+    delivery_propio: "Delivery propio",
+    delivery_externo: "Delivery externo",
+    pedido_web: "Pedido web",
+  };
+  return labels[canal] ?? canal;
 }
 
 function variantEstado(estado: string): "success" | "warning" | "error" | "info" | "neutral" {

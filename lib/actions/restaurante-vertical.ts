@@ -51,6 +51,7 @@ import {
 import {
   restauranteAreaSchema,
   restauranteComandaEstadoSchema,
+  restauranteComensalManualSchema,
   restauranteComensalPublicoSchema,
   restauranteEnviarComandaSchema,
   restauranteEsperaSchema,
@@ -554,6 +555,8 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
   }
   const { user } = acceso;
   const data = parsed.data;
+  const usaMesa = data.canal === "salon" || data.canal === "qr_mesa";
+  const mesaId = usaMesa ? data.mesaId : "";
 
   const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
     if (data.idempotencyKey) {
@@ -570,14 +573,22 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       if (existente) return { ok: true as const, id: existente.id };
     }
 
-    if (data.mesaId) {
+    if (mesaId) {
+      const [mesa] = await tx
+        .select({ id: restauranteMesas.id, sucursalId: restauranteMesas.sucursalId })
+        .from(restauranteMesas)
+        .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)))
+        .limit(1);
+      if (!mesa || mesa.sucursalId !== data.sucursalId) {
+        return { ok: false as const, error: "Mesa no valida para la sucursal." };
+      }
       const ordenesAbiertas = await tx
         .select({ id: restauranteOrdenes.id })
         .from(restauranteOrdenes)
         .where(
           and(
             eq(restauranteOrdenes.empresaId, user.empresaId),
-            eq(restauranteOrdenes.mesaId, data.mesaId),
+            eq(restauranteOrdenes.mesaId, mesaId),
             inArray(restauranteOrdenes.estado, [
               "abierta",
               "borrador",
@@ -598,7 +609,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       .values({
         empresaId: user.empresaId,
         sucursalId: data.sucursalId,
-        mesaId: data.mesaId || null,
+        mesaId: mesaId || null,
         numero,
         canal: data.canal,
         personas: data.personas,
@@ -608,11 +619,11 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       })
       .returning({ id: restauranteOrdenes.id });
 
-    if (data.mesaId) {
+    if (mesaId) {
       await tx
         .update(restauranteMesas)
         .set({ estado: "ocupada", actualizadoEn: new Date() })
-        .where(and(eq(restauranteMesas.id, data.mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+        .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
     }
 
     await auditar(tx, {
@@ -621,7 +632,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       accion: "restaurante.orden.crear",
       tabla: "restaurante_ordenes",
       registroId: orden.id,
-      datosDespues: { sucursalId: data.sucursalId, mesaId: data.mesaId || null, canal: data.canal },
+      datosDespues: { sucursalId: data.sucursalId, mesaId: mesaId || null, canal: data.canal },
     });
     return { ok: true as const, id: orden.id };
   });
@@ -984,6 +995,106 @@ export async function crearListaEsperaRestaurante(formData: FormData): Promise<R
 
 export async function crearListaEsperaRestauranteForm(formData: FormData): Promise<void> {
   await crearListaEsperaRestaurante(formData);
+}
+
+export async function guardarComensalRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-comensales", "restaurante.crm.ver");
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteComensalManualSchema.safeParse({
+    nombre: texto(formData, "nombre"),
+    telefono: texto(formData, "telefono"),
+    email: texto(formData, "email"),
+    cumpleanos: texto(formData, "cumpleanos"),
+    preferencias: texto(formData, "preferencias"),
+    alergias: texto(formData, "alergias"),
+    ocasionesEspeciales: texto(formData, "ocasionesEspeciales"),
+    notas: texto(formData, "notas"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const { user } = acceso;
+  const data = parsed.data;
+  const email = normalizarEmail(data.email);
+  const telefono = normalizarTelefono(data.telefono);
+
+  const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const [existente] =
+      email || telefono
+        ? await tx
+            .select({ id: restauranteComensales.id })
+            .from(restauranteComensales)
+            .where(
+              and(
+                eq(restauranteComensales.empresaId, user.empresaId),
+                or(
+                  email ? eq(restauranteComensales.email, email) : undefined,
+                  telefono ? eq(restauranteComensales.telefono, telefono) : undefined,
+                ),
+              ),
+            )
+            .limit(1)
+        : [];
+
+    const valores = {
+      nombre: data.nombre,
+      telefono,
+      email,
+      cumpleanos: data.cumpleanos || null,
+      preferencias: data.preferencias || null,
+      alergias: data.alergias || null,
+      ocasionesEspeciales: data.ocasionesEspeciales || null,
+      notas: data.notas || null,
+      actualizadoEn: new Date(),
+    };
+
+    if (existente) {
+      await tx
+        .update(restauranteComensales)
+        .set(valores)
+        .where(
+          and(
+            eq(restauranteComensales.id, existente.id),
+            eq(restauranteComensales.empresaId, user.empresaId),
+          ),
+        );
+      await auditar(tx, {
+        empresaId: user.empresaId,
+        usuarioId: user.id,
+        accion: "restaurante.comensal.actualizar",
+        tabla: "restaurante_comensales",
+        registroId: existente.id,
+        datosDespues: { nombre: data.nombre, email, telefono },
+      });
+      return { ok: true as const, id: existente.id };
+    }
+
+    const [comensal] = await tx
+      .insert(restauranteComensales)
+      .values({
+        empresaId: user.empresaId,
+        ...valores,
+      })
+      .returning({ id: restauranteComensales.id });
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.comensal.crear",
+      tabla: "restaurante_comensales",
+      registroId: comensal.id,
+      datosDespues: { nombre: data.nombre, email, telefono },
+    });
+    return { ok: true as const, id: comensal.id };
+  });
+
+  revalidatePath("/restaurante/comensales");
+  revalidatePath("/restaurante");
+  return resultado;
+}
+
+export async function guardarComensalRestauranteForm(formData: FormData): Promise<void> {
+  await guardarComensalRestaurante(formData);
 }
 
 export async function registrarComensalMenuPublico(input: unknown): Promise<Resultado> {

@@ -162,6 +162,21 @@ export const restauranteComensalPublicoSchema = z.object({
   comidaFavorita: textoLibre(120),
 });
 
+export const restauranteComensalManualSchema = z.object({
+  nombre: z.string().trim().min(2, "Nombre requerido").max(120),
+  telefono: textoLibre(50),
+  email: z.string().trim().email("Correo no valido").optional().or(z.literal("")),
+  cumpleanos: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha invalida")
+    .optional()
+    .or(z.literal("")),
+  preferencias: textoLibre(300),
+  alergias: textoLibre(300),
+  ocasionesEspeciales: textoLibre(200),
+  notas: textoLibre(500),
+});
+
 export const restaurantePromocionSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   descripcion: textoLibre(300),
@@ -193,4 +208,6 @@ export type RestauranteRecetaIngredienteInput =
   z.infer<typeof restauranteRecetaIngredienteSchema>;
 export type RestauranteOrdenInput = z.infer<typeof restauranteOrdenSchema>;
 export type RestauranteOrdenItemInput = z.infer<typeof restauranteOrdenItemSchema>;
+export type RestauranteComensalManualInput =
+  z.infer<typeof restauranteComensalManualSchema>;
 export type RestaurantePromocionInput = z.infer<typeof restaurantePromocionSchema>;
