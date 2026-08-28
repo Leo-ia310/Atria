@@ -1,0 +1,462 @@
+import type { JwtUser } from "../auth/auth.types";
+import { CreateCustomerDto, CreateQuotationDto, SalesQueryDto, UpdateCustomerDto, VoidSaleDto } from './dto/sales.dto';
+import { SalesService } from './sales.service';
+export declare class SalesController {
+    private readonly salesService;
+    constructor(salesService: SalesService);
+    sales(user: JwtUser, query: SalesQueryDto): Promise<({
+        payments: {
+            id: string;
+            organizationId: string;
+            branchId: string;
+            saleId: string;
+            method: import("@prisma/client").$Enums.PaymentMethod;
+            amount: import("@prisma/client/runtime/library").Decimal;
+            reference: string | null;
+            receivedAt: Date;
+        }[];
+        branch: {
+            id: string;
+            countryCode: string;
+            createdAt: Date;
+            updatedAt: Date;
+            deletedAt: Date | null;
+            name: string;
+            organizationId: string;
+            code: string;
+            phone: string | null;
+            email: string | null;
+            addressLine1: string;
+            city: string;
+            isPrimary: boolean;
+        };
+        customer: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            deletedAt: Date | null;
+            organizationId: string;
+            code: string;
+            phone: string | null;
+            email: string | null;
+            fullName: string;
+            documentId: string | null;
+            creditLimit: import("@prisma/client/runtime/library").Decimal;
+            balance: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+        items: ({
+            product: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                deletedAt: Date | null;
+                name: string;
+                organizationId: string;
+                isActive: boolean;
+                description: string | null;
+                categoryId: string | null;
+                brandId: string | null;
+                supplierId: string | null;
+                taxRateId: string | null;
+                sku: string;
+                barcode: string | null;
+                unit: string;
+                salePrice: import("@prisma/client/runtime/library").Decimal;
+                costPrice: import("@prisma/client/runtime/library").Decimal;
+                minStock: import("@prisma/client/runtime/library").Decimal;
+                isTrackSerial: boolean;
+                isTrackExpiration: boolean;
+            };
+        } & {
+            id: string;
+            productId: string;
+            quantity: import("@prisma/client/runtime/library").Decimal;
+            unitPrice: import("@prisma/client/runtime/library").Decimal;
+            taxAmount: import("@prisma/client/runtime/library").Decimal;
+            discountAmount: import("@prisma/client/runtime/library").Decimal;
+            lineTotal: import("@prisma/client/runtime/library").Decimal;
+            saleId: string;
+            unitCost: import("@prisma/client/runtime/library").Decimal;
+        })[];
+    } & {
+        number: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        branchId: string;
+        status: import("@prisma/client").$Enums.SaleStatus;
+        type: import("@prisma/client").$Enums.SaleType;
+        warehouseId: string;
+        customerId: string | null;
+        subtotal: import("@prisma/client/runtime/library").Decimal;
+        taxTotal: import("@prisma/client/runtime/library").Decimal;
+        discountTotal: import("@prisma/client/runtime/library").Decimal;
+        grandTotal: import("@prisma/client/runtime/library").Decimal;
+        createdByMembershipId: string | null;
+        paidTotal: import("@prisma/client/runtime/library").Decimal;
+        note: string | null;
+        soldAt: Date;
+        returnedFromSaleId: string | null;
+    })[]>;
+    analytics(user: JwtUser): Promise<{
+        revenue: number;
+        averageTicket: number;
+        topCustomers: {
+            id: string;
+            nombre: string;
+            total: number;
+        }[];
+        totalSales: number;
+    }>;
+    customers(user: JwtUser): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        organizationId: string;
+        code: string;
+        phone: string | null;
+        email: string | null;
+        fullName: string;
+        documentId: string | null;
+        creditLimit: import("@prisma/client/runtime/library").Decimal;
+        balance: import("@prisma/client/runtime/library").Decimal;
+    }[]>;
+    createCustomer(user: JwtUser, dto: CreateCustomerDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        organizationId: string;
+        code: string;
+        phone: string | null;
+        email: string | null;
+        fullName: string;
+        documentId: string | null;
+        creditLimit: import("@prisma/client/runtime/library").Decimal;
+        balance: import("@prisma/client/runtime/library").Decimal;
+    }>;
+    updateCustomer(user: JwtUser, id: string, dto: UpdateCustomerDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        organizationId: string;
+        code: string;
+        phone: string | null;
+        email: string | null;
+        fullName: string;
+        documentId: string | null;
+        creditLimit: import("@prisma/client/runtime/library").Decimal;
+        balance: import("@prisma/client/runtime/library").Decimal;
+    }>;
+    deleteCustomer(user: JwtUser, id: string): Promise<{
+        deleted: boolean;
+        id: string;
+    }>;
+    quotations(user: JwtUser): Promise<({
+        branch: {
+            id: string;
+            countryCode: string;
+            createdAt: Date;
+            updatedAt: Date;
+            deletedAt: Date | null;
+            name: string;
+            organizationId: string;
+            code: string;
+            phone: string | null;
+            email: string | null;
+            addressLine1: string;
+            city: string;
+            isPrimary: boolean;
+        };
+        customer: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            deletedAt: Date | null;
+            organizationId: string;
+            code: string;
+            phone: string | null;
+            email: string | null;
+            fullName: string;
+            documentId: string | null;
+            creditLimit: import("@prisma/client/runtime/library").Decimal;
+            balance: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+        items: ({
+            product: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                deletedAt: Date | null;
+                name: string;
+                organizationId: string;
+                isActive: boolean;
+                description: string | null;
+                categoryId: string | null;
+                brandId: string | null;
+                supplierId: string | null;
+                taxRateId: string | null;
+                sku: string;
+                barcode: string | null;
+                unit: string;
+                salePrice: import("@prisma/client/runtime/library").Decimal;
+                costPrice: import("@prisma/client/runtime/library").Decimal;
+                minStock: import("@prisma/client/runtime/library").Decimal;
+                isTrackSerial: boolean;
+                isTrackExpiration: boolean;
+            };
+        } & {
+            id: string;
+            productId: string;
+            quantity: import("@prisma/client/runtime/library").Decimal;
+            quotationId: string;
+            unitPrice: import("@prisma/client/runtime/library").Decimal;
+            taxAmount: import("@prisma/client/runtime/library").Decimal;
+            discountAmount: import("@prisma/client/runtime/library").Decimal;
+            lineTotal: import("@prisma/client/runtime/library").Decimal;
+        })[];
+    } & {
+        number: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        branchId: string;
+        status: import("@prisma/client").$Enums.SaleStatus;
+        customerId: string | null;
+        subtotal: import("@prisma/client/runtime/library").Decimal;
+        taxTotal: import("@prisma/client/runtime/library").Decimal;
+        discountTotal: import("@prisma/client/runtime/library").Decimal;
+        grandTotal: import("@prisma/client/runtime/library").Decimal;
+        validUntil: Date | null;
+        createdByMembershipId: string | null;
+    })[]>;
+    createQuotation(user: JwtUser, dto: CreateQuotationDto): Promise<{
+        number: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        branchId: string;
+        status: import("@prisma/client").$Enums.SaleStatus;
+        customerId: string | null;
+        subtotal: import("@prisma/client/runtime/library").Decimal;
+        taxTotal: import("@prisma/client/runtime/library").Decimal;
+        discountTotal: import("@prisma/client/runtime/library").Decimal;
+        grandTotal: import("@prisma/client/runtime/library").Decimal;
+        validUntil: Date | null;
+        createdByMembershipId: string | null;
+    }>;
+    deleteQuotation(user: JwtUser, id: string): Promise<{
+        deleted: boolean;
+        id: string;
+    }>;
+    findOne(user: JwtUser, id: string): Promise<{
+        sale: {
+            createdByMembership: ({
+                user: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    deletedAt: Date | null;
+                    email: string;
+                    firstName: string;
+                    lastName: string;
+                    passwordHash: string;
+                    emailVerifiedAt: Date | null;
+                    isActive: boolean;
+                    lastLoginAt: Date | null;
+                };
+            } & {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                deletedAt: Date | null;
+                organizationId: string;
+                userId: string;
+                roleId: string;
+                status: import("@prisma/client").$Enums.MembershipStatus;
+                title: string | null;
+                defaultBranchId: string | null;
+                permissionsOverride: string[];
+            }) | null;
+            payments: {
+                id: string;
+                organizationId: string;
+                branchId: string;
+                saleId: string;
+                method: import("@prisma/client").$Enums.PaymentMethod;
+                amount: import("@prisma/client/runtime/library").Decimal;
+                reference: string | null;
+                receivedAt: Date;
+            }[];
+            branch: {
+                id: string;
+                countryCode: string;
+                createdAt: Date;
+                updatedAt: Date;
+                deletedAt: Date | null;
+                name: string;
+                organizationId: string;
+                code: string;
+                phone: string | null;
+                email: string | null;
+                addressLine1: string;
+                city: string;
+                isPrimary: boolean;
+            };
+            warehouse: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                organizationId: string;
+                code: string;
+                isPrimary: boolean;
+                branchId: string;
+            };
+            customer: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                deletedAt: Date | null;
+                organizationId: string;
+                code: string;
+                phone: string | null;
+                email: string | null;
+                fullName: string;
+                documentId: string | null;
+                creditLimit: import("@prisma/client/runtime/library").Decimal;
+                balance: import("@prisma/client/runtime/library").Decimal;
+            } | null;
+            items: ({
+                product: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    deletedAt: Date | null;
+                    name: string;
+                    organizationId: string;
+                    isActive: boolean;
+                    description: string | null;
+                    categoryId: string | null;
+                    brandId: string | null;
+                    supplierId: string | null;
+                    taxRateId: string | null;
+                    sku: string;
+                    barcode: string | null;
+                    unit: string;
+                    salePrice: import("@prisma/client/runtime/library").Decimal;
+                    costPrice: import("@prisma/client/runtime/library").Decimal;
+                    minStock: import("@prisma/client/runtime/library").Decimal;
+                    isTrackSerial: boolean;
+                    isTrackExpiration: boolean;
+                };
+            } & {
+                id: string;
+                productId: string;
+                quantity: import("@prisma/client/runtime/library").Decimal;
+                unitPrice: import("@prisma/client/runtime/library").Decimal;
+                taxAmount: import("@prisma/client/runtime/library").Decimal;
+                discountAmount: import("@prisma/client/runtime/library").Decimal;
+                lineTotal: import("@prisma/client/runtime/library").Decimal;
+                saleId: string;
+                unitCost: import("@prisma/client/runtime/library").Decimal;
+            })[];
+            receivable: {
+                id: string;
+                createdAt: Date;
+                organizationId: string;
+                status: import("@prisma/client").$Enums.LedgerStatus;
+                customerId: string;
+                saleId: string;
+                dueDate: Date;
+                originalAmount: import("@prisma/client/runtime/library").Decimal;
+                outstandingAmount: import("@prisma/client/runtime/library").Decimal;
+            } | null;
+            number: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string;
+            branchId: string;
+            status: import("@prisma/client").$Enums.SaleStatus;
+            type: import("@prisma/client").$Enums.SaleType;
+            warehouseId: string;
+            customerId: string | null;
+            subtotal: import("@prisma/client/runtime/library").Decimal;
+            taxTotal: import("@prisma/client/runtime/library").Decimal;
+            discountTotal: import("@prisma/client/runtime/library").Decimal;
+            grandTotal: import("@prisma/client/runtime/library").Decimal;
+            createdByMembershipId: string | null;
+            paidTotal: import("@prisma/client/runtime/library").Decimal;
+            note: string | null;
+            soldAt: Date;
+            returnedFromSaleId: string | null;
+        };
+        journal: ({
+            lines: ({
+                account: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    name: string;
+                    organizationId: string;
+                    code: string;
+                    parentId: string | null;
+                    type: import("@prisma/client").$Enums.AccountType;
+                    allowsPosting: boolean;
+                    level: number;
+                };
+            } & {
+                id: string;
+                description: string | null;
+                accountId: string;
+                debit: import("@prisma/client/runtime/library").Decimal;
+                credit: import("@prisma/client/runtime/library").Decimal;
+                journalEntryId: string;
+            })[];
+        } & {
+            number: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string;
+            branchId: string | null;
+            status: import("@prisma/client").$Enums.JournalStatus;
+            createdByMembershipId: string | null;
+            sourceType: string;
+            memo: string;
+            entryDate: Date;
+            sourceId: string | null;
+        }) | null;
+    }>;
+    voidSale(user: JwtUser, id: string, dto: VoidSaleDto): Promise<{
+        voided: boolean;
+        sale: {
+            number: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            organizationId: string;
+            branchId: string;
+            status: import("@prisma/client").$Enums.SaleStatus;
+            type: import("@prisma/client").$Enums.SaleType;
+            warehouseId: string;
+            customerId: string | null;
+            subtotal: import("@prisma/client/runtime/library").Decimal;
+            taxTotal: import("@prisma/client/runtime/library").Decimal;
+            discountTotal: import("@prisma/client/runtime/library").Decimal;
+            grandTotal: import("@prisma/client/runtime/library").Decimal;
+            createdByMembershipId: string | null;
+            paidTotal: import("@prisma/client/runtime/library").Decimal;
+            note: string | null;
+            soldAt: Date;
+            returnedFromSaleId: string | null;
+        };
+        reason: string | undefined;
+    }>;
+}
