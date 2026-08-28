@@ -1,23 +1,38 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
+  Banknote,
   Building2,
   CalendarDays,
+  CalendarCheck,
   ChefHat,
+  ClipboardList,
   CreditCard,
   Gift,
   LifeBuoy,
   MonitorSmartphone,
   Package,
   QrCode,
+  Receipt,
   Settings,
+  ShieldCheck,
+  Store,
   Table2,
+  Truck,
   UserRound,
+  UserCheck,
   UsersRound,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+
+export const metadata: Metadata = {
+  title: "Configuracion Restaurante | ARCA",
+  description: "Configuracion de empresa, cuenta y modulos operativos de ARCA Restaurante.",
+};
 
 type ConfigCard = {
   href: string;
@@ -52,6 +67,12 @@ const CONFIG_RESTAURANTE: ConfigCard[] = [
     icon: Package,
   },
   {
+    href: "/restaurante/existencias",
+    title: "Existencias y kardex",
+    text: "Stock por almacen, movimientos, conteos, transferencias y vencimientos.",
+    icon: ClipboardList,
+  },
+  {
     href: "/restaurante/reservaciones",
     title: "Recepcion",
     text: "Reservas, lista de espera y atencion de comensales.",
@@ -62,6 +83,45 @@ const CONFIG_RESTAURANTE: ConfigCard[] = [
     title: "Promociones",
     text: "Ofertas de carta, vigencias y activaciones por canal.",
     icon: Gift,
+  },
+];
+
+const CORE_RESTAURANTE: ConfigCard[] = [
+  {
+    href: "/restaurante/compras",
+    title: "Compras",
+    text: "Proveedores, ordenes, recepciones, compras sugeridas y CxP.",
+    icon: Truck,
+  },
+  {
+    href: "/restaurante/caja",
+    title: "Caja y turnos",
+    text: "Apertura, medios de pago, arqueos y diferencias auditadas.",
+    icon: Store,
+  },
+  {
+    href: "/restaurante/facturacion",
+    title: "Facturacion",
+    text: "Comprobantes internos, facturas, impuestos y documentos fiscales configurados.",
+    icon: Receipt,
+  },
+  {
+    href: "/restaurante/tesoreria",
+    title: "Tesoreria",
+    text: "Cuentas financieras, gastos, pagos y conciliacion.",
+    icon: Banknote,
+  },
+  {
+    href: "/restaurante/empleados",
+    title: "Equipo",
+    text: "Empleados, puestos, asistencia, horarios y nomina.",
+    icon: UserCheck,
+  },
+  {
+    href: "/restaurante/auditoria",
+    title: "Auditoria",
+    text: "Cambios sensibles, anulaciones, descuentos, pagos, mermas y cierres.",
+    icon: ShieldCheck,
   },
 ];
 
@@ -111,6 +171,18 @@ const ADMINISTRACION: ConfigCard[] = [
     text: "Indicadores para revisar configuracion operativa y rentabilidad.",
     icon: Settings,
   },
+  {
+    href: "/restaurante/asistencia",
+    title: "Asistencia",
+    text: "Entradas, salidas y horas trabajadas del personal.",
+    icon: CalendarCheck,
+  },
+  {
+    href: "/restaurante/nomina",
+    title: "Nomina",
+    text: "Planillas, deducciones, pagos y asiento contable.",
+    icon: WalletCards,
+  },
 ];
 
 export default async function RestauranteConfiguracionPage() {
@@ -141,6 +213,15 @@ export default async function RestauranteConfiguracionPage() {
         <SectionTitle title="Operacion" subtitle="Configuracion diaria del servicio." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CONFIG_RESTAURANTE.map((item) => (
+            <ConfigTile key={item.href} {...item} />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle title="Empresa operativa" subtitle="Modulos core adaptados al restaurante." />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {CORE_RESTAURANTE.map((item) => (
             <ConfigTile key={item.href} {...item} />
           ))}
         </div>

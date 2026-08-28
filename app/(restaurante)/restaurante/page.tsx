@@ -1,21 +1,33 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
+  Banknote,
   BarChart3,
   CalendarDays,
+  CalendarCheck,
   ChefHat,
   ClipboardList,
   Clock,
+  FileText,
   Gift,
+  History,
   LifeBuoy,
   Package,
   Receipt,
+  Repeat2,
+  Scale,
   Settings,
   ShoppingCart,
+  ShieldCheck,
+  Store,
   Table2,
+  Truck,
+  UserCheck,
   TrendingDown,
   TrendingUp,
   Utensils,
   UsersRound,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -28,6 +40,11 @@ import type { PaisCodigo } from "@/lib/paises";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+
+export const metadata: Metadata = {
+  title: "Dashboard Restaurante | ARCA",
+  description: "Operacion completa de ARCA Restaurante sobre el core empresarial.",
+};
 
 export default async function RestauranteDashboardPage({
   searchParams,
@@ -101,6 +118,14 @@ async function restauranteDashboardPage({
           metricLabel: "Atendidos hoy",
           metricValue: String(data.comensalesAtendidos),
         },
+        {
+          href: "/restaurante/delivery",
+          title: "Delivery",
+          subtitle: "Para llevar, delivery propio, externo y pedidos web",
+          icon: Truck,
+          metricLabel: "Mismo KDS",
+          metricValue: "Activo",
+        },
       ],
     },
     {
@@ -150,6 +175,164 @@ async function restauranteDashboardPage({
       ],
     },
     {
+      title: "Inventario",
+      subtitle: "Stock, kardex, conteos y transferencias sin duplicar motor.",
+      items: [
+        {
+          href: "/restaurante/existencias",
+          title: "Existencias",
+          subtitle: "Stock por sucursal, almacen, lote y vencimiento",
+          icon: Package,
+          metricLabel: "Alertas",
+          metricValue: String(data.insumosBajos.length),
+        },
+        {
+          href: "/restaurante/movimientos",
+          title: "Movimientos",
+          subtitle: "Kardex append-only de entradas, salidas y ajustes",
+          icon: History,
+          metricLabel: "Fuente",
+          metricValue: "Core",
+        },
+        {
+          href: "/restaurante/conteos",
+          title: "Conteos",
+          subtitle: "Conteos fisicos y diferencias soportadas por movimientos",
+          icon: ClipboardList,
+          metricLabel: "Control",
+          metricValue: "Fisico",
+        },
+        {
+          href: "/restaurante/transferencias",
+          title: "Transferencias",
+          subtitle: "Traslados entre almacenes y sucursales",
+          icon: Repeat2,
+          metricLabel: "Multi-sucursal",
+          metricValue: scope.visible ? "Filtrado" : "Consolidado",
+        },
+      ],
+    },
+    {
+      title: "Compras",
+      subtitle: "Proveedor, compra, inventario, CxP y contabilidad.",
+      items: [
+        {
+          href: "/restaurante/compras",
+          title: "Compras",
+          subtitle: "Historial, ordenes, recepciones y compras sugeridas",
+          icon: Receipt,
+          metricLabel: "Flujo",
+          metricValue: "Completo",
+        },
+        {
+          href: "/restaurante/proveedores",
+          title: "Proveedores",
+          subtitle: "Condiciones, historial y comparacion de costos",
+          icon: Truck,
+          metricLabel: "Costos",
+          metricValue: "Historico",
+        },
+        {
+          href: "/restaurante/cxp",
+          title: "CxP",
+          subtitle: "Saldos, vencimientos y pagos parciales",
+          icon: WalletCards,
+          metricLabel: "Pagos",
+          metricValue: "Core",
+        },
+      ],
+    },
+    {
+      title: "Caja",
+      subtitle: "Turnos, medios de pago, diferencias y arqueos.",
+      items: [
+        {
+          href: "/restaurante/caja",
+          title: "Turnos y caja",
+          subtitle: "Apertura, cobros, arqueo y cierre auditado",
+          icon: Store,
+          metricLabel: "Cobro",
+          metricValue: "Activo",
+        },
+      ],
+    },
+    {
+      title: "Finanzas",
+      subtitle: "Facturacion, gastos, tesoreria, contabilidad e impuestos.",
+      items: [
+        {
+          href: "/restaurante/facturacion",
+          title: "Facturacion",
+          subtitle: "Comprobantes internos, facturas y documentos fiscales configurados",
+          icon: FileText,
+          metricLabel: "Ventas hoy",
+          metricValue: formatearMoneda(data.ventasHoy, pais),
+        },
+        {
+          href: "/restaurante/gastos",
+          title: "Gastos",
+          subtitle: "Egresos, recurrentes y categorias operativas",
+          icon: Receipt,
+          metricLabel: "Asiento",
+          metricValue: "Core",
+        },
+        {
+          href: "/restaurante/tesoreria",
+          title: "Tesoreria",
+          subtitle: "Caja, bancos, wallets y conciliacion",
+          icon: Banknote,
+          metricLabel: "Fuente",
+          metricValue: "Core",
+        },
+        {
+          href: "/restaurante/contabilidad",
+          title: "Contabilidad",
+          subtitle: "Libro diario, mayor, balances y periodos",
+          icon: BarChart3,
+          metricLabel: "Partida",
+          metricValue: "Doble",
+        },
+        {
+          href: "/restaurante/impuestos",
+          title: "Impuestos",
+          subtitle: "Reglas configurables, snapshots y auxiliar fiscal",
+          icon: Scale,
+          metricLabel: "Pais",
+          metricValue: empresa?.pais ?? "NI",
+        },
+      ],
+    },
+    {
+      title: "Personal",
+      subtitle: "Equipo, asistencia, horarios y nomina.",
+      items: [
+        {
+          href: "/restaurante/empleados",
+          title: "Empleados",
+          subtitle: "Puestos de restaurante, sucursal, estado y contacto",
+          icon: UserCheck,
+          metricLabel: "RRHH",
+          metricValue: "Core",
+        },
+        {
+          href: "/restaurante/asistencia",
+          title: "Asistencia",
+          subtitle: "Entradas, salidas, horas extra y calendario",
+          icon: CalendarCheck,
+          metricLabel: "Turnos",
+          metricValue: "Diario",
+        },
+        {
+          href: "/restaurante/nomina",
+          title: "Nomina",
+          subtitle: "Devengado, deducciones, verificacion y pagos",
+          icon: WalletCards,
+          metricLabel: "Reglas",
+          metricValue: "Versionadas",
+        },
+      ],
+    },
+    {
       title: "Reservas",
       subtitle: "Recepcion, agenda y promociones.",
       items: [
@@ -172,8 +355,8 @@ async function restauranteDashboardPage({
       ],
     },
     {
-      title: "Gestion",
-      subtitle: "Indicadores, configuracion y ayuda.",
+      title: "Analisis",
+      subtitle: "Indicadores operativos, financieros y fiscales.",
       items: [
         {
           href: "/restaurante/reportes",
@@ -183,6 +366,12 @@ async function restauranteDashboardPage({
           metricLabel: "Margen bruto",
           metricValue: formatearMoneda(data.margenBruto, pais),
         },
+      ],
+    },
+    {
+      title: "Administracion",
+      subtitle: "Configuracion, auditoria y soporte.",
+      items: [
         {
           href: "/restaurante/configuracion",
           title: "Configuracion",
@@ -190,6 +379,14 @@ async function restauranteDashboardPage({
           icon: Settings,
           metricLabel: "Entorno",
           metricValue: "Restaurante",
+        },
+        {
+          href: "/restaurante/auditoria",
+          title: "Auditoria",
+          subtitle: "Eventos criticos, snapshots y cambios sensibles",
+          icon: ShieldCheck,
+          metricLabel: "Trazabilidad",
+          metricValue: "Activa",
         },
         {
           href: "/restaurante/soporte",

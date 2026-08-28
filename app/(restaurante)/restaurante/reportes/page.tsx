@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { desc, eq, sql } from "drizzle-orm";
 import { BarChart3, PieChart } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
@@ -10,6 +11,12 @@ import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { RestaurantModuleGrid } from "@/components/restaurante/RestaurantCoreModulePage";
+
+export const metadata: Metadata = {
+  title: "Reportes Restaurante | ARCA",
+  description: "Reportes operativos, financieros, fiscales y de personal para restaurantes.",
+};
 
 export default async function RestauranteReportesPage() {
   const user = await requireSession();
@@ -49,6 +56,21 @@ export default async function RestauranteReportesPage() {
           Food cost, rentabilidad y popularidad sin duplicar datos contables.
         </p>
       </header>
+
+      <RestaurantModuleGrid
+        title="Reportes empresariales"
+        subtitle="Ventas, inventario, compras, finanzas, fiscal y personal usando el mismo ARCA Core."
+        actions={[
+          { href: "/restaurante/facturacion", label: "Ventas e impuestos" },
+          { href: "/restaurante/existencias", label: "Inventario y vencimientos" },
+          { href: "/restaurante/compras", label: "Compras y costos" },
+          { href: "/restaurante/tesoreria", label: "Flujo y tesoreria" },
+          { href: "/restaurante/gastos", label: "Gastos operativos" },
+          { href: "/restaurante/nomina", label: "Nomina y personal" },
+          { href: "/restaurante/contabilidad", label: "Libro contable" },
+          { href: "/restaurante/auditoria", label: "Auditoria" },
+        ]}
+      />
 
       <section className="grid gap-4 xl:grid-cols-2">
         <Card>

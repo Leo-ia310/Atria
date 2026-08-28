@@ -4,23 +4,36 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Banknote,
   BarChart3,
   CalendarDays,
+  CalendarCheck,
   ChefHat,
   CircleAlert,
+  ClipboardCheck,
   ClipboardList,
+  FileText,
   Gift,
+  History,
   LayoutDashboard,
   LifeBuoy,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
+  Receipt,
   ReceiptText,
+  Repeat2,
+  Scale,
   Settings,
   ShoppingCart,
+  ShieldCheck,
+  Store,
   Table2,
+  Truck,
+  UserCheck,
   UsersRound,
   Utensils,
+  WalletCards,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -86,7 +99,7 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
     ],
   },
   {
-    titulo: "Atencion",
+    titulo: "Operacion",
     items: [
       { href: "/restaurante/pos", label: "POS", icon: ShoppingCart, modulo: "restaurante-pos" },
       { href: "/restaurante/mesas", label: "Mesas", icon: Table2, modulo: "restaurante-mesas" },
@@ -101,6 +114,12 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         label: "Comensales",
         icon: UsersRound,
         modulo: "restaurante-comensales",
+      },
+      {
+        href: "/restaurante/delivery",
+        label: "Delivery",
+        icon: Truck,
+        modulo: "restaurante-ordenes",
       },
     ],
   },
@@ -125,6 +144,127 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
     ],
   },
   {
+    titulo: "Inventario",
+    items: [
+      {
+        href: "/restaurante/existencias",
+        label: "Existencias",
+        icon: Package,
+        modulo: "restaurante-inventario",
+      },
+      {
+        href: "/restaurante/movimientos",
+        label: "Movimientos",
+        icon: History,
+        modulo: "restaurante-inventario",
+      },
+      {
+        href: "/restaurante/conteos",
+        label: "Conteos",
+        icon: ClipboardCheck,
+        modulo: "restaurante-inventario",
+      },
+      {
+        href: "/restaurante/transferencias",
+        label: "Transferencias",
+        icon: Repeat2,
+        modulo: "restaurante-inventario",
+      },
+    ],
+  },
+  {
+    titulo: "Compras",
+    items: [
+      {
+        href: "/restaurante/compras",
+        label: "Compras",
+        icon: Receipt,
+        modulo: "compras",
+      },
+      {
+        href: "/restaurante/proveedores",
+        label: "Proveedores",
+        icon: Truck,
+        modulo: "compras",
+      },
+      {
+        href: "/restaurante/cxp",
+        label: "CxP",
+        icon: WalletCards,
+        modulo: "cxp",
+      },
+    ],
+  },
+  {
+    titulo: "Caja",
+    items: [
+      {
+        href: "/restaurante/caja",
+        label: "Turnos",
+        icon: Store,
+        modulo: "caja",
+      },
+    ],
+  },
+  {
+    titulo: "Finanzas",
+    items: [
+      {
+        href: "/restaurante/facturacion",
+        label: "Facturacion",
+        icon: FileText,
+        modulo: "facturas",
+      },
+      {
+        href: "/restaurante/gastos",
+        label: "Gastos",
+        icon: ReceiptText,
+        modulo: "tesoreria",
+      },
+      {
+        href: "/restaurante/tesoreria",
+        label: "Tesoreria",
+        icon: Banknote,
+        modulo: "tesoreria",
+      },
+      {
+        href: "/restaurante/contabilidad",
+        label: "Contabilidad",
+        icon: BarChart3,
+        modulo: "contabilidad",
+      },
+      {
+        href: "/restaurante/impuestos",
+        label: "Impuestos",
+        icon: Scale,
+        modulo: "restaurante-configuracion",
+      },
+    ],
+  },
+  {
+    titulo: "Personal",
+    items: [
+      {
+        href: "/restaurante/empleados",
+        label: "Empleados",
+        icon: UserCheck,
+        modulo: "rrhh",
+      },
+      {
+        href: "/restaurante/asistencia",
+        label: "Asistencia",
+        icon: CalendarCheck,
+        modulo: "rrhh",
+      },
+      {
+        href: "/restaurante/nomina",
+        label: "Nomina",
+        icon: WalletCards,
+        modulo: "rrhh",
+      },
+    ],
+  },
+  {
     titulo: "Reservas",
     items: [
       {
@@ -142,7 +282,7 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
     ],
   },
   {
-    titulo: "Gestion",
+    titulo: "Analisis",
     items: [
       {
         href: "/restaurante/reportes",
@@ -150,6 +290,11 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         icon: BarChart3,
         modulo: "restaurante-reportes",
       },
+    ],
+  },
+  {
+    titulo: "Administracion",
+    items: [
       {
         href: "/restaurante/configuracion",
         label: "Configuracion",
@@ -161,6 +306,12 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         label: "Soporte",
         icon: LifeBuoy,
         modulo: "restaurante-soporte",
+      },
+      {
+        href: "/restaurante/auditoria",
+        label: "Auditoria",
+        icon: ShieldCheck,
+        modulo: "restaurante-configuracion",
       },
     ],
   },
@@ -179,28 +330,28 @@ const COMMAND_ITEMS_RESTAURANTE: CommandItem[] = [
   {
     label: "Empresa",
     href: "/restaurante/empresa",
-    grupo: "Gestion",
+    grupo: "Administracion",
     modulo: "restaurante-configuracion",
     keywords: "empresa giro datos restaurante",
   },
   {
     label: "Dispositivos",
     href: "/restaurante/dispositivos",
-    grupo: "Gestion",
+    grupo: "Administracion",
     modulo: "restaurante-configuracion",
     keywords: "impresora lector caja dispositivos",
   },
   {
     label: "Plan",
     href: "/restaurante/plan",
-    grupo: "Gestion",
+    grupo: "Administracion",
     modulo: "restaurante-plan",
     keywords: "plan suscripcion pago",
   },
   {
     label: "Mi cuenta",
     href: "/restaurante/mi-cuenta",
-    grupo: "Gestion",
+    grupo: "Administracion",
     modulo: "mi-cuenta",
     keywords: "perfil usuario contrasena",
   },
@@ -242,10 +393,11 @@ export function RestauranteShell({
   const [planesAbierto, setPlanesAbierto] = useState(false);
   const colapsadoVisual = !esMovil && colapsado;
   const permitidos = new Set(modulosPermitidos);
-  const grupos = NAV_GROUPS_RESTAURANTE.map((grupo) => ({
-    ...grupo,
-    items: grupo.items.filter((item) => permitidos.has(item.modulo)),
-  })).filter((grupo) => grupo.items.length > 0);
+  const grupos = NAV_GROUPS_RESTAURANTE.reduce<NavGroup[]>((acc, grupo) => {
+    const items = grupo.items.filter((item) => permitidos.has(item.modulo));
+    if (items.length > 0) acc.push({ ...grupo, items });
+    return acc;
+  }, []);
   const commandItems = COMMAND_ITEMS_RESTAURANTE.filter((item) =>
     permitidos.has(item.modulo),
   );
