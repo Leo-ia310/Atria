@@ -10,6 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function TerminosPage() {
+  return terminosPageContent();
+}
+
+function terminosPageContent() {
   return (
     <LegalShell slug="terminos">
       <p>

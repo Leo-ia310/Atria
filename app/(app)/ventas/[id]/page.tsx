@@ -25,8 +25,7 @@ export default async function VentaDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [venta] = await db
     .select({
@@ -54,6 +53,7 @@ export default async function VentaDetallePage({
     getEmpresaMetadata(user.empresaId),
     db
       .select({
+        id: ventaDetalle.id,
         cantidad: ventaDetalle.cantidad,
         precioUnitario: ventaDetalle.precioUnitario,
         subtotal: ventaDetalle.subtotal,
@@ -71,6 +71,7 @@ export default async function VentaDetallePage({
       ),
     db
       .select({
+        id: pagosVenta.id,
         monto: pagosVenta.monto,
         referencia: pagosVenta.referencia,
         formaPago: formasPago.nombre,
@@ -155,8 +156,8 @@ export default async function VentaDetallePage({
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, i) => (
-                  <tr key={i} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                {items.map((it) => (
+                  <tr key={it.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
                     <td className="px-2 py-2">
                       <div className="font-medium">{it.nombre}</div>
                       <div className="text-[11px] text-[color:var(--color-text-muted)]">
@@ -213,8 +214,8 @@ export default async function VentaDetallePage({
               <div className="overflow-x-auto">
               <table className="w-full text-small">
                 <tbody>
-                  {pagos.map((p, i) => (
-                    <tr key={i} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                  {pagos.map((p) => (
+                    <tr key={p.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
                       <td className="px-2 py-2 font-medium">{p.formaPago}</td>
                       <td className="px-2 py-2 text-[color:var(--color-text-muted)]">
                         {p.referencia ?? "—"}

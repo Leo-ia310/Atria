@@ -20,8 +20,7 @@ export default async function LibroDiarioPage({
 }: {
   searchParams: Promise<{ desde?: string; hasta?: string }>;
 }) {
-  const params = await searchParams;
-  const user = await requireSession();
+  const [params, user] = await Promise.all([searchParams, requireSession()]);
 
   const [empresa, scope] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
@@ -130,6 +129,7 @@ export default async function LibroDiarioPage({
   const ids = asientos.map((a) => a.id);
   const todasLasPartidas = await db
     .select({
+      id: asientoPartidas.id,
       asientoId: asientoPartidas.asientoId,
       codigo: catalogoCuentas.codigo,
       cuenta: catalogoCuentas.nombre,
@@ -196,9 +196,9 @@ export default async function LibroDiarioPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {ps.map((p, i) => (
+                    {ps.map((p) => (
                       <tr
-                        key={i}
+                        key={p.id}
                         className="border-b border-[color:var(--color-border)] last:border-b-0"
                       >
                         <td className="px-4 py-2">

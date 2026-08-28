@@ -197,7 +197,7 @@ export const SOLICITUD_ESTADO_LABEL: Record<string, string> = {
   cancelada: "Cancelada",
 };
 
-export const CANDIDATO_ETAPA_LABEL: Record<string, string> = {
+const CANDIDATO_ETAPA_LABEL: Record<string, string> = {
   aplicado: "Aplicado",
   preseleccion: "Preselección",
   entrevista: "Entrevista",
@@ -206,7 +206,7 @@ export const CANDIDATO_ETAPA_LABEL: Record<string, string> = {
   descartado: "Descartado",
 };
 
-export const VACANTE_ESTADO_LABEL: Record<string, string> = {
+const VACANTE_ESTADO_LABEL: Record<string, string> = {
   abierta: "Abierta",
   pausada: "Pausada",
   cerrada: "Cerrada",

@@ -9,6 +9,8 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { RestauranteShell } from "@/components/restaurante/RestauranteShell";
 import { BillingBlockedScreen } from "@/components/layout/BillingBlockedScreen";
 
+const MODULOS_PERMITIDOS_BLOQUEO: ModuloAcceso[] = ["mi-cuenta", "restaurante-plan"];
+
 export default async function RestauranteLayout({
   children,
 }: {
@@ -27,7 +29,6 @@ export default async function RestauranteLayout({
 
   const nombreEmpresa = empresa?.nombreComercial || empresa?.razonSocial || "Empresa";
   if (access.suscripcionBloqueada) {
-    const permitidosBloqueo: ModuloAcceso[] = ["mi-cuenta", "restaurante-plan"];
     return (
       <SessionProvider>
         <ToastProvider>
@@ -40,7 +41,7 @@ export default async function RestauranteLayout({
             suscripcionFinISO={access.suscripcionFinPeriodo?.toISOString() ?? null}
             suscripcionBloqueada={access.suscripcionBloqueada}
             esDemo={access.plan.id === "demo"}
-            modulosPermitidos={permitidosBloqueo}
+            modulosPermitidos={MODULOS_PERMITIDOS_BLOQUEO}
             sucursalScope={sucursalScope}
           >
             <BillingBlockedScreen

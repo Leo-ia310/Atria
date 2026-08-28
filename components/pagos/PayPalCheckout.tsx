@@ -63,10 +63,13 @@ export function PayPalCheckout({
 
   const cbExito = useRef(onExito);
   const cbError = useRef(onError);
-  cbExito.current = onExito;
-  cbError.current = onError;
 
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+
+  useEffect(() => {
+    cbExito.current = onExito;
+    cbError.current = onError;
+  }, [onExito, onError]);
 
   useEffect(() => {
     let cancelado = false;

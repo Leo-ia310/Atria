@@ -9,7 +9,7 @@ export function ArcaLogo({ className, eager = false }: ArcaLogoProps) {
   return (
     <Image
       src="/LogoARCA-mark.png"
-      alt="ARCA"
+      alt="Logo de ARCA"
       width={2248}
       height={1860}
       className={className}

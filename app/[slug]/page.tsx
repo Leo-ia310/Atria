@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Facebook, Globe, Instagram, Phone, Send, Sparkles, Utensils } from "lucide-react";
@@ -80,9 +81,12 @@ export default async function MenuPublicoPage({ params, searchParams }: PageProp
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5">
           <div className="flex min-w-0 items-center gap-4">
             {menu.logoUrl ? (
-              <img
+              <Image
                 src={menu.logoUrl}
                 alt={empresa.nombreComercial || empresa.razonSocial}
+                width={64}
+                height={64}
+                unoptimized
                 className="h-16 w-16 rounded-md object-cover ring-1 ring-black/10"
               />
             ) : (
@@ -189,9 +193,13 @@ export default async function MenuPublicoPage({ params, searchParams }: PageProp
                       )}
                     >
                       {platillo.imagenUrl && (
-                        <img
+                        <Image
                           src={platillo.imagenUrl}
                           alt={platillo.nombre}
+                          width={640}
+                          height={360}
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          unoptimized
                           className="h-44 w-full object-cover"
                         />
                       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useReducer, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileSpreadsheet,
@@ -55,6 +55,10 @@ type PreviewFila = {
 };
 
 type ResultadoServidor = Awaited<ReturnType<typeof importarProductosInventario>>;
+type RevisionIAExitosa = Extract<
+  Awaited<ReturnType<typeof supervisarImportacionIA>>,
+  { ok: true }
+>;
 
 const CAMPOS: Campo[] = [
   "sku",
@@ -80,17 +84,122 @@ const SINONIMOS: Record<Campo, string[]> = {
   existenciaInicial: ["existencia", "stock", "cantidad", "inventario", "unidades", "disponible", "qty"],
 };
 
+const SINONIMOS_NORMALIZADOS: Record<Campo, string[]> = Object.fromEntries(
+  CAMPOS.map((campo) => [campo, SINONIMOS[campo].map(normalizar)]),
+) as Record<Campo, string[]>;
+
+type ImportadorState = {
+  abierto: boolean;
+  preview: PreviewFila[];
+  nombreArchivo: string;
+  cargando: boolean;
+  resultado: ResultadoServidor | null;
+  notasIA: { fila: number; nota: string; descartada: boolean }[];
+  iaEstado: "idle" | "hecho" | "error";
+};
+
+const IMPORTADOR_INICIAL: ImportadorState = {
+  abierto: false,
+  preview: [],
+  nombreArchivo: "",
+  cargando: false,
+  resultado: null,
+  notasIA: [],
+  iaEstado: "idle",
+};
+
+type ImportadorAction =
+  | { type: "seleccionInicio"; nombreArchivo: string }
+  | { type: "seleccionLista"; preview: PreviewFila[] }
+  | { type: "seleccionFin" }
+  | { type: "cerrarModal" }
+  | { type: "resultado"; resultado: ResultadoServidor }
+  | { type: "iaError" }
+  | { type: "iaExitosa"; filas: RevisionIAExitosa["filas"] };
+
+function importadorReducer(
+  state: ImportadorState,
+  action: ImportadorAction,
+): ImportadorState {
+  switch (action.type) {
+    case "seleccionInicio":
+      return {
+        ...state,
+        resultado: null,
+        notasIA: [],
+        iaEstado: "idle",
+        cargando: true,
+        nombreArchivo: action.nombreArchivo,
+      };
+    case "seleccionLista":
+      return { ...state, preview: action.preview, abierto: true };
+    case "seleccionFin":
+      return { ...state, cargando: false };
+    case "cerrarModal":
+      return { ...state, abierto: false };
+    case "resultado":
+      return { ...state, resultado: action.resultado };
+    case "iaError":
+      return { ...state, iaEstado: "error" };
+    case "iaExitosa": {
+      const correcciones = new Map(action.filas.map((fila) => [fila.fila, fila]));
+      const preview = state.preview.map((fila): PreviewFila => {
+        const correccion = correcciones.get(fila.fila);
+        if (!correccion) return fila;
+        if (correccion.descartar) {
+          return {
+            ...fila,
+            estado: "descartada",
+            errores: [],
+            advertencias: correccion.nota
+              ? [{ campo: "ia", mensaje: correccion.nota }]
+              : fila.advertencias,
+            revisadaIA: true,
+          };
+        }
+        let sku = correccion.sku.trim();
+        const nombre = correccion.nombre.trim();
+        if (!sku && nombre) sku = `IMP-${Date.now()}-${fila.fila}`;
+        const nuevoEstado: PreviewFila["estado"] =
+          !sku && !nombre ? "error" : "advertencia";
+        return {
+          ...fila,
+          sku,
+          nombre,
+          codigoBarras: correccion.codigoBarras.trim(),
+          descripcion: correccion.descripcion.trim(),
+          precioBase: correccion.precioBase,
+          costoPromedio: correccion.costoPromedio,
+          stockMinimo: correccion.stockMinimo,
+          stockMaximo: correccion.stockMaximo,
+          existenciaInicial: correccion.existenciaInicial,
+          estado: nuevoEstado,
+          errores: nuevoEstado === "error" ? ["La IA no pudo identificar el producto."] : [],
+          advertencias: correccion.nota
+            ? [{ campo: "ia", mensaje: correccion.nota }]
+            : fila.advertencias,
+          revisadaIA: true,
+        };
+      });
+      const notasIA = action.filas.reduce<
+        { fila: number; nota: string; descartada: boolean }[]
+      >((acc, fila) => {
+        if (fila.nota) {
+          acc.push({ fila: fila.fila, nota: fila.nota, descartada: fila.descartar });
+        }
+        return acc;
+      }, []);
+      return { ...state, preview, notasIA, iaEstado: "hecho" };
+    }
+  }
+}
+
 export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [abierto, setAbierto] = useState(false);
-  const [preview, setPreview] = useState<PreviewFila[]>([]);
-  const [nombreArchivo, setNombreArchivo] = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [resultado, setResultado] = useState<ResultadoServidor | null>(null);
+  const [state, dispatch] = useReducer(importadorReducer, IMPORTADOR_INICIAL);
+  const { abierto, preview, nombreArchivo, cargando, resultado, notasIA, iaEstado } = state;
   const [pendiente, startTransition] = useTransition();
   const [revisandoIA, iniciarRevisionIA] = useTransition();
-  const [notasIA, setNotasIA] = useState<{ fila: number; nota: string; descartada: boolean }[]>([]);
-  const [iaEstado, setIaEstado] = useState<"idle" | "hecho" | "error">("idle");
   const router = useRouter();
   const { mostrar } = useToast();
 
@@ -126,53 +235,11 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
       };
       const res = await supervisarImportacionIA(payload);
       if (!res.ok) {
-        setIaEstado("error");
+        dispatch({ type: "iaError" });
         if (!auto) mostrar(res.tipo === "warning" ? "info" : "error", res.error);
         return;
       }
-      const correcciones = new Map(res.filas.map((f) => [f.fila, f]));
-      setPreview((prev) =>
-        prev.map((fila) => {
-          const c = correcciones.get(fila.fila);
-          if (!c) return fila;
-          if (c.descartar) {
-            return {
-              ...fila,
-              estado: "descartada",
-              errores: [],
-              advertencias: c.nota ? [{ campo: "ia", mensaje: c.nota }] : fila.advertencias,
-              revisadaIA: true,
-            };
-          }
-          let sku = c.sku.trim();
-          const nombre = c.nombre.trim();
-          if (!sku && nombre) sku = `IMP-${Date.now()}-${fila.fila}`;
-          const nuevoEstado: PreviewFila["estado"] =
-            !sku && !nombre ? "error" : "advertencia";
-          return {
-            ...fila,
-            sku,
-            nombre,
-            codigoBarras: c.codigoBarras.trim(),
-            descripcion: c.descripcion.trim(),
-            precioBase: c.precioBase,
-            costoPromedio: c.costoPromedio,
-            stockMinimo: c.stockMinimo,
-            stockMaximo: c.stockMaximo,
-            existenciaInicial: c.existenciaInicial,
-            estado: nuevoEstado,
-            errores: nuevoEstado === "error" ? ["La IA no pudo identificar el producto."] : [],
-            advertencias: c.nota ? [{ campo: "ia", mensaje: c.nota }] : fila.advertencias,
-            revisadaIA: true,
-          };
-        }),
-      );
-      setNotasIA(
-        res.filas
-          .map((f) => ({ fila: f.fila, nota: f.nota, descartada: f.descartar }))
-          .filter((n) => n.nota),
-      );
-      setIaEstado("hecho");
+      dispatch({ type: "iaExitosa", filas: res.filas });
       const descartadas = res.filas.filter((f) => f.descartar).length;
       const corregidas = res.filas.length - descartadas;
       if (res.filas.length === 0) {
@@ -185,16 +252,11 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
 
   async function seleccionar(file: File | undefined) {
     if (!file) return;
-    setResultado(null);
-    setNotasIA([]);
-    setIaEstado("idle");
-    setCargando(true);
-    setNombreArchivo(file.name);
+    dispatch({ type: "seleccionInicio", nombreArchivo: file.name });
     try {
       const matriz = await leerArchivo(file);
       const filas = construirPreview(matriz);
-      setPreview(filas);
-      setAbierto(true);
+      dispatch({ type: "seleccionLista", preview: filas });
       if (filas.length === 0) {
         mostrar("error", "No encontramos filas con datos.");
       } else {
@@ -205,7 +267,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
       const msg = err instanceof Error ? err.message : "No pudimos leer el archivo.";
       mostrar("error", msg);
     } finally {
-      setCargando(false);
+      dispatch({ type: "seleccionFin" });
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -219,7 +281,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
       const res = await importarProductosInventario({
         filas: validas.map(({ errores, estado, celdas, revisadaIA, ...fila }) => fila),
       });
-      setResultado(res);
+      dispatch({ type: "resultado", resultado: res });
       if (!res.ok) {
         mostrar("error", res.error);
         return;
@@ -249,13 +311,17 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
 
       <Modal
         abierto={abierto}
-        onCerrar={() => setAbierto(false)}
+        onCerrar={() => dispatch({ type: "cerrarModal" })}
         titulo="Confirmar importacion"
         descripcion={nombreArchivo}
         ancho="xl"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAbierto(false)} disabled={pendiente || revisandoIA}>
+            <Button
+              variant="ghost"
+              onClick={() => dispatch({ type: "cerrarModal" })}
+              disabled={pendiente || revisandoIA}
+            >
               Cerrar
             </Button>
             {preview.length > 0 && (
@@ -486,9 +552,18 @@ function mapearPorCabecera(row: unknown[]): Partial<Record<Campo, number>> {
 function inferirColumnas(rows: unknown[][]): Partial<Record<Campo, number>> {
   const ancho = Math.max(...rows.map((r) => r.length));
   const stats = Array.from({ length: ancho }, (_, index) => {
-    const valores = rows.map((r) => r[index]).filter((v) => texto(v) !== "");
-    const textos = valores.filter((v) => parseNumero(v) === null).map((v) => texto(v));
-    const numeros = valores.map(parseNumero).filter((n): n is number => n !== null);
+    const valores: unknown[] = [];
+    const textos: string[] = [];
+    const numeros: number[] = [];
+    for (const row of rows) {
+      const valor = row[index];
+      const textoValor = texto(valor);
+      if (textoValor === "") continue;
+      valores.push(valor);
+      const numero = parseNumero(valor);
+      if (numero === null) textos.push(textoValor);
+      else numeros.push(numero);
+    }
     return {
       index,
       valores,
@@ -594,11 +669,15 @@ function filaPreview(
 function campoPorHeader(value: string): Campo | null {
   const normal = normalizar(value);
   for (const campo of CAMPOS) {
-    if (SINONIMOS[campo].some((s) => normal === normalizar(s) || normal.includes(normalizar(s)))) {
+    if (SINONIMOS_NORMALIZADOS[campo].some((s) => contieneTexto(normal, s))) {
       return campo;
     }
   }
   return null;
+}
+
+function contieneTexto(textoCompleto: string, fragmento: string): boolean {
+  return textoCompleto === fragmento || textoCompleto.includes(fragmento);
 }
 
 function texto(value: unknown): string {

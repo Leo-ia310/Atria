@@ -172,7 +172,7 @@ export default async function RestauranteMesasPage() {
                   </select>
                 </FormField>
                 <FormField label="Nombre del area">
-                  <input name="nombre" placeholder="Terraza" className="arca-input" />
+                  <input name="nombre" className="arca-input" />
                 </FormField>
                 <button type="submit" className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear area
@@ -205,11 +205,11 @@ export default async function RestauranteMesasPage() {
                   </select>
                 </FormField>
                 <FormField label="Nombre de mesa">
-                  <input name="nombre" placeholder="Mesa 7" className="arca-input" />
+                  <input name="nombre" className="arca-input" />
                 </FormField>
                 <div className="grid grid-cols-2 gap-2">
                   <FormField label="Capacidad">
-                    <input name="capacidad" placeholder="4" defaultValue="4" className="arca-input" />
+                    <input name="capacidad" defaultValue="4" className="arca-input" />
                   </FormField>
                   <FormField label="Forma">
                     <select name="forma" defaultValue="rectangular" className="arca-input">

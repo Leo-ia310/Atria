@@ -1,12 +1,11 @@
 import type { NextConfig } from "next";
 
-// Cabeceras de seguridad aplicadas a toda respuesta. No incluimos una CSP con
-// `script-src` estricta porque el App Router inyecta scripts inline de bootstrap
-// que requerirían nonces por request; en su lugar fijamos las directivas de CSP
-// que son seguras sin nonce (anti-clickjacking, anti base-tag, anti-plugins) y
-// dejamos el resto del endurecimiento a las cabeceras dedicadas.
+// Cabeceras estaticas aplicadas a toda respuesta. La CSP completa se genera en
+// middleware.ts porque necesita un nonce nuevo por request para los scripts del
+// App Router.
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
@@ -16,10 +15,6 @@ const securityHeaders = [
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
-  },
-  {
-    key: "Content-Security-Policy",
-    value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
   },
 ];
 
@@ -36,6 +31,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },
       { protocol: "https", hostname: "*.supabase.in" },
+      { protocol: "https", hostname: "randomuser.me" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   async headers() {

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
 
 const STORAGE_KEY = "arca:theme";
+const THEME_EVENT = "arca:theme-change";
 
 function getInitialTheme(): Theme {
   if (typeof document === "undefined") return "light";
@@ -15,21 +16,24 @@ function getInitialTheme(): Theme {
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem(STORAGE_KEY, theme);
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
+function subscribeTheme(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(THEME_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(THEME_EVENT, onStoreChange);
+  };
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
-
-  useEffect(() => {
-    setTheme(getInitialTheme());
-  }, []);
+  const theme = useSyncExternalStore(subscribeTheme, getInitialTheme, () => "light");
 
   function toggleTheme() {
-    setTheme((current) => {
-      const next = current === "dark" ? "light" : "dark";
-      applyTheme(next);
-      return next;
-    });
+    const next = theme === "dark" ? "light" : "dark";
+    applyTheme(next);
   }
 
   const isDark = theme === "dark";

@@ -1,6 +1,31 @@
+import type { Metadata } from "next";
 import { Nav } from "@/components/marketing/Nav";
 import { PricingToggle } from "@/components/marketing/PricingToggle";
 import { FAQ } from "@/components/marketing/FAQ";
+
+export const metadata: Metadata = {
+  title: "Precios — Planes simples para cada etapa de tu negocio",
+  description:
+    "Empieza gratis y sube de plan cuando lo necesites. Planes Demo, Pro y Enterprise de ARCA con punto de venta, inventario y contabilidad incluidos.",
+  alternates: {
+    canonical: "/precios",
+  },
+  openGraph: {
+    title: "Precios de ARCA — Simple, honesto y escalable",
+    description:
+      "Empieza gratis y sube de plan cuando tu negocio lo pida. Punto de venta, inventario y contabilidad en un solo sistema.",
+    url: "/precios",
+    type: "website",
+    siteName: "ARCA",
+    locale: "es_ES",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Precios de ARCA — Simple, honesto y escalable",
+    description:
+      "Empieza gratis y sube de plan cuando tu negocio lo pida. Punto de venta, inventario y contabilidad en un solo sistema.",
+  },
+};
 
 export default function PreciosPage() {
   return (

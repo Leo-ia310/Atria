@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useRecharts } from "@/components/charts/useRecharts";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
@@ -24,7 +15,7 @@ const TOOLTIP_STYLE = {
   color: "var(--color-text-primary)",
 };
 
-export function GraficaEgresos({
+function GraficaEgresos({
   data,
   pais,
   mejorLabel,
@@ -33,7 +24,11 @@ export function GraficaEgresos({
   pais: PaisCodigo;
   mejorLabel: string | null;
 }) {
+  const recharts = useRecharts();
   if (data.length === 0) return <SinDatos texto="Sin salidas registradas." />;
+  if (!recharts) return <SinDatos texto="Cargando grafica..." />;
+  const { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } =
+    recharts;
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>
@@ -67,8 +62,11 @@ export function GraficaEgresos({
   );
 }
 
-export function GraficaIngresos({ data }: { data: PuntoDiario[] }) {
+function GraficaIngresos({ data }: { data: PuntoDiario[] }) {
+  const recharts = useRecharts();
   if (data.length === 0) return <SinDatos texto="Sin entradas registradas." />;
+  if (!recharts) return <SinDatos texto="Cargando grafica..." />;
+  const { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } = recharts;
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>
@@ -94,7 +92,10 @@ export function GraficaVendedores({
   data: Vendedor[];
   pais: PaisCodigo;
 }) {
+  const recharts = useRecharts();
   if (data.length === 0) return <SinDatos texto="Nadie ha vendido este producto todavía." />;
+  if (!recharts) return <SinDatos texto="Cargando grafica..." />;
+  const { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } = recharts;
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>

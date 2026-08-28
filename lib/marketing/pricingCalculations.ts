@@ -103,9 +103,10 @@ export function calculateExternalSoftwareCost(
 ): ExternalSoftwareTotals {
   const users = normalizeUserCount(usersInput);
   const selected = new Set(selectedSoftwareIds);
-  const items = softwareList
-    .filter((software) => selected.has(software.id))
-    .map((software) => calculateSoftwareCost(software, users));
+  const items = softwareList.reduce<ExternalSoftwareCost[]>((acc, software) => {
+    if (selected.has(software.id)) acc.push(calculateSoftwareCost(software, users));
+    return acc;
+  }, []);
 
   return {
     selectedCount: items.length,
@@ -142,9 +143,10 @@ export function calculateSavings(
 }
 
 export function getDefaultSelectedSoftwareIds(softwareList: ExternalSoftware[]): string[] {
-  return softwareList
-    .filter((software) => software.selectedByDefault)
-    .map((software) => software.id);
+  return softwareList.reduce<string[]>((ids, software) => {
+    if (software.selectedByDefault) ids.push(software.id);
+    return ids;
+  }, []);
 }
 
 export function getAllExternalSoftwareIds(softwareList: ExternalSoftware[]): string[] {

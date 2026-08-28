@@ -1,0 +1,151 @@
+{
+    "metrics": {
+        "http_req_tls_handshaking": {
+            "p(99)": 0,
+            "max": 0,
+            "min": 0,
+            "avg": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_waiting": {
+            "min": 0.1087,
+            "avg": 2199.5601176100636,
+            "med": 9.8964,
+            "p(90)": 9456.445600000001,
+            "p(95)": 12058.28566,
+            "p(99)": 13499.816968,
+            "max": 13874.5667
+        },
+        "data_received": {
+            "count": 10202364,
+            "rate": 339594.5517529823
+        },
+        "vus": {
+            "value": 4,
+            "min": 4,
+            "max": 24
+        },
+        "dropped_iterations": {
+            "rate": 0.16642934507775958,
+            "count": 5
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 159,
+            "value": 0
+        },
+        "http_req_sending": {
+            "avg": 0.06452515723270441,
+            "med": 0,
+            "p(90)": 0.5095,
+            "p(95)": 0.52602,
+            "p(99)": 0.5698899999999999,
+            "max": 1.0655,
+            "min": 0
+        },
+        "http_req_receiving": {
+            "max": 963.3345,
+            "min": 0,
+            "avg": 60.84591949685537,
+            "med": 5.6671,
+            "p(90)": 216.93470000000013,
+            "p(95)": 290.5216899999999,
+            "p(99)": 634.4667779999999
+        },
+        "http_req_duration": {
+            "max": 14042.1765,
+            "min": 4.2544,
+            "avg": 2260.4705622641522,
+            "med": 12.8848,
+            "p(90)": 9636.549380000008,
+            "p(95)": 12274.06891,
+            "p(99)": 13759.503813999996
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 9636.549380000008,
+            "p(95)": 12274.06891,
+            "p(99)": 13759.503813999996,
+            "max": 14042.1765,
+            "min": 4.2544,
+            "avg": 2260.4705622641522,
+            "med": 12.8848
+        },
+        "data_sent": {
+            "rate": 973.5118110978469,
+            "count": 29247
+        },
+        "iterations": {
+            "count": 92,
+            "rate": 3.062299949430776
+        },
+        "vus_max": {
+            "value": 25,
+            "min": 20,
+            "max": 25
+        },
+        "http_reqs": {
+            "count": 159,
+            "rate": 5.2924531734727545
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "p(90)": 0.6907,
+            "p(95)": 1.4334699999999996,
+            "p(99)": 2.2028,
+            "max": 2.7391,
+            "min": 0,
+            "avg": 0.3061861635220126
+        },
+        "checks": {
+            "passes": 188,
+            "fails": 0,
+            "value": 1
+        },
+        "iteration_duration": {
+            "avg": 4219.359032608697,
+            "med": 916.8434,
+            "p(90)": 12103.923520000002,
+            "p(95)": 13411.991855000002,
+            "p(99)": 14428.172501000001,
+            "max": 14562.1963,
+            "min": 243.2792
+        },
+        "http_req_blocked": {
+            "p(90)": 1.1131,
+            "p(95)": 1.719709999999998,
+            "p(99)": 2.440689999999994,
+            "max": 4.1449,
+            "min": 0,
+            "avg": 0.37313270440251584,
+            "med": 0
+        }
+    },
+    "setup_data": {
+        "baseUrl": "http://localhost:3000",
+        "profile": "smoke"
+    },
+    "root_group": {
+        "groups": {},
+        "checks": {
+                "status esperado": {
+                    "name": "status esperado",
+                    "path": "::status esperado",
+                    "id": "55ecf1181ed7abcfe1940bc12b453999",
+                    "passes": 94,
+                    "fails": 0
+                },
+                "respuesta con cuerpo": {
+                    "path": "::respuesta con cuerpo",
+                    "id": "e6069c0e9e88d3419b57b78d61e2117d",
+                    "passes": 94,
+                    "fails": 0,
+                    "name": "respuesta con cuerpo"
+                }
+            },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+}

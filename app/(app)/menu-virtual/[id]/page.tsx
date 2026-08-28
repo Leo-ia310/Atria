@@ -48,6 +48,10 @@ type MenuVirtualDetallePageProps = {
 };
 
 export default async function MenuVirtualDetallePage(props: MenuVirtualDetallePageProps) {
+  return menuVirtualDetallePage(props);
+}
+
+async function menuVirtualDetallePage(props: MenuVirtualDetallePageProps) {
   const [{ id }, sp, user, headerStore] = await Promise.all([
     props.params,
     props.searchParams,
@@ -145,32 +149,34 @@ export default async function MenuVirtualDetallePage(props: MenuVirtualDetallePa
   ]);
 
   const publicUrl = getMenuPublicUrl(menu.slug);
-  const qrDataUrl = await QRCode.toDataURL(publicUrl, {
-    width: 640,
-    margin: 1,
-    color: {
-      dark: "#111827",
-      light: "#ffffff",
-    },
-  });
-  const mesasQr = await Promise.all(
-    Array.from({ length: menu.cantidadMesas }, async (_, index) => {
-      const mesaNumero = index + 1;
-      const url = getMenuMesaUrl(menu.slug, mesaNumero);
-      return {
-        mesaNumero,
-        url,
-        qrDataUrl: await QRCode.toDataURL(url, {
-          width: 480,
-          margin: 1,
-          color: {
-            dark: "#111827",
-            light: "#ffffff",
-          },
-        }),
-      };
+  const [qrDataUrl, mesasQr] = await Promise.all([
+    QRCode.toDataURL(publicUrl, {
+      width: 640,
+      margin: 1,
+      color: {
+        dark: "#111827",
+        light: "#ffffff",
+      },
     }),
-  );
+    Promise.all(
+      Array.from({ length: menu.cantidadMesas }, async (_, index) => {
+        const mesaNumero = index + 1;
+        const url = getMenuMesaUrl(menu.slug, mesaNumero);
+        return {
+          mesaNumero,
+          url,
+          qrDataUrl: await QRCode.toDataURL(url, {
+            width: 480,
+            margin: 1,
+            color: {
+              dark: "#111827",
+              light: "#ffffff",
+            },
+          }),
+        };
+      }),
+    ),
+  ]);
   const pais = empresa?.pais ?? "NI";
   const seccionOptions = [
     { value: "", label: "Sin seccion" },

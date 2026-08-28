@@ -2,16 +2,16 @@
 
 import { Printer } from "lucide-react";
 
-export function LegalPrintButton() {
-  const imprimir = () => {
-    document.body.classList.add("legal-imprimiendo");
-    const limpiar = () => document.body.classList.remove("legal-imprimiendo");
-    window.addEventListener("afterprint", limpiar, { once: true });
-    window.print();
-    // Respaldo por si el navegador no dispara afterprint.
-    window.setTimeout(limpiar, 1500);
-  };
+function imprimir() {
+  document.body.classList.add("legal-imprimiendo");
+  const limpiar = () => document.body.classList.remove("legal-imprimiendo");
+  window.addEventListener("afterprint", limpiar, { once: true });
+  window.print();
+  // Respaldo por si el navegador no dispara afterprint.
+  window.setTimeout(limpiar, 1500);
+}
 
+export function LegalPrintButton() {
   return (
     <button
       type="button"

@@ -165,7 +165,9 @@ function EditorPermisos({
   onGuardado: () => void;
   mostrar: (t: "success" | "error", m: string) => void;
 }) {
-  const [seleccion, setSeleccion] = useState<Set<string>>(new Set(rol.permisoIds));
+  const [seleccion, setSeleccion] = useState<Set<string>>(
+    () => new Set(rol.permisoIds),
+  );
   const [guardando, setGuardando] = useState(false);
 
   function toggle(id: string) {

@@ -51,8 +51,10 @@ export default async function DashboardPage({
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
-  const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
+  const ahora = new Date();
+  const hoyLocal = fechaISOEnZona(ahora, zonaHoraria);
   const inicioMesLocal = inicioMesISO(hoyLocal);
+  const ultimoAcceso = formatearFechaHora(ahora, pais, zonaHoraria);
 
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
@@ -301,7 +303,7 @@ export default async function DashboardPage({
               valor={String(scope.sucursalIds.length)}
             />
             {scope.visible && <Fila label="Alcance" valor={scope.etiqueta} />}
-            <Fila label="Último acceso" valor={formatearFechaHora(new Date())} />
+            <Fila label="Último acceso" valor={ultimoAcceso} />
             <Fila
               label="Estado fiscal"
               valor={

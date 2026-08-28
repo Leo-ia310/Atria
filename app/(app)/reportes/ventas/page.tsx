@@ -25,10 +25,7 @@ export default async function ReporteVentasPage() {
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
   const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
   const hace30Local = sumarDiasISO(hoyLocal, -30);
-  // Zona como literal (no parametro): la expresion debe ser textualmente
-  // identica en SELECT, GROUP BY y ORDER BY o Postgres rechaza el agrupamiento.
-  const tzLiteral = sql.raw(`'${zonaHoraria.replace(/[^A-Za-z0-9_+\-/]/g, "")}'`);
-  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${tzLiteral})::date`;
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
     ? inArray(ventas.sucursalId, sucursalIds)
@@ -49,11 +46,12 @@ export default async function ReporteVentasPage() {
         filtroSucursalVenta,
       ),
     )
-    .groupBy(fechaVentaLocal)
-    .orderBy(fechaVentaLocal);
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
 
   const topProductosPromise = db
     .select({
+      id: productos.id,
       nombre: productos.nombre,
       sku: productos.sku,
       cantidad: sql<string>`SUM(${ventaDetalle.cantidad})`,
@@ -151,7 +149,7 @@ export default async function ReporteVentasPage() {
               <ol className="divide-y divide-[color:var(--color-border)]">
                 {topProductos.map((p, i) => (
                   <li
-                    key={i}
+                    key={p.id}
                     className="flex items-center justify-between gap-2 px-4 py-2 text-small"
                   >
                     <div className="min-w-0 flex-1">

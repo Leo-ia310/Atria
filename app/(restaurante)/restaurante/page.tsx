@@ -34,6 +34,14 @@ export default async function RestauranteDashboardPage({
 }: {
   searchParams: Promise<{ bienvenida?: string; acceso?: string; cuenta?: string }>;
 }) {
+  return restauranteDashboardPage({ searchParams });
+}
+
+async function restauranteDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bienvenida?: string; acceso?: string; cuenta?: string }>;
+}) {
   const [params, user] = await Promise.all([searchParams, requireSession()]);
   await requireModulo(user, "restaurante-dashboard");
   const [empresa, scope] = await Promise.all([
@@ -228,11 +236,11 @@ export default async function RestauranteDashboardPage({
         </div>
       )}
 
-      <SectionHeader
-        eyebrow="Resumen"
-        title="Turno de hoy"
-        subtitle="Indicadores principales del restaurante en tiempo real."
-      />
+      {sectionHeader({
+        eyebrow: "Resumen",
+        title: "Turno de hoy",
+        subtitle: "Indicadores principales del restaurante en tiempo real.",
+      })}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ventas de hoy"
@@ -264,19 +272,23 @@ export default async function RestauranteDashboardPage({
         />
       </section>
 
-      <SectionHeader
-        eyebrow="Operacion"
-        title="Salon, cocina y recepcion"
-        subtitle="Cada area abre una vista propia del vertical restaurante."
-      />
+      {sectionHeader({
+        eyebrow: "Operacion",
+        title: "Salon, cocina y recepcion",
+        subtitle: "Cada area abre una vista propia del vertical restaurante.",
+      })}
       <section className="grid gap-4 xl:grid-cols-3">
         <Card>
           <CardHeader title="Mesas" subtitle="Estado operativo del salon" />
           <CardBody className="space-y-3">
-            <MesaEstado label="Ocupadas" value={mesasOcupadas} tone="warning" />
-            <MesaEstado label="Disponibles" value={mesasDisponibles} tone="success" />
-            <MesaEstado label="Por limpiar" value={mesasPorLimpiar} tone="error" />
-            <MesaEstado label="Cuenta solicitada" value={data.mesas.cuenta_solicitada ?? 0} tone="info" />
+            {mesaEstado({ label: "Ocupadas", value: mesasOcupadas, tone: "warning" })}
+            {mesaEstado({ label: "Disponibles", value: mesasDisponibles, tone: "success" })}
+            {mesaEstado({ label: "Por limpiar", value: mesasPorLimpiar, tone: "error" })}
+            {mesaEstado({
+              label: "Cuenta solicitada",
+              value: data.mesas.cuenta_solicitada ?? 0,
+              tone: "info",
+            })}
             <Link href="/restaurante/mesas" className="arca-btn arca-btn-secondary arca-btn-sm w-full">
               <Table2 size={14} /> Administrar mesas
             </Link>
@@ -287,12 +299,12 @@ export default async function RestauranteDashboardPage({
           <CardHeader title="Cocina" subtitle="Carga viva del KDS" />
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <MiniKpi icon={ChefHat} label="En cocina" value={data.pedidosCocina} />
-              <MiniKpi
-                icon={Clock}
-                label="Prep prom."
-                value={`${Math.round(data.tiempoPromedioPreparacionMin)} min`}
-              />
+              {miniKpi({ icon: ChefHat, label: "En cocina", value: data.pedidosCocina })}
+              {miniKpi({
+                icon: Clock,
+                label: "Prep prom.",
+                value: `${Math.round(data.tiempoPromedioPreparacionMin)} min`,
+              })}
             </div>
             <Link href="/restaurante/kds" className="arca-btn arca-btn-primary arca-btn-sm w-full">
               Abrir cocina
@@ -304,8 +316,8 @@ export default async function RestauranteDashboardPage({
           <CardHeader title="Recepcion" subtitle="Reservas y lista de espera" />
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <MiniKpi icon={CalendarDays} label="Reservas" value={data.reservacionesProximas} />
-              <MiniKpi icon={UsersRound} label="Espera" value={data.listaEspera} />
+              {miniKpi({ icon: CalendarDays, label: "Reservas", value: data.reservacionesProximas })}
+              {miniKpi({ icon: UsersRound, label: "Espera", value: data.listaEspera })}
             </div>
             <Link href="/restaurante/reservaciones" className="arca-btn arca-btn-secondary arca-btn-sm w-full">
               Ver recepcion
@@ -314,29 +326,27 @@ export default async function RestauranteDashboardPage({
         </Card>
       </section>
 
-      <SectionHeader
-        eyebrow="Modulos"
-        title="Accesos por area"
-        subtitle="Todos estos accesos se quedan dentro de /restaurante."
-      />
+      {sectionHeader({
+        eyebrow: "Modulos",
+        title: "Accesos por area",
+        subtitle: "Todos estos accesos se quedan dentro de /restaurante.",
+      })}
       <div className="space-y-5">
         {accesosPorSeccion.map((grupo) => (
           <section key={grupo.title} className="space-y-3">
-            <SectionTitle title={grupo.title} subtitle={grupo.subtitle} />
+            {sectionTitle({ title: grupo.title, subtitle: grupo.subtitle })}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {grupo.items.map((item) => (
-                <ModuleTile key={item.href} {...item} />
-              ))}
+              {grupo.items.map((item) => moduleTile(item))}
             </div>
           </section>
         ))}
       </div>
 
-      <SectionHeader
-        eyebrow="Control"
-        title="Rendimiento e insumos"
-        subtitle="Ranking de venta y alertas para compras o preparacion."
-      />
+      {sectionHeader({
+        eyebrow: "Control",
+        title: "Rendimiento e insumos",
+        subtitle: "Ranking de venta y alertas para compras o preparacion.",
+      })}
       <section className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader title="Platillos mas vendidos" subtitle="Ultimos 30 dias" />
@@ -405,7 +415,7 @@ export default async function RestauranteDashboardPage({
   );
 }
 
-function SectionHeader({
+function sectionHeader({
   eyebrow,
   title,
   subtitle,
@@ -425,7 +435,7 @@ function SectionHeader({
   );
 }
 
-function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+function sectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div>
       <h3 className="text-base font-semibold">{title}</h3>
@@ -445,7 +455,7 @@ type ModuleTileProps = {
   metricValue: string;
 };
 
-function ModuleTile({
+function moduleTile({
   href,
   title,
   subtitle,
@@ -455,6 +465,7 @@ function ModuleTile({
 }: ModuleTileProps) {
   return (
     <Link
+      key={href}
       href={href}
       className="group flex min-h-[116px] flex-col justify-between rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 transition hover:border-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)]"
     >
@@ -479,7 +490,7 @@ function ModuleTile({
   );
 }
 
-function MesaEstado({
+function mesaEstado({
   label,
   value,
   tone,
@@ -496,7 +507,7 @@ function MesaEstado({
   );
 }
 
-function MiniKpi({
+function miniKpi({
   icon: Icon,
   label,
   value,

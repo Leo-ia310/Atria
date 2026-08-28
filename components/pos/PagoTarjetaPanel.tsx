@@ -6,16 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
-
-/**
- * Datos NO sensibles capturados de un pago con tarjeta.
- * Nunca se solicita ni almacena número completo (PAN), CVV, PIN ni vencimiento.
- */
-export type ResultadoTarjeta = {
-  autorizacion?: string;
-  ultimos4?: string;
-  marca?: string;
-};
+import type { ResultadoTarjeta } from "@/components/pos/PagoTarjetaPanel.helpers";
 
 const MARCAS = [
   { value: "", label: "Sin especificar" },
@@ -24,14 +15,6 @@ const MARCAS = [
   { value: "Amex", label: "American Express" },
   { value: "Otra", label: "Otra" },
 ];
-
-export function referenciaTarjeta(info: ResultadoTarjeta): string {
-  const partes: string[] = [];
-  if (info.marca) partes.push(info.marca);
-  if (info.ultimos4) partes.push(`****${info.ultimos4}`);
-  if (info.autorizacion) partes.push(`Autz ${info.autorizacion}`);
-  return partes.length ? partes.join(" · ") : "Tarjeta aprobada";
-}
 
 /**
  * Confirmación manual del cobro con datáfono. La interfaz (onAprobado / onRechazado)

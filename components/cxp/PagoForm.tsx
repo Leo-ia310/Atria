@@ -30,7 +30,7 @@ export function PagoForm({
   const [enviando, setEnviando] = useState(false);
 
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState(cuentasFinancieras[0]?.value ?? "");
-  const [fecha, setFecha] = useState(fechaISOEnZona());
+  const [fecha, setFecha] = useState(() => fechaISOEnZona());
   const [monto, setMonto] = useState<number | "">(saldoPendiente);
   const [referencia, setReferencia] = useState("");
   const [notas, setNotas] = useState("");

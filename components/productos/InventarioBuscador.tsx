@@ -28,6 +28,10 @@ function normalizar(v: string): string {
     .trim();
 }
 
+function contieneTexto(texto: string, busqueda: string) {
+  return texto.includes(busqueda);
+}
+
 export function InventarioBuscador({
   filas,
   pais,
@@ -43,13 +47,13 @@ export function InventarioBuscador({
     if (!q) return filas;
     if (modoBarras) {
       const raw = query.trim();
-      return filas.filter((f) => f.codigoBarras && f.codigoBarras.includes(raw));
+      return filas.filter((f) => f.codigoBarras && contieneTexto(f.codigoBarras, raw));
     }
     return filas.filter(
       (f) =>
-        normalizar(f.sku).includes(q) ||
-        normalizar(f.nombre).includes(q) ||
-        normalizar(f.categoria).includes(q),
+        contieneTexto(normalizar(f.sku), q) ||
+        contieneTexto(normalizar(f.nombre), q) ||
+        contieneTexto(normalizar(f.categoria), q),
     );
   }, [filas, query, modoBarras]);
 

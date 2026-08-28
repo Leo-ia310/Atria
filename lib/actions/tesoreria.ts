@@ -52,7 +52,7 @@ export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> 
   return { ok: true };
 }
 
-export async function crearCategoriaGasto(input: unknown): Promise<Resultado> {
+async function crearCategoriaGasto(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "tesoreria", permisos: "tesoreria.ver" });
   if (!acceso.ok) return acceso;

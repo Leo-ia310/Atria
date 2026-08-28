@@ -8,20 +8,31 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { actualizarPerfil, cambiarMiPassword } from "@/lib/actions/configuracion";
 
-export function PerfilForm({
-  nombreInicial,
-  emailInicial,
-  telefonoInicial,
-}: {
+type PerfilFormProps = {
   nombreInicial: string;
   emailInicial: string;
   telefonoInicial: string;
-}) {
+};
+
+export function PerfilForm(props: PerfilFormProps) {
+  return (
+    <PerfilFormInner
+      key={`${props.nombreInicial}:${props.emailInicial}:${props.telefonoInicial}`}
+      {...props}
+    />
+  );
+}
+
+function PerfilFormInner({
+  nombreInicial,
+  emailInicial,
+  telefonoInicial,
+}: PerfilFormProps) {
   const router = useRouter();
   const { mostrar } = useToast();
-  const [nombre, setNombre] = useState(nombreInicial);
-  const [email, setEmail] = useState(emailInicial);
-  const [telefono, setTelefono] = useState(telefonoInicial);
+  const [nombre, setNombre] = useState(() => nombreInicial);
+  const [email, setEmail] = useState(() => emailInicial);
+  const [telefono, setTelefono] = useState(() => telefonoInicial);
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {

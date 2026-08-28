@@ -66,10 +66,10 @@ export default async function RestaurantePromocionesPage() {
           <CardBody>
             <form action={crearPromocionRestauranteForm} className="space-y-3">
               <FormField label="Nombre">
-                <input name="nombre" placeholder="Happy Hour bebidas" className="arca-input" />
+                <input name="nombre" className="arca-input" />
               </FormField>
               <FormField label="Descripcion">
-                <textarea name="descripcion" placeholder="Descripcion" className="arca-input min-h-20" />
+                <textarea name="descripcion" className="arca-input min-h-20" />
               </FormField>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Tipo">
@@ -81,7 +81,7 @@ export default async function RestaurantePromocionesPage() {
                   </select>
                 </FormField>
                 <FormField label="Valor">
-                  <input name="valor" placeholder="20" className="arca-input" />
+                  <input name="valor" className="arca-input" />
                 </FormField>
               </div>
               <FormField label="Producto">

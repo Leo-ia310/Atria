@@ -10,7 +10,7 @@
 - **PostgreSQL 16** + **Drizzle ORM** + Row-Level Security por `empresa_id`
 - **NextAuth v5** (credentials + JWT)
 - **Zod** (validación cliente/servidor) + **React Hook Form**
-- **TanStack Query / Table**, **Zustand**, **Recharts**, **Lucide**
+- **Recharts**, **Lucide**, **React Hook Form**
 - Deploy target: **Vercel + Supabase**
 
 ## Quick start

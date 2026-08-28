@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,17 +54,16 @@ export function UsuarioAcciones({
     },
   });
 
-  useEffect(() => {
-    if (abierto) {
-      reset({
-        nombre: usuario.nombre,
-        email: usuario.email,
-        password: "",
-        rolId: usuario.rolId,
-        activo: usuario.activo,
-      });
-    }
-  }, [abierto, reset, usuario]);
+  function abrirEditor() {
+    reset({
+      nombre: usuario.nombre,
+      email: usuario.email,
+      password: "",
+      rolId: usuario.rolId,
+      activo: usuario.activo,
+    });
+    setAbierto(true);
+  }
 
   async function onSubmit(values: ActualizarUsuarioInput) {
     setEnviando(true);
@@ -78,7 +77,7 @@ export function UsuarioAcciones({
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setAbierto(true)}>
+      <Button type="button" variant="secondary" size="sm" onClick={abrirEditor}>
         <Pencil size={14} />
         Editar
       </Button>

@@ -13,6 +13,12 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 
+const DESCRIPCION_NOMINA_FORMATTER = new Intl.DateTimeFormat("es", {
+  timeZone: "America/Managua",
+  month: "long",
+  year: "numeric",
+});
+
 function rangoMesActual() {
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -36,7 +42,7 @@ export function NominaGenerarButton() {
   } = useForm<NominaGenerarInput>({
     resolver: zodResolver(nominaGenerarSchema),
     defaultValues: {
-      descripcion: `Nómina ${new Date().toLocaleDateString("es", { month: "long", year: "numeric" })}`,
+      descripcion: `Nómina ${DESCRIPCION_NOMINA_FORMATTER.format(new Date())}`,
       frecuencia: "mensual",
       periodoInicio: rango.inicio,
       periodoFin: rango.fin,

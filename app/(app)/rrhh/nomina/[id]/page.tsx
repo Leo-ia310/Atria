@@ -47,8 +47,15 @@ export default async function NominaDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  return nominaDetallePage({ params });
+}
+
+async function nominaDetallePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [nom] = await db
     .select()
@@ -127,34 +134,42 @@ export default async function NominaDetallePage({
           .where(inArray(nominaColillas.nominaDetalleId, detalleIds))
       : [],
   ]);
-  const ingresosPorDetalle = new Map(
-    detalles.map((d) => [
-      d.id,
-      ingresosVariables
-        .filter((x) => x.detalleId === d.id)
-        .map((x) => ({
-          concepto: x.tipo,
-          monto: Number(x.monto),
-          nota: x.nota,
-          semana: x.semana,
-          creadoEn: x.creadoEn.toISOString(),
-        })),
-    ]),
-  );
-  const deduccionesPorDetalle = new Map(
-    detalles.map((d) => [
-      d.id,
-      deduccionesVariables
-        .filter((x) => x.detalleId === d.id)
-        .map((x) => ({
-          concepto: x.tipo,
-          monto: Number(x.monto),
-          nota: x.nota,
-          semana: x.semana,
-          creadoEn: x.creadoEn.toISOString(),
-        })),
-    ]),
-  );
+  const ingresosPorDetalle = new Map<string, {
+    concepto: string;
+    monto: number;
+    nota: string | null;
+    semana: string;
+    creadoEn: string;
+  }[]>();
+  for (const ingreso of ingresosVariables) {
+    const actuales = ingresosPorDetalle.get(ingreso.detalleId) ?? [];
+    actuales.push({
+      concepto: ingreso.tipo ?? "Ingreso variable",
+      monto: Number(ingreso.monto),
+      nota: ingreso.nota,
+      semana: ingreso.semana,
+      creadoEn: ingreso.creadoEn.toISOString(),
+    });
+    ingresosPorDetalle.set(ingreso.detalleId, actuales);
+  }
+  const deduccionesPorDetalle = new Map<string, {
+    concepto: string;
+    monto: number;
+    nota: string | null;
+    semana: string;
+    creadoEn: string;
+  }[]>();
+  for (const deduccion of deduccionesVariables) {
+    const actuales = deduccionesPorDetalle.get(deduccion.detalleId) ?? [];
+    actuales.push({
+      concepto: deduccion.tipo ?? "Deduccion variable",
+      monto: Number(deduccion.monto),
+      nota: deduccion.nota,
+      semana: deduccion.semana,
+      creadoEn: deduccion.creadoEn.toISOString(),
+    });
+    deduccionesPorDetalle.set(deduccion.detalleId, actuales);
+  }
   const colillaPorDetalle = new Map(
     colillas.map((c) => [c.detalleId, c.snapshot as Record<string, unknown>]),
   );

@@ -52,8 +52,10 @@ export default async function HistorialAsistenciaPage({
 }: {
   searchParams: Promise<{ desde?: string; hasta?: string; empleado?: string }>;
 }) {
-  const { desde, hasta, empleado } = await searchParams;
-  const user = await requireSession();
+  const [{ desde, hasta, empleado }, user] = await Promise.all([
+    searchParams,
+    requireSession(),
+  ]);
   const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
 
@@ -62,22 +64,6 @@ export default async function HistorialAsistenciaPage({
     desde && /^\d{4}-\d{2}-\d{2}$/.test(desde) ? desde : primerDiaMes(hoy);
   const rangoHasta =
     hasta && /^\d{4}-\d{2}-\d{2}$/.test(hasta) ? hasta : ultimoDiaMes(hoy);
-
-  const listaEmpleados = await db
-    .select({
-      id: empleados.id,
-      nombres: empleados.nombres,
-      apellidos: empleados.apellidos,
-    })
-    .from(empleados)
-    .where(
-      and(
-        eq(empleados.empresaId, user.empresaId),
-        isNull(empleados.eliminadoEn),
-        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(empleados.nombres);
 
   const condiciones = [
     eq(asistencias.empresaId, user.empresaId),
@@ -93,22 +79,39 @@ export default async function HistorialAsistenciaPage({
     condiciones.push(inArray(empleados.sucursalId, sucursalIds));
   }
 
-  const registros = await db
-    .select({
-      id: asistencias.id,
-      fecha: asistencias.fecha,
-      estado: asistencias.estado,
-      horasTrabajadas: asistencias.horasTrabajadas,
-      horasExtra: asistencias.horasExtra,
-      notas: asistencias.notas,
-      nombres: empleados.nombres,
-      apellidos: empleados.apellidos,
-    })
-    .from(asistencias)
-    .innerJoin(empleados, eq(empleados.id, asistencias.empleadoId))
-    .where(and(...condiciones))
-    .orderBy(desc(asistencias.fecha), empleados.nombres)
-    .limit(500);
+  const [listaEmpleados, registros] = await Promise.all([
+    db
+      .select({
+        id: empleados.id,
+        nombres: empleados.nombres,
+        apellidos: empleados.apellidos,
+      })
+      .from(empleados)
+      .where(
+        and(
+          eq(empleados.empresaId, user.empresaId),
+          isNull(empleados.eliminadoEn),
+          sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+        ),
+      )
+      .orderBy(empleados.nombres),
+    db
+      .select({
+        id: asistencias.id,
+        fecha: asistencias.fecha,
+        estado: asistencias.estado,
+        horasTrabajadas: asistencias.horasTrabajadas,
+        horasExtra: asistencias.horasExtra,
+        notas: asistencias.notas,
+        nombres: empleados.nombres,
+        apellidos: empleados.apellidos,
+      })
+      .from(asistencias)
+      .innerJoin(empleados, eq(empleados.id, asistencias.empleadoId))
+      .where(and(...condiciones))
+      .orderBy(desc(asistencias.fecha), empleados.nombres)
+      .limit(500),
+  ]);
 
   return (
     <div className="space-y-3">
@@ -136,8 +139,9 @@ export default async function HistorialAsistenciaPage({
         <CardBody>
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div>
-              <label className="text-label mb-1.5 block">Desde</label>
+              <label htmlFor="asistencia-desde" className="text-label mb-1.5 block">Desde</label>
               <input
+                id="asistencia-desde"
                 type="date"
                 name="desde"
                 defaultValue={rangoDesde}
@@ -145,8 +149,9 @@ export default async function HistorialAsistenciaPage({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Hasta</label>
+              <label htmlFor="asistencia-hasta" className="text-label mb-1.5 block">Hasta</label>
               <input
+                id="asistencia-hasta"
                 type="date"
                 name="hasta"
                 defaultValue={rangoHasta}
@@ -154,8 +159,9 @@ export default async function HistorialAsistenciaPage({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Empleado</label>
+              <label htmlFor="asistencia-empleado" className="text-label mb-1.5 block">Empleado</label>
               <select
+                id="asistencia-empleado"
                 name="empleado"
                 defaultValue={empleado ?? ""}
                 className="arca-input w-56"

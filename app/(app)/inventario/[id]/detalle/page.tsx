@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Package, Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -45,12 +46,8 @@ export default async function ProductoDetallePage({
   const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
-  // La zona va como literal (no parametro) para que la misma expresion en SELECT,
-  // GROUP BY y ORDER BY sea textualmente identica; con un placeholder ($1, $2, ...)
-  // Postgres no reconoce que coinciden y exige la columna cruda en el GROUP BY.
-  const tzLiteral = sql.raw(`'${zonaHoraria.replace(/[^A-Za-z0-9_+\-/]/g, "")}'`);
-  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${tzLiteral})::date`;
-  const fechaMovimientoLocal = sql<string>`(${movimientosInventario.creadoEn} AT TIME ZONE ${tzLiteral})::date`;
+  const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
+  const fechaMovimientoLocal = sql<string>`(${movimientosInventario.creadoEn} AT TIME ZONE ${zonaHoraria})::date`;
 
   const [producto] = await db
     .select({
@@ -97,8 +94,8 @@ export default async function ProductoDetallePage({
             gte(ventas.fecha, hace90),
           ),
         )
-        .groupBy(fechaVentaLocal)
-        .orderBy(fechaVentaLocal),
+        .groupBy(sql`1`)
+        .orderBy(sql`1`),
       db
         .select({
           fecha: fechaMovimientoLocal,
@@ -113,8 +110,8 @@ export default async function ProductoDetallePage({
             gte(movimientosInventario.creadoEn, hace90),
           ),
         )
-        .groupBy(fechaMovimientoLocal)
-        .orderBy(fechaMovimientoLocal),
+        .groupBy(sql`1`)
+        .orderBy(sql`1`),
       db
         .select({
           nombre: usuarios.nombre,
@@ -138,6 +135,7 @@ export default async function ProductoDetallePage({
         .limit(8),
       db
         .select({
+          id: movimientosInventario.id,
           fecha: movimientosInventario.creadoEn,
           tipo: movimientosInventario.tipo,
           cantidad: movimientosInventario.cantidad,
@@ -183,6 +181,7 @@ export default async function ProductoDetallePage({
     monto: parseFloat(r.monto),
   }));
   const movimientos = movimientosRows.map((m) => ({
+    id: m.id,
     fecha: m.fecha.toISOString(),
     tipo: m.tipo,
     cantidad: parseFloat(m.cantidad),
@@ -223,12 +222,14 @@ export default async function ProductoDetallePage({
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr]">
         <Card className="h-fit">
           <CardBody className="space-y-4">
-            <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-[color:var(--color-surface-2)]">
+            <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-[color:var(--color-surface-2)]">
               {producto.imagenUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={producto.imagenUrl}
                   alt={producto.nombre}
+                  fill
+                  sizes="(min-width: 1024px) 280px, 100vw"
+                  unoptimized
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -275,7 +276,7 @@ export default async function ProductoDetallePage({
             />
           </div>
 
-          <RegistroMovimientos movimientos={movimientos} />
+          <RegistroMovimientos movimientos={movimientos} zonaHoraria={zonaHoraria} />
 
           <Card>
             <CardHeader title="Quién lo vendió" subtitle="Unidades vendidas por cada cajero (90 días)" />

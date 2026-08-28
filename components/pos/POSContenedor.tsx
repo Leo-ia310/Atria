@@ -1,6 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useReducer,
+  useRef,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,7 +23,6 @@ import {
   User,
   X,
   Check,
-  Loader2,
   TriangleAlert,
   Store,
   Barcode,
@@ -22,15 +31,14 @@ import { cn, formatearMoneda } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { useBarcodeScanner } from "@/components/dispositivos/useBarcodeScanner";
-import { PagoTarjetaPanel, referenciaTarjeta, type ResultadoTarjeta } from "@/components/pos/PagoTarjetaPanel";
+import { ModalAbrirCaja } from "@/components/pos/ModalAbrirCaja";
+import { ModalPago } from "@/components/pos/ModalPago";
+import { SelectorCliente } from "@/components/pos/SelectorCliente";
 import { procesarVenta } from "@/lib/actions/ventas";
-import { abrirSesion } from "@/lib/actions/caja";
 import type { PaisCodigo } from "@/lib/paises";
 
-type ProductoPOS = {
+export type ProductoPOS = {
   id: string;
   sku: string;
   codigoBarras: string;
@@ -40,7 +48,7 @@ type ProductoPOS = {
   impuestoTasa: number;
 };
 
-type ClientePOS = {
+export type ClientePOS = {
   id: string;
   nombre: string;
   identificacionFiscal: string | null;
@@ -51,14 +59,14 @@ type ClientePOS = {
   esConsumidorFinal: boolean;
 };
 
-type FormaPagoPOS = {
+export type FormaPagoPOS = {
   id: string;
   codigo: string;
   nombre: string;
   requiereReferencia: boolean;
 };
 
-type ItemCarrito = {
+export type ItemCarrito = {
   producto: ProductoPOS;
   cantidad: number;
   descuento: number;
@@ -72,8 +80,234 @@ type CantidadEscaneoPendiente = {
   expiraEn: number;
 };
 
+type VentaExito = { id: string; numero: string };
+
+type POSContenedorViewProps = {
+  cajaAbierta: boolean;
+  setModalCaja: (modalCaja: boolean) => void;
+  sucursalNombre: string;
+  nombreUsuario: string;
+  pais: PaisCodigo;
+  buscadorRef: RefObject<HTMLInputElement | null>;
+  busqueda: string;
+  setBusqueda: Dispatch<SetStateAction<string>>;
+  cantidadEscaneo: CantidadEscaneoPendiente | null;
+  productosFiltrados: ProductoPOS[];
+  agregarAlCarrito: (producto: ProductoPOS, cantidad?: number) => void;
+  carrito: ItemCarrito[];
+  cliente: ClientePOS | undefined;
+  clientes: ClientePOS[];
+  clienteId: string;
+  setClienteId: Dispatch<SetStateAction<string>>;
+  selectorClienteAbierto: boolean;
+  setSelectorClienteAbierto: (selectorClienteAbierto: boolean) => void;
+  vaciarCarrito: () => void;
+  cambiarCantidad: (productoId: string, delta: number) => void;
+  eliminarItem: (productoId: string) => void;
+  subtotal: number;
+  impuesto: number;
+  total: number;
+  procesando: boolean;
+  intentarCobrar: () => void;
+  modalPago: boolean;
+  formasPago: FormaPagoPOS[];
+  sucursalId: string;
+  almacenId: string;
+  setModalPago: (modalPago: boolean) => void;
+  setProcesando: (procesando: boolean) => void;
+  setCarrito: Dispatch<SetStateAction<ItemCarrito[]>>;
+  setVentaExito: (ventaExito: VentaExito | null) => void;
+  mostrar: ReturnType<typeof useToast>["mostrar"];
+  onRefresh: () => void;
+  ventaExito: VentaExito | null;
+  cerrarVentaCompletada: () => void;
+  imprimirVentaCompletada: (copias: 1 | 2) => void;
+  modalCaja: boolean;
+  cajas: { value: string; label: string }[];
+  setCajaAbiertaLocal: (cajaAbiertaLocal: boolean) => void;
+};
+
+type FlujoVentaState = {
+  modalPago: boolean;
+  procesando: boolean;
+  ventaExito: VentaExito | null;
+  cajaAbiertaLocal: boolean;
+  modalCaja: boolean;
+  selectorClienteAbierto: boolean;
+  cantidadEscaneo: CantidadEscaneoPendiente | null;
+};
+
+type FlujoVentaAction = { type: "patch"; patch: Partial<FlujoVentaState> };
+
+function flujoVentaReducer(state: FlujoVentaState, action: FlujoVentaAction): FlujoVentaState {
+  return { ...state, ...action.patch };
+}
+
+function estadoInicialFlujoVenta(hayCajaAbierta: boolean): FlujoVentaState {
+  return {
+    modalPago: false,
+    procesando: false,
+    ventaExito: null,
+    cajaAbiertaLocal: false,
+    modalCaja: !hayCajaAbierta,
+    selectorClienteAbierto: false,
+    cantidadEscaneo: null,
+  };
+}
+
+function useFlujoVentaState(hayCajaAbierta: boolean) {
+  const [flujoVenta, dispatchFlujoVenta] = useReducer(
+    flujoVentaReducer,
+    hayCajaAbierta,
+    estadoInicialFlujoVenta,
+  );
+  const setFlujoVenta = useCallback(
+    (patch: Partial<FlujoVentaState>) => dispatchFlujoVenta({ type: "patch", patch }),
+    [],
+  );
+  const setModalPago = useCallback(
+    (modalPago: boolean) => setFlujoVenta({ modalPago }),
+    [setFlujoVenta],
+  );
+  const setProcesando = useCallback(
+    (procesando: boolean) => setFlujoVenta({ procesando }),
+    [setFlujoVenta],
+  );
+  const setVentaExito = useCallback(
+    (ventaExito: VentaExito | null) => setFlujoVenta({ ventaExito }),
+    [setFlujoVenta],
+  );
+  const setCajaAbiertaLocal = useCallback(
+    (cajaAbiertaLocal: boolean) => setFlujoVenta({ cajaAbiertaLocal }),
+    [setFlujoVenta],
+  );
+  const setModalCaja = useCallback(
+    (modalCaja: boolean) => setFlujoVenta({ modalCaja }),
+    [setFlujoVenta],
+  );
+  const setSelectorClienteAbierto = useCallback(
+    (selectorClienteAbierto: boolean) => setFlujoVenta({ selectorClienteAbierto }),
+    [setFlujoVenta],
+  );
+  const setCantidadEscaneo = useCallback(
+    (cantidadEscaneo: CantidadEscaneoPendiente | null) => setFlujoVenta({ cantidadEscaneo }),
+    [setFlujoVenta],
+  );
+
+  return {
+    ...flujoVenta,
+    cajaAbierta: hayCajaAbierta || flujoVenta.cajaAbiertaLocal,
+    setModalPago,
+    setProcesando,
+    setVentaExito,
+    setCajaAbiertaLocal,
+    setModalCaja,
+    setSelectorClienteAbierto,
+    setCantidadEscaneo,
+  };
+}
+
+function useCarritoPOS({
+  setBusqueda,
+  buscadorRef,
+  setClienteId,
+}: {
+  setBusqueda: Dispatch<SetStateAction<string>>;
+  buscadorRef: RefObject<HTMLInputElement | null>;
+  setClienteId: Dispatch<SetStateAction<string>>;
+}) {
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+
+  function sumarCantidadProducto(productoId: string, delta: number) {
+    if (delta === 0) return;
+    setCarrito((carritoActual) => actualizarCantidadCarrito(carritoActual, productoId, delta));
+  }
+
+  function agregarAlCarrito(producto: ProductoPOS, cantidad = 1) {
+    setCarrito((carritoActual) => {
+      const existente = carritoActual.find((item) => item.producto.id === producto.id);
+      if (existente) {
+        return carritoActual.map((item) =>
+          item.producto.id === producto.id
+            ? { ...item, cantidad: item.cantidad + cantidad }
+            : item,
+        );
+      }
+      return [...carritoActual, { producto, cantidad, descuento: 0 }];
+    });
+    setBusqueda("");
+    buscadorRef.current?.focus();
+  }
+
+  function cambiarCantidad(productoId: string, delta: number) {
+    setCarrito((carritoActual) => actualizarCantidadCarrito(carritoActual, productoId, delta));
+  }
+
+  function eliminarItem(productoId: string) {
+    setCarrito((carritoActual) =>
+      carritoActual.filter((item) => item.producto.id !== productoId),
+    );
+  }
+
+  function vaciarCarrito() {
+    if (carrito.length === 0) return;
+    if (confirm("¿Vaciar el ticket actual?")) {
+      setCarrito([]);
+      setClienteId("");
+    }
+  }
+
+  const subtotal = carrito.reduce(
+    (acc, item) => acc + item.cantidad * item.producto.precio - item.descuento,
+    0,
+  );
+  const impuesto = carrito.reduce(
+    (acc, item) =>
+      acc + (item.cantidad * item.producto.precio - item.descuento) * item.producto.impuestoTasa,
+    0,
+  );
+
+  return {
+    carrito,
+    setCarrito,
+    sumarCantidadProducto,
+    agregarAlCarrito,
+    cambiarCantidad,
+    eliminarItem,
+    vaciarCarrito,
+    subtotal,
+    impuesto,
+    total: subtotal + impuesto,
+  };
+}
+
+function actualizarCantidadCarrito(
+  carrito: ItemCarrito[],
+  productoId: string,
+  delta: number,
+): ItemCarrito[] {
+  const siguiente: ItemCarrito[] = [];
+  for (const item of carrito) {
+    const actualizado =
+      item.producto.id === productoId
+        ? { ...item, cantidad: Math.max(0, item.cantidad + delta) }
+        : item;
+    if (actualizado.cantidad > 0) siguiente.push(actualizado);
+  }
+  return siguiente;
+}
+
 function dineroPos(valor: number): number {
   return Math.round(valor * 100) / 100;
+}
+
+function fila({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-[color:var(--color-text-muted)]">{label}</span>
+      <span className="font-medium text-[color:var(--color-text-primary)]">{valor}</span>
+    </div>
+  );
 }
 
 function normalizarCodigoBarras(valor: string): string {
@@ -113,18 +347,36 @@ export function POSContenedor({
   const router = useRouter();
   const { mostrar } = useToast();
   const [busqueda, setBusqueda] = useState("");
-  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [clienteId, setClienteId] = useState<string>("");
-  const [modalPago, setModalPago] = useState(false);
-  const [procesando, setProcesando] = useState(false);
-  const [ventaExito, setVentaExito] = useState<{ id: string; numero: string } | null>(null);
-  const [cajaAbierta, setCajaAbierta] = useState(hayCajaAbierta);
-  const [modalCaja, setModalCaja] = useState(!hayCajaAbierta);
-  const [selectorClienteSignal, setSelectorClienteSignal] = useState(0);
-  const [selectorClienteAbierto, setSelectorClienteAbierto] = useState(false);
-  const [cantidadEscaneo, setCantidadEscaneo] =
-    useState<CantidadEscaneoPendiente | null>(null);
   const buscadorRef = useRef<HTMLInputElement>(null);
+  const {
+    carrito,
+    setCarrito,
+    sumarCantidadProducto,
+    agregarAlCarrito,
+    cambiarCantidad,
+    eliminarItem,
+    vaciarCarrito,
+    subtotal,
+    impuesto,
+    total,
+  } = useCarritoPOS({ setBusqueda, buscadorRef, setClienteId });
+  const {
+    modalPago,
+    procesando,
+    ventaExito,
+    cajaAbierta,
+    modalCaja,
+    selectorClienteAbierto,
+    cantidadEscaneo,
+    setModalPago,
+    setProcesando,
+    setVentaExito,
+    setCajaAbiertaLocal,
+    setModalCaja,
+    setSelectorClienteAbierto,
+    setCantidadEscaneo,
+  } = useFlujoVentaState(hayCajaAbierta);
   const cantidadEscaneoRef = useRef<CantidadEscaneoPendiente | null>(null);
 
   useEffect(() => {
@@ -143,7 +395,7 @@ export function POSContenedor({
       }
       if (e.key === "F4" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
-        setSelectorClienteSignal((signal) => signal + 1);
+        setSelectorClienteAbierto(true);
       }
       if (e.key === "F6" && !cajaAbierta && !modalCaja) {
         e.preventDefault();
@@ -171,7 +423,7 @@ export function POSContenedor({
     if (modalPago || modalCaja || ventaExito || selectorClienteAbierto) {
       setCantidadEscaneo(null);
     }
-  }, [modalPago, modalCaja, ventaExito, selectorClienteAbierto]);
+  }, [modalPago, modalCaja, ventaExito, selectorClienteAbierto, setCantidadEscaneo]);
 
   useEffect(() => {
     function capturarCantidad(event: KeyboardEvent) {
@@ -245,18 +497,22 @@ export function POSContenedor({
 
   const productosFiltrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return productos
-      .map((producto, index) => ({ producto, index }))
-      .filter(
-        ({ producto }) =>
-          !q ||
-          producto.sku.toLowerCase().includes(q) ||
-          producto.nombre.toLowerCase().includes(q) ||
-          (producto.codigoBarras && producto.codigoBarras.toLowerCase().includes(q)),
-      )
+    const coincidencias: { producto: ProductoPOS; index: number }[] = [];
+    for (let index = 0; index < productos.length; index += 1) {
+      const producto = productos[index];
+      if (
+        !q ||
+        producto.sku.toLowerCase().includes(q) ||
+        producto.nombre.toLowerCase().includes(q) ||
+        (producto.codigoBarras && producto.codigoBarras.toLowerCase().includes(q))
+      ) {
+        coincidencias.push({ producto, index });
+      }
+    }
+    return coincidencias
       .sort(prioridadClickable)
-      .map(({ producto }) => producto)
-      .slice(0, 50);
+      .slice(0, 50)
+      .map(({ producto }) => producto);
   }, [productos, busqueda]);
 
   useBarcodeScanner({
@@ -288,19 +544,6 @@ export function POSContenedor({
     },
   });
 
-  function sumarCantidadProducto(productoId: string, delta: number) {
-    if (delta === 0) return;
-    setCarrito((c) =>
-      c
-        .map((it) =>
-          it.producto.id === productoId
-            ? { ...it, cantidad: Math.max(0, it.cantidad + delta) }
-            : it,
-        )
-        .filter((it) => it.cantidad > 0),
-    );
-  }
-
   function actualizarCantidadEscaneada(transformar: (texto: string) => string) {
     const actual = cantidadEscaneoRef.current;
     if (!actual) return;
@@ -317,57 +560,6 @@ export function POSContenedor({
     sumarCantidadProducto(actual.productoId, delta);
     setCantidadEscaneo(siguiente);
   }
-
-  function agregarAlCarrito(producto: ProductoPOS, cantidad = 1) {
-    setCarrito((c) => {
-      const existente = c.find((it) => it.producto.id === producto.id);
-      if (existente) {
-        return c.map((it) =>
-          it.producto.id === producto.id
-            ? { ...it, cantidad: it.cantidad + cantidad }
-            : it,
-        );
-      }
-      return [...c, { producto, cantidad, descuento: 0 }];
-    });
-    setBusqueda("");
-    buscadorRef.current?.focus();
-  }
-
-  function cambiarCantidad(productoId: string, delta: number) {
-    setCarrito((c) =>
-      c
-        .map((it) =>
-          it.producto.id === productoId
-            ? { ...it, cantidad: Math.max(0, it.cantidad + delta) }
-            : it,
-        )
-        .filter((it) => it.cantidad > 0),
-    );
-  }
-
-  function eliminarItem(productoId: string) {
-    setCarrito((c) => c.filter((it) => it.producto.id !== productoId));
-  }
-
-  function vaciarCarrito() {
-    if (carrito.length === 0) return;
-    if (confirm("¿Vaciar el ticket actual?")) {
-      setCarrito([]);
-      setClienteId("");
-    }
-  }
-
-  const subtotal = carrito.reduce(
-    (acc, it) => acc + it.cantidad * it.producto.precio - it.descuento,
-    0,
-  );
-  const impuesto = carrito.reduce(
-    (acc, it) =>
-      acc + (it.cantidad * it.producto.precio - it.descuento) * it.producto.impuestoTasa,
-    0,
-  );
-  const total = subtotal + impuesto;
 
   const cliente = clientes.find((c) => c.id === clienteId);
 
@@ -404,6 +596,96 @@ export function POSContenedor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventaExito]);
 
+  return posContenedorView({
+    cajaAbierta,
+    setModalCaja,
+    sucursalNombre,
+    nombreUsuario,
+    pais,
+    buscadorRef,
+    busqueda,
+    setBusqueda,
+    cantidadEscaneo,
+    productosFiltrados,
+    agregarAlCarrito,
+    carrito,
+    cliente,
+    clientes,
+    clienteId,
+    setClienteId,
+    selectorClienteAbierto,
+    setSelectorClienteAbierto,
+    vaciarCarrito,
+    cambiarCantidad,
+    eliminarItem,
+    subtotal,
+    impuesto,
+    total,
+    procesando,
+    intentarCobrar,
+    modalPago,
+    formasPago,
+    sucursalId,
+    almacenId,
+    setModalPago,
+    setProcesando,
+    setCarrito,
+    setVentaExito,
+    mostrar,
+    onRefresh: () => router.refresh(),
+    ventaExito,
+    cerrarVentaCompletada,
+    imprimirVentaCompletada,
+    modalCaja,
+    cajas,
+    setCajaAbiertaLocal,
+  });
+}
+
+function posContenedorView({
+  cajaAbierta,
+  setModalCaja,
+  sucursalNombre,
+  nombreUsuario,
+  pais,
+  buscadorRef,
+  busqueda,
+  setBusqueda,
+  cantidadEscaneo,
+  productosFiltrados,
+  agregarAlCarrito,
+  carrito,
+  cliente,
+  clientes,
+  clienteId,
+  setClienteId,
+  selectorClienteAbierto,
+  setSelectorClienteAbierto,
+  vaciarCarrito,
+  cambiarCantidad,
+  eliminarItem,
+  subtotal,
+  impuesto,
+  total,
+  procesando,
+  intentarCobrar,
+  modalPago,
+  formasPago,
+  sucursalId,
+  almacenId,
+  setModalPago,
+  setProcesando,
+  setCarrito,
+  setVentaExito,
+  mostrar,
+  onRefresh,
+  ventaExito,
+  cerrarVentaCompletada,
+  imprimirVentaCompletada,
+  modalCaja,
+  cajas,
+  setCajaAbiertaLocal,
+}: POSContenedorViewProps) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-neutral)] lg:h-[100dvh] lg:overflow-hidden">
       {/* Aviso de entorno de prueba (sin caja abierta) */}
@@ -472,14 +754,17 @@ export function POSContenedor({
                 size={16}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
               />
+              <label htmlFor="pos-busqueda-productos" className="sr-only">
+                Buscar producto
+              </label>
               <input
+                id="pos-busqueda-productos"
                 ref={buscadorRef}
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Escanear código o buscar por nombre/SKU (F2)"
                 className="arca-input arca-input-con-icono text-base"
-                autoFocus
               />
             </div>
             {cantidadEscaneo && (
@@ -540,9 +825,7 @@ export function POSContenedor({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectorClienteSignal((signal) => signal + 1);
-                }}
+                onClick={() => setSelectorClienteAbierto(true)}
                 className="mt-0.5 flex items-center gap-1 text-small text-[color:var(--color-secondary)] hover:underline"
               >
                 <User size={12} />
@@ -564,8 +847,9 @@ export function POSContenedor({
             clientes={clientes}
             clienteId={clienteId}
             onChange={setClienteId}
-            abrirSignal={selectorClienteSignal}
-            onAbiertoChange={setSelectorClienteAbierto}
+            abierto={selectorClienteAbierto}
+            onAbrir={() => setSelectorClienteAbierto(true)}
+            onCerrar={() => setSelectorClienteAbierto(false)}
           />
 
           <div className="flex-1 overflow-y-auto">
@@ -592,6 +876,7 @@ export function POSContenedor({
                       <button
                         type="button"
                         onClick={() => cambiarCantidad(it.producto.id, -1)}
+                        aria-label={`Disminuir ${it.producto.nombre}`}
                         className="rounded p-1 hover:bg-[color:var(--color-surface-2)]"
                       >
                         <Minus size={14} />
@@ -602,6 +887,7 @@ export function POSContenedor({
                       <button
                         type="button"
                         onClick={() => cambiarCantidad(it.producto.id, +1)}
+                        aria-label={`Aumentar ${it.producto.nombre}`}
                         className="rounded p-1 hover:bg-[color:var(--color-surface-2)]"
                       >
                         <Plus size={14} />
@@ -613,6 +899,7 @@ export function POSContenedor({
                     <button
                       type="button"
                       onClick={() => eliminarItem(it.producto.id)}
+                      aria-label={`Quitar ${it.producto.nombre}`}
                       className="rounded p-1 text-[color:var(--color-error)] hover:bg-[color:var(--color-error-bg)]"
                     >
                       <Trash2 size={14} />
@@ -626,10 +913,9 @@ export function POSContenedor({
           {/* Totales */}
           <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3">
             <div className="space-y-1 text-small">
-              <Fila label="Subtotal" valor={formatearMoneda(subtotal, pais)} />
-              {impuesto > 0 && (
-                <Fila label="Impuestos" valor={formatearMoneda(impuesto, pais)} />
-              )}
+              {fila({ label: "Subtotal", valor: formatearMoneda(subtotal, pais) })}
+              {impuesto > 0 &&
+                fila({ label: "Impuestos", valor: formatearMoneda(impuesto, pais) })}
             </div>
             <div className="mt-2 flex items-baseline justify-between border-t border-[color:var(--color-border)] pt-2">
               <span className="text-label">Total</span>
@@ -693,7 +979,7 @@ export function POSContenedor({
             setClienteId("");
             setModalPago(false);
             setVentaExito({ id: res.ventaId, numero: res.numero });
-            router.refresh();
+            onRefresh();
           }}
         />
       )}
@@ -738,535 +1024,14 @@ export function POSContenedor({
           cajas={cajas}
           onMasTarde={() => setModalCaja(false)}
           onAbierta={() => {
-            setCajaAbierta(true);
+            setCajaAbiertaLocal(true);
             setModalCaja(false);
             mostrar("success", "Caja abierta. Ya puedes registrar ventas.");
-            router.refresh();
+            onRefresh();
           }}
           onError={(msg) => mostrar("error", msg)}
         />
       )}
     </div>
-  );
-}
-
-function ModalAbrirCaja({
-  cajas,
-  onMasTarde,
-  onAbierta,
-  onError,
-}: {
-  cajas: { value: string; label: string }[];
-  onMasTarde: () => void;
-  onAbierta: () => void;
-  onError: (msg: string) => void;
-}) {
-  const [cajaId, setCajaId] = useState(cajas[0]?.value ?? "");
-  const [montoStr, setMontoStr] = useState("0");
-  const [abriendo, setAbriendo] = useState(false);
-
-  async function abrir() {
-    if (!cajaId) return;
-    setAbriendo(true);
-    const res = await abrirSesion({
-      cajaId,
-      montoInicial: parseFloat(montoStr) || 0,
-    });
-    setAbriendo(false);
-    if (!res.ok) {
-      onError(res.error);
-      return;
-    }
-    onAbierta();
-  }
-
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 text-[color:var(--color-text-primary)] shadow-2xl">
-        <div className="mb-1 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[color:var(--color-tertiary)]/15 text-[color:var(--color-primary)]">
-            <Store size={18} />
-          </div>
-          <h2 className="text-lg font-semibold">Abrir caja</h2>
-        </div>
-        <p className="mb-4 text-small text-[color:var(--color-text-muted)]">
-          Para registrar ventas y generar facturas necesitas una caja abierta.
-        </p>
-
-        {cajas.length === 0 ? (
-          <div className="rounded-md bg-[color:var(--color-warning)]/10 p-3 text-small">
-            No hay cajas configuradas.{" "}
-            <Link href="/configuracion/cajas" className="font-medium text-[color:var(--color-primary)] underline">
-              Crear una caja
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <Select
-              label="Caja"
-              value={cajaId}
-              onChange={(e) => setCajaId(e.target.value)}
-              options={cajas}
-            />
-            <Input
-              label="Monto inicial en caja"
-              type="text"
-              inputMode="decimal"
-              value={montoStr}
-              onChange={(e) => setMontoStr(e.target.value.replace(/[^0-9.]/g, ""))}
-              onFocus={(e) => e.target.select()}
-              hint="Efectivo con el que abres la caja"
-            />
-          </div>
-        )}
-
-        <div className="mt-6 flex items-center justify-between gap-2">
-          <Button variant="ghost" onClick={onMasTarde} disabled={abriendo}>
-            Abrir más tarde
-          </Button>
-          {cajas.length > 0 && (
-            <Button onClick={abrir} loading={abriendo} disabled={!cajaId}>
-              <Store size={14} /> Abrir caja
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Fila({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-[color:var(--color-text-muted)]">{label}</span>
-      <span className="font-medium text-[color:var(--color-text-primary)]">{valor}</span>
-    </div>
-  );
-}
-
-function normalizarBusqueda(valor: string): string {
-  return valor
-    .toLocaleLowerCase("es")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function SelectorCliente({
-  clientes,
-  clienteId,
-  onChange,
-  abrirSignal,
-  onAbiertoChange,
-}: {
-  clientes: ClientePOS[];
-  clienteId: string;
-  onChange: (id: string) => void;
-  abrirSignal: number;
-  onAbiertoChange: (abierto: boolean) => void;
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
-  const busquedaRef = useRef<HTMLInputElement>(null);
-  const cliente = clientes.find((c) => c.id === clienteId);
-
-  useEffect(() => {
-    onAbiertoChange(abierto);
-  }, [abierto, onAbiertoChange]);
-
-  useEffect(() => {
-    if (abrirSignal === 0) return;
-    setAbierto(true);
-    setBusqueda("");
-    window.setTimeout(() => busquedaRef.current?.focus(), 0);
-  }, [abrirSignal]);
-
-  const clientesFiltrados = useMemo(() => {
-    const candidatos = clientes.filter((c) => !c.esConsumidorFinal);
-    const consulta = normalizarBusqueda(busqueda);
-    if (!consulta) return candidatos.sort((a, b) => a.nombre.localeCompare(b.nombre)).slice(0, 60);
-    const tokens = consulta.split(/\s+/).filter(Boolean);
-    return candidatos
-      .map((c) => {
-        const nombre = normalizarBusqueda(c.nombre);
-        const identificacion = normalizarBusqueda(c.identificacionFiscal ?? "");
-        const telefono = normalizarBusqueda(c.telefono ?? "");
-        const email = normalizarBusqueda(c.email ?? "");
-        const conjunto = `${nombre} ${identificacion} ${telefono} ${email}`;
-        if (!tokens.every((token) => conjunto.includes(token))) return null;
-        let puntaje = 0;
-        if (nombre === consulta || identificacion === consulta) puntaje += 100;
-        if (nombre.startsWith(consulta)) puntaje += 50;
-        if (identificacion.startsWith(consulta) || telefono.startsWith(consulta)) puntaje += 35;
-        if (email.startsWith(consulta)) puntaje += 20;
-        return { cliente: c, puntaje };
-      })
-      .filter((resultado): resultado is { cliente: ClientePOS; puntaje: number } => Boolean(resultado))
-      .sort((a, b) => b.puntaje - a.puntaje || a.cliente.nombre.localeCompare(b.cliente.nombre))
-      .slice(0, 60)
-      .map((resultado) => resultado.cliente);
-  }, [busqueda, clientes]);
-
-  function seleccionar(id: string) {
-    onChange(id);
-    setAbierto(false);
-    setBusqueda("");
-  }
-
-  return (
-    <div className="border-b border-[color:var(--color-border)] p-3">
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className="flex w-full items-center justify-between rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-3 py-2 text-small transition hover:border-[color:var(--color-border-strong)]"
-      >
-        <span className="flex items-center gap-2">
-          <User size={14} className="text-[color:var(--color-text-muted)]" />
-          {cliente?.nombre ?? "Consumidor final"}
-        </span>
-        <span className="text-[color:var(--color-text-muted)]">Cambiar (F4) →</span>
-      </button>
-      <Modal
-        abierto={abierto}
-        onCerrar={() => {
-          setAbierto(false);
-          setBusqueda("");
-        }}
-        titulo="Seleccionar cliente"
-        descripcion="Busca por nombre, identificación fiscal, teléfono o correo."
-        ancho="lg"
-      >
-        <div className="space-y-3">
-          <div className="relative">
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
-            />
-            <input
-              ref={busquedaRef}
-              type="search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Nombre, RUC, cédula, teléfono o correo..."
-              className="arca-input arca-input-con-icono"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => seleccionar("")}
-            className={cn(
-              "w-full rounded-md border p-3 text-left transition",
-              clienteId === ""
-                ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)]"
-                : "border-[color:var(--color-border)] hover:border-[color:var(--color-border-strong)]",
-            )}
-          >
-            <div className="font-medium">Consumidor final</div>
-            <div className="text-[12px] text-[color:var(--color-text-muted)]">
-              Sin datos fiscales · Solo contado
-            </div>
-          </button>
-          <div className="max-h-[44vh] space-y-1 overflow-y-auto pr-1">
-            {clientesFiltrados.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => seleccionar(c.id)}
-                className={cn(
-                  "w-full rounded-md border p-3 text-left transition",
-                  clienteId === c.id
-                    ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface-2)]"
-                    : "border-[color:var(--color-border)] hover:border-[color:var(--color-border-strong)]",
-                )}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">{c.nombre}</span>
-                  <span className="text-[12px] text-[color:var(--color-text-muted)]">
-                    {c.tieneCredito ? `Crédito ${c.diasCredito} días` : "Solo contado"}
-                  </span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--color-text-muted)]">
-                  {c.identificacionFiscal && <span>{c.identificacionFiscal}</span>}
-                  {c.telefono && <span>{c.telefono}</span>}
-                  {c.email && <span>{c.email}</span>}
-                </div>
-              </button>
-            ))}
-            {clientesFiltrados.length === 0 && (
-              <div className="py-6 text-center text-small text-[color:var(--color-text-muted)]">
-                No encontramos clientes con todos esos datos.
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-function ModalPago({
-  pais,
-  total,
-  carrito,
-  cliente,
-  formasPago,
-  procesando,
-  onCerrar,
-  onConfirmar,
-}: {
-  pais: PaisCodigo;
-  total: number;
-  subtotal: number;
-  impuesto: number;
-  carrito: ItemCarrito[];
-  cliente?: ClientePOS;
-  formasPago: FormaPagoPOS[];
-  sucursalId: string;
-  almacenId: string;
-  procesando: boolean;
-  onCerrar: () => void;
-  onConfirmar: (datos: { pagos: { formaPagoId: string; monto: number; referencia?: string }[]; esCredito: boolean }) => void;
-}) {
-  const efectivo = formasPago.find((f) => f.codigo === "EFE");
-  const credito = formasPago.find((f) => f.codigo === "CRE");
-  const noCredito = formasPago.filter((f) => f.codigo !== "CRE");
-
-  const [modo, setModo] = useState<"contado" | "mixto" | "credito">("contado");
-  const [formaUnica, setFormaUnica] = useState<string>(efectivo?.id ?? noCredito[0]?.id ?? "");
-  const [montoEfectivoStr, setMontoEfectivoStr] = useState<string>("");
-  const [montoMixto, setMontoMixto] = useState<Record<string, string>>({});
-  const [referencias, setReferencias] = useState<Record<string, string>>({});
-  const confirmarRef = useRef<() => void>(() => {});
-  const totalCobro = dineroPos(total);
-  const formaSeleccionada = formasPago.find((f) => f.id === formaUnica);
-  const esTarjeta = modo === "contado" && formaSeleccionada?.codigo === "TAR";
-
-  void carrito; // referenciado para tipo
-
-  const montoEfectivoRaw =
-    montoEfectivoStr.trim() === "" ? totalCobro : parseFloat(montoEfectivoStr);
-  const montoEfectivo = dineroPos(Number.isFinite(montoEfectivoRaw) ? montoEfectivoRaw : 0);
-  const cambio = Math.max(0, dineroPos(montoEfectivo - totalCobro));
-
-  function confirmarTarjeta(info: ResultadoTarjeta) {
-    if (procesando || !formaSeleccionada) return;
-    onConfirmar({
-      pagos: [
-        {
-          formaPagoId: formaSeleccionada.id,
-          monto: totalCobro,
-          referencia: referenciaTarjeta(info),
-        },
-      ],
-      esCredito: false,
-    });
-  }
-
-  function confirmar() {
-    if (procesando) return;
-    if (modo === "contado") {
-      // El cobro con tarjeta se confirma con "Pago aprobado" en el datáfono, no aquí.
-      if (esTarjeta) return;
-      if (formaUnica === efectivo?.id && montoEfectivo + 0.001 < totalCobro) {
-        return;
-      }
-      const forma = formasPago.find((f) => f.id === formaUnica);
-      onConfirmar({
-        pagos: [
-          {
-            formaPagoId: formaUnica,
-            monto: totalCobro,
-            referencia: referencias[formaUnica],
-          },
-        ],
-        esCredito: false,
-      });
-    } else if (modo === "mixto") {
-      const pagos = Object.entries(montoMixto)
-        .map(([id, monto]) => ({
-          formaPagoId: id,
-          monto: dineroPos(parseFloat(monto) || 0),
-          referencia: referencias[id],
-        }))
-        .filter((p) => p.monto > 0);
-      const sumaTotal = pagos.reduce((a, p) => a + p.monto, 0);
-      if (Math.abs(dineroPos(sumaTotal) - totalCobro) > 0.01) return;
-      onConfirmar({ pagos, esCredito: false });
-    } else {
-      if (!cliente || !cliente.tieneCredito || !credito) return;
-      onConfirmar({
-        pagos: [{ formaPagoId: credito.id, monto: totalCobro }],
-        esCredito: true,
-      });
-    }
-  }
-  confirmarRef.current = confirmar;
-
-  useEffect(() => {
-    const handle = (event: KeyboardEvent) => {
-      if (event.key !== "F12") return;
-      event.preventDefault();
-      confirmarRef.current();
-    };
-    window.addEventListener("keydown", handle);
-    return () => window.removeEventListener("keydown", handle);
-  }, []);
-
-  return (
-    <Modal
-      abierto={true}
-      onCerrar={procesando ? () => {} : onCerrar}
-      titulo="Cobrar venta"
-      descripcion={`Total a cobrar: ${formatearMoneda(total, pais)}`}
-      ancho="md"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onCerrar} disabled={procesando}>
-            Cancelar
-          </Button>
-          {!esTarjeta && (
-            <Button onClick={confirmar} loading={procesando}>
-              {procesando ? (
-                <>
-                  <Loader2 className="animate-spin" size={14} /> Procesando
-                </>
-              ) : (
-                <>
-                  <Check size={14} /> Confirmar venta (F12)
-                </>
-              )}
-            </Button>
-          )}
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-1">
-          {(["contado", "mixto", "credito"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setModo(m)}
-              disabled={m === "credito" && !cliente?.tieneCredito}
-              className={cn(
-                "flex-1 rounded px-3 py-1.5 text-small transition disabled:opacity-30",
-                modo === m
-                  ? "bg-[color:var(--color-surface)] font-medium text-[color:var(--color-text-primary)] shadow-sm"
-                  : "text-[color:var(--color-text-muted)]",
-              )}
-            >
-              {m === "contado" ? "Contado" : m === "mixto" ? "Mixto" : "Crédito"}
-            </button>
-          ))}
-        </div>
-
-        {modo === "contado" && (
-          <div className="space-y-3">
-            <Select
-              label="Forma de pago"
-              value={formaUnica}
-              onChange={(e) => setFormaUnica(e.target.value)}
-              options={noCredito.map((f) => ({ value: f.id, label: f.nombre }))}
-            />
-            {formaSeleccionada?.codigo === "EFE" ? (
-              <>
-                <Input
-                  label="Monto recibido"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder={totalCobro.toFixed(2)}
-                  value={montoEfectivoStr}
-                  onChange={(e) =>
-                    setMontoEfectivoStr(e.target.value.replace(/[^0-9.]/g, ""))
-                  }
-                  onFocus={(e) => e.target.select()}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setMontoEfectivoStr(totalCobro.toFixed(2))}
-                  className="text-small font-medium text-[color:var(--color-primary)] hover:underline"
-                >
-                  Pago exacto ({formatearMoneda(totalCobro, pais)})
-                </button>
-                <div className="rounded-md bg-[color:var(--color-surface-2)] p-3 text-center">
-                  <div className="text-label">Cambio</div>
-                  <div className="text-2xl text-[color:var(--color-primary)]">
-                    {formatearMoneda(cambio, pais)}
-                  </div>
-                </div>
-              </>
-            ) : esTarjeta ? (
-              <PagoTarjetaPanel
-                total={totalCobro}
-                pais={pais}
-                procesando={procesando}
-                onAprobado={confirmarTarjeta}
-                onRechazado={() => {}}
-              />
-            ) : formaSeleccionada?.requiereReferencia ? (
-              <Input
-                label="Número de referencia / autorización"
-                value={referencias[formaUnica] ?? ""}
-                onChange={(e) =>
-                  setReferencias((r) => ({ ...r, [formaUnica]: e.target.value }))
-                }
-              />
-            ) : null}
-          </div>
-        )}
-
-        {modo === "mixto" && (
-          <div className="space-y-3">
-            <p className="text-small text-[color:var(--color-text-muted)]">
-              Divide el pago entre dos o más formas.
-            </p>
-            {noCredito.map((f) => (
-              <div key={f.id} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
-                    label={f.nombre}
-                    type="text"
-                    inputMode="decimal"
-                    value={montoMixto[f.id] ?? ""}
-                    onChange={(e) =>
-                      setMontoMixto((m) => ({
-                        ...m,
-                        [f.id]: e.target.value.replace(/[^0-9.]/g, ""),
-                      }))
-                    }
-                    onFocus={(e) => e.target.select()}
-                  />
-                </div>
-              </div>
-            ))}
-            <div className="rounded-md bg-[color:var(--color-surface-2)] p-3 text-small">
-              <Fila
-                label="Suma de pagos"
-                valor={formatearMoneda(
-                  Object.values(montoMixto).reduce(
-                    (a, b) => a + (parseFloat(b) || 0),
-                    0,
-                  ),
-                  pais,
-                )}
-              />
-              <Fila label="Total venta" valor={formatearMoneda(total, pais)} />
-            </div>
-          </div>
-        )}
-
-        {modo === "credito" && (
-          <div className="rounded-md bg-[color:var(--color-warning-bg)] p-4 text-small text-[color:var(--color-text-primary)]">
-            <p className="font-medium">Venta al crédito</p>
-            <p className="mt-1 text-[color:var(--color-text-muted)]">
-              Se cargará al cliente <strong>{cliente?.nombre}</strong> con vencimiento a{" "}
-              <strong>{cliente?.diasCredito} días</strong>. Se generará automáticamente
-              la cuenta por cobrar.
-            </p>
-          </div>
-        )}
-      </div>
-    </Modal>
   );
 }

@@ -202,7 +202,7 @@ export async function crearUsuario(input: unknown): Promise<Resultado> {
   }
 }
 
-export async function cambiarEstadoUsuario(
+async function cambiarEstadoUsuario(
   id: string,
   activo: boolean,
 ): Promise<Resultado> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import {
@@ -47,11 +47,18 @@ export function DeduccionesManager({
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
-  const [tipos, setTipos] = useState(tiposIniciales);
+  const [tiposCreados, setTiposCreados] = useState<{ value: string; label: string }[]>([]);
   const [nuevoTipo, setNuevoTipo] = useState(false);
   const [nombreTipo, setNombreTipo] = useState("");
   const [guardandoTipo, setGuardandoTipo] = useState(false);
   const [vista, setVista] = useState<"registro" | "historial">("registro");
+  const tipos = useMemo(() => {
+    const vistos = new Map(tiposIniciales.map((tipo) => [tipo.value, tipo]));
+    for (const tipo of tiposCreados) {
+      if (!vistos.has(tipo.value)) vistos.set(tipo.value, tipo);
+    }
+    return Array.from(vistos.values());
+  }, [tiposIniciales, tiposCreados]);
 
   async function crearTipo() {
     const nombre = nombreTipo.trim();
@@ -60,7 +67,7 @@ export function DeduccionesManager({
     const res = await crearTipoDeduccion({ nombre });
     setGuardandoTipo(false);
     if (!res.ok) return mostrar("error", res.error);
-    setTipos((prev) =>
+    setTiposCreados((prev) =>
       prev.some((t) => t.value === res.id) ? prev : [...prev, { value: res.id, label: res.nombre }],
     );
     setNombreTipo("");

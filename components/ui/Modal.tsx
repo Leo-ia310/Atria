@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Modal({
@@ -21,10 +21,16 @@ export function Modal({
   footer?: ReactNode;
   ancho?: "sm" | "md" | "lg" | "xl";
 }) {
+  const onCerrarRef = useRef(onCerrar);
+
+  useEffect(() => {
+    onCerrarRef.current = onCerrar;
+  }, [onCerrar]);
+
   useEffect(() => {
     if (!abierto) return;
     const handle = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCerrar();
+      if (e.key === "Escape") onCerrarRef.current();
     };
     window.addEventListener("keydown", handle);
     document.body.style.overflow = "hidden";
@@ -32,7 +38,7 @@ export function Modal({
       window.removeEventListener("keydown", handle);
       document.body.style.overflow = "";
     };
-  }, [abierto, onCerrar]);
+  }, [abierto]);
 
   if (!abierto) return null;
 
@@ -44,13 +50,16 @@ export function Modal({
   }[ancho];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--color-dark-bg)]/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onCerrar}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--color-dark-bg)]/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+      <button
+        type="button"
+        aria-label="Cerrar modal"
+        className="absolute inset-0 cursor-default"
+        onClick={onCerrar}
+      />
       <div
         className={cn(
-          "arca-card max-h-[92vh] w-full overflow-hidden bg-[color:var(--color-surface)]",
+          "arca-card relative max-h-[92vh] w-full overflow-hidden bg-[color:var(--color-surface)]",
           anchoClase,
         )}
         onClick={(e) => e.stopPropagation()}
@@ -69,6 +78,7 @@ export function Modal({
           <button
             type="button"
             onClick={onCerrar}
+            aria-label="Cerrar modal"
             className="rounded-md p-1 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-surface-2)] hover:text-[color:var(--color-text-primary)]"
           >
             <X size={16} />

@@ -48,8 +48,12 @@ async function accessToken(): Promise<string> {
     cache: "no-store",
   });
 
+  if (!res.ok) {
+    const detalle = await res.json().catch(() => null);
+    throw new PayPalError("No se pudo autenticar con PayPal.", res.status, detalle);
+  }
   const json = (await res.json().catch(() => null)) as { access_token?: string } | null;
-  if (!res.ok || !json?.access_token) {
+  if (!json?.access_token) {
     throw new PayPalError("No se pudo autenticar con PayPal.", res.status, json);
   }
   return json.access_token;
@@ -108,10 +112,14 @@ export async function crearOrden(input: {
     }),
   });
 
+  if (!res.ok) {
+    const detalle = await res.json().catch(() => null);
+    throw new PayPalError("PayPal no pudo crear la orden.", res.status, detalle);
+  }
   const json = (await res.json().catch(() => null)) as
     | { id?: string; status?: string }
     | null;
-  if (!res.ok || !json?.id) {
+  if (!json?.id) {
     throw new PayPalError("PayPal no pudo crear la orden.", res.status, json);
   }
   return { id: json.id, status: json.status ?? "CREATED" };
@@ -146,8 +154,12 @@ export async function capturarOrden(ordenId: string): Promise<CapturaPayPal> {
     cache: "no-store",
   });
 
+  if (!res.ok) {
+    const detalle = await res.json().catch(() => null);
+    throw new PayPalError("PayPal no pudo capturar el pago.", res.status, detalle);
+  }
   const json = (await res.json().catch(() => null)) as CaptureResponse | null;
-  if (!res.ok || !json?.id) {
+  if (!json?.id) {
     throw new PayPalError("PayPal no pudo capturar el pago.", res.status, json);
   }
 

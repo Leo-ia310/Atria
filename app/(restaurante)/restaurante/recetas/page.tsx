@@ -142,10 +142,10 @@ export default async function RestauranteRecetasPage() {
                   <input name="tiempoPreparacionMin" defaultValue="0" className="arca-input" />
                 </FormField>
                 <FormField label="Alergenos">
-                  <input name="alergenos" placeholder="Alergenos separados por coma" className="arca-input" />
+                  <input name="alergenos" className="arca-input" />
                 </FormField>
                 <FormField label="Etiquetas">
-                  <input name="etiquetas" placeholder="Etiquetas separadas por coma" className="arca-input" />
+                  <input name="etiquetas" className="arca-input" />
                 </FormField>
                 <label className="flex items-center gap-2 text-small">
                   <input type="checkbox" name="disponibleQr" defaultChecked />
@@ -181,7 +181,7 @@ export default async function RestauranteRecetasPage() {
                   </select>
                 </FormField>
                 <FormField label="Nombre de receta">
-                  <input name="nombre" placeholder="Hamburguesa clasica" className="arca-input" />
+                  <input name="nombre" className="arca-input" />
                 </FormField>
                 <FormField label="Tipo">
                   <select name="tipo" defaultValue="platillo" className="arca-input">
@@ -206,7 +206,7 @@ export default async function RestauranteRecetasPage() {
                   </FormField>
                 </div>
                 <FormField label="Precio de venta">
-                  <input name="precioVenta" placeholder="Precio de venta" className="arca-input" />
+                  <input name="precioVenta" className="arca-input" />
                 </FormField>
                 <button type="submit" disabled={sinProductos} className="arca-btn arca-btn-primary w-full">
                   <Plus size={14} /> Crear receta
@@ -288,10 +288,10 @@ export default async function RestauranteRecetasPage() {
                     </select>
                   </FormField>
                   <FormField label="Cantidad">
-                    <input name="cantidad" placeholder="150" className="arca-input" />
+                    <input name="cantidad" className="arca-input" />
                   </FormField>
                   <FormField label="Costo unit.">
-                    <input name="costoUnitario" placeholder="0.00" className="arca-input" />
+                    <input name="costoUnitario" className="arca-input" />
                   </FormField>
                   <button type="submit" disabled={sinProductos} className="arca-btn arca-btn-secondary">
                     Agregar

@@ -550,8 +550,9 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
 
     const extrasPorEmpleado = new Map<string, number>();
     const ausentesPorEmpleado = new Map<string, number>();
+    const idsEmpleadosSet = new Set(idsEmpleados);
     for (const a of asistPeriodo) {
-      if (!idsEmpleados.includes(a.empleadoId)) continue;
+      if (!idsEmpleadosSet.has(a.empleadoId)) continue;
       extrasPorEmpleado.set(
         a.empleadoId,
         (extrasPorEmpleado.get(a.empleadoId) ?? 0) + num(a.horasExtra),
@@ -666,7 +667,7 @@ export async function generarNomina(input: unknown): Promise<Resultado> {
   }
 }
 
-export async function aprobarNomina(id: string): Promise<ResultadoSimple> {
+async function aprobarNomina(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -716,7 +717,7 @@ export async function aprobarNomina(id: string): Promise<ResultadoSimple> {
   }
 }
 
-export async function pagarNomina(
+async function pagarNomina(
   id: string,
   cuentaFinancieraId: string,
 ): Promise<ResultadoSimple> {
@@ -823,20 +824,22 @@ async function recalcularTotalesNomina(nominaId: string) {
 // Recalcula 'otras deducciones' del recibo (suma de deducciones variables) y los
 // totales del recibo y de la nómina completa.
 async function recalcularDeduccionesDetalle(detalleId: string): Promise<string | null> {
-  const [{ otras }] = await db
-    .select({ otras: sum(nominaDeducciones.monto) })
-    .from(nominaDeducciones)
-    .where(eq(nominaDeducciones.nominaDetalleId, detalleId));
-  const [det] = await db
-    .select({
-      nominaId: nominaDetalles.nominaId,
-      totalDevengado: nominaDetalles.totalDevengado,
-      ss: nominaDetalles.deduccionSeguridadSocial,
-      ir: nominaDetalles.deduccionRenta,
-    })
-    .from(nominaDetalles)
-    .where(eq(nominaDetalles.id, detalleId))
-    .limit(1);
+  const [[{ otras }], [det]] = await Promise.all([
+    db
+      .select({ otras: sum(nominaDeducciones.monto) })
+      .from(nominaDeducciones)
+      .where(eq(nominaDeducciones.nominaDetalleId, detalleId)),
+    db
+      .select({
+        nominaId: nominaDetalles.nominaId,
+        totalDevengado: nominaDetalles.totalDevengado,
+        ss: nominaDetalles.deduccionSeguridadSocial,
+        ir: nominaDetalles.deduccionRenta,
+      })
+      .from(nominaDetalles)
+      .where(eq(nominaDetalles.id, detalleId))
+      .limit(1),
+  ]);
   if (!det) return null;
 
   const otrasN = num(otras ?? 0);
@@ -857,21 +860,23 @@ async function recalcularDeduccionesDetalle(detalleId: string): Promise<string |
 }
 
 async function recalcularIngresosDetalle(detalleId: string): Promise<string | null> {
-  const [{ ingresos }] = await db
-    .select({ ingresos: sum(nominaIngresos.monto) })
-    .from(nominaIngresos)
-    .where(eq(nominaIngresos.nominaDetalleId, detalleId));
-  const [det] = await db
-    .select({
-      nominaId: nominaDetalles.nominaId,
-      totalDevengado: nominaDetalles.totalDevengado,
-      bonificaciones: nominaDetalles.bonificaciones,
-      comisiones: nominaDetalles.comisiones,
-      totalDeducciones: nominaDetalles.totalDeducciones,
-    })
-    .from(nominaDetalles)
-    .where(eq(nominaDetalles.id, detalleId))
-    .limit(1);
+  const [[{ ingresos }], [det]] = await Promise.all([
+    db
+      .select({ ingresos: sum(nominaIngresos.monto) })
+      .from(nominaIngresos)
+      .where(eq(nominaIngresos.nominaDetalleId, detalleId)),
+    db
+      .select({
+        nominaId: nominaDetalles.nominaId,
+        totalDevengado: nominaDetalles.totalDevengado,
+        bonificaciones: nominaDetalles.bonificaciones,
+        comisiones: nominaDetalles.comisiones,
+        totalDeducciones: nominaDetalles.totalDeducciones,
+      })
+      .from(nominaDetalles)
+      .where(eq(nominaDetalles.id, detalleId))
+      .limit(1),
+  ]);
   if (!det) return null;
 
   const ingresosN = num(ingresos ?? 0);
@@ -1545,9 +1550,7 @@ export async function finalizarPagoNomina(
       .select({ id: nominaDetalles.id })
       .from(nominaDetalles)
       .where(eq(nominaDetalles.nominaId, id));
-    for (const detalle of detalles) {
-      await guardarColillaDetalle(detalle.id);
-    }
+    await Promise.all(detalles.map((detalle) => guardarColillaDetalle(detalle.id)));
 
     await db
       .update(nominas)
@@ -1575,7 +1578,7 @@ export async function finalizarPagoNomina(
 
 /* ============================ RECLUTAMIENTO ============================ */
 
-export async function crearVacante(input: unknown): Promise<Resultado> {
+async function crearVacante(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1615,7 +1618,7 @@ export async function crearVacante(input: unknown): Promise<Resultado> {
   }
 }
 
-export async function cambiarEstadoVacante(
+async function cambiarEstadoVacante(
   id: string,
   estado: "abierta" | "pausada" | "cerrada" | "cancelada",
 ): Promise<ResultadoSimple> {
@@ -1642,7 +1645,7 @@ export async function cambiarEstadoVacante(
   }
 }
 
-export async function crearCandidato(input: unknown): Promise<Resultado> {
+async function crearCandidato(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1683,7 +1686,7 @@ export async function crearCandidato(input: unknown): Promise<Resultado> {
   }
 }
 
-export async function moverEtapaCandidato(
+async function moverEtapaCandidato(
   id: string,
   etapa: "aplicado" | "preseleccion" | "entrevista" | "oferta" | "contratado" | "descartado",
   calificacion?: number,
@@ -1718,7 +1721,7 @@ export async function moverEtapaCandidato(
 }
 
 /** Convierte un candidato contratado en empleado (borrador con datos base). */
-export async function contratarCandidato(
+async function contratarCandidato(
   id: string,
   datos: { puesto: string; salarioBase: number; fechaIngreso: string; frecuenciaPago: "semanal" | "quincenal" | "mensual" },
 ): Promise<Resultado> {

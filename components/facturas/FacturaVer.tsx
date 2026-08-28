@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Eye, Printer, X } from "lucide-react";
 import { Recibo, type ReciboData } from "@/components/pos/Recibo";
-import { imprimirRecibo } from "@/components/pos/TicketPrint";
+import { imprimirRecibo } from "@/components/pos/TicketPrint.helpers";
 
 export function FacturaVer({ data }: { data: ReciboData }) {
   const [abierto, setAbierto] = useState(false);

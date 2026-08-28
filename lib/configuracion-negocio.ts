@@ -23,7 +23,7 @@ export const CONFIGURACION_NEGOCIO_DEFAULTS: ConfiguracionNegocio = {
   inicioSemana: "lunes",
 };
 
-export const FRECUENCIA_NOMINA_LABEL: Record<FrecuenciaNomina, string> = {
+const FRECUENCIA_NOMINA_LABEL: Record<FrecuenciaNomina, string> = {
   semanal: "Semanal",
   quincenal: "Quincenal",
   mensual: "Mensual",

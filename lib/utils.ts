@@ -93,11 +93,11 @@ export function slugify(texto: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function generarNumero(prefijo: string, secuencia: number, ancho = 6): string {
+function generarNumero(prefijo: string, secuencia: number, ancho = 6): string {
   return `${prefijo}-${String(secuencia).padStart(ancho, "0")}`;
 }
 
-export function aDecimal(valor: number | string): string {
+function aDecimal(valor: number | string): string {
   const num = typeof valor === "string" ? parseFloat(valor) : valor;
   if (Number.isNaN(num)) return "0";
   return num.toFixed(4);

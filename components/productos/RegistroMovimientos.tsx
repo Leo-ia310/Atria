@@ -5,6 +5,7 @@ import { ArrowDownRight, ArrowUpRight, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Movimiento = {
+  id: string;
   fecha: string;
   tipo: string;
   cantidad: number;
@@ -45,18 +46,26 @@ function esEntrada(tipo: string): boolean {
   return TIPOS_ENTRADA.has(tipo);
 }
 
-function formatearFechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es", {
-    day: "2-digit",
-    month: "short",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export function RegistroMovimientos({ movimientos }: { movimientos: Movimiento[] }) {
+export function RegistroMovimientos({
+  movimientos,
+  zonaHoraria = "America/Managua",
+}: {
+  movimientos: Movimiento[];
+  zonaHoraria?: string;
+}) {
   const [periodo, setPeriodo] = useState<Periodo>("90d");
+  const fechaHoraFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es", {
+        timeZone: zonaHoraria,
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    [zonaHoraria],
+  );
 
   const filtrados = useMemo(() => {
     const dias = PERIODOS.find((p) => p.value === periodo)?.dias ?? null;
@@ -114,12 +123,12 @@ export function RegistroMovimientos({ movimientos }: { movimientos: Movimiento[]
                 </td>
               </tr>
             ) : (
-              filtrados.map((m, i) => {
+              filtrados.map((m) => {
                 const entrada = esEntrada(m.tipo);
                 return (
-                  <tr key={i} className="border-b border-[color:var(--color-border)] last:border-b-0">
+                  <tr key={m.id} className="border-b border-[color:var(--color-border)] last:border-b-0">
                     <td className="whitespace-nowrap px-4 py-2.5 text-[color:var(--color-text-muted)]">
-                      {formatearFechaHora(m.fecha)}
+                      {fechaHoraFormatter.format(new Date(m.fecha))}
                     </td>
                     <td className="px-4 py-2.5">
                       <span

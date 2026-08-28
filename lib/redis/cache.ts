@@ -75,7 +75,7 @@ export async function invalidarModulos(
 }
 
 /** Invalida una o varias claves exactas. No lanza si Redis falla. */
-export async function invalidarClaves(...claves: string[]): Promise<void> {
+async function invalidarClaves(...claves: string[]): Promise<void> {
   if (claves.length === 0) return;
   const redis = getRedis();
   if (!redis) return;

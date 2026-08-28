@@ -114,26 +114,29 @@ export function SucursalScopeSelector({
           </div>
 
           <div className="max-h-72 overflow-y-auto py-1">
-            {scope.sucursales.map((sucursal) => {
-              const activa = seleccionadas.includes(sucursal.id);
-              return (
-                <label
-                  key={sucursal.id}
-                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-small text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-2)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={activa}
-                    onChange={() => alternarSucursal(sucursal.id)}
-                    className="h-4 w-4 rounded border-[color:var(--color-border)]"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{sucursal.nombre}</span>
-                  {activa && (
-                    <Check size={13} className="shrink-0 text-[color:var(--color-success)]" />
-                  )}
-                </label>
-              );
-            })}
+            {(() => {
+              const seleccionadasSet = new Set(seleccionadas);
+              return scope.sucursales.map((sucursal) => {
+                const activa = seleccionadasSet.has(sucursal.id);
+                return (
+                  <label
+                    key={sucursal.id}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-small text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-2)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={activa}
+                      onChange={() => alternarSucursal(sucursal.id)}
+                      className="h-4 w-4 rounded border-[color:var(--color-border)]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{sucursal.nombre}</span>
+                    {activa && (
+                      <Check size={13} className="shrink-0 text-[color:var(--color-success)]" />
+                    )}
+                  </label>
+                );
+              });
+            })()}
           </div>
         </div>
       )}

@@ -78,8 +78,10 @@ async function crearAsiento(
 ): Promise<string> {
   validarBalance(opciones.partidas);
 
-  const periodoId = await obtenerPeriodoAbierto(tx, opciones.empresaId, opciones.fecha);
-  const numero = await siguienteNumeroAsiento(tx, opciones.empresaId, opciones.fecha);
+  const [periodoId, numero] = await Promise.all([
+    obtenerPeriodoAbierto(tx, opciones.empresaId, opciones.fecha),
+    siguienteNumeroAsiento(tx, opciones.empresaId, opciones.fecha),
+  ]);
 
   const totalDebe = opciones.partidas.reduce((a, p) => a + p.debe, 0);
   const totalHaber = opciones.partidas.reduce((a, p) => a + p.haber, 0);
@@ -332,19 +334,20 @@ export async function registrarPagoProveedor(
   externalTx?: TX,
 ): Promise<string> {
   const core = async (tx: TX) => {
-    const cuentas = await resolverCuentasClave(tx, input.empresaId, [
-      "CXP_PROVEEDORES",
+    const [cuentas, [cf]] = await Promise.all([
+      resolverCuentasClave(tx, input.empresaId, [
+        "CXP_PROVEEDORES",
+      ]),
+      tx
+        .select({
+          cuentaContableId: cuentasFinancieras.cuentaContableId,
+          nombre: cuentasFinancieras.nombre,
+          sucursalId: cuentasFinancieras.sucursalId,
+        })
+        .from(cuentasFinancieras)
+        .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
+        .limit(1),
     ]);
-
-    const [cf] = await tx
-      .select({
-        cuentaContableId: cuentasFinancieras.cuentaContableId,
-        nombre: cuentasFinancieras.nombre,
-        sucursalId: cuentasFinancieras.sucursalId,
-      })
-      .from(cuentasFinancieras)
-      .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
-      .limit(1);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
     }
@@ -399,19 +402,20 @@ export async function registrarAbonoCliente(
   externalTx?: TX,
 ): Promise<string> {
   const core = async (tx: TX) => {
-    const cuentas = await resolverCuentasClave(tx, input.empresaId, [
-      "CXC_CLIENTES",
+    const [cuentas, [cf]] = await Promise.all([
+      resolverCuentasClave(tx, input.empresaId, [
+        "CXC_CLIENTES",
+      ]),
+      tx
+        .select({
+          cuentaContableId: cuentasFinancieras.cuentaContableId,
+          nombre: cuentasFinancieras.nombre,
+          sucursalId: cuentasFinancieras.sucursalId,
+        })
+        .from(cuentasFinancieras)
+        .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
+        .limit(1),
     ]);
-
-    const [cf] = await tx
-      .select({
-        cuentaContableId: cuentasFinancieras.cuentaContableId,
-        nombre: cuentasFinancieras.nombre,
-        sucursalId: cuentasFinancieras.sucursalId,
-      })
-      .from(cuentasFinancieras)
-      .where(and(eq(cuentasFinancieras.id, input.cuentaFinancieraId), eq(cuentasFinancieras.empresaId, input.empresaId)))
-      .limit(1);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
     }
@@ -544,7 +548,7 @@ export type RegistrarAjusteInventarioInput = {
   motivo: string;
 };
 
-export async function registrarAjusteInventario(
+async function registrarAjusteInventario(
   input: RegistrarAjusteInventarioInput,
 ): Promise<string> {
   return dbConEmpresa(input.empresaId, async (tx) => {
@@ -682,8 +686,13 @@ export async function registrarNominaDevengo(
   input: RegistrarNominaDevengoInput,
 ): Promise<string> {
   return dbConEmpresa(input.empresaId, async (tx) => {
-    const gastoSueldos = await cuentaPorCodigo(tx, input.empresaId, "6101");
-    const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
+    const [gastoSueldos, sueldosPorPagar, retenciones] = await Promise.all([
+      cuentaPorCodigo(tx, input.empresaId, "6101"),
+      cuentaPorCodigo(tx, input.empresaId, "2104"),
+      input.totalDeducciones > 0
+        ? cuentaPorCodigo(tx, input.empresaId, "2103")
+        : Promise.resolve(null),
+    ]);
 
     const partidas: PartidaAsiento[] = [
       {
@@ -695,9 +704,8 @@ export async function registrarNominaDevengo(
     ];
 
     if (input.totalDeducciones > 0) {
-      const retenciones = await cuentaPorCodigo(tx, input.empresaId, "2103");
       partidas.push({
-        cuentaId: retenciones,
+        cuentaId: retenciones!,
         descripcion: `Deducciones nómina ${input.numero}`,
         debe: 0,
         haber: dinero(input.totalDeducciones),
@@ -747,22 +755,26 @@ export async function registrarPagoNomina(
   input: RegistrarPagoNominaInput,
 ): Promise<string> {
   return dbConEmpresa(input.empresaId, async (tx) => {
-    const sueldosPorPagar = await cuentaPorCodigo(tx, input.empresaId, "2104");
-
-    const [cf] = await tx
-      .select({
-        cuentaContableId: cuentasFinancieras.cuentaContableId,
-        nombre: cuentasFinancieras.nombre,
-        sucursalId: cuentasFinancieras.sucursalId,
-      })
-      .from(cuentasFinancieras)
-      .where(
-        and(
-          eq(cuentasFinancieras.id, input.cuentaFinancieraId),
-          eq(cuentasFinancieras.empresaId, input.empresaId),
-        ),
-      )
-      .limit(1);
+    const [sueldosPorPagar, [cf], sucursalUnica] = await Promise.all([
+      cuentaPorCodigo(tx, input.empresaId, "2104"),
+      tx
+        .select({
+          cuentaContableId: cuentasFinancieras.cuentaContableId,
+          nombre: cuentasFinancieras.nombre,
+          sucursalId: cuentasFinancieras.sucursalId,
+        })
+        .from(cuentasFinancieras)
+        .where(
+          and(
+            eq(cuentasFinancieras.id, input.cuentaFinancieraId),
+            eq(cuentasFinancieras.empresaId, input.empresaId),
+          ),
+        )
+        .limit(1),
+      input.sucursalId
+        ? Promise.resolve(null)
+        : resolverSucursalUnicaNomina(tx, input.empresaId, input.nominaId),
+    ]);
     if (!cf?.cuentaContableId) {
       throw new Error("Cuenta financiera sin cuenta contable asociada");
     }
@@ -786,7 +798,7 @@ export async function registrarPagoNomina(
       empresaId: input.empresaId,
       sucursalId:
         input.sucursalId ??
-        (await resolverSucursalUnicaNomina(tx, input.empresaId, input.nominaId)) ??
+        sucursalUnica ??
         cf.sucursalId ??
         null,
       fecha: input.fecha,

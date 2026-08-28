@@ -34,6 +34,17 @@ export type ColillaSnapshot = {
   totales: { totalIngresos: number; totalDeducciones: number; pagoNeto: number };
 };
 
+function imprimirColilla() {
+  document.body.classList.add("imprimiendo-colilla");
+  const cleanup = () => {
+    document.body.classList.remove("imprimiendo-colilla");
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  window.print();
+  window.setTimeout(cleanup, 1500);
+}
+
 export function HorasExtraDetalle({
   pais,
   horas,
@@ -165,17 +176,6 @@ export function ColillaPagoVer({
     return <span className="text-[11px] text-[color:var(--color-text-muted)]">Sin colilla</span>;
   }
 
-  function imprimir() {
-    document.body.classList.add("imprimiendo-colilla");
-    const cleanup = () => {
-      document.body.classList.remove("imprimiendo-colilla");
-      window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    window.print();
-    window.setTimeout(cleanup, 1500);
-  }
-
   return (
     <>
       <button
@@ -195,7 +195,7 @@ export function ColillaPagoVer({
             <Button variant="ghost" onClick={() => setAbierto(false)}>
               Cerrar
             </Button>
-            <Button onClick={imprimir}>
+            <Button onClick={imprimirColilla}>
               <Printer size={14} /> Imprimir
             </Button>
           </>
@@ -357,8 +357,8 @@ function BloqueLineas({
         <div className="text-[12px] text-[color:var(--color-text-muted)]">Sin registros</div>
       ) : (
         <div className="space-y-1">
-          {lineas.map((linea, index) => (
-            <div key={`${linea.concepto}-${index}`}>
+          {lineas.map((linea) => (
+            <div key={`${linea.concepto}:${linea.monto}:${linea.nota ?? ""}:${linea.meta ?? ""}`}>
               <Fila label={linea.concepto} value={formatearMoneda(linea.monto, pais)} />
               {linea.nota && (
                 <div className="text-[11px] text-[color:var(--color-text-muted)]">{linea.nota}</div>

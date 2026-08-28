@@ -44,11 +44,20 @@ export async function ejecutarIA(
       },
     );
 
+    if (!res.ok) {
+      const errorData = (await res.json().catch(() => null)) as
+        | { errors?: { message?: string }[] }
+        | null;
+      const detalle = errorData?.errors?.[0]?.message ?? `HTTP ${res.status}`;
+      console.error("[ia:cloudflare]", detalle);
+      return { ok: false, error: "La IA no pudo responder en este momento." };
+    }
+
     const data = (await res.json().catch(() => null)) as
       | { success?: boolean; result?: { response?: unknown }; errors?: { message?: string }[] }
       | null;
 
-    if (!res.ok || !data?.success) {
+    if (!data?.success) {
       const detalle = data?.errors?.[0]?.message ?? `HTTP ${res.status}`;
       console.error("[ia:cloudflare]", detalle);
       return { ok: false, error: "La IA no pudo responder en este momento." };

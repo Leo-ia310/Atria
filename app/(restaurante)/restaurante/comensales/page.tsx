@@ -42,30 +42,30 @@ export default async function RestauranteComensalesPage() {
           <CardBody>
             <form action={guardarComensalRestauranteForm} className="space-y-3">
               <FormField label="Nombre">
-                <input name="nombre" placeholder="Nombre del comensal" className="arca-input" />
+                <input name="nombre" className="arca-input" />
               </FormField>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Telefono">
-                  <input name="telefono" placeholder="WhatsApp" className="arca-input" />
+                  <input name="telefono" className="arca-input" />
                 </FormField>
                 <FormField label="Email">
-                  <input name="email" placeholder="correo@ejemplo.com" className="arca-input" />
+                  <input name="email" className="arca-input" />
                 </FormField>
               </div>
               <FormField label="Cumpleanos">
                 <input name="cumpleanos" type="date" className="arca-input" />
               </FormField>
               <FormField label="Preferencias">
-                <input name="preferencias" placeholder="Mesa favorita, plato usual, trato preferido" className="arca-input" />
+                <input name="preferencias" className="arca-input" />
               </FormField>
               <FormField label="Alergias">
-                <input name="alergias" placeholder="Alergias o restricciones" className="arca-input" />
+                <input name="alergias" className="arca-input" />
               </FormField>
               <FormField label="Ocasiones especiales">
-                <input name="ocasionesEspeciales" placeholder="Cumpleanos, aniversario, cliente VIP" className="arca-input" />
+                <input name="ocasionesEspeciales" className="arca-input" />
               </FormField>
               <FormField label="Notas internas">
-                <textarea name="notas" placeholder="Notas para atencion" className="arca-input min-h-20" />
+                <textarea name="notas" className="arca-input min-h-20" />
               </FormField>
               <button type="submit" className="arca-btn arca-btn-primary w-full">
                 <Plus size={14} /> Guardar comensal

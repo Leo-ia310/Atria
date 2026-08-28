@@ -13,6 +13,13 @@ import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { dinero } from "@/lib/contabilidad/helpers";
 
+function formatDt(ts: Date | string) {
+  return new Date(ts).toLocaleString("es-NI", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export default async function SesionDetallePage({
   params,
 }: {
@@ -80,13 +87,6 @@ export default async function SesionDetallePage({
   const montoReal = sesion.montoFinalReal ? dinero(sesion.montoFinalReal) : null;
 
   const estaAbierta = sesion.estado === "abierta";
-
-  function formatDt(ts: Date | string) {
-    return new Date(ts).toLocaleString("es-NI", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">

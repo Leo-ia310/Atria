@@ -17,7 +17,7 @@ function getResend(): Resend | null {
   return cliente;
 }
 
-export function emailConfigurado(): boolean {
+function emailConfigurado(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
 }
 

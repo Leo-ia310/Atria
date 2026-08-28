@@ -17,8 +17,7 @@ export default async function LibroMayorPage({
 }: {
   searchParams: Promise<{ cuenta?: string }>;
 }) {
-  const params = await searchParams;
-  const user = await requireSession();
+  const [params, user] = await Promise.all([searchParams, requireSession()]);
   const [empresa, scope] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
@@ -49,6 +48,7 @@ export default async function LibroMayorPage({
   const movimientos = cuentaSeleccionada
     ? await db
         .select({
+          id: asientoPartidas.id,
           fecha: asientosContables.fecha,
           numero: asientosContables.numero,
           concepto: asientosContables.concepto,
@@ -168,9 +168,9 @@ export default async function LibroMayorPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {filas.map((f, i) => (
+                    {filas.map((f) => (
                       <tr
-                        key={i}
+                        key={f.id}
                         className="border-b border-[color:var(--color-border)] last:border-b-0"
                       >
                         <td className="px-2 py-2">{formatearFecha(f.fecha, pais)}</td>

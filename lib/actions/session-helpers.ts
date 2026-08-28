@@ -32,7 +32,7 @@ export const requireSession = cache(async (): Promise<SessionUser> => {
   };
 });
 
-export const getSessionOrNull = cache(async (): Promise<SessionUser | null> => {
+const getSessionOrNull = cache(async (): Promise<SessionUser | null> => {
   const session = await getAuthSession();
   if (!session?.user?.id) return null;
   return {

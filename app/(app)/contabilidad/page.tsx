@@ -23,6 +23,21 @@ import { formatearMoneda } from "@/lib/utils";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 
+const MESES_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
 export default async function ContabilidadPage() {
   const user = await requireSession();
   const hoy = new Date();
@@ -85,22 +100,8 @@ export default async function ContabilidadPage() {
   const balanceado =
     Math.abs(parseFloat(resumen?.debe ?? "0") - parseFloat(resumen?.haber ?? "0")) < 0.01;
 
-  const mesesEs = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
   const subtituloPeriodo = periodoActual
-    ? `Periodo activo: ${mesesEs[periodoActual.mes - 1]} ${periodoActual.anio} - ${periodoActual.estado}`
+    ? `Periodo activo: ${MESES_ES[periodoActual.mes - 1]} ${periodoActual.anio} - ${periodoActual.estado}`
     : "Sin periodo abierto";
 
   return (

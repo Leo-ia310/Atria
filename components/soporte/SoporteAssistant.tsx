@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Bot, Send, UserRound } from "lucide-react";
 import { responderSoporte } from "@/lib/actions/soporte";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { SoporteModulo } from "@/lib/soporte/modulos";
 
 type Mensaje = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   modulos?: SoporteModulo[];
@@ -45,10 +46,12 @@ export function SoporteAssistant({
   ],
 }: SoporteAssistantProps) {
   const { mostrar } = useToast();
+  const siguienteMensajeId = useRef(1);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([
     {
+      id: "assistant-inicial",
       role: "assistant",
       content: mensajeInicial,
     },
@@ -80,7 +83,8 @@ export function SoporteAssistant({
 
     setTexto("");
     setEnviando(true);
-    setMensajes((actual) => [...actual, { role: "user", content: mensaje }]);
+    const userId = `user-${siguienteMensajeId.current++}`;
+    setMensajes((actual) => [...actual, { id: userId, role: "user", content: mensaje }]);
 
     const res = await responderSoporte({ mensaje, historial });
     setEnviando(false);
@@ -90,9 +94,15 @@ export function SoporteAssistant({
       return;
     }
 
+    const assistantId = `assistant-${siguienteMensajeId.current++}`;
     setMensajes((actual) => [
       ...actual,
-      { role: "assistant", content: res.respuesta, modulos: res.modulos },
+      {
+        id: assistantId,
+        role: "assistant",
+        content: res.respuesta,
+        modulos: res.modulos,
+      },
     ]);
   }
 
@@ -102,9 +112,9 @@ export function SoporteAssistant({
         <CardHeader title={titulo} />
         <CardBody className="flex flex-1 flex-col gap-4 p-0">
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
-            {mensajes.map((mensaje, index) => (
+            {mensajes.map((mensaje) => (
               <div
-                key={index}
+                key={mensaje.id}
                 className={`flex gap-3 ${mensaje.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {mensaje.role === "assistant" && (

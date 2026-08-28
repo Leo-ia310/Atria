@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { useRecharts } from "@/components/charts/useRecharts";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
@@ -20,6 +11,10 @@ export function GraficaRentabilidad({
   data: { mes: string; ingresos: number; costos: number }[];
   pais: PaisCodigo;
 }) {
+  const recharts = useRecharts();
+  if (!recharts) return <div className="h-72 w-full" />;
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } =
+    recharts;
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer>

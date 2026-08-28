@@ -14,18 +14,29 @@ import {
 
 type TipoEmpresa = "general" | "restaurante" | "retail" | "servicios";
 
-export function EmpresaTipoForm({
-  tipoInicial,
-  datosRestaurante,
-  palabraConfirmacion,
-}: {
+type EmpresaTipoFormProps = {
   tipoInicial: TipoEmpresa;
   datosRestaurante: { menus: number; pedidos: number; dominio?: number; total: number };
   palabraConfirmacion: string;
-}) {
+};
+
+export function EmpresaTipoForm(props: EmpresaTipoFormProps) {
+  return (
+    <EmpresaTipoFormInner
+      key={`${props.tipoInicial}:${props.datosRestaurante.total}:${props.palabraConfirmacion}`}
+      {...props}
+    />
+  );
+}
+
+function EmpresaTipoFormInner({
+  tipoInicial,
+  datosRestaurante,
+  palabraConfirmacion,
+}: EmpresaTipoFormProps) {
   const router = useRouter();
   const { mostrar } = useToast();
-  const [tipoEmpresa, setTipoEmpresa] = useState<TipoEmpresa>(tipoInicial);
+  const [tipoEmpresa, setTipoEmpresa] = useState<TipoEmpresa>(() => tipoInicial);
   const [confirmacion, setConfirmacion] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);

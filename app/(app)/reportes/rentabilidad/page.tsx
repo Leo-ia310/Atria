@@ -17,6 +17,11 @@ import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
 import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
+const MESES_ES = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
 
@@ -60,11 +65,6 @@ export default async function ReporteRentabilidadPage() {
         .groupBy(periodoExpr)
         .orderBy(periodoExpr),
   );
-
-  const MESES_ES = [
-    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
-  ];
 
   const chartData = datos.map((d) => {
     const [anioStr, mesStr] = d.periodo.split("-");
@@ -157,11 +157,11 @@ export default async function ReporteRentabilidadPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {chartData.map((d, i) => {
+                  {chartData.map((d) => {
                     const pct = d.ingresos > 0 ? (d.margen / d.ingresos) * 100 : 0;
                     return (
                       <tr
-                        key={i}
+                        key={d.mes}
                         className="border-b border-[color:var(--color-border)] last:border-b-0"
                       >
                         <td className="px-4 py-2 font-medium">{d.mes}</td>

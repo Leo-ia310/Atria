@@ -9,6 +9,10 @@ function norm(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function contieneTexto(texto: string, busqueda: string) {
+  return texto.includes(busqueda);
+}
+
 export function CommandPalette({
   abierto,
   onCerrar,
@@ -28,14 +32,12 @@ export function CommandPalette({
     const query = norm(q.trim());
     if (!query) return items;
     return items.filter((it) =>
-      norm(`${it.label} ${it.grupo} ${it.keywords ?? ""}`).includes(query),
+      contieneTexto(norm(`${it.label} ${it.grupo} ${it.keywords ?? ""}`), query),
     );
   }, [items, q]);
 
   useEffect(() => {
     if (abierto) {
-      setQ("");
-      setIdx(0);
       const t = setTimeout(() => inputRef.current?.focus(), 30);
       document.body.style.overflow = "hidden";
       return () => {
@@ -79,17 +81,24 @@ export function CommandPalette({
   if (!abierto) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[12vh] backdrop-blur-md"
-      onClick={onCerrar}
-    >
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[12vh] backdrop-blur-md">
+      <button
+        type="button"
+        aria-label="Cerrar paleta de comandos"
+        className="absolute inset-0 cursor-default"
+        onClick={onCerrar}
+      />
       <div
-        className="w-full max-w-xl overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-2xl"
+        className="relative w-full max-w-xl overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-[color:var(--color-border)] px-4">
           <Search size={16} className="text-[color:var(--color-text-muted)]" />
+          <label htmlFor="command-palette-search" className="sr-only">
+            Buscar modulo o pagina
+          </label>
           <input
+            id="command-palette-search"
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}

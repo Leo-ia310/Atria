@@ -42,16 +42,17 @@ export function sugerirModulosSoporte(
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  return SOPORTE_MODULOS
-    .filter((item) => permitido.has(item.modulo))
-    .map((item) => {
+  const candidatos: { item: SoporteModulo; score: number }[] = [];
+  for (const item of SOPORTE_MODULOS) {
+    if (!permitido.has(item.modulo)) continue;
       const score = item.keywords.reduce(
         (total, keyword) => total + (normalizado.includes(keyword) ? 1 : 0),
         0,
       );
-      return { item, score };
-    })
-    .filter(({ score }) => score > 0)
+    if (score > 0) candidatos.push({ item, score });
+  }
+
+  return candidatos
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
     .map(({ item }) => item);

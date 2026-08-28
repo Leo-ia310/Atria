@@ -179,7 +179,7 @@ export default async function RestauranteInventarioPage() {
               </FormField>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Cantidad">
-                  <input name="cantidad" placeholder="Cantidad" className="arca-input" />
+                  <input name="cantidad" className="arca-input" />
                 </FormField>
                 <FormField label="Unidad">
                   <select name="unidadId" defaultValue="" className="arca-input">
@@ -193,7 +193,7 @@ export default async function RestauranteInventarioPage() {
                 </FormField>
               </div>
               <FormField label="Costo unitario">
-                <input name="costoUnitario" placeholder="Costo unitario" className="arca-input" />
+                <input name="costoUnitario" className="arca-input" />
               </FormField>
               <FormField label="Motivo">
                 <select name="motivo" defaultValue="desperdicio" className="arca-input">
@@ -207,7 +207,7 @@ export default async function RestauranteInventarioPage() {
                 </select>
               </FormField>
               <FormField label="Observacion">
-                <textarea name="observacion" placeholder="Observacion" className="arca-input min-h-24" />
+                <textarea name="observacion" className="arca-input min-h-24" />
               </FormField>
               {!puedeRegistrarMerma && (
                 <p className="text-[12px] text-[color:var(--color-warning)]">

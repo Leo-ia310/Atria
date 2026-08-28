@@ -202,8 +202,9 @@ export default async function VentasPage({
         <CardBody>
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div>
-              <label className="text-label mb-1.5 block">Buscar</label>
+              <label htmlFor="ventas-q" className="text-label mb-1.5 block">Buscar</label>
               <input
+                id="ventas-q"
                 type="search"
                 name="q"
                 defaultValue={sp.q ?? ""}
@@ -212,8 +213,9 @@ export default async function VentasPage({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Desde</label>
+              <label htmlFor="ventas-desde" className="text-label mb-1.5 block">Desde</label>
               <input
+                id="ventas-desde"
                 type="date"
                 name="desde"
                 defaultValue={sp.desde ?? ""}
@@ -221,8 +223,9 @@ export default async function VentasPage({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Hasta</label>
+              <label htmlFor="ventas-hasta" className="text-label mb-1.5 block">Hasta</label>
               <input
+                id="ventas-hasta"
                 type="date"
                 name="hasta"
                 defaultValue={sp.hasta ?? ""}
@@ -230,16 +233,16 @@ export default async function VentasPage({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Tipo</label>
-              <select name="tipo" defaultValue={sp.tipo ?? ""} className="arca-input w-36">
+              <label htmlFor="ventas-tipo" className="text-label mb-1.5 block">Tipo</label>
+              <select id="ventas-tipo" name="tipo" defaultValue={sp.tipo ?? ""} className="arca-input w-36">
                 <option value="">Todos</option>
                 <option value="contado">Contado</option>
                 <option value="credito">Credito</option>
               </select>
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Estado</label>
-              <select name="estado" defaultValue={sp.estado ?? ""} className="arca-input w-40">
+              <label htmlFor="ventas-estado" className="text-label mb-1.5 block">Estado</label>
+              <select id="ventas-estado" name="estado" defaultValue={sp.estado ?? ""} className="arca-input w-40">
                 <option value="">Todos</option>
                 <option value="completada">Completada</option>
                 <option value="pendiente">Pendiente</option>

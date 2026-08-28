@@ -26,11 +26,11 @@
 | Base de datos | **PostgreSQL 16** + **Drizzle ORM** | Supabase como proveedor |
 | Validación | **Zod** (compartido cliente/servidor) | |
 | Formularios | **React Hook Form** + `@hookform/resolvers` | |
-| Estado | Zustand (cliente) · TanStack Query (server state) | |
-| Tablas | **TanStack Table v8** | |
+| Estado | React state/hooks + Server Actions | |
+| Tablas | HTML tables + componentes internos | |
 | Gráficas | **Recharts** | |
 | Íconos | **Lucide React** | |
-| Fechas | **date-fns** | |
+| Fechas | Helpers propios en `lib/dates.ts` / `lib/utils.ts` | |
 | Email | **Resend** | Notificaciones |
 | Deploy | **Vercel + Supabase** | |
 
@@ -71,7 +71,7 @@ arca/
 │   └── api/auth/[...nextauth]/   Handler de NextAuth
 ├── components/
 │   ├── ui/                       Button, Input, Select, Card, Badge, KpiCard
-│   ├── layout/                   Sidebar, Header, PageHeader, PageStub, SessionProvider
+│   ├── layout/                   Sidebar, Header, PageHeader, SessionProvider
 │   └── marketing/                Nav, PricingToggle, FAQ
 ├── lib/
 │   ├── db/

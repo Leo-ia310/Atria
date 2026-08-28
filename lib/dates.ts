@@ -1,18 +1,11 @@
 export const DEFAULT_TIME_ZONE = "America/Managua";
 
-function timeZoneSeguro(timeZone?: string | null): string {
-  const zona = timeZone || DEFAULT_TIME_ZONE;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: zona }).format(new Date());
-    return zona;
-  } catch {
-    return DEFAULT_TIME_ZONE;
-  }
-}
+const DateTimeFormatCtor = Intl.DateTimeFormat;
+const FORMATTERS_PARTES = new Map<string, Intl.DateTimeFormat>();
 
-function partesEnZona(fecha: Date, timeZone?: string | null): Map<string, string> {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timeZoneSeguro(timeZone),
+function crearFormatterPartes(timeZone: string) {
+  return new DateTimeFormatCtor("en-US", {
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -20,6 +13,25 @@ function partesEnZona(fecha: Date, timeZone?: string | null): Map<string, string
     minute: "2-digit",
     hour12: false,
   });
+}
+
+function timeZoneSeguro(timeZone?: string | null): string {
+  const zona = timeZone || DEFAULT_TIME_ZONE;
+  try {
+    crearFormatterPartes(zona).format(new Date());
+    return zona;
+  } catch {
+    return DEFAULT_TIME_ZONE;
+  }
+}
+
+function partesEnZona(fecha: Date, timeZone?: string | null): Map<string, string> {
+  const zona = timeZoneSeguro(timeZone);
+  let formatter = FORMATTERS_PARTES.get(zona);
+  if (!formatter) {
+    formatter = crearFormatterPartes(zona);
+    FORMATTERS_PARTES.set(zona, formatter);
+  }
   return new Map(formatter.formatToParts(fecha).map((part) => [part.type, part.value]));
 }
 
@@ -43,12 +55,12 @@ export function sumarDiasISO(fechaIso: string, dias: number): string {
   return fecha.toISOString().slice(0, 10);
 }
 
-export function anioDesdeISO(fechaIso: string): number {
+function anioDesdeISO(fechaIso: string): number {
   const anio = Number(fechaIso.slice(0, 4));
   return Number.isFinite(anio) ? anio : new Date().getUTCFullYear();
 }
 
-export function mesDesdeISO(fechaIso: string): number {
+function mesDesdeISO(fechaIso: string): number {
   const mes = Number(fechaIso.slice(5, 7));
   return Number.isFinite(mes) && mes >= 1 && mes <= 12 ? mes : new Date().getUTCMonth() + 1;
 }

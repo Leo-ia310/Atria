@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Recibo, type ReciboData } from "@/components/pos/Recibo";
-import { imprimirRecibo } from "@/components/pos/TicketPrint";
+import { imprimirRecibo } from "@/components/pos/TicketPrint.helpers";
 
 export function FacturaDetalleVista({ data }: { data: ReciboData }) {
   const volverHref = data.esCredito ? "/facturas/credito" : "/facturas/cobradas";

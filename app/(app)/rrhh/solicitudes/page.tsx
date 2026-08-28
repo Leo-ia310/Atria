@@ -16,46 +16,47 @@ export default async function SolicitudesPage() {
   ]);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const lista = await db
-    .select({
-      id: solicitudesRrhh.id,
-      tipo: solicitudesRrhh.tipo,
-      estado: solicitudesRrhh.estado,
-      fechaInicio: solicitudesRrhh.fechaInicio,
-      fechaFin: solicitudesRrhh.fechaFin,
-      dias: solicitudesRrhh.dias,
-      monto: solicitudesRrhh.monto,
-      motivo: solicitudesRrhh.motivo,
-      comentarioResolucion: solicitudesRrhh.comentarioResolucion,
-      creadoEn: solicitudesRrhh.creadoEn,
-      empleadoNombres: empleados.nombres,
-      empleadoApellidos: empleados.apellidos,
-    })
-    .from(solicitudesRrhh)
-    .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
-    .where(
-      and(
-        eq(solicitudesRrhh.empresaId, user.empresaId),
-        eq(empleados.empresaId, user.empresaId),
-        isNull(empleados.eliminadoEn),
-        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(desc(solicitudesRrhh.creadoEn))
-    .limit(200);
-
-  const activos = await db
-    .select({ id: empleados.id, nombres: empleados.nombres, apellidos: empleados.apellidos })
-    .from(empleados)
-    .where(
-      and(
-        eq(empleados.empresaId, user.empresaId),
-        isNull(empleados.eliminadoEn),
-        sql`${empleados.estado} <> 'baja'`,
-        sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(empleados.nombres);
+  const [lista, activos] = await Promise.all([
+    db
+      .select({
+        id: solicitudesRrhh.id,
+        tipo: solicitudesRrhh.tipo,
+        estado: solicitudesRrhh.estado,
+        fechaInicio: solicitudesRrhh.fechaInicio,
+        fechaFin: solicitudesRrhh.fechaFin,
+        dias: solicitudesRrhh.dias,
+        monto: solicitudesRrhh.monto,
+        motivo: solicitudesRrhh.motivo,
+        comentarioResolucion: solicitudesRrhh.comentarioResolucion,
+        creadoEn: solicitudesRrhh.creadoEn,
+        empleadoNombres: empleados.nombres,
+        empleadoApellidos: empleados.apellidos,
+      })
+      .from(solicitudesRrhh)
+      .innerJoin(empleados, eq(empleados.id, solicitudesRrhh.empleadoId))
+      .where(
+        and(
+          eq(solicitudesRrhh.empresaId, user.empresaId),
+          eq(empleados.empresaId, user.empresaId),
+          isNull(empleados.eliminadoEn),
+          sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+        ),
+      )
+      .orderBy(desc(solicitudesRrhh.creadoEn))
+      .limit(200),
+    db
+      .select({ id: empleados.id, nombres: empleados.nombres, apellidos: empleados.apellidos })
+      .from(empleados)
+      .where(
+        and(
+          eq(empleados.empresaId, user.empresaId),
+          isNull(empleados.eliminadoEn),
+          sql`${empleados.estado} <> 'baja'`,
+          sucursalIds ? inArray(empleados.sucursalId, sucursalIds) : undefined,
+        ),
+      )
+      .orderBy(empleados.nombres),
+  ]);
 
   const pendientes = lista.filter((s) => s.estado === "pendiente").length;
 

@@ -26,8 +26,9 @@ export default async function POSPage() {
     getPoliticasNegocio(user.empresaId),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
+  const sucursalIdSet = sucursalIds ? new Set(sucursalIds) : null;
   const sucursalesActivas = scope.sucursales
-    .filter((sucursal) => !sucursalIds || sucursalIds.includes(sucursal.id))
+    .filter((sucursal) => !sucursalIdSet || sucursalIdSet.has(sucursal.id))
     .sort(
       (a, b) =>
         Number(b.esPrincipal) - Number(a.esPrincipal) ||

@@ -63,8 +63,8 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-primary: #8b5cf6;
-  --color-primary-hover: #7c3aed;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
   --color-secondary: #c4b5fd;
   --color-secondary-hover: #d8b4fe;
   --color-tertiary: #a78bfa;

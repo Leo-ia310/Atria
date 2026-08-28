@@ -168,7 +168,11 @@ export function AsistenteProductoIA() {
       >
         {paso === "describir" ? (
           <div className="space-y-3">
+            <label htmlFor="asistente-producto-descripcion" className="sr-only">
+              Descripcion del producto
+            </label>
             <textarea
+              id="asistente-producto-descripcion"
               className="arca-input min-h-[120px] resize-y"
               placeholder="Ej: Agrega martillo de acero, precio 250, costo 160, tengo 20 unidades, avisar cuando queden 5"
               value={texto}

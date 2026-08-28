@@ -30,7 +30,7 @@ export function AbonoForm({
   const [enviando, setEnviando] = useState(false);
 
   const [formaPagoId, setFormaPagoId] = useState(formasPago[0]?.value ?? "");
-  const [fecha, setFecha] = useState(fechaISOEnZona());
+  const [fecha, setFecha] = useState(() => fechaISOEnZona());
   const [monto, setMonto] = useState<number | "">(saldoPendiente);
   const [referencia, setReferencia] = useState("");
   const [notas, setNotas] = useState("");

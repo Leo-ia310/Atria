@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X, Check, ArrowLeft } from "lucide-react";
@@ -45,15 +45,26 @@ export function PlanesModal({
   const [vista, setVista] = useState<Vista>("planes");
   const [planCheckout, setPlanCheckout] = useState<Plan | null>(null);
   const [recibo, setRecibo] = useState<ReciboData | null>(null);
-  const [montado, setMontado] = useState(false);
+
+  const cerrarModal = useCallback(() => {
+    setVista("planes");
+    setPlanCheckout(null);
+    setRecibo(null);
+    setSeleccionando(null);
+    onCerrar();
+  }, [onCerrar]);
+
+  const cerrarDesdeEscapeRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    setMontado(true);
-  }, []);
+    cerrarDesdeEscapeRef.current = () => {
+      if (vista !== "recibo") cerrarModal();
+    };
+  }, [cerrarModal, vista]);
 
   useEffect(() => {
     function esc(e: KeyboardEvent) {
-      if (e.key === "Escape" && vista !== "recibo") onCerrar();
+      if (e.key === "Escape") cerrarDesdeEscapeRef.current();
     }
     if (abierto) {
       document.addEventListener("keydown", esc);
@@ -63,18 +74,10 @@ export function PlanesModal({
       document.removeEventListener("keydown", esc);
       document.body.style.overflow = "";
     };
-  }, [abierto, onCerrar, vista]);
-
-  useEffect(() => {
-    if (!abierto) {
-      setVista("planes");
-      setPlanCheckout(null);
-      setRecibo(null);
-      setSeleccionando(null);
-    }
   }, [abierto]);
 
-  if (!abierto || !montado) return null;
+  const portalTarget = typeof document === "undefined" ? null : document.body;
+  if (!abierto || !portalTarget) return null;
 
   async function elegirPlan(plan: Plan) {
     if (plan.id === "demo") {
@@ -90,7 +93,7 @@ export function PlanesModal({
         return;
       }
       mostrar("success", `Plan actualizado a ${res.plan}`);
-      onCerrar();
+      cerrarModal();
       router.refresh();
       return;
     }
@@ -121,7 +124,7 @@ export function PlanesModal({
       setSeleccionando(null);
       if (res.ok) {
         mostrar("success", `Prueba gratis de ${res.plan} activada hasta ${formatearFecha(res.finISO)}`);
-        onCerrar();
+        cerrarModal();
         router.refresh();
         return;
       }
@@ -142,7 +145,7 @@ export function PlanesModal({
   }
 
   function cerrarTrasRecibo() {
-    onCerrar();
+    cerrarModal();
     router.refresh();
   }
 
@@ -153,10 +156,15 @@ export function PlanesModal({
     : 0;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3 backdrop-blur-md sm:p-4"
-      onClick={() => vista !== "recibo" && onCerrar()}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3 backdrop-blur-md sm:p-4">
+      {vista !== "recibo" && (
+        <button
+          type="button"
+          aria-label="Cerrar planes"
+          className="absolute inset-0 cursor-default"
+          onClick={cerrarModal}
+        />
+      )}
       <div
         className="relative my-auto max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 text-[color:var(--color-text-primary)] shadow-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
@@ -164,7 +172,7 @@ export function PlanesModal({
         {vista !== "recibo" && (
           <button
             type="button"
-            onClick={onCerrar}
+            onClick={cerrarModal}
             className="absolute right-4 top-4 rounded-md p-1.5 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-surface-2)] hover:text-[color:var(--color-text-primary)]"
             aria-label="Cerrar"
           >
@@ -203,7 +211,7 @@ export function PlanesModal({
         )}
       </div>
     </div>,
-    document.body,
+    portalTarget,
   );
 }
 

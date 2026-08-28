@@ -69,7 +69,6 @@ export function GuestOnboardingPrompt({
             <input
               value={nombre}
               onChange={(event) => setNombre(event.target.value)}
-              placeholder="Nombre"
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
@@ -77,7 +76,6 @@ export function GuestOnboardingPrompt({
             <input
               value={telefono}
               onChange={(event) => setTelefono(event.target.value)}
-              placeholder="Telefono"
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
@@ -85,7 +83,6 @@ export function GuestOnboardingPrompt({
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email opcional"
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
@@ -101,7 +98,6 @@ export function GuestOnboardingPrompt({
             <input
               value={alergias}
               onChange={(event) => setAlergias(event.target.value)}
-              placeholder="Alergias que debamos conocer"
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>

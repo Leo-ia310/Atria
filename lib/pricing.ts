@@ -269,7 +269,7 @@ export function getPlan(id: string): Plan {
   return PLANES[id as PlanId] ?? PLANES.demo;
 }
 
-export function puedeUsar(plan: Plan, feature: keyof PlanFeatures): boolean {
+function puedeUsar(plan: Plan, feature: keyof PlanFeatures): boolean {
   return plan.features[feature] === true;
 }
 

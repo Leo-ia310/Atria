@@ -3,6 +3,13 @@
 import { Check, Download, Sparkles } from "lucide-react";
 import type { ReciboData } from "@/lib/pagos/recibo";
 
+const FECHA_LARGA_FORMATTER = new Intl.DateTimeFormat("es", {
+  timeZone: "America/Managua",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 function montoUSD(monto: number, moneda: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -12,11 +19,7 @@ function montoUSD(monto: number, moneda: string) {
 }
 
 function fechaLarga(iso: string) {
-  return new Intl.DateTimeFormat("es", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(iso));
+  return FECHA_LARGA_FORMATTER.format(new Date(iso));
 }
 
 export function ReciboExito({

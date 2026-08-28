@@ -16,10 +16,12 @@ export default async function TicketPage({
   params: Promise<{ ventaId: string }>;
   searchParams: Promise<{ print?: string; copies?: string }>;
 }) {
-  const { ventaId } = await params;
-  const { print, copies } = await searchParams;
+  const [{ ventaId }, { print, copies }, user] = await Promise.all([
+    params,
+    searchParams,
+    requireSession(),
+  ]);
   const copias = copies === "2" ? 2 : 1;
-  const user = await requireSession();
   await requireModulo(user, "ventas");
 
   const [venta] = await db
@@ -43,32 +45,32 @@ export default async function TicketPage({
 
   if (!venta) notFound();
 
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, items, pagos] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    db
+      .select({
+        cantidad: ventaDetalle.cantidad,
+        precioUnitario: ventaDetalle.precioUnitario,
+        subtotal: ventaDetalle.subtotal,
+        nombre: productos.nombre,
+        sku: productos.sku,
+      })
+      .from(ventaDetalle)
+      .innerJoin(productos, eq(productos.id, ventaDetalle.productoId))
+      .where(eq(ventaDetalle.ventaId, venta.id)),
+    db
+      .select({
+        monto: pagosVenta.monto,
+        referencia: pagosVenta.referencia,
+        formaPago: formasPago.nombre,
+      })
+      .from(pagosVenta)
+      .innerJoin(formasPago, eq(formasPago.id, pagosVenta.formaPagoId))
+      .where(eq(pagosVenta.ventaId, venta.id)),
+  ]);
 
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const config = getPaisConfig(pais);
-
-  const items = await db
-    .select({
-      cantidad: ventaDetalle.cantidad,
-      precioUnitario: ventaDetalle.precioUnitario,
-      subtotal: ventaDetalle.subtotal,
-      nombre: productos.nombre,
-      sku: productos.sku,
-    })
-    .from(ventaDetalle)
-    .innerJoin(productos, eq(productos.id, ventaDetalle.productoId))
-    .where(eq(ventaDetalle.ventaId, venta.id));
-
-  const pagos = await db
-    .select({
-      monto: pagosVenta.monto,
-      referencia: pagosVenta.referencia,
-      formaPago: formasPago.nombre,
-    })
-    .from(pagosVenta)
-    .innerJoin(formasPago, eq(formasPago.id, pagosVenta.formaPagoId))
-    .where(eq(pagosVenta.ventaId, venta.id));
 
   return (
     <TicketPrint

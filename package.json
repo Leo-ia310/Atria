@@ -11,6 +11,7 @@
     "test:marketing": "node --import tsx --test tests/marketing/*.test.ts",
     "test:restaurante": "node --import tsx --test tests/restaurante/*.test.ts",
     "test:e2e:restaurante": "node --env-file=.env --test tests/e2e/restaurante.e2e.test.mjs",
+    "test:k6": "k6 run tests/k6/arca-stress.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -19,22 +20,20 @@
     "db:seed": "tsx lib/db/seed.ts",
     "db:seed:nicaris-restaurante": "node --env-file=.env scripts/seed-nicaris-restaurante.mjs",
     "db:rls": "tsx lib/db/apply-policies.ts",
-    "referrals:backfill": "node scripts/backfill-referrals.mjs"
+    "referrals:backfill": "node scripts/backfill-referrals.mjs",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@tanstack/react-query": "^5.59.0",
-    "@tanstack/react-table": "^8.20.5",
     "@types/qrcode": "^1.5.6",
     "@upstash/redis": "^1.38.2",
     "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^2.4.3",
-    "date-fns": "^4.1.0",
     "drizzle-orm": "^0.36.0",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.452.0",
     "next": "15.5.22",
-    "next-auth": "5.0.0-beta.25",
+    "next-auth": "^5.0.0-beta.32",
     "postgres": "^3.4.5",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
@@ -43,8 +42,7 @@
     "read-excel-file": "^9.3.5",
     "recharts": "^2.13.0",
     "resend": "^4.0.0",
-    "zod": "^3.23.8",
-    "zustand": "^5.0.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0-beta.1",
@@ -55,6 +53,7 @@
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.28.0",
     "postcss": "^8.4.47",
+    "react-doctor": "^0.9.12",
     "tailwindcss": "^4.0.0-beta.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2"

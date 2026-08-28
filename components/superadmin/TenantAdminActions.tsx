@@ -99,10 +99,10 @@ function ActivarForm({ tenant }: { tenant: TenantInfo }) {
           </Field>
         </div>
         <Field label="Referencia de transferencia">
-          <input name="referencia" className={INPUT_CLASS} placeholder="Banco, comprobante o nota corta" />
+          <input name="referencia" className={INPUT_CLASS} />
         </Field>
         <Field label="Notas internas">
-          <textarea name="notas" className={cn(INPUT_CLASS, "min-h-16")} placeholder="Opcional" />
+          <textarea name="notas" className={cn(INPUT_CLASS, "min-h-16")} />
         </Field>
         <TripleConfirm tenant={tenant} accion="ACTIVAR" codigo={codigo} />
         <Submit pending={pending} label="Activar membresia" tone="success" />
@@ -121,7 +121,7 @@ function SuspenderForm({ tenant }: { tenant: TenantInfo }) {
       <form action={action} className="space-y-3">
         <input type="hidden" name="empresaId" value={tenant.id} />
         <Field label="Motivo">
-          <textarea name="motivo" className={cn(INPUT_CLASS, "min-h-16")} placeholder="Ej. pago pendiente, fraude, solicitud del cliente" />
+          <textarea name="motivo" className={cn(INPUT_CLASS, "min-h-16")} />
         </Field>
         <TripleConfirm tenant={tenant} accion="SUSPENDER" codigo={codigo} />
         <Submit pending={pending} label="Suspender negocio" tone="warning" />
@@ -147,7 +147,7 @@ function BorrarForm({ tenant }: { tenant: TenantInfo }) {
       <form action={action} className="space-y-3">
         <input type="hidden" name="empresaId" value={tenant.id} />
         <Field label="Motivo">
-          <textarea name="motivo" className={cn(INPUT_CLASS, "min-h-16")} placeholder="Motivo interno obligatorio antes de operar en produccion" />
+          <textarea name="motivo" className={cn(INPUT_CLASS, "min-h-16")} />
         </Field>
         <TripleConfirm tenant={tenant} accion="BORRAR" codigo={codigo} />
         <Submit pending={pending} label="Borrar datos" tone="danger" />

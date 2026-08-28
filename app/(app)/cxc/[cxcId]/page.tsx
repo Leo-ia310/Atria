@@ -144,7 +144,7 @@ export default async function CxCDetallePage({
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-2)]">
                 <div
-                  className="h-full rounded-full bg-[color:var(--color-success)] transition-all"
+                  className="h-full rounded-full bg-[color:var(--color-success)] transition-[width]"
                   style={{ width: `${Math.min(pctPagado, 100)}%` }}
                 />
               </div>

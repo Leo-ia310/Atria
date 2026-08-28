@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LogOut, Menu, Search } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { NotificacionesBell, type Notificacion } from "./NotificacionesBell";
 import { CommandPalette } from "./CommandPalette";
 import { SucursalScopeSelector } from "./SucursalScopeSelector";
@@ -17,9 +18,11 @@ export type SucursalScopeHeader = {
   etiqueta: string;
 };
 
+const NOTIFICACIONES_VACIAS: Notificacion[] = [];
+
 export function Header({
   breadcrumb,
-  notificaciones = [],
+  notificaciones = NOTIFICACIONES_VACIAS,
   commandItems,
   sucursalScope,
   onAbrirMenu,
@@ -30,7 +33,9 @@ export function Header({
   sucursalScope?: SucursalScopeHeader;
   onAbrirMenu?: () => void;
 }) {
+  const router = useRouter();
   const [paleta, setPaleta] = useState(false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -42,6 +47,17 @@ export function Header({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  async function cerrarSesion() {
+    if (cerrandoSesion) return;
+    setCerrandoSesion(true);
+    try {
+      await signOut({ redirect: false, redirectTo: "/login?salida=1" });
+    } finally {
+      router.replace("/login?salida=1");
+      router.refresh();
+    }
+  }
 
   return (
     <header
@@ -61,7 +77,7 @@ export function Header({
 
         <nav className="flex min-w-0 items-center gap-2 text-small">
           {breadcrumb.map((b, i) => (
-            <span key={i} className="flex min-w-0 items-center gap-2">
+            <span key={`${b.href ?? b.label}:${b.label}`} className="flex min-w-0 items-center gap-2">
               {i > 0 && (
                 <span className="text-[color:var(--color-text-muted)]">/</span>
               )}
@@ -97,7 +113,8 @@ export function Header({
         <ThemeToggle />
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={cerrarSesion}
+          disabled={cerrandoSesion}
           className="arca-btn arca-btn-ghost p-2 md:px-3"
           aria-label="Salir"
           title="Salir"
@@ -107,11 +124,13 @@ export function Header({
         </button>
       </div>
 
-      <CommandPalette
-        abierto={paleta}
-        onCerrar={() => setPaleta(false)}
-        items={commandItems}
-      />
+      {paleta && (
+        <CommandPalette
+          abierto={paleta}
+          onCerrar={() => setPaleta(false)}
+          items={commandItems}
+        />
+      )}
     </header>
   );
 }

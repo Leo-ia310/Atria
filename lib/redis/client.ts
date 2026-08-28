@@ -53,6 +53,6 @@ export function getRedis(): Redis | null {
 }
 
 /** `true` solo si hay credenciales presentes. Útil para gating condicional. */
-export function redisDisponible(): boolean {
+function redisDisponible(): boolean {
   return credenciales() !== null;
 }

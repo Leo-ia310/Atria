@@ -15,8 +15,7 @@ export default async function EditarEmpleadoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const user = await requireSession();
+  const [{ id }, user] = await Promise.all([params, requireSession()]);
 
   const [emp] = await db
     .select()

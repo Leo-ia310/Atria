@@ -1,0 +1,510 @@
+﻿{
+  "phases": [
+    {
+      "phase": "rps_3",
+      "target_iter_s": 3,
+      "scheduled_iterations": 135,
+      "completed_main_requests": 136,
+      "dropped_iterations": 0,
+      "inferred_interrupted_iterations": 0,
+      "http_requests": 248,
+      "http_req_s_completed": 5.51,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p50_ms": 19.8,
+      "p95_ms": 2959.46,
+      "p99_ms": 4607.09,
+      "max_ms": 5061.24
+    },
+    {
+      "phase": "rps_4",
+      "target_iter_s": 4,
+      "scheduled_iterations": 180,
+      "completed_main_requests": 170,
+      "dropped_iterations": 6,
+      "inferred_interrupted_iterations": 4,
+      "http_requests": 242,
+      "http_req_s_completed": 5.38,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p50_ms": 32.11,
+      "p95_ms": 12775.34,
+      "p99_ms": 13947.33,
+      "max_ms": 14291.68
+    },
+    {
+      "phase": "rps_5",
+      "target_iter_s": 5,
+      "scheduled_iterations": 225,
+      "completed_main_requests": 201,
+      "dropped_iterations": 11,
+      "inferred_interrupted_iterations": 13,
+      "http_requests": 273,
+      "http_req_s_completed": 6.07,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p50_ms": 24.72,
+      "p95_ms": 14638.01,
+      "p99_ms": 17217.61,
+      "max_ms": 17848.67
+    },
+    {
+      "phase": "rps_6",
+      "target_iter_s": 6,
+      "scheduled_iterations": 270,
+      "completed_main_requests": 185,
+      "dropped_iterations": 45,
+      "inferred_interrupted_iterations": 40,
+      "http_requests": 313,
+      "http_req_s_completed": 6.96,
+      "http_fail_rate_pct": 5.75,
+      "checks_ok_pct": 90.27,
+      "p50_ms": 26,
+      "p95_ms": 29999.75,
+      "p99_ms": 30001.89,
+      "max_ms": 30125.55
+    }
+  ],
+  "routes": [
+    {
+      "phase": "rps_3",
+      "route": "menu_nicaris_carta",
+      "http_requests": 17,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 5061.24,
+      "p99_ms": 5061.24,
+      "max_ms": 5061.24
+    },
+    {
+      "phase": "rps_3",
+      "route": "menu_nicaris_desayunos",
+      "http_requests": 11,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 4726.34,
+      "p99_ms": 4726.34,
+      "max_ms": 4726.34
+    },
+    {
+      "phase": "rps_3",
+      "route": "menu_tiptop",
+      "http_requests": 20,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 3158.8,
+      "p99_ms": 3482.43,
+      "max_ms": 3482.43
+    },
+    {
+      "phase": "rps_3",
+      "route": "menu_nicaris_bebidas",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 2985.69,
+      "p99_ms": 2985.69,
+      "max_ms": 2985.69
+    },
+    {
+      "phase": "rps_3",
+      "route": "register_page",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 74.96,
+      "p99_ms": 74.96,
+      "max_ms": 74.96
+    },
+    {
+      "phase": "rps_3",
+      "route": "pricing",
+      "http_requests": 14,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 63,
+      "p99_ms": 63,
+      "max_ms": 63
+    },
+    {
+      "phase": "rps_3",
+      "route": "landing",
+      "http_requests": 30,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 34,
+      "p99_ms": 37,
+      "max_ms": 37
+    },
+    {
+      "phase": "rps_3",
+      "route": "auth_csrf",
+      "http_requests": 7,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 29.72,
+      "p99_ms": 29.72,
+      "max_ms": 29.72
+    },
+    {
+      "phase": "rps_3",
+      "route": "protected_redirect",
+      "http_requests": 6,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 23.98,
+      "p99_ms": 23.98,
+      "max_ms": 23.98
+    },
+    {
+      "phase": "rps_3",
+      "route": "login_page",
+      "http_requests": 7,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 19.49,
+      "p99_ms": 19.49,
+      "max_ms": 19.49
+    },
+    {
+      "phase": "rps_3",
+      "route": "legal_privacy",
+      "http_requests": 4,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 18.44,
+      "p99_ms": 18.44,
+      "max_ms": 18.44
+    },
+    {
+      "phase": "rps_4",
+      "route": "menu_nicaris_bebidas",
+      "http_requests": 17,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 14291.68,
+      "p99_ms": 14291.68,
+      "max_ms": 14291.68
+    },
+    {
+      "phase": "rps_4",
+      "route": "menu_nicaris_desayunos",
+      "http_requests": 11,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 13947.33,
+      "p99_ms": 13947.33,
+      "max_ms": 13947.33
+    },
+    {
+      "phase": "rps_4",
+      "route": "menu_nicaris_carta",
+      "http_requests": 19,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 13432.77,
+      "p99_ms": 13432.77,
+      "max_ms": 13432.77
+    },
+    {
+      "phase": "rps_4",
+      "route": "menu_tiptop",
+      "http_requests": 20,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 9574.39,
+      "p99_ms": 9640.24,
+      "max_ms": 9640.24
+    },
+    {
+      "phase": "rps_4",
+      "route": "register_page",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 622.47,
+      "p99_ms": 622.47,
+      "max_ms": 622.47
+    },
+    {
+      "phase": "rps_4",
+      "route": "landing",
+      "http_requests": 34,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 537.56,
+      "p99_ms": 956.52,
+      "max_ms": 956.52
+    },
+    {
+      "phase": "rps_4",
+      "route": "protected_redirect",
+      "http_requests": 13,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 198.18,
+      "p99_ms": 198.18,
+      "max_ms": 198.18
+    },
+    {
+      "phase": "rps_4",
+      "route": "auth_csrf",
+      "http_requests": 7,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 83.17,
+      "p99_ms": 83.17,
+      "max_ms": 83.17
+    },
+    {
+      "phase": "rps_4",
+      "route": "legal_privacy",
+      "http_requests": 5,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 68,
+      "p99_ms": 68,
+      "max_ms": 68
+    },
+    {
+      "phase": "rps_4",
+      "route": "pricing",
+      "http_requests": 23,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 56.01,
+      "p99_ms": 130.29,
+      "max_ms": 130.29
+    },
+    {
+      "phase": "rps_4",
+      "route": "login_page",
+      "http_requests": 11,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 40.82,
+      "p99_ms": 40.82,
+      "max_ms": 40.82
+    },
+    {
+      "phase": "rps_5",
+      "route": "menu_nicaris_bebidas",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 17534.85,
+      "p99_ms": 17534.85,
+      "max_ms": 17534.85
+    },
+    {
+      "phase": "rps_5",
+      "route": "menu_nicaris_carta",
+      "http_requests": 21,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 17217.61,
+      "p99_ms": 17848.67,
+      "max_ms": 17848.67
+    },
+    {
+      "phase": "rps_5",
+      "route": "menu_nicaris_desayunos",
+      "http_requests": 12,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 17052.93,
+      "p99_ms": 17052.93,
+      "max_ms": 17052.93
+    },
+    {
+      "phase": "rps_5",
+      "route": "menu_tiptop",
+      "http_requests": 31,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 11875.16,
+      "p99_ms": 12143.08,
+      "max_ms": 12143.08
+    },
+    {
+      "phase": "rps_5",
+      "route": "auth_csrf",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 184.29,
+      "p99_ms": 184.29,
+      "max_ms": 184.29
+    },
+    {
+      "phase": "rps_5",
+      "route": "login_page",
+      "http_requests": 18,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 153.99,
+      "p99_ms": 153.99,
+      "max_ms": 153.99
+    },
+    {
+      "phase": "rps_5",
+      "route": "landing",
+      "http_requests": 47,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 92.29,
+      "p99_ms": 191.76,
+      "max_ms": 191.76
+    },
+    {
+      "phase": "rps_5",
+      "route": "legal_privacy",
+      "http_requests": 6,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 46.55,
+      "p99_ms": 46.55,
+      "max_ms": 46.55
+    },
+    {
+      "phase": "rps_5",
+      "route": "pricing",
+      "http_requests": 23,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 38,
+      "p99_ms": 43.72,
+      "max_ms": 43.72
+    },
+    {
+      "phase": "rps_5",
+      "route": "protected_redirect",
+      "http_requests": 9,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 37.42,
+      "p99_ms": 37.42,
+      "max_ms": 37.42
+    },
+    {
+      "phase": "rps_5",
+      "route": "register_page",
+      "http_requests": 14,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 34.09,
+      "p99_ms": 34.09,
+      "max_ms": 34.09
+    },
+    {
+      "phase": "rps_6",
+      "route": "menu_nicaris_bebidas",
+      "http_requests": 9,
+      "http_fail_rate_pct": 33.33,
+      "checks_ok_pct": 66.67,
+      "p95_ms": 30125.55,
+      "p99_ms": 30125.55,
+      "max_ms": 30125.55
+    },
+    {
+      "phase": "rps_6",
+      "route": "menu_nicaris_desayunos",
+      "http_requests": 16,
+      "http_fail_rate_pct": 37.5,
+      "checks_ok_pct": 62.5,
+      "p95_ms": 30003.83,
+      "p99_ms": 30003.83,
+      "max_ms": 30003.83
+    },
+    {
+      "phase": "rps_6",
+      "route": "menu_nicaris_carta",
+      "http_requests": 22,
+      "http_fail_rate_pct": 40.91,
+      "checks_ok_pct": 59.09,
+      "p95_ms": 30001.17,
+      "p99_ms": 30001.89,
+      "max_ms": 30001.89
+    },
+    {
+      "phase": "rps_6",
+      "route": "menu_tiptop",
+      "http_requests": 13,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 24730.47,
+      "p99_ms": 24730.47,
+      "max_ms": 24730.47
+    },
+    {
+      "phase": "rps_6",
+      "route": "login_page",
+      "http_requests": 14,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 698.1,
+      "p99_ms": 698.1,
+      "max_ms": 698.1
+    },
+    {
+      "phase": "rps_6",
+      "route": "auth_csrf",
+      "http_requests": 10,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 352.25,
+      "p99_ms": 352.25,
+      "max_ms": 352.25
+    },
+    {
+      "phase": "rps_6",
+      "route": "pricing",
+      "http_requests": 32,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 350.9,
+      "p99_ms": 378.38,
+      "max_ms": 378.38
+    },
+    {
+      "phase": "rps_6",
+      "route": "landing",
+      "http_requests": 43,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 154.79,
+      "p99_ms": 516.66,
+      "max_ms": 516.66
+    },
+    {
+      "phase": "rps_6",
+      "route": "legal_privacy",
+      "http_requests": 7,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 52,
+      "p99_ms": 52,
+      "max_ms": 52
+    },
+    {
+      "phase": "rps_6",
+      "route": "register_page",
+      "http_requests": 11,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 43.41,
+      "p99_ms": 43.41,
+      "max_ms": 43.41
+    },
+    {
+      "phase": "rps_6",
+      "route": "protected_redirect",
+      "http_requests": 8,
+      "http_fail_rate_pct": 0,
+      "checks_ok_pct": 100,
+      "p95_ms": 24.18,
+      "p99_ms": 24.18,
+      "max_ms": 24.18
+    }
+  ]
+}

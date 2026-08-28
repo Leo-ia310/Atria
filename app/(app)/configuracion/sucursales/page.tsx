@@ -20,19 +20,21 @@ type Fila = {
 
 export default async function SucursalesPage() {
   const user = await requireSession();
-  const access = await getAccessContext(user);
 
-  const filas: Fila[] = await db
-    .select({
-      id: sucursales.id,
-      codigo: sucursales.codigo,
-      nombre: sucursales.nombre,
-      direccion: sucursales.direccion,
-      esPrincipal: sucursales.esPrincipal,
-      activa: sucursales.activa,
-    })
-    .from(sucursales)
-    .where(and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn)));
+  const [access, filas] = await Promise.all([
+    getAccessContext(user),
+    db
+      .select({
+        id: sucursales.id,
+        codigo: sucursales.codigo,
+        nombre: sucursales.nombre,
+        direccion: sucursales.direccion,
+        esPrincipal: sucursales.esPrincipal,
+        activa: sucursales.activa,
+      })
+      .from(sucursales)
+      .where(and(eq(sucursales.empresaId, user.empresaId), isNull(sucursales.eliminadoEn))),
+  ]);
 
   const activas = filas.filter((fila) => fila.activa).length;
   const limite =

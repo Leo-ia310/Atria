@@ -84,8 +84,18 @@ export async function notificarVentaReferida(input: {
         },
       }),
     });
+    if (!res.ok) {
+      const json = await res.json().catch(() => null);
+      console.warn("[referidos] Vendedores ATRIA rechazo la venta referida.", json);
+      return {
+        ok: false,
+        code: json?.code || String(res.status),
+        error: json?.error || res.statusText || "Vendedores ATRIA rechazo la venta referida.",
+      };
+    }
+
     const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.ok) {
+    if (!json?.ok) {
       console.warn("[referidos] Vendedores ATRIA rechazo la venta referida.", json);
       return {
         ok: false,

@@ -7,6 +7,15 @@ import { formatearFecha } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+const CLASES_ESTADO: Record<string, string> = {
+  activo: "bg-green-500/20 text-green-300",
+  trial: "bg-yellow-500/20 text-yellow-300",
+  bloqueado: "bg-red-500/20 text-red-300",
+  suspendido: "bg-orange-500/20 text-orange-300",
+  cancelado: "bg-white/10 text-white/50",
+  sin_plan: "bg-white/10 text-white/50",
+};
+
 export default async function TenantsPage() {
   const filas = await obtenerClientesSuperAdmin();
   const activos = filas.filter((f) => f.operativo === "activo").length;
@@ -107,16 +116,8 @@ export default async function TenantsPage() {
 }
 
 function EstadoBadge({ estado }: { estado: string }) {
-  const clases: Record<string, string> = {
-    activo: "bg-green-500/20 text-green-300",
-    trial: "bg-yellow-500/20 text-yellow-300",
-    bloqueado: "bg-red-500/20 text-red-300",
-    suspendido: "bg-orange-500/20 text-orange-300",
-    cancelado: "bg-white/10 text-white/50",
-    sin_plan: "bg-white/10 text-white/50",
-  };
   return (
-    <span className={`rounded px-2 py-1 text-[10px] uppercase tracking-wider ${clases[estado] ?? clases.sin_plan}`}>
+    <span className={`rounded px-2 py-1 text-[10px] uppercase tracking-wider ${CLASES_ESTADO[estado] ?? CLASES_ESTADO.sin_plan}`}>
       {estado.replace("_", " ")}
     </span>
   );

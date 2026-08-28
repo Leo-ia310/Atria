@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 import { CheckCircle2, XCircle, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +26,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((t) => t.filter((x) => x.id !== id));
     }, 4000);
   }, []);
+  const value = useMemo(() => ({ mostrar }), [mostrar]);
 
   return (
-    <ToastContext.Provider value={{ mostrar }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="fixed inset-x-3 bottom-3 z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4">
         {toasts.map((t) => (
@@ -82,7 +83,9 @@ function ToastItem({
       />
       <p className="flex-1 text-small text-[color:var(--color-text-primary)]">{mensaje}</p>
       <button
+        type="button"
         onClick={onCerrar}
+        aria-label="Cerrar notificacion"
         className="flex-shrink-0 rounded p-0.5 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-surface-2)]"
       >
         <X size={14} />

@@ -51,7 +51,7 @@ export function NuevaCompraForm({
   const [proveedorId, setProveedorId] = useState(proveedores[0]?.value ?? "");
   const [almacenId, setAlmacenId] = useState(almacenes[0]?.value ?? "");
   const [numeroFactura, setNumeroFactura] = useState("");
-  const [fecha, setFecha] = useState(fechaISOEnZona());
+  const [fecha, setFecha] = useState(() => fechaISOEnZona());
   const [esCredito, setEsCredito] = useState(false);
   const [diasCredito, setDiasCredito] = useState(proveedores[0]?.diasCredito ?? 0);
   const [cuentaFinId, setCuentaFinId] = useState(cuentasFinancieras[0]?.id ?? "");
@@ -291,85 +291,14 @@ export function NuevaCompraForm({
               Aún no hay productos. Busca arriba para agregar.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-small">
-                <thead className="border-b border-[color:var(--color-border)]">
-                  <tr className="text-label">
-                    <th className="px-2 py-2 text-left">Producto</th>
-                    <th className="px-2 py-2 text-right">Cant.</th>
-                    <th className="px-2 py-2 text-right">Costo</th>
-                    <th className="px-2 py-2 text-right">Impuesto</th>
-                    <th className="px-2 py-2 text-right">Subtotal</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineas.map((l) => {
-                    const p = productos.find((pp) => pp.id === l.productoId);
-                    return (
-                      <tr key={l.id} className="border-b border-[color:var(--color-border)]">
-                        <td className="px-2 py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium">{p?.nombre}</div>
-                              <div className="text-[11px] text-[color:var(--color-text-muted)]">{p?.sku}</div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => iniciarReemplazo(l.id)}
-                              className="rounded p-1.5 text-[color:var(--color-secondary)] hover:bg-[color:var(--color-surface-2)]"
-                              title="Cambiar producto"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-2 py-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={l.cantidad}
-                            onChange={(e) =>
-                              actualizarLinea(l.id, { cantidad: parseFloat(e.target.value) || 0 })
-                            }
-                            className="arca-input w-20 text-right"
-                          />
-                        </td>
-                        <td className="px-2 py-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={l.costoUnitario}
-                            onChange={(e) =>
-                              actualizarLinea(l.id, {
-                                costoUnitario: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="arca-input w-28 text-right"
-                          />
-                        </td>
-                        <td className="px-2 py-2 text-right text-[color:var(--color-text-muted)]">
-                          {formatearMoneda(l.impuesto, pais)}
-                        </td>
-                        <td className="px-2 py-2 text-right font-medium">
-                          {formatearMoneda(l.cantidad * l.costoUnitario, pais)}
-                        </td>
-                        <td className="px-2 py-2">
-                          <button
-                            type="button"
-                            onClick={() => quitarLinea(l.id)}
-                            className="rounded p-1 text-[color:var(--color-error)] hover:bg-[color:var(--color-error-bg)]"
-                            title="Quitar producto"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <LineasCompraTable
+              lineas={lineas}
+              productos={productos}
+              pais={pais}
+              onReemplazar={iniciarReemplazo}
+              onActualizar={actualizarLinea}
+              onQuitar={quitarLinea}
+            />
           )}
         </CardBody>
       </Card>
@@ -397,6 +326,113 @@ export function NuevaCompraForm({
           <Plus size={14} /> Registrar compra
         </Button>
       </div>
+    </div>
+  );
+}
+
+function LineasCompraTable({
+  lineas,
+  productos,
+  pais,
+  onReemplazar,
+  onActualizar,
+  onQuitar,
+}: {
+  lineas: Linea[];
+  productos: ProductoOpcion[];
+  pais: PaisCodigo;
+  onReemplazar: (lineaId: string) => void;
+  onActualizar: (id: string, cambios: Partial<Linea>) => void;
+  onQuitar: (id: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-small">
+        <thead className="border-b border-[color:var(--color-border)]">
+          <tr className="text-label">
+            <th className="px-2 py-2 text-left">Producto</th>
+            <th className="px-2 py-2 text-right">Cant.</th>
+            <th className="px-2 py-2 text-right">Costo</th>
+            <th className="px-2 py-2 text-right">Impuesto</th>
+            <th className="px-2 py-2 text-right">Subtotal</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {lineas.map((linea) => {
+            const producto = productos.find((item) => item.id === linea.productoId);
+            const productoNombre = producto?.nombre ?? "producto";
+            return (
+              <tr key={linea.id} className="border-b border-[color:var(--color-border)]">
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{producto?.nombre}</div>
+                      <div className="text-[11px] text-[color:var(--color-text-muted)]">
+                        {producto?.sku}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onReemplazar(linea.id)}
+                      aria-label={`Cambiar producto ${productoNombre}`}
+                      className="rounded p-1.5 text-[color:var(--color-secondary)] hover:bg-[color:var(--color-surface-2)]"
+                      title="Cambiar producto"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  </div>
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    aria-label={`Cantidad de ${productoNombre}`}
+                    value={linea.cantidad}
+                    onChange={(event) =>
+                      onActualizar(linea.id, {
+                        cantidad: parseFloat(event.target.value) || 0,
+                      })
+                    }
+                    className="arca-input w-20 text-right"
+                  />
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    aria-label={`Costo unitario de ${productoNombre}`}
+                    value={linea.costoUnitario}
+                    onChange={(event) =>
+                      onActualizar(linea.id, {
+                        costoUnitario: parseFloat(event.target.value) || 0,
+                      })
+                    }
+                    className="arca-input w-28 text-right"
+                  />
+                </td>
+                <td className="px-2 py-2 text-right text-[color:var(--color-text-muted)]">
+                  {formatearMoneda(linea.impuesto, pais)}
+                </td>
+                <td className="px-2 py-2 text-right font-medium">
+                  {formatearMoneda(linea.cantidad * linea.costoUnitario, pais)}
+                </td>
+                <td className="px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onQuitar(linea.id)}
+                    aria-label={`Quitar producto ${productoNombre}`}
+                    className="rounded p-1 text-[color:var(--color-error)] hover:bg-[color:var(--color-error-bg)]"
+                    title="Quitar producto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

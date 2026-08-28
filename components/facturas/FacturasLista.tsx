@@ -71,6 +71,16 @@ export async function FacturasLista({
   modo: ModoFacturas;
   searchParams: FacturasSearchParams;
 }) {
+  return facturasLista({ modo, searchParams });
+}
+
+async function facturasLista({
+  modo,
+  searchParams,
+}: {
+  modo: ModoFacturas;
+  searchParams: FacturasSearchParams;
+}) {
   const user = await requireSession();
   const configVista = CONFIG[modo];
   const esCredito = modo === "credito";
@@ -209,8 +219,9 @@ export async function FacturasLista({
         <CardBody>
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div>
-              <label className="text-label mb-1.5 block">Factura</label>
+              <label htmlFor="facturas-numero" className="text-label mb-1.5 block">Factura</label>
               <input
+                id="facturas-numero"
                 type="text"
                 name="numero"
                 defaultValue={searchParams.numero ?? ""}
@@ -219,8 +230,9 @@ export async function FacturasLista({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Desde</label>
+              <label htmlFor="facturas-desde" className="text-label mb-1.5 block">Desde</label>
               <input
+                id="facturas-desde"
                 type="date"
                 name="desde"
                 defaultValue={searchParams.desde ?? ""}
@@ -228,8 +240,9 @@ export async function FacturasLista({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Hasta</label>
+              <label htmlFor="facturas-hasta" className="text-label mb-1.5 block">Hasta</label>
               <input
+                id="facturas-hasta"
                 type="date"
                 name="hasta"
                 defaultValue={searchParams.hasta ?? ""}
@@ -237,8 +250,9 @@ export async function FacturasLista({
               />
             </div>
             <div>
-              <label className="text-label mb-1.5 block">Vendedor</label>
+              <label htmlFor="facturas-vendedor" className="text-label mb-1.5 block">Vendedor</label>
               <select
+                id="facturas-vendedor"
                 name="vendedor"
                 defaultValue={searchParams.vendedor ?? ""}
                 className="arca-input w-48"
@@ -253,8 +267,9 @@ export async function FacturasLista({
             </div>
             {!esCredito && (
               <div>
-                <label className="text-label mb-1.5 block">Forma de pago</label>
+                <label htmlFor="facturas-forma" className="text-label mb-1.5 block">Forma de pago</label>
                 <input
+                  id="facturas-forma"
                   type="text"
                   name="forma"
                   defaultValue={searchParams.forma ?? ""}

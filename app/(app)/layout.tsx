@@ -20,6 +20,9 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { getLayoutNotificationCounts } from "@/lib/layout-notifications";
 
+const MODULOS_PERMITIDOS_BLOQUEO: ModuloAcceso[] = ["dashboard", "mi-cuenta"];
+const NOTIFICACIONES_BLOQUEO: Notificacion[] = [];
+
 export default async function AppLayout({
   children,
 }: {
@@ -44,7 +47,6 @@ export default async function AppLayout({
     access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante";
 
   if (access.suscripcionBloqueada) {
-    const permitidosBloqueo: ModuloAcceso[] = ["dashboard", "mi-cuenta"];
     return (
       <SessionProvider>
         <ToastProvider>
@@ -57,9 +59,9 @@ export default async function AppLayout({
             suscripcionBloqueada={access.suscripcionBloqueada}
             esDemo={esDemo}
             nombreUsuario={user.nombre}
-            modulosPermitidos={permitidosBloqueo}
-            notificaciones={[]}
-            commandItems={filtrarCommandItems(permitidosBloqueo)}
+            modulosPermitidos={MODULOS_PERMITIDOS_BLOQUEO}
+            notificaciones={NOTIFICACIONES_BLOQUEO}
+            commandItems={filtrarCommandItems(MODULOS_PERMITIDOS_BLOQUEO)}
           >
             <BillingBlockedScreen
               planNombre={planNombre}

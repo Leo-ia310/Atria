@@ -169,7 +169,8 @@ export function tienePermiso(
 ): boolean {
   if (access.esAdminEmpresa) return true;
   const requeridos = Array.isArray(permisos) ? permisos : [permisos];
-  return requeridos.some((permiso) => access.permisos.includes(permiso));
+  const permisosActuales = new Set(access.permisos);
+  return requeridos.some((permiso) => permisosActuales.has(permiso));
 }
 
 export function puedeAccederModulo(

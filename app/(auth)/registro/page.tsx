@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -45,6 +45,24 @@ type EstadoAdmin = {
 type EstadoPlan = {
   planId: "demo" | "pro" | "enterprise";
   ciclo: "mensual" | "anual";
+};
+
+type RegistroViewProps = {
+  paso: Paso;
+  setPaso: Dispatch<SetStateAction<Paso>>;
+  empresa: EstadoEmpresa;
+  setEmpresa: Dispatch<SetStateAction<EstadoEmpresa>>;
+  paisConfig: ReturnType<typeof getPaisConfig>;
+  actualizarPais: (pais: PaisCodigo) => void;
+  admin: EstadoAdmin;
+  setAdmin: Dispatch<SetStateAction<EstadoAdmin>>;
+  plan: EstadoPlan;
+  setPlan: Dispatch<SetStateAction<EstadoPlan>>;
+  aceptaTerminos: boolean;
+  setAceptaTerminos: Dispatch<SetStateAction<boolean>>;
+  errorGlobal: string | null;
+  enviando: boolean;
+  enviar: () => Promise<void>;
 };
 
 const PASOS = [
@@ -129,6 +147,42 @@ export default function RegistroPage() {
     router.refresh();
   }
 
+  return registroView({
+    paso,
+    setPaso,
+    empresa,
+    setEmpresa,
+    paisConfig,
+    actualizarPais,
+    admin,
+    setAdmin,
+    plan,
+    setPlan,
+    aceptaTerminos,
+    setAceptaTerminos,
+    errorGlobal,
+    enviando,
+    enviar,
+  });
+}
+
+function registroView({
+  paso,
+  setPaso,
+  empresa,
+  setEmpresa,
+  paisConfig,
+  actualizarPais,
+  admin,
+  setAdmin,
+  plan,
+  setPlan,
+  aceptaTerminos,
+  setAceptaTerminos,
+  errorGlobal,
+  enviando,
+  enviar,
+}: RegistroViewProps) {
   return (
     <div className="w-full max-w-[540px]">
       <div className="arca-card p-8">

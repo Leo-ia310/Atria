@@ -225,12 +225,14 @@ export async function actualizarProducto(
 
   try {
     const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
-      const sku = await resolverSkuProducto(tx, user.empresaId, datos);
-      const existente = await tx
-        .select({ id: productos.id })
-        .from(productos)
-        .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)))
-        .limit(1);
+      const [sku, existente] = await Promise.all([
+        resolverSkuProducto(tx, user.empresaId, datos),
+        tx
+          .select({ id: productos.id })
+          .from(productos)
+          .where(and(eq(productos.id, id), eq(productos.empresaId, user.empresaId)))
+          .limit(1),
+      ]);
       if (existente.length === 0) return "no-existe" as const;
       const skuDuplicado = await tx
         .select({ id: productos.id })
@@ -699,7 +701,7 @@ export async function crearCategoria(
   }
 }
 
-export async function eliminarProducto(id: string): Promise<Resultado> {
+async function eliminarProducto(id: string): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "inventario",

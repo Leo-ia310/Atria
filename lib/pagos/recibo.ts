@@ -15,6 +15,14 @@ export type ReciboData = {
   vigenteHastaISO: string;
 };
 
+const NumberFormatCtor = Intl.NumberFormat;
+const MONTO_FORMATTERS = new Map<string, Intl.NumberFormat>();
+const FECHA_LARGA_FORMATTER = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 export function generarNumeroRecibo(fecha: Date = new Date()): string {
   const y = fecha.getUTCFullYear();
   const m = String(fecha.getUTCMonth() + 1).padStart(2, "0");
@@ -24,18 +32,19 @@ export function generarNumeroRecibo(fecha: Date = new Date()): string {
 }
 
 export function formatearMontoUSD(monto: number, moneda = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: moneda,
-    minimumFractionDigits: 2,
-  }).format(monto);
+  let formatter = MONTO_FORMATTERS.get(moneda);
+  if (!formatter) {
+    formatter = new NumberFormatCtor("en-US", {
+      style: "currency",
+      currency: moneda,
+      minimumFractionDigits: 2,
+    });
+    MONTO_FORMATTERS.set(moneda, formatter);
+  }
+  return formatter.format(monto);
 }
 
 export function formatearFechaLarga(iso: string): string {
   const fecha = new Date(iso);
-  return new Intl.DateTimeFormat("es", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(fecha);
+  return FECHA_LARGA_FORMATTER.format(fecha);
 }

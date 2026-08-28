@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -35,6 +35,29 @@ import type { PlanId } from "@/lib/pricing";
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
 const STORAGE_KEY = "arca:restaurante-sidebar-colapsado";
+const STORAGE_EVENT = "arca:restaurante-sidebar-colapsado-change";
+
+function getSidebarColapsadoSnapshot() {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(STORAGE_KEY) === "1";
+}
+
+function subscribeSidebarColapsado(onStoreChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(STORAGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(STORAGE_EVENT, onStoreChange);
+  };
+}
+
+function setSidebarColapsadoStorage(value: boolean) {
+  localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+  window.dispatchEvent(new Event(STORAGE_EVENT));
+}
 
 type NavItem = {
   href: string;
@@ -210,7 +233,11 @@ export function RestauranteShell({
 }) {
   const pathname = usePathname();
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
-  const [colapsado, setColapsado] = useState(false);
+  const colapsado = useSyncExternalStore(
+    subscribeSidebarColapsado,
+    getSidebarColapsadoSnapshot,
+    () => false,
+  );
   const [esMovil, setEsMovil] = useState(false);
   const [planesAbierto, setPlanesAbierto] = useState(false);
   const colapsadoVisual = !esMovil && colapsado;
@@ -222,10 +249,6 @@ export function RestauranteShell({
   const commandItems = COMMAND_ITEMS_RESTAURANTE.filter((item) =>
     permitidos.has(item.modulo),
   );
-
-  useEffect(() => {
-    setColapsado(localStorage.getItem(STORAGE_KEY) === "1");
-  }, []);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
@@ -256,11 +279,8 @@ export function RestauranteShell({
   }, [pathname, esMovil]);
 
   function toggleColapsado() {
-    setColapsado((prev) => {
-      const siguiente = !prev;
-      localStorage.setItem(STORAGE_KEY, siguiente ? "1" : "0");
-      return siguiente;
-    });
+    const siguiente = !colapsado;
+    setSidebarColapsadoStorage(siguiente);
   }
 
   return (

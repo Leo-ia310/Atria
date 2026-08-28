@@ -217,13 +217,13 @@ export async function supervisarImportacionIA(input: unknown): Promise<Resultado
     return { ok: false, error: "La IA no devolvio filas corregidas. Puedes cargar la revision automatica." };
   }
 
-  const filasValidas = parsed.data.filas.map((f) => f.fila);
+  const filasValidas = new Set(parsed.data.filas.map((f) => f.fila));
   const corregidas: FilaSupervisada[] = [];
   for (const item of arreglo) {
     if (typeof item !== "object" || item === null) continue;
     const obj = item as Record<string, unknown>;
     const fila = Number(obj.fila);
-    if (!Number.isFinite(fila) || !filasValidas.includes(fila)) continue;
+    if (!Number.isFinite(fila) || !filasValidas.has(fila)) continue;
     const num = (v: unknown) => {
       const n = Number(v);
       return Number.isFinite(n) && n >= 0 ? n : 0;

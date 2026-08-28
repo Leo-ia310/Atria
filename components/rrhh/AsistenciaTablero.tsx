@@ -70,7 +70,11 @@ export function AsistenciaTablero({
       <div className="arca-card flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-[color:var(--color-secondary)]" />
+          <label htmlFor="asistencia-tablero-fecha" className="sr-only">
+            Fecha de asistencia
+          </label>
           <input
+            id="asistencia-tablero-fecha"
             type="date"
             value={fecha}
             onChange={(e) => cambiarFecha(e.target.value)}

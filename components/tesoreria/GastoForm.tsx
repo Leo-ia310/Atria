@@ -31,7 +31,7 @@ export function GastoForm({
 
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.value ?? "");
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState(cuentas[0]?.value ?? "");
-  const [fecha, setFecha] = useState(fechaISOEnZona());
+  const [fecha, setFecha] = useState(() => fechaISOEnZona());
   const [descripcion, setDescripcion] = useState("");
   const [referencia, setReferencia] = useState("");
   const [subtotal, setSubtotal] = useState<number | "">("");

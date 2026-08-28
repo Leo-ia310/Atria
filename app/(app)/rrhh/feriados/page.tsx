@@ -13,30 +13,30 @@ export default async function FeriadosPage({
 }: {
   searchParams: Promise<{ anio?: string }>;
 }) {
-  const { anio } = await searchParams;
-  const user = await requireSession();
+  const [{ anio }, user] = await Promise.all([searchParams, requireSession()]);
   const year =
     anio && /^\d{4}$/.test(anio) ? parseInt(anio, 10) : new Date().getFullYear();
 
-  const empresa = await getEmpresaMetadata(user.empresaId);
+  const [empresa, lista] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    db
+      .select({
+        id: feriados.id,
+        nombre: feriados.nombre,
+        fecha: feriados.fecha,
+        esNacional: feriados.esNacional,
+      })
+      .from(feriados)
+      .where(
+        and(
+          eq(feriados.empresaId, user.empresaId),
+          gte(feriados.fecha, `${year}-01-01`),
+          lte(feriados.fecha, `${year}-12-31`),
+        ),
+      )
+      .orderBy(asc(feriados.fecha)),
+  ]);
   const pais = empresa?.pais ?? "NI";
-
-  const lista = await db
-    .select({
-      id: feriados.id,
-      nombre: feriados.nombre,
-      fecha: feriados.fecha,
-      esNacional: feriados.esNacional,
-    })
-    .from(feriados)
-    .where(
-      and(
-        eq(feriados.empresaId, user.empresaId),
-        gte(feriados.fecha, `${year}-01-01`),
-        lte(feriados.fecha, `${year}-12-31`),
-      ),
-    )
-    .orderBy(asc(feriados.fecha));
 
   return (
     <div className="mx-auto max-w-3xl space-y-3">

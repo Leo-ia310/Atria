@@ -391,12 +391,13 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
     const pagosContables = data.esCredito
       ? undefined
-      : data.pagos
-          .map((p) => ({
-            cuentaFinancieraId: mapaFormas.get(p.formaPagoId)!,
-            monto: p.monto,
-          }))
-          .filter((p) => p.cuentaFinancieraId);
+      : data.pagos.reduce<{ cuentaFinancieraId: string; monto: number }[]>((acc, p) => {
+          const cuentaFinancieraId = mapaFormas.get(p.formaPagoId);
+          if (cuentaFinancieraId) {
+            acc.push({ cuentaFinancieraId, monto: p.monto });
+          }
+          return acc;
+        }, []);
 
     const asientoId = await registrarVenta({
       empresaId: user.empresaId,

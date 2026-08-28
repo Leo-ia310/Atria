@@ -193,57 +193,62 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
         ]),
       );
 
+      const entradasPorProducto = new Map<string, { cantidad: number; costoTotal: number }>();
       for (const it of data.items) {
-        const stock = stockPorProducto.get(it.productoId) ?? {
-          cantidad: 0,
-          existe: false,
-        };
-
-        if (stock.existe) {
-          await tx
-            .update(existencias)
-            .set({
-              cantidad: sql`${existencias.cantidad} + ${it.cantidad}`,
-              actualizadoEn: new Date(),
-            })
-            .where(
-              and(
-                eq(existencias.empresaId, user.empresaId),
-                eq(existencias.productoId, it.productoId),
-                eq(existencias.almacenId, data.almacenId),
-              ),
-            );
-        } else {
-          await tx.insert(existencias).values({
-            empresaId: user.empresaId,
-            productoId: it.productoId,
-            almacenId: data.almacenId,
-            cantidad: aDecimalStr(it.cantidad),
-          });
-        }
-
-        const prod = costeoPorProducto.get(it.productoId);
-        if (prod?.metodoCosteo === "promedio") {
-          const nuevoCosto = dinero(
-            (stock.cantidad * prod.costoActual + it.cantidad * it.costoUnitario) /
-              (stock.cantidad + it.cantidad),
-          );
-          await tx
-            .update(productos)
-            .set({ costoPromedio: aDecimalStr(nuevoCosto), actualizadoEn: new Date() })
-            .where(
-              and(
-                eq(productos.id, it.productoId),
-                eq(productos.empresaId, user.empresaId),
-              ),
-            );
-          prod.costoActual = nuevoCosto;
-        }
-
-        stock.cantidad += it.cantidad;
-        stock.existe = true;
-        stockPorProducto.set(it.productoId, stock);
+        const entrada = entradasPorProducto.get(it.productoId) ?? { cantidad: 0, costoTotal: 0 };
+        entrada.cantidad += it.cantidad;
+        entrada.costoTotal += it.cantidad * it.costoUnitario;
+        entradasPorProducto.set(it.productoId, entrada);
       }
+
+      await Promise.all(
+        [...entradasPorProducto.entries()].map(async ([productoId, entrada]) => {
+          const stock = stockPorProducto.get(productoId) ?? {
+            cantidad: 0,
+            existe: false,
+          };
+
+          if (stock.existe) {
+            await tx
+              .update(existencias)
+              .set({
+                cantidad: sql`${existencias.cantidad} + ${entrada.cantidad}`,
+                actualizadoEn: new Date(),
+              })
+              .where(
+                and(
+                  eq(existencias.empresaId, user.empresaId),
+                  eq(existencias.productoId, productoId),
+                  eq(existencias.almacenId, data.almacenId),
+                ),
+              );
+          } else {
+            await tx.insert(existencias).values({
+              empresaId: user.empresaId,
+              productoId,
+              almacenId: data.almacenId,
+              cantidad: aDecimalStr(entrada.cantidad),
+            });
+          }
+
+          const prod = costeoPorProducto.get(productoId);
+          if (prod?.metodoCosteo === "promedio") {
+            const nuevoCosto = dinero(
+              (stock.cantidad * prod.costoActual + entrada.costoTotal) /
+                (stock.cantidad + entrada.cantidad),
+            );
+            await tx
+              .update(productos)
+              .set({ costoPromedio: aDecimalStr(nuevoCosto), actualizadoEn: new Date() })
+              .where(
+                and(
+                  eq(productos.id, productoId),
+                  eq(productos.empresaId, user.empresaId),
+                ),
+              );
+          }
+        }),
+      );
 
       if (data.esCredito) {
         await tx.insert(cuentasPorPagar).values({

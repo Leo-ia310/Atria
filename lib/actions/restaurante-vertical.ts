@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { and, desc, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
+import { auth } from "@/auth";
 import { dbConEmpresa, dbSuperAdmin, type Tx } from "@/lib/db";
 import {
   almacenes,
@@ -776,37 +777,43 @@ export async function enviarComandasOrdenRestaurante(formData: FormData): Promis
       porEstacion.set(estacionId, lista);
     }
 
-    let primeraComandaId: string | undefined;
-    for (const [estacionId, lista] of porEstacion) {
-      const numero = await siguienteNumeroComanda(tx, user.empresaId);
-      const [comanda] = await tx
-        .insert(restauranteComandas)
-        .values({
-          empresaId: user.empresaId,
-          sucursalId: orden.sucursalId,
-          ordenId,
-          estacionId,
-          numero,
-          estado: "enviada",
-          enviadaPor: user.id,
-        })
-        .returning({ id: restauranteComandas.id });
-      primeraComandaId ??= comanda.id;
+    const estaciones = [...porEstacion.entries()];
+    const primerNumero = await siguienteNumeroComanda(tx, user.empresaId);
+    const prefijoNumero = primerNumero.replace(/\d+$/, "");
+    const consecutivoBase = parseInt(primerNumero.slice(prefijoNumero.length), 10);
+    const comandaIds = await Promise.all(
+      estaciones.map(async ([estacionId, lista], index) => {
+        const numero = `${prefijoNumero}${String(consecutivoBase + index).padStart(6, "0")}`;
+        const [comanda] = await tx
+          .insert(restauranteComandas)
+          .values({
+            empresaId: user.empresaId,
+            sucursalId: orden.sucursalId,
+            ordenId,
+            estacionId,
+            numero,
+            estado: "enviada",
+            enviadaPor: user.id,
+          })
+          .returning({ id: restauranteComandas.id });
 
-      await tx.insert(restauranteComandaItems).values(
-        lista.map((item) => ({
-          empresaId: user.empresaId,
-          comandaId: comanda.id,
-          ordenItemId: item.id,
-          productoId: item.productoId,
-          nombreSnapshot: item.nombreSnapshot,
-          cantidad: item.cantidad,
-          notasCocina: item.notasCocina,
-          modificadoresSnapshot: item.modificadoresSnapshot,
-          estado: "enviada" as const,
-        })),
-      );
-    }
+        await tx.insert(restauranteComandaItems).values(
+          lista.map((item) => ({
+            empresaId: user.empresaId,
+            comandaId: comanda.id,
+            ordenItemId: item.id,
+            productoId: item.productoId,
+            nombreSnapshot: item.nombreSnapshot,
+            cantidad: item.cantidad,
+            notasCocina: item.notasCocina,
+            modificadoresSnapshot: item.modificadoresSnapshot,
+            estado: "enviada" as const,
+          })),
+        );
+        return comanda.id;
+      }),
+    );
+    const primeraComandaId = comandaIds[0];
 
     await tx
       .update(restauranteOrdenItems)
@@ -1098,6 +1105,8 @@ export async function guardarComensalRestauranteForm(formData: FormData): Promis
 }
 
 export async function registrarComensalMenuPublico(input: unknown): Promise<Resultado> {
+  await auth();
+
   const parsed = restauranteComensalPublicoSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };

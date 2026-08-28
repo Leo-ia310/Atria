@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ReferralTracker } from "@/components/referrals/ReferralTracker";
 import { Analytics } from "@vercel/analytics/next";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,19 +25,58 @@ const themeScript = `
 `;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "ARCA — Sistema operativo para el comercio",
     template: "%s · ARCA",
   },
-  description:
-    "Punto de venta, inventario y contabilidad en un solo motor. Para negocios reales de Latinoamérica.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "punto de venta",
+    "sistema POS",
+    "inventario",
+    "contabilidad",
+    "facturación",
+    "software para negocios",
+    "pymes Latinoamérica",
+    "Honduras",
+    "Nicaragua",
+    "Guatemala",
+    "Costa Rica",
+    "El Salvador",
+  ],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "business",
   icons: {
     icon: "/Favicon.ico",
     shortcut: "/Favicon.ico",
   },
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  ),
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "es_ES",
+    url: SITE_URL,
+    title: "ARCA — Sistema operativo para el comercio",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ARCA — Sistema operativo para el comercio",
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({

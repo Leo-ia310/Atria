@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { useRecharts } from "@/components/charts/useRecharts";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
@@ -19,6 +11,9 @@ export function GraficaInventario({
   data: { nombre: string; valor: number }[];
   pais: PaisCodigo;
 }) {
+  const recharts = useRecharts();
+  if (!recharts) return <div className="h-96 w-full" />;
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = recharts;
   return (
     <div className="h-96 w-full">
       <ResponsiveContainer>

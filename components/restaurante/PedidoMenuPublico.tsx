@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useMemo, useReducer, useState, useTransition, type ReactNode } from "react";
 import { Check, Minus, Plus, Send } from "lucide-react";
 import { crearPedidoMenuPublico } from "@/lib/actions/menu-publico";
 
@@ -10,6 +10,38 @@ type ItemPedidoMenu = {
   precio: string;
   agotado: boolean;
 };
+
+type PedidoFormState = {
+  clienteNombre: string;
+  clienteTelefono: string;
+  clienteDireccion: string;
+  notas: string;
+  mensaje: string | null;
+  error: string | null;
+};
+
+const PEDIDO_FORM_INICIAL: PedidoFormState = {
+  clienteNombre: "",
+  clienteTelefono: "",
+  clienteDireccion: "",
+  notas: "",
+  mensaje: null,
+  error: null,
+};
+
+type PedidoFormAction =
+  | { type: "patch"; patch: Partial<PedidoFormState> }
+  | { type: "resetAfterSuccess"; mensaje: string };
+
+function pedidoFormReducer(
+  state: PedidoFormState,
+  action: PedidoFormAction,
+): PedidoFormState {
+  if (action.type === "resetAfterSuccess") {
+    return { ...PEDIDO_FORM_INICIAL, mensaje: action.mensaje };
+  }
+  return { ...state, ...action.patch };
+}
 
 export function PedidoMenuPublico({
   slug,
@@ -23,19 +55,18 @@ export function PedidoMenuPublico({
   colorPrimario: string;
 }) {
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
-  const [clienteNombre, setClienteNombre] = useState("");
-  const [clienteTelefono, setClienteTelefono] = useState("");
-  const [clienteDireccion, setClienteDireccion] = useState("");
-  const [notas, setNotas] = useState("");
-  const [mensaje, setMensaje] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [form, dispatchForm] = useReducer(pedidoFormReducer, PEDIDO_FORM_INICIAL);
+  const { clienteNombre, clienteTelefono, clienteDireccion, notas, mensaje, error } = form;
   const [pending, startTransition] = useTransition();
 
   const seleccionados = useMemo(
-    () =>
-      Object.entries(cantidades)
-        .map(([platilloId, cantidad]) => ({ platilloId, cantidad }))
-        .filter((item) => item.cantidad > 0),
+    () => {
+      const itemsSeleccionados: { platilloId: string; cantidad: number }[] = [];
+      for (const [platilloId, cantidad] of Object.entries(cantidades)) {
+        if (cantidad > 0) itemsSeleccionados.push({ platilloId, cantidad });
+      }
+      return itemsSeleccionados;
+    },
     [cantidades],
   );
 
@@ -49,8 +80,7 @@ export function PedidoMenuPublico({
   }
 
   function enviarPedido() {
-    setMensaje(null);
-    setError(null);
+    dispatchForm({ type: "patch", patch: { mensaje: null, error: null } });
     startTransition(async () => {
       const res = await crearPedidoMenuPublico({
         slug,
@@ -62,15 +92,14 @@ export function PedidoMenuPublico({
         items: seleccionados,
       });
       if (!res.ok) {
-        setError(res.error);
+        dispatchForm({ type: "patch", patch: { error: res.error } });
         return;
       }
-      setMensaje(`Pedido ${res.numero} enviado a cocina.`);
       setCantidades({});
-      setClienteNombre("");
-      setClienteTelefono("");
-      setClienteDireccion("");
-      setNotas("");
+      dispatchForm({
+        type: "resetAfterSuccess",
+        mensaje: `Pedido ${res.numero} enviado a cocina.`,
+      });
     });
   }
 
@@ -134,35 +163,39 @@ export function PedidoMenuPublico({
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <PublicField label="Nombre">
-            <input
-              value={clienteNombre}
-              onChange={(e) => setClienteNombre(e.target.value)}
-              placeholder={mesaNumero ? "Nombre (opcional)" : "Nombre"}
+            <PublicField label="Nombre">
+              <input
+                value={clienteNombre}
+                onChange={(e) =>
+                  dispatchForm({ type: "patch", patch: { clienteNombre: e.target.value } })
+                }
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
           <PublicField label="Telefono / WhatsApp">
             <input
               value={clienteTelefono}
-              onChange={(e) => setClienteTelefono(e.target.value)}
-              placeholder={mesaNumero ? "Telefono / WhatsApp (opcional)" : "Telefono / WhatsApp"}
+              onChange={(e) =>
+                dispatchForm({ type: "patch", patch: { clienteTelefono: e.target.value } })
+              }
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
           <PublicField label={mesaNumero ? "Indicacion de mesa" : "Direccion o mesa"} className="md:col-span-2">
             <input
               value={clienteDireccion}
-              onChange={(e) => setClienteDireccion(e.target.value)}
-              placeholder={mesaNumero ? "Indicacion de mesa (opcional)" : "Direccion o mesa"}
+              onChange={(e) =>
+                dispatchForm({ type: "patch", patch: { clienteDireccion: e.target.value } })
+              }
               className="rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>
           <PublicField label="Notas del pedido" className="md:col-span-2">
             <textarea
               value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Notas del pedido"
+              onChange={(e) =>
+                dispatchForm({ type: "patch", patch: { notas: e.target.value } })
+              }
               className="min-h-20 rounded-md border border-black/10 px-3 py-2 text-sm"
             />
           </PublicField>

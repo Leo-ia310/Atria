@@ -90,8 +90,11 @@ export function Recibo({ data }: { data: ReciboData }) {
           </tr>
         </thead>
         <tbody>
-          {data.items.map((it, i) => (
-            <tr key={i} className="align-top">
+          {data.items.map((it) => (
+            <tr
+              key={`${it.sku ?? it.nombre}:${it.cantidad}:${it.precioUnitario}:${it.subtotal}`}
+              className="align-top"
+            >
               <td className="py-1 pr-2">
                 <div className="font-medium">{it.nombre}</div>
                 <div className="text-[11px] text-[color:var(--color-text-muted)]">
@@ -127,9 +130,9 @@ export function Recibo({ data }: { data: ReciboData }) {
         <>
           <div className="my-3 border-t border-dashed border-[color:var(--color-border)]" />
           <div className="space-y-0.5 text-[12px]">
-            {data.pagos.map((p, i) => (
+            {data.pagos.map((p) => (
               <Linea
-                key={i}
+                key={`${p.formaPago}:${p.referencia ?? ""}:${p.monto}`}
                 izq={p.formaPago + (p.referencia ? ` (${p.referencia})` : "")}
                 der={formatearMoneda(p.monto, pais)}
               />

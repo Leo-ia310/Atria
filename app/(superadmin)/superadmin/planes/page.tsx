@@ -54,16 +54,19 @@ export default function PlanesAdminPage() {
                 Features activas
               </div>
               <div className="grid grid-cols-2 gap-1 text-[11px]">
-                {Object.entries(p.features)
-                  .filter(([_, v]) => v)
-                  .map(([k]) => (
+                {Object.entries(p.features).reduce<React.ReactNode[]>((acc, [k, v]) => {
+                  if (v) {
+                    acc.push(
                     <span
                       key={k}
                       className="rounded bg-white/5 px-2 py-0.5 text-white/70"
                     >
                       {k.replace(/_/g, " ")}
-                    </span>
-                  ))}
+                    </span>,
+                    );
+                  }
+                  return acc;
+                }, [])}
               </div>
             </div>
           </div>

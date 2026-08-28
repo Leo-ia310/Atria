@@ -10,9 +10,10 @@
  */
 
 import { timingSafeEqual } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { dbSuperAdmin } from "@/lib/db";
+import { empresas, usuarios } from "@/lib/db/schema";
 import { firmarGrantCanonico } from "@/lib/desktop-grant";
 
 export const runtime = "nodejs";
@@ -82,6 +83,35 @@ function asegurarInbox(): Promise<void> {
   return inboxReady;
 }
 
+/**
+ * Revocación efectiva: un grant sigue firmado y "válido" hasta 30 días, pero el
+ * usuario pudo ser desactivado, eliminado o movido de empresa en ese lapso.
+ * Se revalida contra la fuente de verdad (Postgres) que el usuario siga activo,
+ * pertenezca a la empresa del grant y la empresa esté activa.
+ */
+async function grantSigueAutorizado(
+  userId: string,
+  empresaId: string,
+): Promise<boolean> {
+  const filas = await dbSuperAdmin((tx) =>
+    tx
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
+      .where(
+        and(
+          eq(usuarios.id, userId),
+          eq(usuarios.empresaId, empresaId),
+          eq(usuarios.activo, true),
+          isNull(usuarios.eliminadoEn),
+          eq(empresas.activa, true),
+        ),
+      )
+      .limit(1),
+  );
+  return filas.length > 0;
+}
+
 function grantValido(secret: string, a: z.infer<typeof authSchema>): boolean {
   const esperado = firmarGrantCanonico(secret, {
     userId: a.userId,
@@ -119,6 +149,10 @@ export async function POST(request: Request) {
 
   if (!grantValido(secret, auth)) {
     return Response.json({ ok: false, error: "Grant invalido o vencido" }, { status: 401 });
+  }
+
+  if (!(await grantSigueAutorizado(auth.userId, auth.empresaId))) {
+    return Response.json({ ok: false, error: "Acceso revocado" }, { status: 401 });
   }
 
   try {

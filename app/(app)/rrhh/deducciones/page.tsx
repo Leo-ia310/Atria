@@ -24,8 +24,10 @@ export default async function DeduccionesPage({
 }: {
   searchParams: Promise<{ nomina?: string }>;
 }) {
-  const { nomina: nominaParam } = await searchParams;
-  const user = await requireSession();
+  const [{ nomina: nominaParam }, user] = await Promise.all([
+    searchParams,
+    requireSession(),
+  ]);
   const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
@@ -102,21 +104,26 @@ export default async function DeduccionesPage({
           .where(inArray(nominaDeducciones.nominaDetalleId, detIds))
       : [];
 
+    const deduccionesPorDetalle = new Map<string, typeof deds>();
+    for (const deduccion of deds) {
+      const actuales = deduccionesPorDetalle.get(deduccion.detalleId) ?? [];
+      actuales.push(deduccion);
+      deduccionesPorDetalle.set(deduccion.detalleId, actuales);
+    }
+
     empleadosData = detalles.map((d) => ({
       detalleId: d.id,
       nombre: `${d.nombres} ${d.apellidos}`,
       totalDevengado: parseFloat(d.totalDevengado),
       otras: parseFloat(d.otras),
       totalNeto: parseFloat(d.totalNeto),
-      deducciones: deds
-        .filter((x) => x.detalleId === d.id)
-        .map((x) => ({
+      deducciones: (deduccionesPorDetalle.get(d.id) ?? []).map((x) => ({
           id: x.id,
           tipo: x.tipo,
           monto: parseFloat(x.monto),
           nota: x.nota,
           semana: x.semana,
-        })),
+      })),
     }));
   }
 

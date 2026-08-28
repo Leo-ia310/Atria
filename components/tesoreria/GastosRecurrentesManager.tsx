@@ -108,7 +108,18 @@ export function GastosRecurrentesManager({
       </div>
       {editando && (
         <EditarRecurrente
-          key={editando.id}
+          key={[
+            editando.id,
+            editando.descripcion,
+            editando.referencia ?? "",
+            editando.categoriaId,
+            editando.cuentaFinancieraId,
+            editando.subtotal,
+            editando.impuesto,
+            editando.diaMes,
+            editando.proximaFecha,
+            editando.activa ? "1" : "0",
+          ].join(":")}
           fila={editando}
           categorias={categorias}
           cuentas={cuentas}
@@ -133,15 +144,15 @@ function EditarRecurrente({
   const router = useRouter();
   const { mostrar } = useToast();
   const [guardando, setGuardando] = useState(false);
-  const [descripcion, setDescripcion] = useState(fila.descripcion);
-  const [referencia, setReferencia] = useState(fila.referencia ?? "");
-  const [categoriaId, setCategoriaId] = useState(fila.categoriaId);
-  const [cuentaFinancieraId, setCuentaFinancieraId] = useState(fila.cuentaFinancieraId);
+  const [descripcion, setDescripcion] = useState(() => fila.descripcion);
+  const [referencia, setReferencia] = useState(() => fila.referencia ?? "");
+  const [categoriaId, setCategoriaId] = useState(() => fila.categoriaId);
+  const [cuentaFinancieraId, setCuentaFinancieraId] = useState(() => fila.cuentaFinancieraId);
   const [subtotal, setSubtotal] = useState(String(fila.subtotal));
   const [impuesto, setImpuesto] = useState(String(fila.impuesto));
   const [diaMes, setDiaMes] = useState(String(fila.diaMes));
-  const [proximaFecha, setProximaFecha] = useState(fila.proximaFecha);
-  const [activa, setActiva] = useState(fila.activa);
+  const [proximaFecha, setProximaFecha] = useState(() => fila.proximaFecha);
+  const [activa, setActiva] = useState(() => fila.activa);
 
   async function guardar() {
     setGuardando(true);

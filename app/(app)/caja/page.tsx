@@ -25,9 +25,10 @@ export default async function CajaPage() {
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const sucursalIds = selectedSucursalIds(scope);
+  const sucursalIdSet = sucursalIds ? new Set(sucursalIds) : null;
 
   const sucs = scope.sucursales.filter(
-    (sucursal) => !sucursalIds || sucursalIds.includes(sucursal.id),
+    (sucursal) => !sucursalIdSet || sucursalIdSet.has(sucursal.id),
   );
   const defaultSucursalId =
     scope.modo === "selected" && scope.sucursalIds.length === 1
@@ -103,9 +104,12 @@ export default async function CajaPage() {
   ]);
   const sesionAbierta = sesionRows[0];
 
-  const cajasDisponibles = cajasList
-    .filter((c) => c.id !== sesionAbierta?.cajaId)
-    .map((c) => ({ value: c.id, label: `${c.codigo} - ${c.nombre}` }));
+  const cajasDisponibles = cajasList.reduce<{ value: string; label: string }[]>((acc, c) => {
+    if (c.id !== sesionAbierta?.cajaId) {
+      acc.push({ value: c.id, label: `${c.codigo} - ${c.nombre}` });
+    }
+    return acc;
+  }, []);
 
   return (
     <div className="space-y-6">

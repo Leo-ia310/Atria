@@ -31,16 +31,16 @@ export function PlatformExpenseForm() {
           <input name="fecha" type="date" defaultValue={hoy} className={INPUT_CLASS} />
         </Field>
         <Field label="Categoria">
-          <input name="categoria" className={INPUT_CLASS} placeholder="Hosting, soporte, marketing" />
+          <input name="categoria" className={INPUT_CLASS} />
         </Field>
         <Field label="Proveedor">
-          <input name="proveedor" className={INPUT_CLASS} placeholder="Vercel, Supabase, Meta..." />
+          <input name="proveedor" className={INPUT_CLASS} />
         </Field>
         <Field label="Metodo de pago">
-          <input name="metodoPago" className={INPUT_CLASS} placeholder="Tarjeta, transferencia, PayPal" />
+          <input name="metodoPago" className={INPUT_CLASS} />
         </Field>
         <Field label="Monto">
-          <input name="monto" type="number" min="0" step="0.01" className={INPUT_CLASS} placeholder="0.00" />
+          <input name="monto" type="number" min="0" step="0.01" className={INPUT_CLASS} />
         </Field>
         <Field label="Moneda">
           <select name="moneda" defaultValue="USD" className={INPUT_CLASS}>
@@ -55,10 +55,10 @@ export function PlatformExpenseForm() {
 
       <div className="mt-3 grid grid-cols-1 gap-3">
         <Field label="Descripcion">
-          <input name="descripcion" className={INPUT_CLASS} placeholder="Ej. servidor de produccion mensual" />
+          <input name="descripcion" className={INPUT_CLASS} />
         </Field>
         <Field label="Notas">
-          <textarea name="notas" className={cn(INPUT_CLASS, "min-h-20")} placeholder="Opcional" />
+          <textarea name="notas" className={cn(INPUT_CLASS, "min-h-20")} />
         </Field>
         <label className="flex items-center gap-2 text-[12px] text-white/65">
           <input name="recurrente" type="checkbox" />

@@ -38,55 +38,79 @@ export default async function InventarioPage() {
   ]);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const stockRows = await db
-    .select({
-      productoId: existencias.productoId,
-      existencia: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
-    })
-    .from(existencias)
-    .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
-    .where(
-      and(
-        eq(existencias.empresaId, user.empresaId),
-        eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.activo, true),
-        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .groupBy(existencias.productoId);
-
-  const [almacenEntrada] = await db
-    .select({ id: almacenes.id, nombre: almacenes.nombre })
-    .from(almacenes)
-    .where(
-      and(
-        eq(almacenes.empresaId, user.empresaId),
-        eq(almacenes.activo, true),
-        sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
-    .limit(1);
-
-  const productosLector = await db
-    .select({
-      id: productos.id,
-      sku: productos.sku,
-      codigoBarras: productos.codigoBarras,
-      nombre: productos.nombre,
-      precioBase: productos.precioBase,
-      costoPromedio: productos.costoPromedio,
-    })
-    .from(productos)
-    .where(
-      and(
-        eq(productos.empresaId, user.empresaId),
-        eq(productos.activo, true),
-        isNull(productos.eliminadoEn),
-        sql<boolean>`${productos.codigoBarras} IS NOT NULL AND ${productos.codigoBarras} <> ''`,
-      ),
-    )
-    .limit(5000);
+  const [stockRows, almacenEntradaRows, productosLector, advertencias] = await Promise.all([
+    db
+      .select({
+        productoId: existencias.productoId,
+        existencia: sql<string>`COALESCE(SUM(${existencias.cantidad}), 0)`,
+      })
+      .from(existencias)
+      .innerJoin(almacenes, eq(almacenes.id, existencias.almacenId))
+      .where(
+        and(
+          eq(existencias.empresaId, user.empresaId),
+          eq(almacenes.empresaId, user.empresaId),
+          eq(almacenes.activo, true),
+          sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+        ),
+      )
+      .groupBy(existencias.productoId),
+    db
+      .select({ id: almacenes.id, nombre: almacenes.nombre })
+      .from(almacenes)
+      .where(
+        and(
+          eq(almacenes.empresaId, user.empresaId),
+          eq(almacenes.activo, true),
+          sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
+        ),
+      )
+      .orderBy(desc(almacenes.esPrincipal), almacenes.nombre)
+      .limit(1),
+    db
+      .select({
+        id: productos.id,
+        sku: productos.sku,
+        codigoBarras: productos.codigoBarras,
+        nombre: productos.nombre,
+        precioBase: productos.precioBase,
+        costoPromedio: productos.costoPromedio,
+      })
+      .from(productos)
+      .where(
+        and(
+          eq(productos.empresaId, user.empresaId),
+          eq(productos.activo, true),
+          isNull(productos.eliminadoEn),
+          sql<boolean>`${productos.codigoBarras} IS NOT NULL AND ${productos.codigoBarras} <> ''`,
+        ),
+      )
+      .limit(5000),
+    db
+      .select({
+        id: productoAdvertencias.id,
+        productoId: productoAdvertencias.productoId,
+        producto: productos.nombre,
+        sku: productos.sku,
+        filaExcel: productoAdvertencias.filaExcel,
+        campo: productoAdvertencias.campo,
+        mensaje: productoAdvertencias.mensaje,
+        valorOriginal: productoAdvertencias.valorOriginal,
+      })
+      .from(productoAdvertencias)
+      .innerJoin(productos, eq(productos.id, productoAdvertencias.productoId))
+      .where(
+        and(
+          eq(productoAdvertencias.empresaId, user.empresaId),
+          eq(productoAdvertencias.resuelta, false),
+          eq(productos.empresaId, user.empresaId),
+          isNull(productos.eliminadoEn),
+        ),
+      )
+      .orderBy(desc(productoAdvertencias.creadoEn))
+      .limit(100),
+  ]);
+  const [almacenEntrada] = almacenEntradaRows;
 
   const existenciaPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.existencia)]),
@@ -131,30 +155,6 @@ export default async function InventarioPage() {
     codigoBarras: producto.codigoBarras ?? "",
     existencia: existenciaPorProducto.get(producto.id) ?? 0,
   }));
-  const advertencias = await db
-    .select({
-      id: productoAdvertencias.id,
-      productoId: productoAdvertencias.productoId,
-      producto: productos.nombre,
-      sku: productos.sku,
-      filaExcel: productoAdvertencias.filaExcel,
-      campo: productoAdvertencias.campo,
-      mensaje: productoAdvertencias.mensaje,
-      valorOriginal: productoAdvertencias.valorOriginal,
-    })
-    .from(productoAdvertencias)
-    .innerJoin(productos, eq(productos.id, productoAdvertencias.productoId))
-    .where(
-      and(
-        eq(productoAdvertencias.empresaId, user.empresaId),
-        eq(productoAdvertencias.resuelta, false),
-        eq(productos.empresaId, user.empresaId),
-        isNull(productos.eliminadoEn),
-      ),
-    )
-    .orderBy(desc(productoAdvertencias.creadoEn))
-    .limit(100);
-
   return (
     <div>
       <PageHeader

@@ -1,6 +1,8 @@
 import { expirarSuscripcionesVencidas } from "@/lib/suscripciones/expiracion";
 import { withLock } from "@/lib/redis/lock";
+import { bearerValido } from "@/lib/http/bearer";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -9,7 +11,7 @@ export async function GET(request: Request) {
   if (!secret) {
     return Response.json({ ok: false, error: "CRON_SECRET no configurado" }, { status: 503 });
   }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!bearerValido(request.headers.get("authorization"), secret)) {
     return Response.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }
 

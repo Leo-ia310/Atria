@@ -1,5 +1,6 @@
 import "server-only";
 
+import crypto from "node:crypto";
 import { getRedis } from "./client";
 import { keys, TTL } from "./keys";
 
@@ -29,7 +30,7 @@ export async function withLock<T>(
   if (!redis) return tarea();
 
   const key = keys.lock(nombre);
-  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const token = crypto.randomBytes(32).toString("base64url");
 
   let adquirido = false;
   try {

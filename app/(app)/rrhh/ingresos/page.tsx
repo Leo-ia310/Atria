@@ -24,8 +24,10 @@ export default async function IngresosPage({
 }: {
   searchParams: Promise<{ nomina?: string }>;
 }) {
-  const { nomina: nominaParam } = await searchParams;
-  const user = await requireSession();
+  const [{ nomina: nominaParam }, user] = await Promise.all([
+    searchParams,
+    requireSession(),
+  ]);
   const empresa = await getEmpresaMetadata(user.empresaId);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
@@ -108,22 +110,27 @@ export default async function IngresosPage({
           .orderBy(nominaIngresos.creadoEn)
       : [];
 
+    const ingresosPorDetalle = new Map<string, typeof ingresosRows>();
+    for (const ingreso of ingresosRows) {
+      const actuales = ingresosPorDetalle.get(ingreso.detalleId) ?? [];
+      actuales.push(ingreso);
+      ingresosPorDetalle.set(ingreso.detalleId, actuales);
+    }
+
     empleadosData = detalles.map((d) => ({
       detalleId: d.id,
       nombre: `${d.nombres} ${d.apellidos}`,
       totalDevengado: parseFloat(d.totalDevengado),
       ingresos: parseFloat(d.ingresos),
       totalNeto: parseFloat(d.totalNeto),
-      registros: ingresosRows
-        .filter((x) => x.detalleId === d.id)
-        .map((x) => ({
+      registros: (ingresosPorDetalle.get(d.id) ?? []).map((x) => ({
           id: x.id,
           tipo: x.tipo,
           monto: parseFloat(x.monto),
           nota: x.nota,
           semana: x.semana,
           creadoEn: x.creadoEn.toISOString(),
-        })),
+      })),
     }));
   }
 

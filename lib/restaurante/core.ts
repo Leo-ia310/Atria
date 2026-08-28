@@ -81,7 +81,10 @@ export function crearTokenOpaco(): string {
 }
 
 export function hashToken(token: string): string {
-  const pepper = process.env.ARCA_TOKEN_PEPPER ?? process.env.NEXTAUTH_SECRET ?? "arca-dev";
+  const pepper = process.env.ARCA_TOKEN_PEPPER ?? process.env.AUTH_SECRET;
+  if (!pepper) {
+    throw new Error("Falta ARCA_TOKEN_PEPPER o AUTH_SECRET para firmar tokens de restaurante.");
+  }
   return crypto.createHmac("sha256", pepper).update(token).digest("hex");
 }
 

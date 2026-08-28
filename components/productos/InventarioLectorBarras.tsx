@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useReducer, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Barcode, PackagePlus, Plus, TriangleAlert } from "lucide-react";
 import { registrarEntradaInventarioPorLector } from "@/lib/actions/productos";
@@ -31,6 +31,46 @@ type EntradaActiva = {
   producto: ProductoEscaneable;
 };
 
+type LectorState = {
+  entrada: EntradaActiva | null;
+  codigoNuevo: string | null;
+  cantidad: string;
+  fechaVencimiento: string;
+  precioBase: string;
+  costoPromedio: string;
+};
+
+const LECTOR_INICIAL: LectorState = {
+  entrada: null,
+  codigoNuevo: null,
+  cantidad: "1",
+  fechaVencimiento: "",
+  precioBase: "",
+  costoPromedio: "",
+};
+
+type LectorAction =
+  | { type: "patch"; patch: Partial<LectorState> }
+  | { type: "abrirEntrada"; entrada: EntradaActiva }
+  | { type: "cerrarEntrada" };
+
+function lectorReducer(state: LectorState, action: LectorAction): LectorState {
+  if (action.type === "abrirEntrada") {
+    return {
+      ...state,
+      entrada: action.entrada,
+      cantidad: "1",
+      fechaVencimiento: "",
+      precioBase: String(action.entrada.producto.precioBase),
+      costoPromedio: String(action.entrada.producto.costoPromedio),
+    };
+  }
+  if (action.type === "cerrarEntrada") {
+    return { ...state, ...LECTOR_INICIAL };
+  }
+  return { ...state, ...action.patch };
+}
+
 function normalizarCodigo(valor: string): string {
   return valor.replace(/[\s\r\n\t]/g, "").trim();
 }
@@ -47,12 +87,8 @@ export function InventarioLectorBarras({
   const router = useRouter();
   const { mostrar } = useToast();
   const cantidadRef = useRef<HTMLInputElement>(null);
-  const [entrada, setEntrada] = useState<EntradaActiva | null>(null);
-  const [codigoNuevo, setCodigoNuevo] = useState<string | null>(null);
-  const [cantidad, setCantidad] = useState("1");
-  const [fechaVencimiento, setFechaVencimiento] = useState("");
-  const [precioBase, setPrecioBase] = useState("");
-  const [costoPromedio, setCostoPromedio] = useState("");
+  const [lector, dispatchLector] = useReducer(lectorReducer, LECTOR_INICIAL);
+  const { entrada, codigoNuevo, cantidad, fechaVencimiento, precioBase, costoPromedio } = lector;
   const [pendiente, startTransition] = useTransition();
 
   const productosPorCodigo = useMemo(() => {
@@ -87,7 +123,7 @@ export function InventarioLectorBarras({
       }
       const encontrados = productosPorCodigo.get(codigo) ?? [];
       if (encontrados.length === 0) {
-        setCodigoNuevo(codigo);
+        dispatchLector({ type: "patch", patch: { codigoNuevo: codigo } });
         return;
       }
       if (encontrados.length > 1) {
@@ -95,20 +131,12 @@ export function InventarioLectorBarras({
         return;
       }
       const producto = encontrados[0];
-      setEntrada({ codigo, producto });
-      setCantidad("1");
-      setFechaVencimiento("");
-      setPrecioBase(String(producto.precioBase));
-      setCostoPromedio(String(producto.costoPromedio));
+      dispatchLector({ type: "abrirEntrada", entrada: { codigo, producto } });
     },
   });
 
   function cerrarEntrada() {
-    setEntrada(null);
-    setCantidad("1");
-    setFechaVencimiento("");
-    setPrecioBase("");
-    setCostoPromedio("");
+    dispatchLector({ type: "cerrarEntrada" });
   }
 
   function submitEntrada() {
@@ -197,13 +225,20 @@ export function InventarioLectorBarras({
                 min="0.0001"
                 step="0.0001"
                 value={cantidad}
-                onChange={(event) => setCantidad(event.target.value)}
+                onChange={(event) =>
+                  dispatchLector({ type: "patch", patch: { cantidad: event.target.value } })
+                }
               />
               <Input
                 label="Vence"
                 type="date"
                 value={fechaVencimiento}
-                onChange={(event) => setFechaVencimiento(event.target.value)}
+                onChange={(event) =>
+                  dispatchLector({
+                    type: "patch",
+                    patch: { fechaVencimiento: event.target.value },
+                  })
+                }
                 hint="Opcional"
               />
               <Input
@@ -212,7 +247,9 @@ export function InventarioLectorBarras({
                 min="0"
                 step="0.0001"
                 value={precioBase}
-                onChange={(event) => setPrecioBase(event.target.value)}
+                onChange={(event) =>
+                  dispatchLector({ type: "patch", patch: { precioBase: event.target.value } })
+                }
               />
               <Input
                 label="Costo"
@@ -220,7 +257,9 @@ export function InventarioLectorBarras({
                 min="0"
                 step="0.0001"
                 value={costoPromedio}
-                onChange={(event) => setCostoPromedio(event.target.value)}
+                onChange={(event) =>
+                  dispatchLector({ type: "patch", patch: { costoPromedio: event.target.value } })
+                }
               />
             </div>
           </form>
@@ -229,13 +268,16 @@ export function InventarioLectorBarras({
 
       <Modal
         abierto={!!codigoNuevo}
-        onCerrar={() => setCodigoNuevo(null)}
+        onCerrar={() => dispatchLector({ type: "patch", patch: { codigoNuevo: null } })}
         titulo="Producto no registrado"
         descripcion={codigoNuevo ? `Codigo ${codigoNuevo}` : undefined}
         ancho="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setCodigoNuevo(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => dispatchLector({ type: "patch", patch: { codigoNuevo: null } })}
+            >
               Cancelar
             </Button>
             <Button onClick={crearProducto}>

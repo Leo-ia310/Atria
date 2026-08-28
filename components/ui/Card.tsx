@@ -25,9 +25,9 @@ export function CardHeader({
   return (
     <div className="flex flex-col items-start justify-between gap-3 border-b border-[color:var(--color-border)] px-4 py-4 sm:flex-row sm:gap-4 sm:px-5">
       <div className="min-w-0">
-        <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">
+        <h2 className="text-base font-semibold text-[color:var(--color-text-primary)]">
           {title}
-        </h3>
+        </h2>
         {subtitle && (
           <p className="text-small mt-0.5 text-[color:var(--color-text-muted)]">
             {subtitle}
@@ -53,7 +53,7 @@ export function CardBody({
   return <div className={cn("p-4 sm:p-5", className)}>{children}</div>;
 }
 
-export function CardFooter({ children }: { children: ReactNode }) {
+function CardFooter({ children }: { children: ReactNode }) {
   return (
     <div className="border-t border-[color:var(--color-border)] px-4 py-3 text-small text-[color:var(--color-text-muted)] sm:px-5">
       {children}

@@ -59,10 +59,11 @@ export function Sidebar({
       ? pathname === it.href
       : pathname === it.href || pathname.startsWith(it.href + "/");
   const permitidos = new Set(modulosPermitidos);
-  const grupos = NAV_GROUPS.map((grupo) => ({
-    ...grupo,
-    items: grupo.items.filter((item) => permitidos.has(item.modulo)),
-  })).filter((grupo) => grupo.items.length > 0);
+  const grupos = NAV_GROUPS.reduce<typeof NAV_GROUPS>((acc, grupo) => {
+    const items = grupo.items.filter((item) => permitidos.has(item.modulo));
+    if (items.length > 0) acc.push({ ...grupo, items });
+    return acc;
+  }, []);
 
   useEffect(() => {
     const guardado = localStorage.getItem(STORAGE_KEY) === "1";
@@ -98,11 +99,9 @@ export function Sidebar({
   }, [pathname, esMovil, onMobileClose]);
 
   function toggle() {
-    setColapsado((prev) => {
-      const siguiente = !prev;
-      localStorage.setItem(STORAGE_KEY, siguiente ? "1" : "0");
-      return siguiente;
-    });
+    const siguiente = !colapsado;
+    setColapsado(siguiente);
+    localStorage.setItem(STORAGE_KEY, siguiente ? "1" : "0");
   }
 
   return (
@@ -276,73 +275,15 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="border-t border-white/10 p-3">
-          {!colapsadoVisual && (
-            <button
-              type="button"
-              onClick={() => setPlanesAbierto(true)}
-              className="w-full rounded-md bg-white/5 p-3 text-left transition hover:bg-white/10"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-white/50">
-                  Plan {planNombre}
-                </span>
-                {esDemo && (
-                  <CircleAlert
-                    size={12}
-                    className="text-[color:var(--color-warning)]"
-                  />
-                )}
-              </div>
-              {suscripcionBloqueada ? (
-                <>
-                  <p className="mt-1 text-[12px] text-white/70">
-                    Pago pendiente
-                  </p>
-                  <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
-                    Pagar plan
-                  </span>
-                </>
-              ) : esDemo ? (
-                <>
-                  <p className="mt-1 text-[12px] text-white/70">
-                    Funciones limitadas
-                  </p>
-                  <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
-                    Mejorar plan
-                  </span>
-                </>
-              ) : suscripcionEstado === "trial" ? (
-                <p className="mt-1 text-[12px] text-white/70">Prueba gratis activa</p>
-              ) : (
-                <p className="mt-1 text-[12px] text-white/70">Suscripcion activa</p>
-              )}
-            </button>
-          )}
-
-          <Link
-            href="/mi-cuenta"
-            title={colapsadoVisual ? nombreUsuario : undefined}
-            className={cn(
-              "mt-3 flex items-center rounded-md p-2 text-[13px] text-white/80 hover:bg-white/5",
-              colapsadoVisual ? "justify-center" : "gap-2.5",
-            )}
-          >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-tertiary)]/30 text-[11px] font-semibold uppercase">
-              {iniciales(nombreUsuario)}
-            </div>
-            {!colapsadoVisual && (
-              <div className="min-w-0">
-                <div className="truncate text-[12px] font-medium leading-tight">
-                  {nombreUsuario}
-                </div>
-                <div className="text-[10px] text-white/50 leading-tight">
-                  Mi cuenta
-                </div>
-              </div>
-            )}
-          </Link>
-        </div>
+        <SidebarFooter
+          colapsadoVisual={colapsadoVisual}
+          planNombre={planNombre}
+          suscripcionEstado={suscripcionEstado}
+          suscripcionBloqueada={suscripcionBloqueada}
+          esDemo={esDemo}
+          nombreUsuario={nombreUsuario}
+          onOpenPlanes={() => setPlanesAbierto(true)}
+        />
 
         <PlanesModal
           abierto={planesAbierto}
@@ -355,6 +296,85 @@ export function Sidebar({
         />
       </aside>
     </>
+  );
+}
+
+function SidebarFooter({
+  colapsadoVisual,
+  planNombre,
+  suscripcionEstado,
+  suscripcionBloqueada,
+  esDemo,
+  nombreUsuario,
+  onOpenPlanes,
+}: {
+  colapsadoVisual: boolean;
+  planNombre: string;
+  suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
+  suscripcionBloqueada: boolean;
+  esDemo: boolean;
+  nombreUsuario: string;
+  onOpenPlanes: () => void;
+}) {
+  return (
+    <div className="border-t border-white/10 p-3">
+      {!colapsadoVisual && (
+        <button
+          type="button"
+          onClick={onOpenPlanes}
+          className="w-full rounded-md bg-white/5 p-3 text-left transition hover:bg-white/10"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-white/50">
+              Plan {planNombre}
+            </span>
+            {esDemo && (
+              <CircleAlert size={12} className="text-[color:var(--color-warning)]" />
+            )}
+          </div>
+          {suscripcionBloqueada ? (
+            <>
+              <p className="mt-1 text-[12px] text-white/70">Pago pendiente</p>
+              <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
+                Pagar plan
+              </span>
+            </>
+          ) : esDemo ? (
+            <>
+              <p className="mt-1 text-[12px] text-white/70">Funciones limitadas</p>
+              <span className="mt-2 inline-block text-[12px] font-medium text-[color:var(--color-tertiary-light)] group-hover:text-white">
+                Mejorar plan
+              </span>
+            </>
+          ) : suscripcionEstado === "trial" ? (
+            <p className="mt-1 text-[12px] text-white/70">Prueba gratis activa</p>
+          ) : (
+            <p className="mt-1 text-[12px] text-white/70">Suscripcion activa</p>
+          )}
+        </button>
+      )}
+
+      <Link
+        href="/mi-cuenta"
+        title={colapsadoVisual ? nombreUsuario : undefined}
+        className={cn(
+          "mt-3 flex items-center rounded-md p-2 text-[13px] text-white/80 hover:bg-white/5",
+          colapsadoVisual ? "justify-center" : "gap-2.5",
+        )}
+      >
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-tertiary)]/30 text-[11px] font-semibold uppercase">
+          {iniciales(nombreUsuario)}
+        </div>
+        {!colapsadoVisual && (
+          <div className="min-w-0">
+            <div className="truncate text-[12px] font-medium leading-tight">
+              {nombreUsuario}
+            </div>
+            <div className="text-[10px] text-white/50 leading-tight">Mi cuenta</div>
+          </div>
+        )}
+      </Link>
+    </div>
   );
 }
 

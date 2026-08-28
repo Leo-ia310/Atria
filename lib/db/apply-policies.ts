@@ -9,7 +9,6 @@
  *   npm run db:rls -- --confirm         (aplica)
  *   npm run db:rls                      (dry-run: solo informa)
  */
-import fs from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 import "dotenv/config";
@@ -26,7 +25,6 @@ const confirmado =
   process.argv.includes("--confirm") || process.env.RLS_CONFIRM === "1";
 
 const archivo = path.join(process.cwd(), "lib", "db", "policies.sql");
-const policies = fs.readFileSync(archivo, "utf-8");
 
 if (!confirmado) {
   console.log(
@@ -46,7 +44,7 @@ if (!confirmado) {
 const sql = postgres(url, { max: 1 });
 
 try {
-  await sql.unsafe(policies);
+  await sql.file(archivo);
   console.log("✓ RLS policies aplicadas.");
 } catch (error) {
   console.error("✗ Falló la aplicación de policies:", error);

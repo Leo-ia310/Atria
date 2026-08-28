@@ -221,50 +221,54 @@ export async function registrarEmpresa(
       const permisosRows = await tx.select().from(permisosTable);
       const permisosPorClave = new Map(permisosRows.map((p) => [p.clave, p.id]));
 
-      let rolAdminId: string | null = null;
-      for (const rb of ROLES_BASE) {
-        const [rolCreado] = await tx
-          .insert(roles)
-          .values({
+      const rolesCreados = await tx
+        .insert(roles)
+        .values(
+          ROLES_BASE.map((rb) => ({
             empresaId: empresaCreada.id,
             nombre: rb.nombre,
             descripcion: rb.descripcion,
             esBase: true,
-          })
-          .returning();
-        if (rb.nombre === "Administrador") rolAdminId = rolCreado.id;
-
-        const filas = rb.permisos
-          .map((clave) => permisosPorClave.get(clave))
-          .filter((id): id is string => Boolean(id))
-          .map((permisoId) => ({ rolId: rolCreado.id, permisoId }));
-        if (filas.length > 0) await tx.insert(rolPermisos).values(filas);
+          })),
+        )
+        .returning({ id: roles.id, nombre: roles.nombre });
+      const rolesPorNombre = new Map(rolesCreados.map((rol) => [rol.nombre, rol.id]));
+      const rolAdminId = rolesPorNombre.get("Administrador") ?? null;
+      const permisosPorRol: { rolId: string; permisoId: string }[] = [];
+      for (const rb of ROLES_BASE) {
+        const rolId = rolesPorNombre.get(rb.nombre);
+        if (!rolId) continue;
+        for (const clave of rb.permisos) {
+          const permisoId = permisosPorClave.get(clave);
+          if (permisoId) permisosPorRol.push({ rolId, permisoId });
+        }
       }
+      if (permisosPorRol.length > 0) await tx.insert(rolPermisos).values(permisosPorRol);
 
       const passwordHash = await bcrypt.hash(admin.password, 10);
-      const [usuarioCreado] = await tx
-        .insert(usuarios)
-        .values({
-          empresaId: empresaCreada.id,
-          rolId: rolAdminId,
-          nombre: admin.nombre,
-          email: admin.email,
-          passwordHash,
-          activo: true,
-        })
-        .returning();
-
-      const [sucursalCreada] = await tx
-        .insert(sucursales)
-        .values({
-          empresaId: empresaCreada.id,
-          codigo: "PRIN",
-          nombre: "Sucursal Principal",
-          esPrincipal: true,
-        })
-        .returning();
-
-      const cuentasCreadas = await crearCatalogoCuentas(tx, empresaCreada.id);
+      const [[usuarioCreado], [sucursalCreada], cuentasCreadas] = await Promise.all([
+        tx
+          .insert(usuarios)
+          .values({
+            empresaId: empresaCreada.id,
+            rolId: rolAdminId,
+            nombre: admin.nombre,
+            email: admin.email,
+            passwordHash,
+            activo: true,
+          })
+          .returning(),
+        tx
+          .insert(sucursales)
+          .values({
+            empresaId: empresaCreada.id,
+            codigo: "PRIN",
+            nombre: "Sucursal Principal",
+            esPrincipal: true,
+          })
+          .returning(),
+        crearCatalogoCuentas(tx, empresaCreada.id),
+      ]);
       const cuentasPorCodigo = new Map(cuentasCreadas.map((c) => [c.codigo, c.id]));
 
       await tx.insert(unidadesMedida).values([
@@ -293,42 +297,42 @@ export async function registrarEmpresa(
         activa: true,
       });
 
-      const [almacenCreado] = await tx
-        .insert(almacenes)
-        .values({
-          empresaId: empresaCreada.id,
-          sucursalId: sucursalCreada.id,
-          codigo: "PRIN",
-          nombre: "Almacén Principal",
-          esPrincipal: true,
-        })
-        .returning();
+      const [[almacenCreado], [cuentaCaja], [cuentaBanco]] = await Promise.all([
+        tx
+          .insert(almacenes)
+          .values({
+            empresaId: empresaCreada.id,
+            sucursalId: sucursalCreada.id,
+            codigo: "PRIN",
+            nombre: "Almacén Principal",
+            esPrincipal: true,
+          })
+          .returning(),
+        tx
+          .insert(cuentasFinancieras)
+          .values({
+            empresaId: empresaCreada.id,
+            sucursalId: sucursalCreada.id,
+            tipo: "caja",
+            nombre: "Caja Principal",
+            moneda: empresa.moneda,
+            cuentaContableId: cuentasPorCodigo.get(CUENTAS_CLAVE.CAJA),
+            activa: true,
+          })
+          .returning(),
+        tx
+          .insert(cuentasFinancieras)
+          .values({
+            empresaId: empresaCreada.id,
+            tipo: "banco",
+            nombre: "Banco Principal",
+            moneda: empresa.moneda,
+            cuentaContableId: cuentasPorCodigo.get(CUENTAS_CLAVE.BANCO),
+            activa: true,
+          })
+          .returning(),
+      ]);
       void almacenCreado;
-
-      const [cuentaCaja] = await tx
-        .insert(cuentasFinancieras)
-        .values({
-          empresaId: empresaCreada.id,
-          sucursalId: sucursalCreada.id,
-          tipo: "caja",
-          nombre: "Caja Principal",
-          moneda: empresa.moneda,
-          cuentaContableId: cuentasPorCodigo.get(CUENTAS_CLAVE.CAJA),
-          activa: true,
-        })
-        .returning();
-
-      const [cuentaBanco] = await tx
-        .insert(cuentasFinancieras)
-        .values({
-          empresaId: empresaCreada.id,
-          tipo: "banco",
-          nombre: "Banco Principal",
-          moneda: empresa.moneda,
-          cuentaContableId: cuentasPorCodigo.get(CUENTAS_CLAVE.BANCO),
-          activa: true,
-        })
-        .returning();
 
       await tx.insert(formasPago).values([
         {
@@ -448,18 +452,22 @@ async function crearCatalogoCuentas(
     .returning({ id: catalogoCuentas.id, codigo: catalogoCuentas.codigo });
 
   const porCodigo = new Map(insertadas.map((c) => [c.codigo, c.id]));
+  const parentUpdates = [];
   for (const c of CATALOGO_CUENTAS_BASE) {
     if (c.padreCodigo) {
       const padreId = porCodigo.get(c.padreCodigo);
       const hijaId = porCodigo.get(c.codigo);
       if (padreId && hijaId) {
-        await tx
-          .update(catalogoCuentas)
-          .set({ padreId })
-          .where(eq(catalogoCuentas.id, hijaId));
+        parentUpdates.push(
+          tx
+            .update(catalogoCuentas)
+            .set({ padreId })
+            .where(eq(catalogoCuentas.id, hijaId)),
+        );
       }
     }
   }
+  await Promise.all(parentUpdates);
   return insertadas;
 }
 
@@ -468,7 +476,7 @@ export async function asegurarPlanes() {
   const filas = await dbSuperAdmin((tx) => tx.select().from(planesTable));
   const existentes = new Set(filas.map((p) => p.codigo));
 
-  for (const id of ["demo", "pro", "enterprise"] as const) {
+  await Promise.all((["demo", "pro", "enterprise"] as const).map((id) => {
     const p = PLANES[id];
     const values = {
       codigo: p.id,
@@ -487,11 +495,10 @@ export async function asegurarPlanes() {
     };
 
     if (existentes.has(id)) {
-      await dbSuperAdmin((tx) =>
+      return dbSuperAdmin((tx) =>
         tx.update(planesTable).set(values).where(eq(planesTable.codigo, id)),
       );
-    } else {
-      await dbSuperAdmin((tx) => tx.insert(planesTable).values(values));
     }
-  }
+    return dbSuperAdmin((tx) => tx.insert(planesTable).values(values));
+  }));
 }

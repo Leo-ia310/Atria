@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -216,25 +217,26 @@ async function procesarCaptura(
   const planId = pago.planCodigo as PlanId;
   const plan = getPlan(planId);
 
-  const [empresa] = await db
-    .select({
-      razonSocial: empresas.razonSocial,
-      nombreComercial: empresas.nombreComercial,
-      email: empresas.email,
-      telefono: empresas.telefono,
-      pais: empresas.pais,
-      tipoEmpresa: empresas.tipoEmpresa,
-      codigoReferido: empresas.codigoReferido,
-    })
-    .from(empresas)
-    .where(eq(empresas.id, empresaId))
-    .limit(1);
-
-  const [planRow] = await db
-    .select({ id: planesTable.id })
-    .from(planesTable)
-    .where(and(eq(planesTable.codigo, planId), eq(planesTable.activo, true)))
-    .limit(1);
+  const [[empresa], [planRow]] = await Promise.all([
+    db
+      .select({
+        razonSocial: empresas.razonSocial,
+        nombreComercial: empresas.nombreComercial,
+        email: empresas.email,
+        telefono: empresas.telefono,
+        pais: empresas.pais,
+        tipoEmpresa: empresas.tipoEmpresa,
+        codigoReferido: empresas.codigoReferido,
+      })
+      .from(empresas)
+      .where(eq(empresas.id, empresaId))
+      .limit(1),
+    db
+      .select({ id: planesTable.id })
+      .from(planesTable)
+      .where(and(eq(planesTable.codigo, planId), eq(planesTable.activo, true)))
+      .limit(1),
+  ]);
 
   if (!planRow) return { ok: false, error: "No encontramos ese plan activo." };
 
@@ -344,16 +346,17 @@ async function procesarCaptura(
     process.env.BILLING_ALERT_EMAIL,
   );
 
-  let enviadoAlguno = false;
-  for (const destino of destinatarios) {
-    const envio = await enviarEmail({
+  const envios = await Promise.all(
+    destinatarios.map((destino) =>
+      enviarEmail({
       para: destino,
       asunto: `Factura ${recibo.numeroRecibo} — Plan ${plan.nombre} activado`,
       html: reciboPagoHtml(recibo),
       texto: reciboPagoTexto(recibo),
-    });
-    if (envio.ok) enviadoAlguno = true;
-  }
+      }),
+    ),
+  );
+  const enviadoAlguno = envios.some((envio) => envio.ok);
   if (enviadoAlguno) {
     await db
       .update(pagosSuscripcion)
@@ -362,24 +365,26 @@ async function procesarCaptura(
   }
 
   if (codigoReferido && referido) {
-    await notificarCambioReferido({
-      pagoSuscripcionId: pago.id,
-      empresaId,
-      codigoReferido,
-      planId,
-      ciclo: pago.ciclo,
-      monto: montoEsperado,
-      cliente: usuario.nombre,
-      clienteEmail: usuario.email,
-      clienteTelefono: empresa?.telefono,
-      empresaCliente: empresaNombre,
-      empresaTelefono: empresa?.telefono,
-      empresaPais: empresa?.pais,
-      tipoEmpresa: empresa?.tipoEmpresa,
-      tipoComision: referido.tipoComision,
-      referenciaExterna: referido.referenciaExterna,
-      fecha: ahora,
-    }).catch((error) => console.warn("[pagos] notificación de referido falló.", error));
+    after(() => {
+      void notificarCambioReferido({
+        pagoSuscripcionId: pago.id,
+        empresaId,
+        codigoReferido,
+        planId,
+        ciclo: pago.ciclo,
+        monto: montoEsperado,
+        cliente: usuario.nombre,
+        clienteEmail: usuario.email,
+        clienteTelefono: empresa?.telefono,
+        empresaCliente: empresaNombre,
+        empresaTelefono: empresa?.telefono,
+        empresaPais: empresa?.pais,
+        tipoEmpresa: empresa?.tipoEmpresa,
+        tipoComision: referido.tipoComision,
+        referenciaExterna: referido.referenciaExterna,
+        fecha: ahora,
+      }).catch((error) => console.warn("[pagos] notificación de referido falló.", error));
+    });
   }
 
   revalidatePath("/", "layout");

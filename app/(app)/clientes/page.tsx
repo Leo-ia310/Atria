@@ -25,24 +25,26 @@ type Fila = {
 
 export default async function ClientesPage() {
   const user = await requireSession();
-  const empresa = await getEmpresaMetadata(user.empresaId);
 
-  const filas: Fila[] = await dbConEmpresa(user.empresaId, (tx) =>
-    tx
-      .select({
-        id: clientes.id,
-        nombre: clientes.nombre,
-        identificacionFiscal: clientes.identificacionFiscal,
-        telefono: clientes.telefono,
-        limiteCredito: clientes.limiteCredito,
-        diasCredito: clientes.diasCredito,
-        esConsumidorFinal: clientes.esConsumidorFinal,
-      })
-      .from(clientes)
-      .where(and(eq(clientes.empresaId, user.empresaId), isNull(clientes.eliminadoEn)))
-      .orderBy(desc(clientes.creadoEn))
-      .limit(200),
-  );
+  const [empresa, filas] = await Promise.all([
+    getEmpresaMetadata(user.empresaId),
+    dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({
+          id: clientes.id,
+          nombre: clientes.nombre,
+          identificacionFiscal: clientes.identificacionFiscal,
+          telefono: clientes.telefono,
+          limiteCredito: clientes.limiteCredito,
+          diasCredito: clientes.diasCredito,
+          esConsumidorFinal: clientes.esConsumidorFinal,
+        })
+        .from(clientes)
+        .where(and(eq(clientes.empresaId, user.empresaId), isNull(clientes.eliminadoEn)))
+        .orderBy(desc(clientes.creadoEn))
+        .limit(200),
+    ),
+  ]);
 
   const columnas: Columna<Fila>[] = [
     {

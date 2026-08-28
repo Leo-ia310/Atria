@@ -63,8 +63,7 @@ export async function expirarSuscripcionesVencidas({
         ),
       );
 
-    let eliminadas = 0;
-    for (const candidata of candidatas) {
+    const eliminadasPorCandidata = await Promise.all(candidatas.map(async (candidata) => {
       const [ultima] = await tx
         .select({ id: suscripciones.id })
         .from(suscripciones)
@@ -72,7 +71,7 @@ export async function expirarSuscripcionesVencidas({
         .orderBy(desc(suscripciones.creadoEn))
         .limit(1);
 
-      if (ultima?.id !== candidata.suscripcionId) continue;
+      if (ultima?.id !== candidata.suscripcionId) return 0;
 
       const [pago] = await tx
         .select({ id: pagosSuscripcion.id })
@@ -85,14 +84,15 @@ export async function expirarSuscripcionesVencidas({
         )
         .limit(1);
 
-      if (pago) continue;
+      if (pago) return 0;
 
       const borradas = await tx
         .delete(empresas)
         .where(eq(empresas.id, candidata.empresaId))
         .returning({ id: empresas.id });
-      eliminadas += borradas.length;
-    }
+      return borradas.length;
+    }));
+    const eliminadas = eliminadasPorCandidata.reduce((total, cantidad) => total + cantidad, 0);
 
     return { expiradas, eliminadas };
   });

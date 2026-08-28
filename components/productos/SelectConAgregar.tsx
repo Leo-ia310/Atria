@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
@@ -30,10 +30,17 @@ export function SelectConAgregar({
   onCrear: (nombre: string) => Promise<CrearResultado>;
 }) {
   const { mostrar } = useToast();
-  const [opciones, setOpciones] = useState<Opcion[]>(opcionesIniciales);
+  const [opcionesCreadas, setOpcionesCreadas] = useState<Opcion[]>([]);
   const [abierto, setAbierto] = useState(false);
   const [nombre, setNombre] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const opciones = useMemo(() => {
+    const vistas = new Map(opcionesIniciales.map((opcion) => [opcion.value, opcion]));
+    for (const opcion of opcionesCreadas) {
+      if (!vistas.has(opcion.value)) vistas.set(opcion.value, opcion);
+    }
+    return Array.from(vistas.values());
+  }, [opcionesIniciales, opcionesCreadas]);
 
   async function guardar() {
     const limpio = nombre.trim();
@@ -45,7 +52,7 @@ export function SelectConAgregar({
       mostrar("error", res.error);
       return;
     }
-    setOpciones((prev) =>
+    setOpcionesCreadas((prev) =>
       prev.some((o) => o.value === res.id)
         ? prev
         : [...prev, { value: res.id, label: res.nombre }],

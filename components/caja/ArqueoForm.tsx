@@ -10,19 +10,25 @@ import { cerrarSesion } from "@/lib/actions/caja";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
-export function ArqueoForm({
-  sesionId,
-  montoEsperado,
-  pais,
-}: {
+type ArqueoFormProps = {
   sesionId: string;
   montoEsperado: number;
   pais: PaisCodigo;
-}) {
+};
+
+export function ArqueoForm(props: ArqueoFormProps) {
+  return <ArqueoFormInner key={`${props.sesionId}:${props.montoEsperado}`} {...props} />;
+}
+
+function ArqueoFormInner({
+  sesionId,
+  montoEsperado,
+  pais,
+}: ArqueoFormProps) {
   const router = useRouter();
   const { mostrar } = useToast();
   const [enviando, setEnviando] = useState(false);
-  const [montoReal, setMontoReal] = useState<number | "">(montoEsperado);
+  const [montoReal, setMontoReal] = useState<number | "">(() => montoEsperado);
   const [notas, setNotas] = useState("");
 
   const montoNum = typeof montoReal === "number" ? montoReal : 0;
