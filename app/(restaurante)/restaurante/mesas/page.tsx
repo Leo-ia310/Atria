@@ -1,9 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { Armchair, Circle, Plus, Square, Table2 } from "lucide-react";
+import Link from "next/link";
+import type { Metadata } from "next";
+import { Armchair, Circle, Plus, Receipt, Square, Table2 } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   restauranteAreas,
   restauranteMesas,
+  restauranteOrdenes,
   sucursales,
 } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -13,10 +17,19 @@ import {
   actualizarEstadoMesaRestauranteForm,
   crearAreaRestauranteForm,
   crearMesaRestauranteForm,
+  crearOrdenRestauranteForm,
+  marcarMesaLimpiaRestauranteForm,
+  solicitarCuentaRestauranteForm,
 } from "@/lib/actions/restaurante-vertical";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
+import { formatearMoneda } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Mesas Restaurante | ARCA",
+  description: "Mapa operativo de salon, mesas y cuentas de restaurante en ARCA.",
+};
 
 const ESTADOS = [
   "disponible",
@@ -27,13 +40,22 @@ const ESTADOS = [
   "deshabilitada",
 ] as const;
 
+type OrdenActivaMesa = {
+  id: string;
+  numero: string;
+  mesaId: string | null;
+  estado: string;
+  personas: number;
+  total: string;
+};
+
 export default async function RestauranteMesasPage() {
   const user = await requireSession();
   await requireModulo(user, "restaurante-mesas");
   const scope = await getSucursalScope(user);
   const visibles = selectedSucursalIds(scope);
 
-  const [sucursalesList, areas, mesas] = await dbConEmpresa(user.empresaId, (tx) =>
+  const [sucursalesList, areas, mesas, ordenesActivas] = await dbConEmpresa(user.empresaId, (tx) =>
     Promise.all([
       tx
         .select({ id: sucursales.id, nombre: sucursales.nombre })
@@ -65,10 +87,37 @@ export default async function RestauranteMesasPage() {
           ),
         )
         .orderBy(asc(restauranteMesas.nombre)),
+      tx
+        .select({
+          id: restauranteOrdenes.id,
+          numero: restauranteOrdenes.numero,
+          mesaId: restauranteOrdenes.mesaId,
+          estado: restauranteOrdenes.estado,
+          personas: restauranteOrdenes.personas,
+          total: restauranteOrdenes.total,
+        })
+        .from(restauranteOrdenes)
+        .where(
+          and(
+            eq(restauranteOrdenes.empresaId, user.empresaId),
+            inArray(restauranteOrdenes.estado, [
+              "abierta",
+              "borrador",
+              "en_cocina",
+              "cuenta_solicitada",
+            ]),
+            visibles ? inArray(restauranteOrdenes.sucursalId, visibles) : undefined,
+          ),
+        )
+        .orderBy(asc(restauranteOrdenes.abiertoEn)),
     ]),
   );
   const sucursalDefault = sucursalesList[0];
   const areasPorId = new Map(areas.map((area) => [area.id, area]));
+  const ordenActivaPorMesa = new Map<string, OrdenActivaMesa>();
+  for (const orden of ordenesActivas) {
+    if (orden.mesaId) ordenActivaPorMesa.set(orden.mesaId, orden);
+  }
   const mesasSinArea = mesas.filter((mesa) => !mesa.areaId || !areasPorId.has(mesa.areaId));
   const gruposArea = [
     ...areas.map((area) => ({
@@ -80,8 +129,12 @@ export default async function RestauranteMesasPage() {
       ? [{ id: "sin-area", nombre: "Sin area", mesas: mesasSinArea }]
       : []),
   ].filter((grupo) => grupo.mesas.length > 0);
-  const disponibles = mesas.filter((mesa) => mesa.estado === "disponible").length;
-  const ocupadas = mesas.filter((mesa) => mesa.estado === "ocupada").length;
+  const disponibles = mesas.filter(
+    (mesa) => mesa.estado === "disponible" && !ordenActivaPorMesa.has(mesa.id),
+  ).length;
+  const ocupadas = mesas.filter(
+    (mesa) => mesa.estado === "ocupada" || ordenActivaPorMesa.has(mesa.id),
+  ).length;
   const reservadas = mesas.filter((mesa) => mesa.estado === "reservada").length;
   const requierenAtencion = mesas.filter((mesa) =>
     ["por_limpiar", "cuenta_solicitada"].includes(mesa.estado),
@@ -145,7 +198,11 @@ export default async function RestauranteMesasPage() {
                         </div>
                         <div className="grid gap-3 p-3 md:grid-cols-2 2xl:grid-cols-3">
                           {grupo.mesas.map((mesa) => (
-                            <MesaCard key={mesa.id} mesa={mesa} />
+                            <MesaCard
+                              key={mesa.id}
+                              mesa={mesa}
+                              ordenActiva={ordenActivaPorMesa.get(mesa.id)}
+                            />
                           ))}
                         </div>
                       </section>
@@ -258,14 +315,23 @@ function MesaResumen({
 
 function MesaCard({
   mesa,
+  ordenActiva,
 }: {
   mesa: typeof restauranteMesas.$inferSelect;
+  ordenActiva?: OrdenActivaMesa;
 }) {
   const Icon = mesa.forma === "redonda" ? Circle : mesa.forma === "barra" ? Armchair : Square;
+  const estadoOperativo = ordenActiva?.estado ?? mesa.estado;
+  const puedeAbrir = mesa.estado === "disponible" && !ordenActiva;
+  const puedeSolicitarCuenta =
+    ordenActiva &&
+    ordenActiva.estado !== "cuenta_solicitada" &&
+    parseFloat(ordenActiva.total) > 0;
+  const puedeMarcarLimpia = mesa.estado === "por_limpiar" && !ordenActiva;
   return (
     <article
       className={`min-h-[168px] rounded-md border bg-[color:var(--color-surface)] p-3 shadow-sm ${estadoBorde(
-        mesa.estado,
+        estadoOperativo,
       )}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -280,26 +346,84 @@ function MesaCard({
         </span>
       </div>
       <div className="mt-3">
-        <Badge variant={variantEstado(mesa.estado)}>{labelEstado(mesa.estado)}</Badge>
+        <Badge variant={variantEstado(estadoOperativo)}>{labelEstado(estadoOperativo)}</Badge>
       </div>
-      <form
-        action={actualizarEstadoMesaRestauranteForm}
-        className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-      >
-        <input type="hidden" name="mesaId" value={mesa.id} />
-        <FormField label="Estado">
-          <select name="estado" defaultValue={mesa.estado} className="arca-input h-10 py-1 text-[12px]">
-            {ESTADOS.map((estado) => (
-              <option key={estado} value={estado}>
-                {labelEstado(estado)}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm justify-center">
-          Guardar
-        </button>
-      </form>
+      {ordenActiva && (
+        <div className="mt-3 rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-[12px]">
+          <div className="flex items-center justify-between gap-2 font-medium">
+            <span>{ordenActiva.numero}</span>
+            <span>{formatearMoneda(ordenActiva.total)}</span>
+          </div>
+          <div className="mt-1 text-[color:var(--color-text-muted)]">
+            {ordenActiva.personas} personas
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 grid gap-2">
+        {puedeAbrir && (
+          <form action={crearOrdenRestauranteForm}>
+            <input type="hidden" name="sucursalId" value={mesa.sucursalId} />
+            <input type="hidden" name="mesaId" value={mesa.id} />
+            <input type="hidden" name="canal" value="salon" />
+            <input type="hidden" name="personas" value={mesa.capacidad} />
+            <input type="hidden" name="idempotencyKey" value={randomUUID()} />
+            <button type="submit" className="arca-btn arca-btn-primary arca-btn-sm w-full justify-center">
+              <Plus size={14} /> Abrir orden
+            </button>
+          </form>
+        )}
+        {ordenActiva && (
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/restaurante/pos" className="arca-btn arca-btn-secondary arca-btn-sm justify-center">
+              Ir al POS
+            </Link>
+            <form action={solicitarCuentaRestauranteForm}>
+              <input type="hidden" name="ordenId" value={ordenActiva.id} />
+              <button
+                type="submit"
+                disabled={!puedeSolicitarCuenta}
+                className="arca-btn arca-btn-secondary arca-btn-sm w-full justify-center"
+              >
+                <Receipt size={14} />
+                {ordenActiva.estado === "cuenta_solicitada" ? "Pedida" : "Cuenta"}
+              </button>
+            </form>
+          </div>
+        )}
+        {puedeMarcarLimpia && (
+          <form action={marcarMesaLimpiaRestauranteForm}>
+            <input type="hidden" name="mesaId" value={mesa.id} />
+            <button type="submit" className="arca-btn arca-btn-primary arca-btn-sm w-full justify-center">
+              Marcar limpia
+            </button>
+          </form>
+        )}
+      </div>
+
+      <details className="mt-3 rounded-md border border-[color:var(--color-border)] px-3 py-2">
+        <summary className="cursor-pointer text-[12px] font-medium text-[color:var(--color-text-muted)]">
+          Ajuste manual
+        </summary>
+        <form
+          action={actualizarEstadoMesaRestauranteForm}
+          className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+        >
+          <input type="hidden" name="mesaId" value={mesa.id} />
+          <FormField label="Estado">
+            <select name="estado" defaultValue={mesa.estado} className="arca-input h-10 py-1 text-[12px]">
+              {ESTADOS.map((estado) => (
+                <option key={estado} value={estado}>
+                  {labelEstado(estado)}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm justify-center">
+            Guardar
+          </button>
+        </form>
+      </details>
     </article>
   );
 }
@@ -312,6 +436,9 @@ function labelEstado(estado: string): string {
     por_limpiar: "Por limpiar",
     cuenta_solicitada: "Cuenta solicitada",
     deshabilitada: "Deshabilitada",
+    borrador: "Borrador",
+    abierta: "Abierta",
+    en_cocina: "En cocina",
   };
   return labels[estado] ?? estado;
 }
@@ -330,15 +457,19 @@ function variantEstado(estado: string): "success" | "warning" | "error" | "info"
   if (estado === "disponible") return "success";
   if (estado === "ocupada" || estado === "reservada") return "warning";
   if (estado === "por_limpiar") return "error";
-  if (estado === "cuenta_solicitada") return "info";
+  if (estado === "cuenta_solicitada" || estado === "en_cocina") return "info";
   return "neutral";
 }
 
 function estadoBorde(estado: string): string {
   if (estado === "disponible") return "border-[color:var(--color-success)]/35";
-  if (estado === "ocupada") return "border-[color:var(--color-warning)]/45";
+  if (estado === "ocupada" || estado === "abierta" || estado === "borrador") {
+    return "border-[color:var(--color-warning)]/45";
+  }
   if (estado === "reservada") return "border-[color:var(--color-warning)]/35";
   if (estado === "por_limpiar") return "border-[color:var(--color-error)]/35";
-  if (estado === "cuenta_solicitada") return "border-[color:var(--color-info)]/35";
+  if (estado === "cuenta_solicitada" || estado === "en_cocina") {
+    return "border-[color:var(--color-info)]/35";
+  }
   return "border-[color:var(--color-border)]";
 }

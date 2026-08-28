@@ -8,12 +8,16 @@ import { dbConEmpresa, dbSuperAdmin, type Tx } from "@/lib/db";
 import {
   almacenes,
   auditoria,
+  cajas,
   categorias,
   empresas,
   existencias,
+  facturas,
+  formasPago,
   menuPlatillos,
   menusVirtuales,
   movimientosInventario,
+  pagosVenta,
   productos,
   restauranteAreas,
   restauranteComandaItems,
@@ -32,12 +36,15 @@ import {
   restauranteRecetas,
   restauranteReservaciones,
   restauranteVisitasComensal,
+  sesionesCaja,
   sucursales,
   unidadesMedida,
+  ventaDetalle,
+  ventas,
 } from "@/lib/db/schema";
 import { requireSession, type SessionUser } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
-import { aDecimalStr, dinero } from "@/lib/contabilidad/helpers";
+import { aDecimalStr, dinero, siguienteNumero } from "@/lib/contabilidad/helpers";
 import {
   RESTAURANTE_GUEST_COOKIE,
   calcularCostoPorPorcion,
@@ -54,10 +61,12 @@ import {
   restauranteComandaEstadoSchema,
   restauranteComensalManualSchema,
   restauranteComensalPublicoSchema,
+  restauranteCobroOrdenSchema,
   restauranteEnviarComandaSchema,
   restauranteEsperaSchema,
   restauranteMermaSchema,
   restauranteMesaEstadoSchema,
+  restauranteMesaLimpiaSchema,
   restauranteMesaSchema,
   restauranteOrdenItemSchema,
   restauranteOrdenSchema,
@@ -66,6 +75,7 @@ import {
   restauranteRecetaIngredienteSchema,
   restauranteRecetaSchema,
   restauranteReservacionSchema,
+  restauranteSolicitarCuentaSchema,
 } from "@/lib/validations/restaurante-vertical";
 import { rateLimit } from "@/lib/redis/rate-limit";
 
@@ -689,8 +699,8 @@ export async function agregarItemOrdenRestaurante(formData: FormData): Promise<R
     }
     if (!producto) return { ok: false as const, error: "Producto no valido" };
 
-    const precioUnitario = data.precioUnitario || parseFloat(producto.precioBase);
-    const costoUnitario = data.costoUnitario || parseFloat(producto.costoPromedio);
+    const precioUnitario = parseFloat(producto.precioBase);
+    const costoUnitario = parseFloat(producto.costoPromedio);
     const [item] = await tx
       .insert(restauranteOrdenItems)
       .values({
@@ -849,6 +859,463 @@ export async function enviarComandasOrdenRestaurante(formData: FormData): Promis
 
 export async function enviarComandasOrdenRestauranteForm(formData: FormData): Promise<void> {
   await enviarComandasOrdenRestaurante(formData);
+}
+
+export async function solicitarCuentaRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-ordenes", "restaurante.ordenes.editar");
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteSolicitarCuentaSchema.safeParse({
+    ordenId: texto(formData, "ordenId"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const { user } = acceso;
+  const { ordenId } = parsed.data;
+  const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const [orden] = await tx
+      .select({
+        id: restauranteOrdenes.id,
+        estado: restauranteOrdenes.estado,
+        mesaId: restauranteOrdenes.mesaId,
+      })
+      .from(restauranteOrdenes)
+      .where(and(eq(restauranteOrdenes.id, ordenId), eq(restauranteOrdenes.empresaId, user.empresaId)))
+      .limit(1);
+    if (!orden) return { ok: false as const, error: "Orden no encontrada" };
+    if (orden.estado === "pagada" || orden.estado === "cancelada") {
+      return { ok: false as const, error: "La orden ya esta cerrada." };
+    }
+
+    const [conteo] = await tx
+      .select({
+        items: sql<string>`COUNT(*)`,
+      })
+      .from(restauranteOrdenItems)
+      .where(
+        and(
+          eq(restauranteOrdenItems.empresaId, user.empresaId),
+          eq(restauranteOrdenItems.ordenId, ordenId),
+          ne(restauranteOrdenItems.estado, "cancelado"),
+        ),
+      );
+    if (Number(conteo?.items ?? 0) === 0) {
+      return { ok: false as const, error: "Agrega productos antes de solicitar la cuenta." };
+    }
+    if (orden.estado === "cuenta_solicitada") {
+      return { ok: true as const, id: orden.id };
+    }
+
+    const ahora = new Date();
+    await tx
+      .update(restauranteOrdenes)
+      .set({
+        estado: "cuenta_solicitada",
+        cuentaSolicitadaEn: ahora,
+        actualizadoEn: ahora,
+        version: sql`${restauranteOrdenes.version} + 1`,
+      })
+      .where(and(eq(restauranteOrdenes.id, ordenId), eq(restauranteOrdenes.empresaId, user.empresaId)));
+
+    if (orden.mesaId) {
+      await tx
+        .update(restauranteMesas)
+        .set({ estado: "cuenta_solicitada", actualizadoEn: ahora })
+        .where(
+          and(
+            eq(restauranteMesas.id, orden.mesaId),
+            eq(restauranteMesas.empresaId, user.empresaId),
+          ),
+        );
+    }
+
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.orden.solicitar_cuenta",
+      tabla: "restaurante_ordenes",
+      registroId: ordenId,
+      datosDespues: { estado: "cuenta_solicitada", mesaId: orden.mesaId },
+    });
+    return { ok: true as const, id: orden.id };
+  });
+  revalidarAtencionRestaurante();
+  return resultado;
+}
+
+export async function solicitarCuentaRestauranteForm(formData: FormData): Promise<void> {
+  await solicitarCuentaRestaurante(formData);
+}
+
+export async function cobrarOrdenRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-ordenes", [
+    "restaurante.ordenes.editar",
+    "ventas.crear",
+  ]);
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteCobroOrdenSchema.safeParse({
+    ordenId: texto(formData, "ordenId"),
+    formaPagoId: texto(formData, "formaPagoId"),
+    referencia: texto(formData, "referencia"),
+    propina: texto(formData, "propina") || "0",
+    idempotencyKey: texto(formData, "idempotencyKey"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const { user } = acceso;
+  const data = parsed.data;
+  const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const [ordenBloqueada] = await tx
+      .update(restauranteOrdenes)
+      .set({
+        actualizadoEn: new Date(),
+        version: sql`${restauranteOrdenes.version} + 1`,
+      })
+      .where(
+        and(
+          eq(restauranteOrdenes.id, data.ordenId),
+          eq(restauranteOrdenes.empresaId, user.empresaId),
+          inArray(restauranteOrdenes.estado, [
+            "abierta",
+            "borrador",
+            "en_cocina",
+            "cuenta_solicitada",
+          ]),
+        ),
+      )
+      .returning({
+        id: restauranteOrdenes.id,
+        numero: restauranteOrdenes.numero,
+        sucursalId: restauranteOrdenes.sucursalId,
+        mesaId: restauranteOrdenes.mesaId,
+        ventaId: restauranteOrdenes.ventaId,
+        estado: restauranteOrdenes.estado,
+        personas: restauranteOrdenes.personas,
+      });
+
+    if (!ordenBloqueada) {
+      const [ordenExistente] = await tx
+        .select({
+          id: restauranteOrdenes.id,
+          ventaId: restauranteOrdenes.ventaId,
+          estado: restauranteOrdenes.estado,
+        })
+        .from(restauranteOrdenes)
+        .where(
+          and(
+            eq(restauranteOrdenes.id, data.ordenId),
+            eq(restauranteOrdenes.empresaId, user.empresaId),
+          ),
+        )
+        .limit(1);
+      if (ordenExistente?.estado === "pagada" && ordenExistente.ventaId) {
+        return { ok: true as const, id: ordenExistente.ventaId };
+      }
+      return { ok: false as const, error: "Orden no disponible para cobrar." };
+    }
+
+    const [[formaPago], items, sesionesAbiertas] = await Promise.all([
+      tx
+        .select({
+          id: formasPago.id,
+          nombre: formasPago.nombre,
+          requiereReferencia: formasPago.requiereReferencia,
+        })
+        .from(formasPago)
+        .where(
+          and(
+            eq(formasPago.id, data.formaPagoId),
+            eq(formasPago.empresaId, user.empresaId),
+            eq(formasPago.activa, true),
+          ),
+        )
+        .limit(1),
+      tx
+        .select({
+          id: restauranteOrdenItems.id,
+          productoId: restauranteOrdenItems.productoId,
+          nombreSnapshot: restauranteOrdenItems.nombreSnapshot,
+          cantidad: restauranteOrdenItems.cantidad,
+          precioUnitario: restauranteOrdenItems.precioUnitario,
+          descuento: restauranteOrdenItems.descuento,
+          impuesto: restauranteOrdenItems.impuesto,
+          costoUnitario: restauranteOrdenItems.costoUnitario,
+          estado: restauranteOrdenItems.estado,
+        })
+        .from(restauranteOrdenItems)
+        .where(
+          and(
+            eq(restauranteOrdenItems.empresaId, user.empresaId),
+            eq(restauranteOrdenItems.ordenId, data.ordenId),
+            ne(restauranteOrdenItems.estado, "cancelado"),
+          ),
+        ),
+      tx
+        .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
+        .from(sesionesCaja)
+        .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
+        .where(
+          and(
+            eq(sesionesCaja.empresaId, user.empresaId),
+            eq(sesionesCaja.estado, "abierta"),
+            eq(cajas.empresaId, user.empresaId),
+            eq(cajas.sucursalId, ordenBloqueada.sucursalId),
+          ),
+        )
+        .orderBy(desc(sesionesCaja.abiertaEn)),
+    ]);
+
+    if (!formaPago) return { ok: false as const, error: "Forma de pago no valida." };
+    if (formaPago.requiereReferencia && !data.referencia) {
+      return { ok: false as const, error: "Esta forma de pago requiere referencia." };
+    }
+    if (items.length === 0) {
+      return { ok: false as const, error: "No se puede cobrar una orden sin productos." };
+    }
+
+    const subtotal = dinero(
+      ...items.map((item) =>
+        dinero(
+          parseFloat(item.cantidad) * parseFloat(item.precioUnitario) -
+            parseFloat(item.descuento),
+        ),
+      ),
+    );
+    const descuento = dinero(...items.map((item) => item.descuento));
+    const impuesto = dinero(...items.map((item) => item.impuesto));
+    const propina = dinero(data.propina);
+    const total = dinero(subtotal + impuesto + propina);
+    const costoTotal = dinero(
+      ...items.map((item) =>
+        dinero(parseFloat(item.cantidad) * parseFloat(item.costoUnitario)),
+      ),
+    );
+    const sesionCajaId =
+      sesionesAbiertas.find((sesion) => sesion.usuarioId === user.id)?.id ??
+      sesionesAbiertas[0]?.id ??
+      null;
+    const ahora = new Date();
+    const numeroVenta = await siguienteNumero(tx, {
+      empresaId: user.empresaId,
+      prefijo: "RV",
+      fecha: ahora,
+      tabla: ventas,
+      columnaNumero: ventas.numero,
+    });
+
+    const [venta] = await tx
+      .insert(ventas)
+      .values({
+        empresaId: user.empresaId,
+        sucursalId: ordenBloqueada.sucursalId,
+        sesionCajaId,
+        clienteId: null,
+        numero: numeroVenta,
+        fecha: ahora,
+        estado: "completada",
+        esCredito: false,
+        diasCredito: 0,
+        subtotal: aDecimalStr(subtotal),
+        descuento: aDecimalStr(descuento),
+        impuesto: aDecimalStr(impuesto),
+        total: aDecimalStr(total),
+        costoTotal: aDecimalStr(costoTotal),
+        notas: `Restaurante ${ordenBloqueada.numero}`,
+        usuarioId: user.id,
+      })
+      .returning({ id: ventas.id, numero: ventas.numero });
+
+    await tx.insert(ventaDetalle).values(
+      items.map((item) => {
+        const cantidad = parseFloat(item.cantidad);
+        const precioUnitario = parseFloat(item.precioUnitario);
+        const itemDescuento = parseFloat(item.descuento);
+        return {
+          ventaId: venta.id,
+          productoId: item.productoId,
+          cantidad: aDecimalStr(cantidad),
+          precioUnitario: aDecimalStr(precioUnitario),
+          descuento: aDecimalStr(itemDescuento),
+          impuesto: aDecimalStr(parseFloat(item.impuesto)),
+          costoUnitario: aDecimalStr(parseFloat(item.costoUnitario)),
+          subtotal: aDecimalStr(dinero(cantidad * precioUnitario - itemDescuento)),
+        };
+      }),
+    );
+
+    await tx.insert(pagosVenta).values({
+      ventaId: venta.id,
+      formaPagoId: formaPago.id,
+      monto: aDecimalStr(total),
+      referencia: data.referencia || null,
+      cambio: "0.0000",
+    });
+
+    await tx.insert(facturas).values({
+      empresaId: user.empresaId,
+      ventaId: venta.id,
+      numero: venta.numero,
+      fecha: ahora,
+      vendedorId: user.id,
+      vendedorNombre: user.nombre,
+      clienteNombre: "Consumidor final",
+      formasPago: formaPago.nombre,
+      esCredito: false,
+      total: aDecimalStr(total),
+      snapshot: {
+        numero: venta.numero,
+        ordenRestaurante: ordenBloqueada.numero,
+        fecha: ahora.toISOString(),
+        cliente: "Consumidor final",
+        cajero: user.nombre,
+        mesaId: ordenBloqueada.mesaId,
+        personas: ordenBloqueada.personas,
+        items: items.map((item) => ({
+          nombre: item.nombreSnapshot,
+          cantidad: parseFloat(item.cantidad),
+          precioUnitario: parseFloat(item.precioUnitario),
+          descuento: parseFloat(item.descuento),
+          impuesto: parseFloat(item.impuesto),
+          subtotal: dinero(
+            parseFloat(item.cantidad) * parseFloat(item.precioUnitario) -
+              parseFloat(item.descuento),
+          ),
+        })),
+        pagos: [
+          {
+            formaPago: formaPago.nombre,
+            monto: total,
+            referencia: data.referencia || null,
+          },
+        ],
+        subtotal,
+        descuento,
+        impuesto,
+        propina,
+        total,
+      },
+    });
+
+    await tx
+      .update(restauranteOrdenes)
+      .set({
+        ventaId: venta.id,
+        estado: "pagada",
+        subtotal: aDecimalStr(subtotal),
+        descuento: aDecimalStr(descuento),
+        impuesto: aDecimalStr(impuesto),
+        propina: aDecimalStr(propina),
+        total: aDecimalStr(total),
+        cerradoEn: ahora,
+        actualizadoEn: ahora,
+        version: sql`${restauranteOrdenes.version} + 1`,
+      })
+      .where(
+        and(
+          eq(restauranteOrdenes.id, ordenBloqueada.id),
+          eq(restauranteOrdenes.empresaId, user.empresaId),
+        ),
+      );
+
+    if (ordenBloqueada.mesaId) {
+      await tx
+        .update(restauranteMesas)
+        .set({ estado: "por_limpiar", actualizadoEn: ahora })
+        .where(
+          and(
+            eq(restauranteMesas.id, ordenBloqueada.mesaId),
+            eq(restauranteMesas.empresaId, user.empresaId),
+          ),
+        );
+    }
+
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.orden.cobrar",
+      tabla: "restaurante_ordenes",
+      registroId: ordenBloqueada.id,
+      datosDespues: {
+        ventaId: venta.id,
+        total,
+        formaPago: formaPago.nombre,
+        sesionCajaId,
+      },
+    });
+    return { ok: true as const, id: venta.id };
+  });
+  revalidarAtencionRestaurante();
+  revalidatePath("/ventas");
+  return resultado;
+}
+
+export async function cobrarOrdenRestauranteForm(formData: FormData): Promise<void> {
+  await cobrarOrdenRestaurante(formData);
+}
+
+export async function marcarMesaLimpiaRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-mesas", "restaurante.mesas.editar");
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteMesaLimpiaSchema.safeParse({
+    mesaId: texto(formData, "mesaId"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const { user } = acceso;
+  const { mesaId } = parsed.data;
+  const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const [mesa] = await tx
+      .select({ id: restauranteMesas.id })
+      .from(restauranteMesas)
+      .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)))
+      .limit(1);
+    if (!mesa) return { ok: false as const, error: "Mesa no encontrada" };
+
+    const ordenesAbiertas = await tx
+      .select({ id: restauranteOrdenes.id })
+      .from(restauranteOrdenes)
+      .where(
+        and(
+          eq(restauranteOrdenes.empresaId, user.empresaId),
+          eq(restauranteOrdenes.mesaId, mesaId),
+          inArray(restauranteOrdenes.estado, [
+            "abierta",
+            "borrador",
+            "en_cocina",
+            "cuenta_solicitada",
+          ]),
+        ),
+      )
+      .limit(1);
+    if (ordenesAbiertas.length > 0) {
+      return { ok: false as const, error: "La mesa todavia tiene una orden abierta." };
+    }
+
+    await tx
+      .update(restauranteMesas)
+      .set({ estado: "disponible", actualizadoEn: new Date() })
+      .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.mesa.marcar_limpia",
+      tabla: "restaurante_mesas",
+      registroId: mesaId,
+      datosDespues: { estado: "disponible" },
+    });
+    return { ok: true as const, id: mesaId };
+  });
+  revalidarAtencionRestaurante();
+  return resultado;
+}
+
+export async function marcarMesaLimpiaRestauranteForm(formData: FormData): Promise<void> {
+  await marcarMesaLimpiaRestaurante(formData);
 }
 
 export async function actualizarEstadoComandaRestaurante(formData: FormData): Promise<Resultado> {
@@ -1482,4 +1949,11 @@ async function siguienteNumeroComanda(tx: Tx, empresaId: string): Promise<string
     .limit(1);
   const siguiente = ultimo ? parseInt(ultimo.numero.split("-").pop() ?? "0", 10) + 1 : 1;
   return prefijo + String(siguiente).padStart(6, "0");
+}
+
+function revalidarAtencionRestaurante() {
+  revalidatePath("/restaurante");
+  revalidatePath("/restaurante/pos");
+  revalidatePath("/restaurante/mesas");
+  revalidatePath("/restaurante/ordenes");
 }

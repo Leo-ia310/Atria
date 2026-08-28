@@ -1,8 +1,11 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
-import { ChefHat, Receipt, Table2 } from "lucide-react";
+import { randomUUID } from "node:crypto";
+import type { Metadata } from "next";
+import { ChefHat, CreditCard, Receipt, Table2 } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
+  formasPago,
   restauranteMesas,
   restauranteOrdenItems,
   restauranteOrdenes,
@@ -10,12 +13,23 @@ import {
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
-import { enviarComandasOrdenRestauranteForm } from "@/lib/actions/restaurante-vertical";
+import {
+  cobrarOrdenRestauranteForm,
+  enviarComandasOrdenRestauranteForm,
+  solicitarCuentaRestauranteForm,
+} from "@/lib/actions/restaurante-vertical";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { formatearFechaHora, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FormField } from "@/components/ui/FormField";
+import { labelItemCocina } from "@/lib/restaurante/display";
+
+export const metadata: Metadata = {
+  title: "Ordenes Restaurante | ARCA",
+  description: "Seguimiento, cuenta y cobro de ordenes de restaurante en ARCA.",
+};
 
 export default async function RestauranteOrdenesPage() {
   const user = await requireSession();
@@ -27,7 +41,7 @@ export default async function RestauranteOrdenesPage() {
   const visibles = selectedSucursalIds(scope);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
-  const [ordenes, items] = await dbConEmpresa(user.empresaId, (tx) =>
+  const [ordenes, items, formasPagoList] = await dbConEmpresa(user.empresaId, (tx) =>
     Promise.all([
       tx
         .select({
@@ -36,6 +50,8 @@ export default async function RestauranteOrdenesPage() {
           estado: restauranteOrdenes.estado,
           canal: restauranteOrdenes.canal,
           total: restauranteOrdenes.total,
+          propina: restauranteOrdenes.propina,
+          ventaId: restauranteOrdenes.ventaId,
           personas: restauranteOrdenes.personas,
           abiertoEn: restauranteOrdenes.abiertoEn,
           mesaNombre: restauranteMesas.nombre,
@@ -55,6 +71,15 @@ export default async function RestauranteOrdenesPage() {
         .from(restauranteOrdenItems)
         .where(eq(restauranteOrdenItems.empresaId, user.empresaId))
         .orderBy(desc(restauranteOrdenItems.creadoEn)),
+      tx
+        .select({
+          id: formasPago.id,
+          nombre: formasPago.nombre,
+          requiereReferencia: formasPago.requiereReferencia,
+        })
+        .from(formasPago)
+        .where(and(eq(formasPago.empresaId, user.empresaId), eq(formasPago.activa, true)))
+        .orderBy(formasPago.nombre),
     ]),
   );
 
@@ -93,6 +118,11 @@ export default async function RestauranteOrdenesPage() {
           {ordenes.map((orden) => {
             const ordenItems = itemsPorOrden.get(orden.id) ?? [];
             const nuevos = ordenItems.filter((item) => item.estado === "borrador");
+            const cerrada = orden.estado === "pagada" || orden.estado === "cancelada";
+            const puedeEnviar = !cerrada && nuevos.length > 0;
+            const puedeSolicitarCuenta =
+              !cerrada && ordenItems.length > 0 && orden.estado !== "cuenta_solicitada";
+            const puedeCobrar = !cerrada && ordenItems.length > 0 && formasPagoList.length > 0;
             return (
               <Card key={orden.id}>
                 <CardHeader
@@ -124,26 +154,96 @@ export default async function RestauranteOrdenesPage() {
                         <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-small">
                           <div className="min-w-0">
                             <div className="truncate font-medium">{item.nombreSnapshot}</div>
-                            <div className="text-[11px] text-[color:var(--color-text-muted)]">{labelItemEstado(item.estado)}</div>
+                            <div className="text-[11px] text-[color:var(--color-text-muted)]">{labelItemCocina(item.estado)}</div>
                           </div>
                           <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
                         </div>
                       ))
                     )}
                   </div>
-                  <div className="flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
+                  <div className="grid gap-3 border-t border-[color:var(--color-border)] pt-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
                     <div>
                       <div className="text-label">Total abierto</div>
                       <div className="font-semibold">{formatearMoneda(orden.total, pais)}</div>
                     </div>
                     <form action={enviarComandasOrdenRestauranteForm}>
                       <input type="hidden" name="ordenId" value={orden.id} />
-                      <button type="submit" disabled={nuevos.length === 0} className="arca-btn arca-btn-secondary arca-btn-sm">
+                      <button type="submit" disabled={!puedeEnviar} className="arca-btn arca-btn-secondary arca-btn-sm w-full justify-center">
                         <ChefHat size={14} />
-                        {nuevos.length === 0 ? "Sin nuevos" : "Enviar nuevos"}
+                        {puedeEnviar ? "Enviar nuevos" : "Sin nuevos"}
+                      </button>
+                    </form>
+                    <form action={solicitarCuentaRestauranteForm}>
+                      <input type="hidden" name="ordenId" value={orden.id} />
+                      <button
+                        type="submit"
+                        disabled={!puedeSolicitarCuenta}
+                        className="arca-btn arca-btn-secondary arca-btn-sm w-full justify-center"
+                      >
+                        <Receipt size={14} />
+                        {orden.estado === "cuenta_solicitada" ? "Cuenta solicitada" : "Solicitar cuenta"}
                       </button>
                     </form>
                   </div>
+                  {!cerrada && (
+                    <form
+                      action={cobrarOrdenRestauranteForm}
+                      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <h2 className="text-base font-semibold">Cobrar orden</h2>
+                          <p className="text-[12px] text-[color:var(--color-text-muted)]">
+                            Convierte la orden en venta core y libera la mesa a limpieza.
+                          </p>
+                        </div>
+                        <CreditCard size={17} className="text-[color:var(--color-secondary)]" />
+                      </div>
+                      <input type="hidden" name="ordenId" value={orden.id} />
+                      <input type="hidden" name="idempotencyKey" value={randomUUID()} />
+                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)_auto] md:items-end">
+                        <FormField label="Forma de pago">
+                          <select
+                            name="formaPagoId"
+                            disabled={formasPagoList.length === 0}
+                            className="arca-input"
+                          >
+                            {formasPagoList.map((formaPago) => (
+                              <option key={formaPago.id} value={formaPago.id}>
+                                {formaPago.nombre}
+                                {formaPago.requiereReferencia ? " - requiere ref." : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </FormField>
+                        <FormField label="Propina">
+                          <input
+                            name="propina"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            defaultValue={orden.propina}
+                            className="arca-input"
+                          />
+                        </FormField>
+                        <FormField label="Referencia">
+                          <input name="referencia" className="arca-input" />
+                        </FormField>
+                        <button
+                          type="submit"
+                          disabled={!puedeCobrar}
+                          className="arca-btn arca-btn-primary justify-center"
+                        >
+                          Cobrar orden
+                        </button>
+                      </div>
+                      {formasPagoList.length === 0 && (
+                        <p className="mt-2 text-[12px] text-[color:var(--color-warning)]">
+                          Configura una forma de pago activa antes de cobrar.
+                        </p>
+                      )}
+                    </form>
+                  )}
                 </CardBody>
               </Card>
             );
@@ -162,18 +262,6 @@ function labelEstado(estado: string): string {
     cuenta_solicitada: "Cuenta solicitada",
     pagada: "Pagada",
     cancelada: "Cancelada",
-  };
-  return labels[estado] ?? estado;
-}
-
-function labelItemEstado(estado: string): string {
-  const labels: Record<string, string> = {
-    borrador: "Nuevo sin enviar",
-    enviado: "Enviado a cocina",
-    preparando: "Preparando",
-    listo: "Listo",
-    entregado: "Entregado",
-    cancelado: "Cancelado",
   };
   return labels[estado] ?? estado;
 }

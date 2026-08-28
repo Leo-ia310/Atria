@@ -104,6 +104,29 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 300_0
       /\/dashboard/,
       `${path} no debe salir al dashboard principal`,
     );
+    if (path === "/restaurante/pos") {
+      assert.match(html, /Carta rapida/, "POS debe tener carta tactil filtrable");
+      assert.match(html, /Solicitar cuenta/, "POS debe permitir solicitar cuenta");
+      assert.match(html, /Cobrar orden/, "POS debe permitir cobrar orden");
+      assert.match(html, /Forma de pago/, "POS debe etiquetar el cobro");
+      assert.doesNotMatch(
+        html,
+        /<select[^>]+name="productoId"/,
+        "POS restaurante no debe usar selector viejo de producto",
+      );
+    }
+    if (path === "/restaurante/mesas") {
+      assert.match(html, /Ajuste manual/, "Mesas conserva ajuste manual secundario");
+      assert.match(
+        html,
+        /Abrir orden|Ir al POS|Marcar limpia/,
+        "Mesas debe exponer acciones operativas",
+      );
+    }
+    if (path === "/restaurante/ordenes") {
+      assert.match(html, /Cobrar orden/, "Ordenes debe permitir cierre de cuenta");
+      assert.match(html, /Forma de pago/, "Ordenes debe etiquetar el pago");
+    }
   }
 });
 

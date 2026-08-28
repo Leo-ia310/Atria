@@ -118,6 +118,22 @@ export const restauranteEnviarComandaSchema = z.object({
   ordenId: z.string().uuid(),
 });
 
+export const restauranteSolicitarCuentaSchema = z.object({
+  ordenId: z.string().uuid(),
+});
+
+export const restauranteCobroOrdenSchema = z.object({
+  ordenId: z.string().uuid(),
+  formaPagoId: z.string().uuid("Selecciona una forma de pago"),
+  referencia: textoLibre(120),
+  propina: z.coerce.number().min(0).max(1000000).default(0),
+  idempotencyKey: z.string().trim().max(120).optional().or(z.literal("")),
+});
+
+export const restauranteMesaLimpiaSchema = z.object({
+  mesaId: z.string().uuid(),
+});
+
 export const restauranteComandaEstadoSchema = z.object({
   comandaId: z.string().uuid(),
   estado: z.enum(["recibida", "preparando", "lista", "entregada", "cancelada"]),
@@ -208,6 +224,7 @@ export type RestauranteRecetaIngredienteInput =
   z.infer<typeof restauranteRecetaIngredienteSchema>;
 export type RestauranteOrdenInput = z.infer<typeof restauranteOrdenSchema>;
 export type RestauranteOrdenItemInput = z.infer<typeof restauranteOrdenItemSchema>;
+export type RestauranteCobroOrdenInput = z.infer<typeof restauranteCobroOrdenSchema>;
 export type RestauranteComensalManualInput =
   z.infer<typeof restauranteComensalManualSchema>;
 export type RestaurantePromocionInput = z.infer<typeof restaurantePromocionSchema>;
