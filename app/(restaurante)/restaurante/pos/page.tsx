@@ -24,8 +24,13 @@ import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
+import { labelItemCocina } from "@/lib/restaurante/display";
 
 export default async function RestaurantePosPage() {
+  return restaurantePosPage();
+}
+
+async function restaurantePosPage() {
   const user = await requireSession();
   await requireModulo(user, "restaurante-pos");
   const [scope, empresa] = await Promise.all([
@@ -245,7 +250,7 @@ export default async function RestaurantePosPage() {
                 <input name="personas" defaultValue="1" className="arca-input" />
               </FormField>
               <FormField label="Notas de atencion">
-                <input name="notas" placeholder="Notas" className="arca-input" />
+                <input name="notas" className="arca-input" />
               </FormField>
               <input type="hidden" name="idempotencyKey" value={randomUUID()} />
               {!tieneSucursales && (
@@ -296,7 +301,7 @@ export default async function RestaurantePosPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">{item.nombreSnapshot}</div>
                           <div className="text-[11px] text-[color:var(--color-text-muted)]">
-                            {item.estado}
+                            {labelItemCocina(item.estado)}
                           </div>
                         </div>
                         <span>x{parseFloat(item.cantidad).toFixed(0)}</span>

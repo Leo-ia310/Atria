@@ -31,6 +31,7 @@ const atToday = (hour, minute = 0) => {
 
 const money = (value) => Number(value).toFixed(4);
 const qrHash = (token) => crypto.createHash("sha256").update(token).digest("hex");
+const LEGACY_SEED_MARKER = "seed:nicaris";
 
 async function main() {
   await sql.begin(async (tx) => {
@@ -554,7 +555,7 @@ async function ensureProductos(tx, empresaId, categorias, unidades, estaciones, 
         values (
           ${empresaId}, ${receta.id}, ${productos[ingredienteKey].id},
           ${unidades.KG}, ${cantidad}, ${money(costoUnitario)}, '0.0500',
-          'seed:nicaris'
+          null
         )
       `;
     }
@@ -812,7 +813,7 @@ async function ensureComensales(tx, empresaId) {
         ${empresaId}, ${nombre}, ${telefono}, ${email}, ${visitas},
         ${money(gasto)}, ${money(gasto / visitas)}, ${atToday(13, 20)},
         ${JSON.stringify([{ nombre: "Hamburguesa Nicaris" }, { nombre: "Cafe frio cacao" }])}::jsonb,
-        ${preferencias}, ${alergias}, 'seed:nicaris', 'Cumpleanos y cenas familiares'
+        ${preferencias}, ${alergias}, null, 'Cumpleanos y cenas familiares'
       )
       on conflict (empresa_id, email) do update
         set
@@ -853,17 +854,23 @@ async function resetSeedTransaccional(tx, empresaId) {
   await tx`
     delete from restaurante_reservaciones
     where empresa_id = ${empresaId}
-      and notas like 'seed:nicaris%'
+      and (notas like ${`${LEGACY_SEED_MARKER}%`} or email like '%@nicaris.demo')
   `;
   await tx`
     delete from restaurante_lista_espera
     where empresa_id = ${empresaId}
-      and notas like 'seed:nicaris%'
+      and (notas like ${`${LEGACY_SEED_MARKER}%`} or telefono like '+505881020%')
   `;
   await tx`
     delete from restaurante_mermas
     where empresa_id = ${empresaId}
-      and observacion like 'seed:nicaris%'
+      and (
+        observacion like ${`${LEGACY_SEED_MARKER}%`}
+        or observacion in (
+          'corte de hojas para mise en place',
+          'panes vencidos antes de servicio'
+        )
+      )
   `;
   await tx`
     delete from restaurante_promociones
@@ -873,7 +880,7 @@ async function resetSeedTransaccional(tx, empresaId) {
   await tx`
     delete from restaurante_compras_sugeridas
     where empresa_id = ${empresaId}
-      and estado = 'seed:nicaris'
+      and estado = ${LEGACY_SEED_MARKER}
   `;
 }
 
@@ -1042,7 +1049,7 @@ async function ensureOrdenesDemo(
         ${empresaId}, ${sucursalId}, ${mesas[orden.mesa]}, ${meseros[orden.mesero]},
         ${comensales[orden.comensal]}, ${ventaId}, ${`R-${hoyISO.replaceAll("-", "")}-${String(orden.n).padStart(3, "0")}`},
         'salon', ${orden.estado}, ${orden.personas}, ${money(subtotal)}, ${money(impuesto)},
-        ${money(propina)}, ${money(total)}, 'seed:nicaris orden demo',
+        ${money(propina)}, ${money(total)}, null,
         ${`nicaris-demo-order-${orden.n}`}, ${usuarioId}, ${atToday(...orden.hora)},
         ${orden.estado === "cuenta_solicitada" ? atToday(15, 35) : null},
         ${orden.estado === "pagada" ? atToday(orden.hora[0] + 1, orden.hora[1]) : null}
@@ -1064,7 +1071,7 @@ async function ensureOrdenesDemo(
         values (
           ${empresaId}, ${ordenRow.id}, ${producto.id}, ${producto.nombre},
           ${money(cantidad)}, ${money(precio)}, ${money(precio * cantidad * 0.15)},
-          ${money(costoUnitario)}, ${estado}, 'seed:nicaris', ${atToday(...orden.hora)}
+          ${money(costoUnitario)}, ${estado}, null, ${atToday(...orden.hora)}
         )
         returning id, producto_id, nombre_snapshot, cantidad
       `;
@@ -1079,7 +1086,7 @@ async function ensureOrdenesDemo(
       values (
         ${empresaId}, ${sucursalId}, ${ordenRow.id}, ${estaciones[orden.estacion]},
         ${`K-${hoyISO.replaceAll("-", "")}-${String(orden.n).padStart(3, "0")}`},
-        ${orden.comandaEstado}, ${orden.n <= 2 ? 2 : 1}, 'seed:nicaris',
+        ${orden.comandaEstado}, ${orden.n <= 2 ? 2 : 1}, null,
         ${usuarioId}, ${atToday(...orden.hora)},
         ${["recibida", "preparando", "lista", "entregada"].includes(orden.comandaEstado) ? atToday(orden.hora[0], orden.hora[1] + 3) : null},
         ${["preparando", "lista", "entregada"].includes(orden.comandaEstado) ? atToday(orden.hora[0], orden.hora[1] + 7) : null},
@@ -1097,7 +1104,7 @@ async function ensureOrdenesDemo(
         )
         values (
           ${empresaId}, ${comanda.id}, ${item.id}, ${item.producto_id},
-          ${item.nombre_snapshot}, ${item.cantidad}, 'seed:nicaris', ${orden.comandaEstado}
+          ${item.nombre_snapshot}, ${item.cantidad}, null, ${orden.comandaEstado}
         )
       `;
     }
@@ -1126,7 +1133,7 @@ async function insertVentaDemo(tx, empresaId, sucursalId, usuarioId, numero, sub
     values (
       ${empresaId}, ${sucursalId}, ${`NIC-DEMO-${String(numero).padStart(3, "0")}`},
       ${atToday(...hora)}, 'completada', false, ${money(subtotal)}, ${money(impuesto)},
-      ${money(total)}, ${money(costo)}, 'seed:nicaris venta restaurante', ${usuarioId}
+      ${money(total)}, ${money(costo)}, 'Venta restaurante Nicaris', ${usuarioId}
     )
     returning id
   `;
@@ -1149,7 +1156,7 @@ async function ensureRecepcionDemo(tx, empresaId, sucursalId, usuarioId, mesas, 
       values (
         ${empresaId}, ${sucursalId}, ${comensales[nombre]}, ${mesas[mesa]},
         ${nombre}, ${telefono}, ${email}, ${fecha}, ${hora}, ${personas},
-        ${ocasion}, 'seed:nicaris reserva demo', 'confirmada', ${money(personas * 100)},
+        ${ocasion}, null, 'confirmada', ${money(personas * 100)},
         ${usuarioId}
       )
     `;
@@ -1168,7 +1175,7 @@ async function ensureRecepcionDemo(tx, empresaId, sucursalId, usuarioId, mesas, 
       )
       values (
         ${empresaId}, ${sucursalId}, ${nombre}, ${telefono}, ${personas},
-        ${atToday(18, 10)}, ${min}, ${preferencia}, 'seed:nicaris lista espera',
+        ${atToday(18, 10)}, ${min}, ${preferencia}, null,
         'esperando', ${usuarioId}
       )
     `;
@@ -1200,8 +1207,8 @@ async function ensureMarketingDemo(tx, empresaId, usuarioId, productos, categori
 
 async function ensureMermasDemo(tx, empresaId, sucursalId, almacenId, usuarioId, productos) {
   const rows = [
-    [productos.lechuga.id, 0.7, 42, "preparacion", "seed:nicaris corte de hojas para mise en place"],
-    [productos.pan.id, 4, 18, "caducidad", "seed:nicaris panes vencidos antes de servicio"],
+    [productos.lechuga.id, 0.7, 42, "preparacion", "corte de hojas para mise en place"],
+    [productos.pan.id, 4, 18, "caducidad", "panes vencidos antes de servicio"],
   ];
   for (const [productoId, cantidad, costo, motivo, observacion] of rows) {
     await tx`

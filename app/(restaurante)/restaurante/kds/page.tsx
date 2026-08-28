@@ -14,6 +14,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { actualizarEstadoComandaRestauranteForm } from "@/lib/actions/restaurante-vertical";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { notaRestauranteVisible } from "@/lib/restaurante/display";
 
 export default async function RestauranteKdsPage() {
   const user = await requireSession();
@@ -139,19 +140,22 @@ export default async function RestauranteKdsPage() {
                           </div>
 
                           <div className="space-y-2">
-                            {(itemsPorComanda.get(comanda.id) ?? []).map((item) => (
-                              <div key={item.id} className="rounded-md bg-[color:var(--color-surface-2)] px-3 py-2">
-                                <div className="flex items-center justify-between gap-3 text-small">
-                                  <span className="font-medium">{item.nombreSnapshot}</span>
-                                  <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
-                                </div>
-                                {item.notasCocina && (
-                                  <div className="mt-1 text-[12px] text-[color:var(--color-warning)]">
-                                    {item.notasCocina}
+                            {(itemsPorComanda.get(comanda.id) ?? []).map((item) => {
+                              const notaCocina = notaRestauranteVisible(item.notasCocina);
+                              return (
+                                <div key={item.id} className="rounded-md bg-[color:var(--color-surface-2)] px-3 py-2">
+                                  <div className="flex items-center justify-between gap-3 text-small">
+                                    <span className="font-medium">{item.nombreSnapshot}</span>
+                                    <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
                                   </div>
-                                )}
-                              </div>
-                            ))}
+                                  {notaCocina && (
+                                    <div className="mt-1 text-[12px] text-[color:var(--color-warning)]">
+                                      {notaCocina}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">

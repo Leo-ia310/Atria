@@ -55,13 +55,17 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 300_0
     });
 
   const dashboard = await get("/dashboard");
-  assert.equal(dashboard.status, 200);
+  const restaurante = await dashboard.text();
+  assert.equal(
+    dashboard.status,
+    200,
+    detalleErrorRuta("/dashboard", dashboard, restaurante, output),
+  );
   assert.ok(
     dashboard.url.endsWith("/restaurante"),
     `dashboard debe redirigir a /restaurante, finalizo en ${dashboard.url}`,
   );
 
-  const restaurante = await dashboard.text();
   assert.match(restaurante, /Operaciones del restaurante/);
   assert.match(restaurante, /Atencion/);
   assert.match(restaurante, /Cocina/);
@@ -71,6 +75,7 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 300_0
   assert.match(restaurante, /Mesas ocupadas/);
   assert.doesNotMatch(restaurante, /Menu virtual<\/span>/);
   assert.doesNotMatch(restaurante, /Pedidos cocina<\/span>/);
+  assert.doesNotMatch(restaurante, /seed:nicaris/i);
 
   const rutas = [
     ["/restaurante/pos", /Comer en el lugar/],
@@ -90,9 +95,10 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 300_0
 
   for (const [path, matcher] of rutas) {
     const response = await get(path);
-    assert.equal(response.status, 200, `${path} debe responder 200`);
     const html = await response.text();
+    assert.equal(response.status, 200, detalleErrorRuta(path, response, html, output));
     assert.match(html, matcher, `${path} debe renderizar contenido esperado`);
+    assert.doesNotMatch(html, /seed:nicaris/i, `${path} no debe exponer marcadores seed`);
     assert.doesNotMatch(
       response.url,
       /\/dashboard/,
@@ -130,6 +136,16 @@ async function getNicarisUser(sql) {
   `;
   assert.ok(user, "Debe existir un usuario activo de Nicaris para el E2E");
   return user;
+}
+
+function detalleErrorRuta(path, response, html, output) {
+  return [
+    `${path} debe responder 200; recibio ${response.status} en ${response.url}`,
+    "HTML:",
+    html.slice(0, 3000),
+    "Servidor:",
+    output.join("").slice(-4000),
+  ].join("\n");
 }
 
 async function buildSessionCookie(user) {

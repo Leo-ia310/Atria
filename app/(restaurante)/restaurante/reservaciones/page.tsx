@@ -17,6 +17,7 @@ import {
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
+import { notaRestauranteVisible } from "@/lib/restaurante/display";
 
 export default async function RestauranteReservacionesPage() {
   const user = await requireSession();
@@ -123,14 +124,14 @@ export default async function RestauranteReservacionesPage() {
                   </select>
                 </FormField>
                 <FormField label="Nombre del cliente">
-                  <input name="nombre" placeholder="Nombre" className="arca-input" />
+                  <input name="nombre" className="arca-input" />
                 </FormField>
                 <div className="grid grid-cols-2 gap-2">
                   <FormField label="Telefono">
-                    <input name="telefono" placeholder="Telefono" className="arca-input" />
+                    <input name="telefono" className="arca-input" />
                   </FormField>
                   <FormField label="Email">
-                    <input name="email" placeholder="Email" className="arca-input" />
+                    <input name="email" className="arca-input" />
                   </FormField>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -141,14 +142,14 @@ export default async function RestauranteReservacionesPage() {
                     <input name="hora" type="time" className="arca-input" />
                   </FormField>
                   <FormField label="Personas">
-                    <input name="personas" placeholder="Pax" className="arca-input" />
+                    <input name="personas" className="arca-input" />
                   </FormField>
                 </div>
                 <FormField label="Ocasion especial">
-                  <input name="ocasionEspecial" placeholder="Ocasion especial" className="arca-input" />
+                  <input name="ocasionEspecial" className="arca-input" />
                 </FormField>
                 <FormField label="Notas">
-                  <textarea name="notas" placeholder="Notas" className="arca-input min-h-20" />
+                  <textarea name="notas" className="arca-input min-h-20" />
                 </FormField>
                 {!tieneSucursales && (
                   <p className="text-[12px] text-[color:var(--color-warning)]">
@@ -187,24 +188,24 @@ export default async function RestauranteReservacionesPage() {
                   </select>
                 </FormField>
                 <FormField label="Nombre del cliente">
-                  <input name="nombreEspera" placeholder="Nombre" className="arca-input" />
+                  <input name="nombreEspera" className="arca-input" />
                 </FormField>
                 <div className="grid grid-cols-2 gap-2">
                   <FormField label="Telefono">
-                    <input name="telefonoEspera" placeholder="Telefono" className="arca-input" />
+                    <input name="telefonoEspera" className="arca-input" />
                   </FormField>
                   <FormField label="Personas">
-                    <input name="personasEspera" placeholder="Pax" className="arca-input" />
+                    <input name="personasEspera" className="arca-input" />
                   </FormField>
                 </div>
                 <FormField label="Espera estimada">
-                  <input name="esperaEstimadaMin" placeholder="Espera min" className="arca-input" />
+                  <input name="esperaEstimadaMin" className="arca-input" />
                 </FormField>
                 <FormField label="Preferencia">
-                  <input name="preferencia" placeholder="Preferencia" className="arca-input" />
+                  <input name="preferencia" className="arca-input" />
                 </FormField>
                 <FormField label="Notas">
-                  <textarea name="notasEspera" placeholder="Notas" className="arca-input min-h-20" />
+                  <textarea name="notasEspera" className="arca-input min-h-20" />
                 </FormField>
                 <button type="submit" disabled={!tieneSucursales} className="arca-btn arca-btn-secondary w-full">
                   Agregar a espera
@@ -223,29 +224,30 @@ export default async function RestauranteReservacionesPage() {
                   Sin reservaciones.
                 </p>
               ) : (
-                reservaciones.map((reserva) => (
-                  <div key={reserva.id} className="rounded-md bg-[color:var(--color-surface-2)] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold">{reserva.nombre}</div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-[12px] text-[color:var(--color-text-muted)]">
-                          <span className="inline-flex items-center gap-1">
-                            <Clock size={12} /> {reserva.fecha} {reserva.hora}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <UsersRound size={12} /> {reserva.personas} pax
-                          </span>
+                reservaciones.map((reserva) => {
+                  const nota = notaRestauranteVisible(reserva.notas);
+                  return (
+                    <div key={reserva.id} className="rounded-md bg-[color:var(--color-surface-2)] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">{reserva.nombre}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[12px] text-[color:var(--color-text-muted)]">
+                            <span className="inline-flex items-center gap-1">
+                              <Clock size={12} /> {reserva.fecha} {reserva.hora}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <UsersRound size={12} /> {reserva.personas} pax
+                            </span>
+                          </div>
                         </div>
+                        <Badge variant={reserva.estado === "confirmada" ? "success" : "warning"}>
+                          {labelReservaEstado(reserva.estado)}
+                        </Badge>
                       </div>
-                      <Badge variant={reserva.estado === "confirmada" ? "success" : "warning"}>
-                        {reserva.estado}
-                      </Badge>
+                      {nota && <p className="mt-2 text-small text-[color:var(--color-text-muted)]">{nota}</p>}
                     </div>
-                    {reserva.notas && (
-                      <p className="mt-2 text-small text-[color:var(--color-text-muted)]">{reserva.notas}</p>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardBody>
           </Card>
@@ -267,7 +269,7 @@ export default async function RestauranteReservacionesPage() {
                       </div>
                     </div>
                     <Badge variant={row.estado === "notificado" ? "info" : "warning"}>
-                      {row.estado}
+                      {labelEsperaEstado(row.estado)}
                     </Badge>
                   </div>
                 ))
@@ -278,4 +280,25 @@ export default async function RestauranteReservacionesPage() {
       </section>
     </div>
   );
+}
+
+function labelReservaEstado(estado: string): string {
+  const labels: Record<string, string> = {
+    pendiente: "Pendiente",
+    confirmada: "Confirmada",
+    sentada: "Sentada",
+    cancelada: "Cancelada",
+    no_show: "No asistio",
+  };
+  return labels[estado] ?? estado;
+}
+
+function labelEsperaEstado(estado: string): string {
+  const labels: Record<string, string> = {
+    esperando: "Esperando",
+    notificado: "Notificado",
+    sentado: "Sentado",
+    cancelado: "Cancelado",
+  };
+  return labels[estado] ?? estado;
 }
