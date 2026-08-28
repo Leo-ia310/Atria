@@ -1,0 +1,35 @@
+import { z } from 'zod';
+export declare const envSchema: z.ZodObject<{
+    NODE_ENV: z.ZodDefault<z.ZodEnum<{
+        development: "development";
+        test: "test";
+        production: "production";
+    }>>;
+    PORT: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+    DATABASE_URL: z.ZodString;
+    DIRECT_URL: z.ZodOptional<z.ZodString>;
+    SUPABASE_URL: z.ZodOptional<z.ZodString>;
+    SUPABASE_ANON_KEY: z.ZodOptional<z.ZodString>;
+    REDIS_URL: z.ZodString;
+    QUEUES_ENABLED: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<boolean, string | undefined>>;
+    JWT_ACCESS_SECRET: z.ZodString;
+    JWT_REFRESH_SECRET: z.ZodString;
+    ACCESS_TOKEN_TTL: z.ZodDefault<z.ZodString>;
+    REFRESH_TOKEN_TTL: z.ZodDefault<z.ZodString>;
+    APP_URL: z.ZodString;
+    API_URL: z.ZodString;
+    COOKIE_DOMAIN: z.ZodDefault<z.ZodString>;
+    SECURE_COOKIES: z.ZodDefault<z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<boolean, string | undefined>>>;
+    CORS_ORIGINS: z.ZodDefault<z.ZodString>;
+    SMTP_HOST: z.ZodOptional<z.ZodString>;
+    SMTP_PORT: z.ZodOptional<z.ZodCoercedNumber<unknown>>;
+    SMTP_USER: z.ZodOptional<z.ZodString>;
+    SMTP_PASS: z.ZodOptional<z.ZodString>;
+    SMTP_FROM: z.ZodDefault<z.ZodString>;
+    RESEND_API_KEY: z.ZodOptional<z.ZodString>;
+    RESEND_FROM: z.ZodOptional<z.ZodString>;
+    UPLOAD_MAX_BYTES: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
+    REPORT_EXPORT_PATH: z.ZodDefault<z.ZodString>;
+}, z.core.$strip>;
+export type AppEnv = z.infer<typeof envSchema>;
+export declare const validateEnv: (config: Record<string, unknown>) => AppEnv;
