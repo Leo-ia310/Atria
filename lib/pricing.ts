@@ -6,7 +6,8 @@
 
 export type PlanId = "demo" | "pro" | "enterprise";
 
-export const DESCUENTO_ANUAL_PORCENTAJE = 30;
+export const DESCUENTO_ANUAL_PORCENTAJE = 15;
+export const DESCUENTO_SEMESTRAL_PORCENTAJE = 10;
 export const DIAS_TRIAL_PLAN_PAGO = 15;
 export const DIAS_GRACIA_PAGO = 7;
 export const DIAS_VIGENCIA_DEMO = 36500;
@@ -50,8 +51,11 @@ export type Plan = {
   nombre: string;
   descripcionCorta: string;
   precioMensual: number;
+  precioSemestral: number;
+  precioSemestralMensualizado: number;
   precioAnual: number;
   precioAnualMensualizado: number;
+  ahorroSemestralPorcentaje: number;
   ahorroAnualPorcentaje: number;
   maxSucursales: number | null;
   maxUsuarios: number | null;
@@ -105,8 +109,11 @@ export const PLANES: Record<PlanId, Plan> = {
     nombre: "Demo",
     descripcionCorta: "Gratis para explorar ARCA con punto de venta completo y limites claros.",
     precioMensual: 0,
+    precioSemestral: 0,
+    precioSemestralMensualizado: 0,
     precioAnual: 0,
     precioAnualMensualizado: 0,
+    ahorroSemestralPorcentaje: 0,
     ahorroAnualPorcentaje: 0,
     maxSucursales: 1,
     maxUsuarios: 1,
@@ -140,8 +147,11 @@ export const PLANES: Record<PlanId, Plan> = {
     nombre: "Pro",
     descripcionCorta: "Operacion completa para una sucursal: ventas, finanzas y nomina.",
     precioMensual: 20,
-    precioAnual: 168,
-    precioAnualMensualizado: 14,
+    precioSemestral: 108,
+    precioSemestralMensualizado: 18,
+    precioAnual: 204,
+    precioAnualMensualizado: 17,
+    ahorroSemestralPorcentaje: DESCUENTO_SEMESTRAL_PORCENTAJE,
     ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 1,
     maxUsuarios: 7,
@@ -176,8 +186,11 @@ export const PLANES: Record<PlanId, Plan> = {
     nombre: "Enterprise",
     descripcionCorta: "Multi-sucursal, IA integrada, API y control corporativo.",
     precioMensual: 99,
-    precioAnual: 831.6,
-    precioAnualMensualizado: 69.3,
+    precioSemestral: 534.6,
+    precioSemestralMensualizado: 89.1,
+    precioAnual: 1009.8,
+    precioAnualMensualizado: 84.15,
+    ahorroSemestralPorcentaje: DESCUENTO_SEMESTRAL_PORCENTAJE,
     ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 5,
     maxUsuarios: 20,

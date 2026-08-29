@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import {
   DESCUENTO_ANUAL_PORCENTAJE,
+  DESCUENTO_SEMESTRAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
   descripcionLimiteIA,
@@ -53,13 +54,13 @@ const VENTAJAS_POR_PLAN: Record<string, string[]> = {
 };
 
 export function PricingToggle() {
-  const [ciclo, setCiclo] = useState<"mensual" | "anual">("mensual");
+  const [ciclo, setCiclo] = useState<"mensual" | "semestral" | "anual">("mensual");
 
   return (
     <div>
       <div className="flex items-center justify-center gap-3">
         <div className="inline-flex rounded-full border border-white/15 bg-[#1b0d31]/90 p-1">
-          {(["mensual", "anual"] as const).map((c) => (
+          {(["mensual", "semestral", "anual"] as const).map((c) => (
             <button
               key={c}
               type="button"
@@ -71,20 +72,32 @@ export function PricingToggle() {
                   : "text-white/60 hover:text-white",
               )}
             >
-              {c === "mensual" ? "Mensual" : "Anual"}
+              {c === "mensual" ? "Mensual" : c === "semestral" ? "Semestral" : "Anual"}
             </button>
           ))}
         </div>
-        {ciclo === "anual" && (
-          <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
-            Ahorra {DESCUENTO_ANUAL_PORCENTAJE}%
-          </span>
-        )}
+        <div className="flex flex-col gap-1">
+          {ciclo === "anual" && (
+            <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
+              Ahorra {DESCUENTO_ANUAL_PORCENTAJE}%
+            </span>
+          )}
+          {ciclo === "semestral" && (
+            <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
+              Ahorra {DESCUENTO_SEMESTRAL_PORCENTAJE}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
         {PLANES_ARRAY.map((p) => {
-          const precio = ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
+          const precio =
+            ciclo === "anual"
+              ? p.precioAnualMensualizado
+              : ciclo === "semestral"
+                ? p.precioSemestralMensualizado
+                : p.precioMensual;
           const ventajas = VENTAJAS_POR_PLAN[p.id] ?? [];
           return (
             <div
@@ -132,8 +145,13 @@ export function PricingToggle() {
                     {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}
                   </p>
                 )}
+                {ciclo === "semestral" && p.precioSemestral > 0 && (
+                  <p className="mt-1 text-[12px] text-white/45">
+                    {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado semestral: ${p.precioSemestral.toFixed(2)}
+                  </p>
+                )}
                 {ciclo === "mensual" && p.precioMensual > 0 && (
-                  <p className="mt-1 text-[12px] text-white/45">Sin contrato anual</p>
+                  <p className="mt-1 text-[12px] text-white/45">Sin contrato a largo plazo</p>
                 )}
 
                 <Link

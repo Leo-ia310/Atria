@@ -292,6 +292,7 @@ export const planes = pgTable("planes", {
   nombre: text("nombre").notNull(),
   tipo: planTipoEnum("tipo").notNull(),
   precioMensual: numeric("precio_mensual", { precision: 10, scale: 2 }).notNull(),
+  precioSemestral: numeric("precio_semestral", { precision: 10, scale: 2 }).notNull(),
   precioAnual: numeric("precio_anual", { precision: 10, scale: 2 }).notNull(),
   maxSucursales: integer("max_sucursales"),
   maxUsuarios: integer("max_usuarios"),

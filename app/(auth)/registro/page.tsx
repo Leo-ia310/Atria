@@ -8,6 +8,7 @@ import { Check } from "lucide-react";
 import { registrarEmpresa } from "@/lib/actions/registro";
 import {
   DESCUENTO_ANUAL_PORCENTAJE,
+  DESCUENTO_SEMESTRAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
 } from "@/lib/pricing";
@@ -44,7 +45,7 @@ type EstadoAdmin = {
 
 type EstadoPlan = {
   planId: "demo" | "pro" | "enterprise";
-  ciclo: "mensual" | "anual";
+  ciclo: "mensual" | "semestral" | "anual";
 };
 
 type RegistroViewProps = {
@@ -103,7 +104,7 @@ export default function RegistroPage() {
       planId: planParam === "pro" || planParam === "enterprise" || planParam === "demo"
         ? planParam
         : actual.planId,
-      ciclo: cicloParam === "anual" || cicloParam === "mensual" ? cicloParam : actual.ciclo,
+      ciclo: cicloParam === "anual" || cicloParam === "semestral" || cicloParam === "mensual" ? cicloParam : actual.ciclo,
     }));
   }, []);
 
@@ -394,7 +395,7 @@ function registroView({
             </p>
 
             <div className="mt-5 inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-0.5 text-small">
-              {(["mensual", "anual"] as const).map((c) => (
+              {(["mensual", "semestral", "anual"] as const).map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -408,6 +409,8 @@ function registroView({
                 >
                   {c === "mensual"
                     ? "Mensual"
+                    : c === "semestral"
+                    ? `Semestral (-${DESCUENTO_SEMESTRAL_PORCENTAJE}%)`
                     : `Anual (-${DESCUENTO_ANUAL_PORCENTAJE}%)`}
                 </button>
               ))}
@@ -416,7 +419,11 @@ function registroView({
             <div className="mt-5 space-y-3">
               {PLANES_ARRAY.map((p) => {
                 const seleccionado = plan.planId === p.id;
-                const precio = plan.ciclo === "anual" ? p.precioAnualMensualizado : p.precioMensual;
+                const precio = plan.ciclo === "anual" 
+                  ? p.precioAnualMensualizado 
+                  : plan.ciclo === "semestral" 
+                    ? p.precioSemestralMensualizado 
+                    : p.precioMensual;
                 return (
                   <button
                     key={p.id}

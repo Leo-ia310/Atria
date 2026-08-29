@@ -51,6 +51,7 @@ type ResultadoCaptura =
 async function precioAPagar(planId: PlanId, ciclo: Ciclo): Promise<number> {
   const plan = getPlan(planId);
   if (ciclo === "anual") return plan.precioAnual;
+  if (ciclo === "semestral") return plan.precioSemestral;
   return plan.precioMensual;
 }
 

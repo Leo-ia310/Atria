@@ -40,7 +40,7 @@ export function PlanesModal({
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
-  const [anual, setAnual] = useState(false);
+  const [ciclo, setCiclo] = useState<"mensual" | "semestral" | "anual">("mensual");
   const [seleccionando, setSeleccionando] = useState<PlanId | null>(null);
   const [vista, setVista] = useState<Vista>("planes");
   const [planCheckout, setPlanCheckout] = useState<Plan | null>(null);
@@ -120,7 +120,7 @@ export function PlanesModal({
       (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
     if (!debePagarActual && !suscripcionBloqueada) {
       setSeleccionando(plan.id);
-      const res = await iniciarTrialPlanPago(plan.id, anual ? "anual" : "mensual");
+      const res = await iniciarTrialPlanPago(plan.id, ciclo);
       setSeleccionando(null);
       if (res.ok) {
         mostrar("success", `Prueba gratis de ${res.plan} activada hasta ${formatearFecha(res.finISO)}`);
@@ -150,9 +150,11 @@ export function PlanesModal({
   }
 
   const precioCheckout = planCheckout
-    ? anual
+    ? ciclo === "anual"
       ? planCheckout.precioAnual
-      : planCheckout.precioMensual
+      : ciclo === "semestral"
+        ? planCheckout.precioSemestral
+        : planCheckout.precioMensual
     : 0;
 
   return createPortal(
@@ -187,8 +189,8 @@ export function PlanesModal({
             suscripcionEstado={suscripcionEstado}
             suscripcionFinISO={suscripcionFinISO}
             suscripcionBloqueada={suscripcionBloqueada}
-            anual={anual}
-            setAnual={setAnual}
+            ciclo={ciclo}
+            setCiclo={setCiclo}
             seleccionando={seleccionando}
             onElegir={elegirPlan}
           />
@@ -197,8 +199,8 @@ export function PlanesModal({
         {vista === "checkout" && planCheckout && (
           <VistaCheckout
             plan={planCheckout}
-            anual={anual}
-            setAnual={setAnual}
+            ciclo={ciclo}
+            setCiclo={setCiclo}
             precio={precioCheckout}
             onVolver={() => setVista("planes")}
             onExito={onPagoExitoso}
@@ -221,8 +223,8 @@ function VistaPlanes({
   suscripcionEstado,
   suscripcionFinISO,
   suscripcionBloqueada,
-  anual,
-  setAnual,
+  ciclo,
+  setCiclo,
   seleccionando,
   onElegir,
 }: {
@@ -231,8 +233,8 @@ function VistaPlanes({
   suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
   suscripcionFinISO?: string | null;
   suscripcionBloqueada: boolean;
-  anual: boolean;
-  setAnual: (v: boolean) => void;
+  ciclo: "mensual" | "semestral" | "anual";
+  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
   seleccionando: PlanId | null;
   onElegir: (plan: Plan) => void;
 }) {
@@ -261,7 +263,7 @@ function VistaPlanes({
             </>
           )}
         </p>
-        <TogglePeriodo anual={anual} setAnual={setAnual} />
+        <TogglePeriodo ciclo={ciclo} setCiclo={setCiclo} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -275,9 +277,11 @@ function VistaPlanes({
             (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
           const demoBloqueado = suscripcionBloqueada && plan.id === "demo";
           const planPagoBloqueadoPorTrial = trialPagoActivo && plan.id !== "demo";
-          const precio = anual
+          const precio = ciclo === "anual"
             ? plan.precioAnualMensualizado
-            : plan.precioMensual;
+            : ciclo === "semestral"
+              ? plan.precioSemestralMensualizado
+              : plan.precioMensual;
           return (
             <div
               key={plan.id}
@@ -311,9 +315,14 @@ function VistaPlanes({
                   ${precio.toFixed(2)}
                 </span>
                 <span className="text-[12px] text-[color:var(--color-text-muted)]">/mes</span>
-                {anual && plan.ahorroAnualPorcentaje > 0 && (
+                {ciclo === "anual" && plan.ahorroAnualPorcentaje > 0 && (
                   <div className="text-[11px] text-[color:var(--color-success)]">
                     Ahorra {plan.ahorroAnualPorcentaje}% al año
+                  </div>
+                )}
+                {ciclo === "semestral" && plan.ahorroSemestralPorcentaje > 0 && (
+                  <div className="text-[11px] text-[color:var(--color-success)]">
+                    Ahorra {plan.ahorroSemestralPorcentaje}% al semestre
                   </div>
                 )}
                 {plan.id !== "demo" && (
@@ -369,16 +378,16 @@ function VistaPlanes({
 
 function VistaCheckout({
   plan,
-  anual,
-  setAnual,
+  ciclo,
+  setCiclo,
   precio,
   onVolver,
   onExito,
   onError,
 }: {
   plan: Plan;
-  anual: boolean;
-  setAnual: (v: boolean) => void;
+  ciclo: "mensual" | "semestral" | "anual";
+  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
   precio: number;
   onVolver: () => void;
   onExito: (recibo: ReciboData) => void;
@@ -402,21 +411,26 @@ function VistaCheckout({
         <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
           {plan.descripcionCorta}
         </p>
-        <TogglePeriodo anual={anual} setAnual={setAnual} />
+        <TogglePeriodo ciclo={ciclo} setCiclo={setCiclo} />
       </div>
 
       <div className="mt-5 rounded-xl bg-[color:var(--color-surface-2)] p-5">
         <div className="flex items-center justify-between text-small">
           <span className="text-[color:var(--color-text-secondary)]">
-            Plan {plan.nombre} · {anual ? "Anual" : "Mensual"}
+            Plan {plan.nombre} · {ciclo === "anual" ? "Anual" : ciclo === "semestral" ? "Semestral" : "Mensual"}
           </span>
           <span className="font-medium text-[color:var(--color-text-primary)]">
             ${precio.toFixed(2)}
           </span>
         </div>
-        {anual && plan.ahorroAnualPorcentaje > 0 && (
+        {ciclo === "anual" && plan.ahorroAnualPorcentaje > 0 && (
           <div className="mt-1 text-right text-[11px] text-[color:var(--color-success)]">
             Incluye {plan.ahorroAnualPorcentaje}% de descuento anual
+          </div>
+        )}
+        {ciclo === "semestral" && plan.ahorroSemestralPorcentaje > 0 && (
+          <div className="mt-1 text-right text-[11px] text-[color:var(--color-success)]">
+            Incluye {plan.ahorroSemestralPorcentaje}% de descuento semestral
           </div>
         )}
         <div className="mt-3 flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
@@ -432,7 +446,7 @@ function VistaCheckout({
       <div className="mt-5">
         <PayPalCheckout
           planId={plan.id}
-          ciclo={anual ? "anual" : "mensual"}
+          ciclo={ciclo}
           onExito={onExito}
           onError={onError}
         />
@@ -446,7 +460,7 @@ function VistaCheckout({
 
       <TransferenciaCheckout
         plan={plan}
-        ciclo={anual ? "anual" : "mensual"}
+        ciclo={ciclo}
         precio={precio}
       />
     </div>
@@ -454,20 +468,20 @@ function VistaCheckout({
 }
 
 function TogglePeriodo({
-  anual,
-  setAnual,
+  ciclo,
+  setCiclo,
 }: {
-  anual: boolean;
-  setAnual: (v: boolean) => void;
+  ciclo: "mensual" | "semestral" | "anual";
+  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
 }) {
   return (
     <div className="mt-3 inline-flex rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-1 text-small">
       <button
         type="button"
-        onClick={() => setAnual(false)}
+        onClick={() => setCiclo("mensual")}
         className={cn(
           "rounded-full px-3 py-1 transition",
-          !anual
+          ciclo === "mensual"
             ? "bg-[color:var(--color-surface)] font-medium shadow-sm"
             : "text-[color:var(--color-text-muted)]",
         )}
@@ -476,10 +490,22 @@ function TogglePeriodo({
       </button>
       <button
         type="button"
-        onClick={() => setAnual(true)}
+        onClick={() => setCiclo("semestral")}
         className={cn(
           "rounded-full px-3 py-1 transition",
-          anual
+          ciclo === "semestral"
+            ? "bg-[color:var(--color-surface)] font-medium shadow-sm"
+            : "text-[color:var(--color-text-muted)]",
+        )}
+      >
+        Semestral
+      </button>
+      <button
+        type="button"
+        onClick={() => setCiclo("anual")}
+        className={cn(
+          "rounded-full px-3 py-1 transition",
+          ciclo === "anual"
             ? "bg-[color:var(--color-surface)] font-medium shadow-sm"
             : "text-[color:var(--color-text-muted)]",
         )}
