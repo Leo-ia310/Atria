@@ -5,7 +5,7 @@ export type ReciboData = {
   fechaISO: string;
   empresaNombre: string;
   planNombre: string;
-  ciclo: "mensual" | "anual";
+  ciclo: "mensual" | "semestral" | "anual";
   monto: number;
   moneda: string;
   metodoPago: string;

@@ -37,7 +37,7 @@ export type SuperAdminCliente = {
   planCodigo: PlanId | null;
   planNombre: string;
   suscripcionEstado: string | null;
-  ciclo: "mensual" | "anual" | null;
+  ciclo: "mensual" | "semestral" | "anual" | null;
   inicioPeriodo: Date | null;
   finPeriodo: Date | null;
   operativo: "activo" | "trial" | "bloqueado" | "suspendido" | "cancelado" | "sin_plan";

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+
+  "model": "ollama/deepseek-r1:14b",
+
+  "provider": {
+    "ollama": {
+      "baseURL": "https://unexpected-earl-montgomery-vat.trycloudflare.com/v1",
+
+      "models": {
+        "deepseek-r1:14b": {
+          "name": "DeepSeek R1 14B - Colab",
+
+          "tool_call": true,
+
+          "limit": {
+            "context": 49152,
+            "output": 8192
+          }
+        }
+      }
+    }
+  }
+}

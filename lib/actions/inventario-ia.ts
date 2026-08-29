@@ -79,6 +79,10 @@ type ResultadoCrearMultiple =
     }
   | { ok: false; error: string };
 
+type ResultadoTransaccionCrear =
+  | { productos: ProductoCreado[] }
+  | { error: string };
+
 function dec(n: number): string {
   return (Math.round(n * 10000) / 10000).toFixed(4);
 }
@@ -110,7 +114,7 @@ async function skuUnico(tx: TX, empresaId: string, base: string): Promise<string
 }
 
 function nombresResumen(productos: PropuestaProducto[]): string {
-  const nombres = productos.map((p) => p.nombre).filter(Boolean);
+  const nombres = productos.flatMap((p) => (p.nombre ? [p.nombre] : []));
   if (nombres.length <= 3) return nombres.join(", ");
   return `${nombres.slice(0, 3).join(", ")} y ${nombres.length - 3} mas`;
 }
@@ -374,7 +378,7 @@ export async function crearProductosDesdeAsistente(
   }
 
   try {
-    const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const resultado: ResultadoTransaccionCrear = await dbConEmpresa(user.empresaId, async (tx) => {
       const creados: ProductoCreado[] = [];
 
       for (const producto of datos) {
