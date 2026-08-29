@@ -107,7 +107,7 @@ export function NominaAcciones({
         >
           {cuentas.length === 0 ? (
             <p className="text-small text-[color:var(--color-text-muted)]">
-              No hay cuentas financieras activas. Crea una en Tesorería o Configuración.
+              No hay cuentas financieras activas. Crea una en Configuración.
             </p>
           ) : (
             <Select

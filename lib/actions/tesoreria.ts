@@ -48,7 +48,7 @@ export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> 
   );
 
   revalidatePath("/tesoreria");
-  revalidatePath("/tesoreria/cuentas");
+  revalidatePath("/configuracion/cuentas-financieras");
   return { ok: true };
 }
 

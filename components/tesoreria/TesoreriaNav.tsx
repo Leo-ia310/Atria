@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Landmark, Receipt, Repeat2, Wallet } from "lucide-react";
+import { Receipt, Repeat2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/tesoreria", label: "Resumen", icon: Wallet },
   { href: "/tesoreria/gastos", label: "Gastos", icon: Receipt },
   { href: "/tesoreria/gastos/recurrentes", label: "Recurrentes", icon: Repeat2 },
-  { href: "/tesoreria/cuentas", label: "Cuentas", icon: Landmark },
 ];
 
 function estaActivo(pathname: string, href: string): boolean {

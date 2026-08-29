@@ -24,6 +24,7 @@ import {
   periodosContables,
   productos,
   proveedores,
+  restauranteProductos,
   roles,
   sesionesCaja,
   solicitudesRrhh,
@@ -132,6 +133,14 @@ export const RECURSOS: Record<string, RecursoExport> = {
         })
         .from(productos)
         .leftJoin(
+          restauranteProductos,
+          and(
+            eq(restauranteProductos.empresaId, ctx.user.empresaId),
+            eq(restauranteProductos.productoId, productos.id),
+            eq(restauranteProductos.tipo, "insumo"),
+          ),
+        )
+        .leftJoin(
           categorias,
           and(eq(categorias.id, productos.categoriaId), eq(categorias.empresaId, ctx.user.empresaId)),
         )
@@ -139,6 +148,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
           and(
             eq(productos.empresaId, ctx.user.empresaId),
             isNull(productos.eliminadoEn),
+            isNull(restauranteProductos.id),
             idsScope ? inArray(productos.id, idsScope) : undefined,
           ),
         )
@@ -1180,11 +1190,20 @@ export const RECURSOS: Record<string, RecursoExport> = {
           costoPromedio: productos.costoPromedio,
         })
         .from(productos)
+        .leftJoin(
+          restauranteProductos,
+          and(
+            eq(restauranteProductos.empresaId, ctx.user.empresaId),
+            eq(restauranteProductos.productoId, productos.id),
+            eq(restauranteProductos.tipo, "insumo"),
+          ),
+        )
         .where(
           and(
             eq(productos.empresaId, ctx.user.empresaId),
             eq(productos.activo, true),
             isNull(productos.eliminadoEn),
+            isNull(restauranteProductos.id),
             idsScope ? inArray(productos.id, idsScope) : undefined,
           ),
         )

@@ -38,7 +38,7 @@ export default async function NuevoGastoPage() {
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const paisConfig = getPaisConfig(pais);
 
-  if (cuentas.length === 0) redirect("/tesoreria/cuentas");
+  if (cuentas.length === 0) redirect("/configuracion/cuentas-financieras");
   if (categorias.length === 0) redirect("/tesoreria");
 
   const impuesto = impuestoRows[0];

@@ -57,7 +57,7 @@ export function CuentaFinancieraForm({
       return;
     }
     mostrar("success", "Cuenta creada");
-    router.push("/tesoreria/cuentas");
+    router.push("/configuracion/cuentas-financieras");
     router.refresh();
   }
 

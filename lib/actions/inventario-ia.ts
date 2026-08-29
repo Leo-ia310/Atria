@@ -502,5 +502,6 @@ export async function crearProductoDesdeAsistente(input: unknown): Promise<Resul
   const res = await crearProductosDesdeAsistente({ productos: [parsed.data] });
   if (!res.ok) return res;
   const producto = res.productos[0];
+  if (!producto) return { ok: false, error: "No se creo ningun producto." };
   return { ok: true, ...producto };
 }

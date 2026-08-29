@@ -2,7 +2,14 @@ import Link from "next/link";
 import { Package, Plus } from "lucide-react";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { almacenes, categorias, existencias, productoAdvertencias, productos } from "@/lib/db/schema";
+import {
+  almacenes,
+  categorias,
+  existencias,
+  productoAdvertencias,
+  productos,
+  restauranteProductos,
+} from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -77,11 +84,20 @@ export default async function InventarioPage() {
         costoPromedio: productos.costoPromedio,
       })
       .from(productos)
+      .leftJoin(
+        restauranteProductos,
+        and(
+          eq(restauranteProductos.empresaId, user.empresaId),
+          eq(restauranteProductos.productoId, productos.id),
+          eq(restauranteProductos.tipo, "insumo"),
+        ),
+      )
       .where(
         and(
           eq(productos.empresaId, user.empresaId),
           eq(productos.activo, true),
           isNull(productos.eliminadoEn),
+          isNull(restauranteProductos.id),
           sql<boolean>`${productos.codigoBarras} IS NOT NULL AND ${productos.codigoBarras} <> ''`,
         ),
       )
@@ -134,6 +150,14 @@ export default async function InventarioPage() {
           })
           .from(productos)
           .leftJoin(
+            restauranteProductos,
+            and(
+              eq(restauranteProductos.empresaId, user.empresaId),
+              eq(restauranteProductos.productoId, productos.id),
+              eq(restauranteProductos.tipo, "insumo"),
+            ),
+          )
+          .leftJoin(
             categorias,
             and(
               eq(categorias.id, productos.categoriaId),
@@ -144,6 +168,7 @@ export default async function InventarioPage() {
             and(
               eq(productos.empresaId, user.empresaId),
               isNull(productos.eliminadoEn),
+              isNull(restauranteProductos.id),
               productoIdsEnScope ? inArray(productos.id, productoIdsEnScope) : undefined,
             ),
           )

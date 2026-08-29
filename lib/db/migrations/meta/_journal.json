@@ -141,6 +141,13 @@
       "when": 1788022000000,
       "tag": "0019_usuario_onboarding_modulos",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788023915716,
+      "tag": "0020_bumpy_nomad",
+      "breakpoints": true
     }
   ]
 }

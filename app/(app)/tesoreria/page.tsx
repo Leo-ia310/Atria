@@ -1,40 +1,19 @@
 import Link from "next/link";
-import { Plus, Receipt, Landmark, Wallet } from "lucide-react";
+import { Plus, Receipt, Repeat2 } from "lucide-react";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cuentasFinancieras, gastos, categoriasGasto } from "@/lib/db/schema";
+import { gastos, categoriasGasto } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 
-const ICONO_TIPO = { caja: Wallet, banco: Landmark, tarjeta: Landmark, wallet: Wallet };
-const LABEL_TIPO: Record<string, string> = {
-  caja: "Caja",
-  banco: "Banco",
-  tarjeta: "Tarjeta",
-  wallet: "Wallet",
-};
-
 export default async function TesoreriaPage() {
   const user = await requireSession();
-
-  const cuentasPromise = db
-    .select({
-      id: cuentasFinancieras.id,
-      nombre: cuentasFinancieras.nombre,
-      tipo: cuentasFinancieras.tipo,
-      banco: cuentasFinancieras.banco,
-      saldoActual: cuentasFinancieras.saldoActual,
-    })
-    .from(cuentasFinancieras)
-    .where(eq(cuentasFinancieras.empresaId, user.empresaId))
-    .orderBy(cuentasFinancieras.tipo, cuentasFinancieras.nombre);
 
   const gastosPromise = db
     .select({
@@ -47,51 +26,26 @@ export default async function TesoreriaPage() {
     .from(gastos)
     .innerJoin(categoriasGasto, eq(categoriasGasto.id, gastos.categoriaId))
     .where(eq(gastos.empresaId, user.empresaId))
-    .orderBy(desc(gastos.creadoEn))
-    .limit(10);
+      .orderBy(desc(gastos.creadoEn))
+      .limit(10);
 
-  const [empresa, cuentas, gastosRecientes] = await Promise.all([
+  const [empresa, gastosRecientes] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
-    cuentasPromise,
     gastosPromise,
   ]);
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
-
-  const totalDisponible = cuentas.reduce((a, c) => a + parseFloat(c.saldoActual), 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Tesorería"
-        subtitle="Cuentas financieras y gastos operativos"
+        subtitle="Gastos operativos y movimientos de dinero"
         actions={
           <Link href="/tesoreria/gastos/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Registrar gasto
           </Link>
         }
       />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cuentas.map((c) => {
-          const Icon = ICONO_TIPO[c.tipo] ?? Wallet;
-          return (
-            <KpiCard
-              key={c.id}
-              label={c.nombre}
-              value={formatearMoneda(parseFloat(c.saldoActual), pais)}
-              hint={`${LABEL_TIPO[c.tipo] ?? c.tipo}${c.banco ? ` · ${c.banco}` : ""}`}
-              icon={Icon}
-            />
-          );
-        })}
-        {cuentas.length > 1 && (
-          <KpiCard
-            label="Total disponible"
-            value={formatearMoneda(totalDisponible, pais)}
-            hint="Suma de todas las cuentas activas"
-          />
-        )}
-      </div>
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">
@@ -152,8 +106,8 @@ export default async function TesoreriaPage() {
         <Link href="/tesoreria/gastos" className="arca-btn arca-btn-secondary arca-btn-sm">
           <Receipt size={14} /> Todos los gastos
         </Link>
-        <Link href="/tesoreria/cuentas" className="arca-btn arca-btn-secondary arca-btn-sm">
-          <Landmark size={14} /> Gestionar cuentas
+        <Link href="/tesoreria/gastos/recurrentes" className="arca-btn arca-btn-secondary arca-btn-sm">
+          <Repeat2 size={14} /> Gastos recurrentes
         </Link>
       </div>
     </div>

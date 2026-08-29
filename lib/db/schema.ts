@@ -34,7 +34,7 @@ import { sql } from "drizzle-orm";
  * ========================================================= */
 
 export const planTipoEnum = pgEnum("plan_tipo", ["demo", "pro", "enterprise"]);
-export const cicloFacturacionEnum = pgEnum("ciclo_facturacion", ["mensual", "anual"]);
+export const cicloFacturacionEnum = pgEnum("ciclo_facturacion", ["mensual", "semestral", "anual"]);
 export const suscripcionEstadoEnum = pgEnum("suscripcion_estado", [
   "activa",
   "trial",

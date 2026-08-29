@@ -70,7 +70,7 @@ export function PagoForm({
       <Card>
         <CardBody>
           <p className="text-small text-[color:var(--color-text-muted)]">
-            No hay cuentas financieras activas. Configúralas en Tesorería → Cuentas.
+            No hay cuentas financieras activas. Configúralas en Configuración.
           </p>
         </CardBody>
       </Card>

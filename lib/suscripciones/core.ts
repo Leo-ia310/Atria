@@ -28,7 +28,7 @@ import {
   notificarVentaReferida,
 } from "@/lib/referrals/atria-vendedores";
 
-export type Ciclo = "mensual" | "anual";
+export type Ciclo = "mensual" | "semestral" | "anual";
 export type TipoComisionReferido = "primera" | "renovacion";
 
 export function finPeriodo(inicio: Date, planId: PlanId, ciclo: Ciclo): Date {
@@ -37,6 +37,8 @@ export function finPeriodo(inicio: Date, planId: PlanId, ciclo: Ciclo): Date {
     fin.setDate(fin.getDate() + DIAS_VIGENCIA_DEMO);
   } else if (ciclo === "anual") {
     fin.setFullYear(fin.getFullYear() + 1);
+  } else if (ciclo === "semestral") {
+    fin.setMonth(fin.getMonth() + 6);
   } else {
     fin.setMonth(fin.getMonth() + 1);
   }

@@ -483,6 +483,7 @@ export async function asegurarPlanes() {
       nombre: p.nombre,
       tipo: p.id,
       precioMensual: p.precioMensual.toString(),
+      precioSemestral: p.precioSemestral.toString(),
       precioAnual: p.precioAnual.toString(),
       maxSucursales: p.maxSucursales,
       maxUsuarios: p.maxUsuarios,
