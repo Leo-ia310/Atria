@@ -13,6 +13,7 @@ import type { ModuloAcceso } from "@/lib/access-control";
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
 const STORAGE_KEY = "arca:sidebar-colapsado";
+const GRUPOS_STORAGE_KEY = "arca:sidebar-grupos-cerrados";
 
 function agruparNav(items: NavItem[]): { item: NavItem; children: NavItem[] }[] {
   const nodos: { item: NavItem; children: NavItem[] }[] = [];
@@ -53,6 +54,7 @@ export function Sidebar({
   const [esMovil, setEsMovil] = useState(false);
   const [planesAbierto, setPlanesAbierto] = useState(false);
   const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
+  const [gruposCerrados, setGruposCerrados] = useState<Record<string, boolean>>({});
   const colapsadoVisual = !esMovil && colapsado;
   const esActivo = (it: NavItem) =>
     it.exact
@@ -68,6 +70,14 @@ export function Sidebar({
   useEffect(() => {
     const guardado = localStorage.getItem(STORAGE_KEY) === "1";
     setColapsado(guardado);
+    try {
+      const grupos = JSON.parse(localStorage.getItem(GRUPOS_STORAGE_KEY) ?? "{}");
+      if (grupos && typeof grupos === "object") {
+        setGruposCerrados(grupos as Record<string, boolean>);
+      }
+    } catch {
+      setGruposCerrados({});
+    }
   }, []);
 
   useEffect(() => {
@@ -102,6 +112,14 @@ export function Sidebar({
     const siguiente = !colapsado;
     setColapsado(siguiente);
     localStorage.setItem(STORAGE_KEY, siguiente ? "1" : "0");
+  }
+
+  function toggleGrupo(titulo: string) {
+    setGruposCerrados((prev) => {
+      const siguiente = { ...prev, [titulo]: !prev[titulo] };
+      localStorage.setItem(GRUPOS_STORAGE_KEY, JSON.stringify(siguiente));
+      return siguiente;
+    });
   }
 
   return (
@@ -176,15 +194,27 @@ export function Sidebar({
         )}
 
         <nav className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
-          {grupos.map((g) => (
-            <div key={g.titulo} className="mt-4 first:mt-1">
-              {!colapsadoVisual && (
-                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                  {g.titulo}
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {agruparNav(g.items).map(({ item, children }) => {
+          {grupos.map((g) => {
+            const grupoAbierto = colapsadoVisual || !gruposCerrados[g.titulo];
+            return (
+              <div key={g.titulo} className="mt-4 first:mt-1">
+                {!colapsadoVisual && (
+                  <button
+                    type="button"
+                    onClick={() => toggleGrupo(g.titulo)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 pb-1.5 pt-1 text-left text-[10px] font-semibold uppercase tracking-wider text-white/40 transition hover:bg-white/5 hover:text-white/70"
+                    aria-expanded={grupoAbierto}
+                  >
+                    <span>{g.titulo}</span>
+                    <ChevronRight
+                      size={13}
+                      className={cn("transition-transform", grupoAbierto && "rotate-90")}
+                    />
+                  </button>
+                )}
+                {grupoAbierto && (
+                  <div className="space-y-0.5">
+                    {agruparNav(g.items).map(({ item, children }) => {
                   const Icon = item.icon;
                   const activo = esActivo(item);
 
@@ -269,10 +299,12 @@ export function Sidebar({
                       )}
                     </div>
                   );
-                })}
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <SidebarFooter

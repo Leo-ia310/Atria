@@ -5,7 +5,7 @@ export const asistenteProductoTextoSchema = z.object({
     .string()
     .trim()
     .min(3, "Escribe que producto quieres crear")
-    .max(600, "El texto es muy largo. Resume la descripcion del producto."),
+    .max(3000, "El texto es muy largo. Resume la descripcion de los productos."),
 });
 
 export const propuestaProductoSchema = z.object({
@@ -17,6 +17,19 @@ export const propuestaProductoSchema = z.object({
   costoPromedio: z.coerce.number().min(0, "El costo no puede ser negativo").default(0),
   stockMinimo: z.coerce.number().min(0).default(0),
   existenciaInicial: z.coerce.number().min(0).default(0),
+});
+
+export const propuestasProductoIASchema = z.object({
+  productos: z.array(propuestaProductoSchema).max(30).default([]),
+  preguntas: z.array(z.string().trim().min(1).max(180)).max(8).default([]),
+  nota: z.string().trim().max(240).default(""),
+});
+
+export const crearProductosDesdeAsistenteSchema = z.object({
+  productos: z
+    .array(propuestaProductoSchema)
+    .min(1, "Agrega al menos un producto")
+    .max(30, "Puedes crear hasta 30 productos por tanda"),
 });
 
 const filaProblematicaSchema = z.object({
@@ -42,5 +55,9 @@ export const supervisarImportacionSchema = z.object({
 
 export type AsistenteProductoTextoInput = z.infer<typeof asistenteProductoTextoSchema>;
 export type PropuestaProducto = z.infer<typeof propuestaProductoSchema>;
+export type PropuestasProductoIA = z.infer<typeof propuestasProductoIASchema>;
+export type CrearProductosDesdeAsistenteInput = z.infer<
+  typeof crearProductosDesdeAsistenteSchema
+>;
 export type FilaProblematica = z.infer<typeof filaProblematicaSchema>;
 export type SupervisarImportacionInput = z.infer<typeof supervisarImportacionSchema>;

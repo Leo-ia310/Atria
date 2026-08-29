@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { and, desc, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
 import { auth } from "@/auth";
 import { dbConEmpresa, dbSuperAdmin, type Tx } from "@/lib/db";
@@ -79,7 +80,7 @@ import {
 } from "@/lib/validations/restaurante-vertical";
 import { rateLimit } from "@/lib/redis/rate-limit";
 
-type Resultado = { ok: true; id?: string; token?: string } | { ok: false; error: string };
+type Resultado = { ok: true; id?: string; token?: string; numero?: string } | { ok: false; error: string };
 type ModuloRestaurante =
   | "restaurante-dashboard"
   | "restaurante-pos"
@@ -111,6 +112,37 @@ function listaTexto(valor: string | null | undefined): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 30);
+}
+
+function destinoFeedbackRestaurante(formData: FormData): string | null {
+  const destino = texto(formData, "redirectTo").trim();
+  const [ruta] = destino.split(/[?#]/);
+  if (!ruta || ruta.startsWith("//") || (ruta !== "/restaurante" && !ruta.startsWith("/restaurante/"))) {
+    return null;
+  }
+  return ruta;
+}
+
+function redirigirConFeedback(
+  formData: FormData,
+  resultado: Resultado,
+  mensajeOk: string,
+  params: Record<string, string | undefined> = {},
+): void {
+  const destino = destinoFeedbackRestaurante(formData);
+  if (!destino) return;
+
+  const query = new URLSearchParams();
+  if (resultado.ok) {
+    query.set("guardado", mensajeOk);
+    for (const [key, value] of Object.entries(params)) {
+      if (value) query.set(key, value);
+    }
+  } else {
+    query.set("error", resultado.error);
+  }
+  const ancla = params.ordenId ? `#orden-${encodeURIComponent(params.ordenId)}` : "";
+  redirect(`${destino}?${query.toString()}${ancla}`);
 }
 
 async function requireRestaurante(
@@ -572,7 +604,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
   const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
     if (data.idempotencyKey) {
       const [existente] = await tx
-        .select({ id: restauranteOrdenes.id })
+        .select({ id: restauranteOrdenes.id, numero: restauranteOrdenes.numero })
         .from(restauranteOrdenes)
         .where(
           and(
@@ -581,7 +613,9 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
           ),
         )
         .limit(1);
-      if (existente) return { ok: true as const, id: existente.id };
+      if (existente) {
+        return { ok: true as const, id: existente.id, numero: existente.numero };
+      }
     }
 
     if (mesaId) {
@@ -628,7 +662,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
         idempotencyKey: data.idempotencyKey || null,
         abiertoPor: user.id,
       })
-      .returning({ id: restauranteOrdenes.id });
+      .returning({ id: restauranteOrdenes.id, numero: restauranteOrdenes.numero });
 
     if (mesaId) {
       await tx
@@ -645,7 +679,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       registroId: orden.id,
       datosDespues: { sucursalId: data.sucursalId, mesaId: mesaId || null, canal: data.canal },
     });
-    return { ok: true as const, id: orden.id };
+    return { ok: true as const, id: orden.id, numero: orden.numero };
   });
   revalidatePath("/restaurante/pos");
   revalidatePath("/restaurante/ordenes");
@@ -654,7 +688,16 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
 }
 
 export async function crearOrdenRestauranteForm(formData: FormData): Promise<void> {
-  await crearOrdenRestaurante(formData);
+  const resultado = await crearOrdenRestaurante(formData);
+  redirigirConFeedback(
+    formData,
+    resultado,
+    resultado.ok && resultado.numero ? `Orden ${resultado.numero} creada.` : "Orden creada.",
+    {
+      ordenId: resultado.ok ? resultado.id : undefined,
+      ordenNumero: resultado.ok ? resultado.numero : undefined,
+    },
+  );
 }
 
 export async function agregarItemOrdenRestaurante(formData: FormData): Promise<Resultado> {
@@ -726,7 +769,10 @@ export async function agregarItemOrdenRestaurante(formData: FormData): Promise<R
 }
 
 export async function agregarItemOrdenRestauranteForm(formData: FormData): Promise<void> {
-  await agregarItemOrdenRestaurante(formData);
+  const resultado = await agregarItemOrdenRestaurante(formData);
+  redirigirConFeedback(formData, resultado, "Producto agregado a la orden.", {
+    ordenId: texto(formData, "ordenId"),
+  });
 }
 
 export async function enviarComandasOrdenRestaurante(formData: FormData): Promise<Resultado> {
@@ -852,13 +898,17 @@ export async function enviarComandasOrdenRestaurante(formData: FormData): Promis
     return { ok: true as const, id: primeraComandaId };
   });
   revalidatePath("/restaurante/kds");
+  revalidatePath("/restaurante/pos");
   revalidatePath("/restaurante/ordenes");
   revalidatePath("/restaurante");
   return resultado;
 }
 
 export async function enviarComandasOrdenRestauranteForm(formData: FormData): Promise<void> {
-  await enviarComandasOrdenRestaurante(formData);
+  const resultado = await enviarComandasOrdenRestaurante(formData);
+  redirigirConFeedback(formData, resultado, "Comanda enviada a cocina.", {
+    ordenId: texto(formData, "ordenId"),
+  });
 }
 
 export async function solicitarCuentaRestaurante(formData: FormData): Promise<Resultado> {
@@ -945,7 +995,10 @@ export async function solicitarCuentaRestaurante(formData: FormData): Promise<Re
 }
 
 export async function solicitarCuentaRestauranteForm(formData: FormData): Promise<void> {
-  await solicitarCuentaRestaurante(formData);
+  const resultado = await solicitarCuentaRestaurante(formData);
+  redirigirConFeedback(formData, resultado, "Cuenta solicitada.", {
+    ordenId: texto(formData, "ordenId"),
+  });
 }
 
 export async function cobrarOrdenRestaurante(formData: FormData): Promise<Resultado> {
@@ -1253,7 +1306,10 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
 }
 
 export async function cobrarOrdenRestauranteForm(formData: FormData): Promise<void> {
-  await cobrarOrdenRestaurante(formData);
+  const resultado = await cobrarOrdenRestaurante(formData);
+  redirigirConFeedback(formData, resultado, "Orden cobrada y venta registrada.", {
+    ordenId: texto(formData, "ordenId"),
+  });
 }
 
 export async function marcarMesaLimpiaRestaurante(formData: FormData): Promise<Resultado> {

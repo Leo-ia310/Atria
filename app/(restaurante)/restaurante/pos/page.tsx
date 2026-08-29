@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   ChefHat,
   CreditCard,
@@ -33,7 +33,7 @@ import {
   solicitarCuentaRestauranteForm,
 } from "@/lib/actions/restaurante-vertical";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
-import { formatearMoneda } from "@/lib/utils";
+import { cn, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -46,14 +46,28 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  searchParams?: Promise<{ q?: string; categoriaId?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    categoriaId?: string;
+    guardado?: string;
+    error?: string;
+    ordenId?: string;
+    ordenNumero?: string;
+  }>;
 };
 
 export default async function RestaurantePosPage({ searchParams }: PageProps) {
   return restaurantePosPage(searchParams ? await searchParams : {});
 }
 
-async function restaurantePosPage(params: { q?: string; categoriaId?: string }) {
+async function restaurantePosPage(params: {
+  q?: string;
+  categoriaId?: string;
+  guardado?: string;
+  error?: string;
+  ordenId?: string;
+  ordenNumero?: string;
+}) {
   const user = await requireSession();
   await requireModulo(user, "restaurante-pos");
   const [scope, empresa] = await Promise.all([
@@ -113,7 +127,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
               visibles ? inArray(restauranteOrdenes.sucursalId, visibles) : undefined,
             ),
           )
-          .orderBy(asc(restauranteOrdenes.abiertoEn)),
+          .orderBy(desc(restauranteOrdenes.abiertoEn)),
         tx
           .select({
             id: productos.id,
@@ -209,6 +223,12 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
   const mesasParaNuevaOrden = mesas.filter(
     (mesa) => mesa.estado === "disponible" && !mesasConOrden.has(mesa.id),
   );
+  const feedback = params.error
+    ? { tipo: "error" as const, mensaje: normalizarFeedback(params.error) }
+    : params.guardado
+      ? { tipo: "success" as const, mensaje: normalizarFeedback(params.guardado) }
+      : null;
+  const ordenEnfocadaId = params.ordenId ?? "";
 
   return (
     <div className="space-y-5">
@@ -220,9 +240,35 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
         </p>
       </header>
 
+      {feedback && (
+        <div
+          role={feedback.tipo === "error" ? "alert" : "status"}
+          className={cn(
+            "flex flex-col gap-3 rounded-md border px-4 py-3 text-small sm:flex-row sm:items-center sm:justify-between",
+            feedback.tipo === "error"
+              ? "border-[color:var(--color-error)]/35 bg-[color:var(--color-error-bg)] text-[color:var(--color-error)]"
+              : "border-[color:var(--color-success)]/35 bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]",
+          )}
+        >
+          <span className="font-medium">{feedback.mensaje}</span>
+          {feedback.tipo === "success" && (
+            <span className="flex flex-wrap gap-2">
+              {ordenEnfocadaId && (
+                <a href={`#orden-${ordenEnfocadaId}`} className="arca-btn arca-btn-ghost arca-btn-sm">
+                  Ver orden
+                </a>
+              )}
+              <Link href="/restaurante/ordenes" className="arca-btn arca-btn-ghost arca-btn-sm">
+                Historial
+              </Link>
+            </span>
+          )}
+        </div>
+      )}
+
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Card>
-          <CardHeader title="Mesas" subtitle="Abre ordenes solo en mesas disponibles" />
+          <CardHeader title="Mesas" subtitle="Estado del salon y apertura rapida" />
           <CardBody>
             {mesas.length === 0 ? (
               <div className="rounded-md border border-dashed border-[color:var(--color-border)] p-8 text-center text-small text-[color:var(--color-text-muted)]">
@@ -235,6 +281,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                   const puedeAbrir = mesa.estado === "disponible" && !abierta;
                   return (
                     <form key={mesa.id} action={crearOrdenRestauranteForm}>
+                      <input type="hidden" name="redirectTo" value="/restaurante/pos" />
                       <input type="hidden" name="sucursalId" value={mesa.sucursalId} />
                       <input type="hidden" name="mesaId" value={mesa.id} />
                       <input type="hidden" name="canal" value="salon" />
@@ -243,7 +290,11 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                       <button
                         type="submit"
                         disabled={!puedeAbrir}
-                        className="min-h-28 w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3 text-left shadow-sm transition hover:border-[color:var(--color-border-strong)] disabled:opacity-70"
+                        className={cn(
+                          "min-h-32 w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3 text-left shadow-sm transition hover:border-[color:var(--color-border-strong)] disabled:opacity-70",
+                          abierta?.id === ordenEnfocadaId &&
+                            "border-[color:var(--color-primary)] ring-2 ring-[color:var(--color-primary)]/35",
+                        )}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">{mesa.nombre}</span>
@@ -256,6 +307,9 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                           <Badge variant={abierta ? "warning" : variantEstadoMesa(mesa.estado)}>
                             {abierta ? abierta.numero : labelEstadoMesa(mesa.estado)}
                           </Badge>
+                        </div>
+                        <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-secondary)]">
+                          {puedeAbrir ? "Abrir orden" : abierta ? "Orden abierta" : "No disponible"}
                         </div>
                       </button>
                     </form>
@@ -273,6 +327,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
           />
           <CardBody>
             <form action={crearOrdenRestauranteForm} className="space-y-3">
+              <input type="hidden" name="redirectTo" value="/restaurante/pos" />
               <FormField label="Sucursal">
                 <select
                   name="sucursalId"
@@ -298,15 +353,14 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
               </FormField>
               <FormField
                 label="Mesa"
-                hint="Para salon; dejala vacia si atiendes barra o mostrador."
+                hint="Opcional para barra, mostrador, delivery o pedidos sin mesa."
               >
                 <select
                   name="mesaId"
                   defaultValue=""
-                  disabled={mesasParaNuevaOrden.length === 0}
                   className="arca-input"
                 >
-                  <option value="">Sin mesa asignada</option>
+                  <option value="">Sin mesa asignada / barra</option>
                   {mesasParaNuevaOrden.map((mesa) => (
                     <option key={mesa.id} value={mesa.id}>
                       {mesa.nombre} - {mesa.capacidad} pax
@@ -333,7 +387,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                 </p>
               )}
               <button type="submit" disabled={!tieneSucursales} className="arca-btn arca-btn-primary w-full">
-                <Plus size={14} /> Crear orden
+                <Plus size={14} /> Levantar orden
               </button>
             </form>
           </CardBody>
@@ -404,7 +458,14 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                 ordenItems.length > 0 && orden.estado !== "cuenta_solicitada";
               const puedeCobrar = ordenItems.length > 0 && formasPagoList.length > 0;
               return (
-                <Card key={orden.id}>
+                <Card
+                  key={orden.id}
+                  id={`orden-${orden.id}`}
+                  className={cn(
+                    orden.id === ordenEnfocadaId &&
+                      "border-[color:var(--color-primary)] ring-2 ring-[color:var(--color-primary)]/30",
+                  )}
+                >
                   <CardHeader
                     title={
                       <span className="inline-flex items-center gap-2">
@@ -459,6 +520,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                         </div>
                         <div className="mt-3 grid gap-2">
                           <form action={enviarComandasOrdenRestauranteForm}>
+                            <input type="hidden" name="redirectTo" value="/restaurante/pos" />
                             <input type="hidden" name="ordenId" value={orden.id} />
                             <button
                               type="submit"
@@ -470,6 +532,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                             </button>
                           </form>
                           <form action={solicitarCuentaRestauranteForm}>
+                            <input type="hidden" name="redirectTo" value="/restaurante/pos" />
                             <input type="hidden" name="ordenId" value={orden.id} />
                             <button
                               type="submit"
@@ -508,6 +571,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                               action={agregarItemOrdenRestauranteForm}
                               className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3"
                             >
+                              <input type="hidden" name="redirectTo" value="/restaurante/pos" />
                               <input type="hidden" name="ordenId" value={orden.id} />
                               <input type="hidden" name="productoId" value={producto.id} />
                               <input type="hidden" name="precioUnitario" value="0" />
@@ -580,6 +644,7 @@ async function restaurantePosPage(params: { q?: string; categoriaId?: string }) 
                         <CreditCard size={17} className="text-[color:var(--color-secondary)]" />
                       </div>
                       <input type="hidden" name="ordenId" value={orden.id} />
+                      <input type="hidden" name="redirectTo" value="/restaurante/pos" />
                       <input type="hidden" name="idempotencyKey" value={randomUUID()} />
                       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)_auto] md:items-end">
                         <FormField label="Forma de pago">
@@ -640,6 +705,11 @@ function normalizarTexto(valor?: string | null): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizarFeedback(valor?: string | null): string {
+  const texto = (valor ?? "").trim();
+  return texto ? texto.slice(0, 180) : "Operacion procesada.";
 }
 
 function labelEstadoMesa(estado: string): string {

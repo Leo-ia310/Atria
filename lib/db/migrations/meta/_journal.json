@@ -127,6 +127,20 @@
       "when": 1786588800000,
       "tag": "0017_arca_restaurante_vertical",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788021162666,
+      "tag": "0018_square_richard_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788022000000,
+      "tag": "0019_usuario_onboarding_modulos",
+      "breakpoints": true
     }
   ]
 }

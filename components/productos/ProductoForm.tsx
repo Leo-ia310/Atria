@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ChevronRight } from "lucide-react";
 import { productoSchema, type ProductoInput } from "@/lib/validations/productos";
 import {
   crearProducto,
@@ -14,10 +15,11 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { SelectConAgregar } from "@/components/productos/SelectConAgregar";
 import { prefijoSkuCategoria } from "@/lib/sku";
+import { cn } from "@/lib/utils";
 
 type OpcionRef = { value: string; label: string };
 
@@ -39,6 +41,11 @@ export function ProductoForm({
   const router = useRouter();
   const { mostrar } = useToast();
   const [enviando, setEnviando] = useState(false);
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState({
+    basica: true,
+    precios: true,
+    inventario: true,
+  });
 
   const {
     register,
@@ -93,11 +100,17 @@ export function ProductoForm({
     router.refresh();
   }
 
+  function toggleSeccion(seccion: keyof typeof seccionesAbiertas) {
+    setSeccionesAbiertas((prev) => ({ ...prev, [seccion]: !prev[seccion] }));
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      <Card>
-        <CardHeader title="Información básica" />
-        <CardBody className="space-y-4">
+      <SeccionProducto
+        title="Información básica"
+        abierta={seccionesAbiertas.basica}
+        onToggle={() => toggleSeccion("basica")}
+      >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label={esNuevo ? "SKU automatico" : "SKU"}
@@ -160,12 +173,13 @@ export function ProductoForm({
             {...register("fechaVencimiento")}
             hint="Déjalo vacío si el producto no vence"
           />
-        </CardBody>
-      </Card>
+      </SeccionProducto>
 
-      <Card>
-        <CardHeader title="Precios e impuesto" />
-        <CardBody className="space-y-4">
+      <SeccionProducto
+        title="Precios e impuesto"
+        abierta={seccionesAbiertas.precios}
+        onToggle={() => toggleSeccion("precios")}
+      >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Input
               label="Precio base"
@@ -191,12 +205,13 @@ export function ProductoForm({
               options={impuestos}
             />
           </div>
-        </CardBody>
-      </Card>
+      </SeccionProducto>
 
-      <Card>
-        <CardHeader title="Inventario" />
-        <CardBody className="space-y-4">
+      <SeccionProducto
+        title="Inventario"
+        abierta={seccionesAbiertas.inventario}
+        onToggle={() => toggleSeccion("inventario")}
+      >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Input
               label="Stock mínimo"
@@ -234,8 +249,7 @@ export function ProductoForm({
               Maneja números de serie
             </label>
           </div>
-        </CardBody>
-      </Card>
+      </SeccionProducto>
 
       <div className="flex justify-end gap-2">
         <Button
@@ -251,5 +265,40 @@ export function ProductoForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function SeccionProducto({
+  title,
+  abierta,
+  onToggle,
+  children,
+}: {
+  title: string;
+  abierta: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 border-b border-[color:var(--color-border)] px-4 py-4 text-left sm:px-5"
+        aria-expanded={abierta}
+      >
+        <h2 className="text-base font-semibold text-[color:var(--color-text-primary)]">
+          {title}
+        </h2>
+        <ChevronRight
+          size={17}
+          className={cn(
+            "shrink-0 text-[color:var(--color-text-muted)] transition-transform",
+            abierta && "rotate-90",
+          )}
+        />
+      </button>
+      {abierta && <CardBody className="space-y-4">{children}</CardBody>}
+    </Card>
   );
 }

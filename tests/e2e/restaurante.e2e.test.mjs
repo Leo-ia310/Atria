@@ -128,6 +128,8 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 600_0
     );
     if (path === "/restaurante/pos") {
       assert.match(html, /Carta rapida/, "POS debe tener carta tactil filtrable");
+      assert.match(html, /Levantar orden/, "POS debe permitir levantar orden desde el formulario");
+      assert.match(html, /Sin mesa asignada \/ barra/, "POS debe permitir ordenes sin mesa");
       assert.match(html, /Solicitar cuenta/, "POS debe permitir solicitar cuenta");
       assert.match(html, /Cobrar orden/, "POS debe permitir cobrar orden");
       assert.match(html, /Forma de pago/, "POS debe etiquetar el cobro");
@@ -150,6 +152,19 @@ test("ARCA Restaurante mantiene a Nicaris dentro del vertical", { timeout: 600_0
       assert.match(html, /Forma de pago/, "Ordenes debe etiquetar el pago");
     }
   }
+
+  t.diagnostic("GET /restaurante/pos con feedback");
+  const feedbackResponse = await get(
+    "/restaurante/pos?guardado=Orden%20R-TEST%20creada.&ordenId=00000000-0000-4000-8000-000000000000",
+  );
+  const feedbackHtml = await feedbackResponse.text();
+  assert.equal(
+    feedbackResponse.status,
+    200,
+    detalleErrorRuta("/restaurante/pos?guardado", feedbackResponse, feedbackHtml, output),
+  );
+  assert.match(feedbackHtml, /Orden R-TEST creada\./, "POS debe confirmar la orden creada");
+  assert.match(feedbackHtml, /Ver orden/, "POS debe exponer acceso a la orden creada");
 });
 
 async function getNicarisUser(sql) {

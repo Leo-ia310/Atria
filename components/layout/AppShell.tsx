@@ -3,6 +3,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header, type SucursalScopeHeader } from "@/components/layout/Header";
+import { ModuloOnboarding } from "@/components/layout/ModuloOnboarding";
 import type { Notificacion } from "@/components/layout/NotificacionesBell";
 import type { CommandItem } from "@/components/layout/nav-items";
 import type { ModuloAcceso } from "@/lib/access-control";
@@ -22,6 +23,8 @@ export function AppShell({
   notificaciones,
   commandItems,
   sucursalScope,
+  mostrarOnboardingModulos,
+  onboardingModulosVistos,
 }: {
   children: ReactNode;
   banner?: ReactNode;
@@ -37,6 +40,8 @@ export function AppShell({
   notificaciones: Notificacion[];
   commandItems: CommandItem[];
   sucursalScope?: SucursalScopeHeader;
+  mostrarOnboardingModulos?: boolean;
+  onboardingModulosVistos?: string[];
 }) {
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const cerrarMenuMovil = useCallback(() => setMenuMovilAbierto(false), []);
@@ -67,6 +72,10 @@ export function AppShell({
         />
         {banner}
         <main className="min-w-0 p-4 sm:p-6">{children}</main>
+        <ModuloOnboarding
+          habilitado={Boolean(mostrarOnboardingModulos)}
+          modulosVistos={onboardingModulosVistos ?? []}
+        />
       </div>
     </div>
   );

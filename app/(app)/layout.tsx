@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/actions/session-helpers";
 import {
   type ModuloAcceso,
@@ -19,9 +20,18 @@ import { filtrarCommandItems } from "@/components/layout/nav-items";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { getLayoutNotificationCounts } from "@/lib/layout-notifications";
+import { dbConEmpresa } from "@/lib/db";
+import { usuarioOnboardingModulos, usuarios } from "@/lib/db/schema";
 
 const MODULOS_PERMITIDOS_BLOQUEO: ModuloAcceso[] = ["dashboard", "mi-cuenta"];
 const NOTIFICACIONES_BLOQUEO: Notificacion[] = [];
+const DIAS_USUARIO_RECIENTE_ONBOARDING = 30;
+
+function esUsuarioReciente(creadoEn: Date | null | undefined): boolean {
+  if (!creadoEn) return false;
+  const edadMs = Date.now() - creadoEn.getTime();
+  return edadMs >= 0 && edadMs <= DIAS_USUARIO_RECIENTE_ONBOARDING * 24 * 60 * 60 * 1000;
+}
 
 export default async function AppLayout({
   children,
@@ -29,11 +39,33 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireSession();
-  const [access, empresa, sucursalScope, headerStore] = await Promise.all([
+  const [access, empresa, sucursalScope, headerStore, onboarding] = await Promise.all([
     getAccessContext(user),
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
     headers(),
+    dbConEmpresa(user.empresaId, async (tx) => {
+      const [vistos, usuarioRows] = await Promise.all([
+        tx
+          .select({ modulo: usuarioOnboardingModulos.modulo })
+          .from(usuarioOnboardingModulos)
+          .where(
+            and(
+              eq(usuarioOnboardingModulos.empresaId, user.empresaId),
+              eq(usuarioOnboardingModulos.usuarioId, user.id),
+            ),
+          ),
+        tx
+          .select({ creadoEn: usuarios.creadoEn })
+          .from(usuarios)
+          .where(and(eq(usuarios.empresaId, user.empresaId), eq(usuarios.id, user.id)))
+          .limit(1),
+      ]);
+      return {
+        vistos: vistos.map((row) => row.modulo),
+        usuarioCreadoEn: usuarioRows[0]?.creadoEn ?? null,
+      };
+    }),
   ]);
   const pathname = headerStore.get("x-arca-pathname") ?? "";
   const moduloActual = moduloDesdeRuta(pathname);
@@ -45,6 +77,7 @@ export default async function AppLayout({
   const esTrialPago = access.suscripcionEstado === "trial" && access.plan.id !== "demo";
   const esRestaurante =
     access.verticalEmpresa === "restaurante" || access.tipoEmpresa === "restaurante";
+  const mostrarOnboardingModulos = esUsuarioReciente(onboarding.usuarioCreadoEn);
 
   if (access.suscripcionBloqueada) {
     return (
@@ -148,6 +181,8 @@ export default async function AppLayout({
           notificaciones={notificaciones}
           commandItems={commandItems}
           sucursalScope={sucursalScope}
+          mostrarOnboardingModulos={mostrarOnboardingModulos}
+          onboardingModulosVistos={onboarding.vistos}
           banner={
             esDemo ? (
               <DemoNoticeBanner />

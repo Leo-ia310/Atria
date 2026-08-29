@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CalendarCheck,
   ChefHat,
+  ChevronRight,
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
@@ -38,6 +39,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Header, type SucursalScopeHeader } from "@/components/layout/Header";
+import { ModuloOnboarding } from "@/components/layout/ModuloOnboarding";
 import { PlanesModal } from "@/components/layout/PlanesModal";
 import { ArcaLogo } from "@/components/marketing/ArcaLogo";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,7 @@ const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
 const STORAGE_KEY = "arca:restaurante-sidebar-colapsado";
 const STORAGE_EVENT = "arca:restaurante-sidebar-colapsado-change";
+const GRUPOS_STORAGE_KEY = "arca:restaurante-sidebar-grupos-cerrados";
 
 function getSidebarColapsadoSnapshot() {
   if (typeof window === "undefined") return false;
@@ -369,6 +372,8 @@ export function RestauranteShell({
   esDemo,
   modulosPermitidos,
   sucursalScope,
+  mostrarOnboardingModulos,
+  onboardingModulosVistos,
 }: {
   children: ReactNode;
   nombreEmpresa: string;
@@ -381,6 +386,8 @@ export function RestauranteShell({
   esDemo: boolean;
   modulosPermitidos: ModuloAcceso[];
   sucursalScope?: SucursalScopeHeader;
+  mostrarOnboardingModulos?: boolean;
+  onboardingModulosVistos?: string[];
 }) {
   const pathname = usePathname();
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
@@ -391,6 +398,7 @@ export function RestauranteShell({
   );
   const [esMovil, setEsMovil] = useState(false);
   const [planesAbierto, setPlanesAbierto] = useState(false);
+  const [gruposCerrados, setGruposCerrados] = useState<Record<string, boolean>>({});
   const colapsadoVisual = !esMovil && colapsado;
   const permitidos = new Set(modulosPermitidos);
   const grupos = NAV_GROUPS_RESTAURANTE.reduce<NavGroup[]>((acc, grupo) => {
@@ -401,6 +409,19 @@ export function RestauranteShell({
   const commandItems = COMMAND_ITEMS_RESTAURANTE.filter((item) =>
     permitidos.has(item.modulo),
   );
+
+  useEffect(() => {
+    try {
+      const gruposGuardados = JSON.parse(
+        localStorage.getItem(GRUPOS_STORAGE_KEY) ?? "{}",
+      );
+      if (gruposGuardados && typeof gruposGuardados === "object") {
+        setGruposCerrados(gruposGuardados as Record<string, boolean>);
+      }
+    } catch {
+      setGruposCerrados({});
+    }
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
@@ -433,6 +454,14 @@ export function RestauranteShell({
   function toggleColapsado() {
     const siguiente = !colapsado;
     setSidebarColapsadoStorage(siguiente);
+  }
+
+  function toggleGrupo(titulo: string) {
+    setGruposCerrados((prev) => {
+      const siguiente = { ...prev, [titulo]: !prev[titulo] };
+      localStorage.setItem(GRUPOS_STORAGE_KEY, JSON.stringify(siguiente));
+      return siguiente;
+    });
   }
 
   return (
@@ -507,25 +536,39 @@ export function RestauranteShell({
         )}
 
         <nav className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
-          {grupos.map((grupo) => (
-            <div key={grupo.titulo} className="mt-4 first:mt-1">
-              {!colapsadoVisual && (
-                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                  {grupo.titulo}
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {grupo.items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    activo={esActivo(pathname, item)}
-                    colapsado={colapsadoVisual}
-                  />
-                ))}
+          {grupos.map((grupo) => {
+            const grupoAbierto = colapsadoVisual || !gruposCerrados[grupo.titulo];
+            return (
+              <div key={grupo.titulo} className="mt-4 first:mt-1">
+                {!colapsadoVisual && (
+                  <button
+                    type="button"
+                    onClick={() => toggleGrupo(grupo.titulo)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 pb-1.5 pt-1 text-left text-[10px] font-semibold uppercase tracking-wider text-white/40 transition hover:bg-white/5 hover:text-white/70"
+                    aria-expanded={grupoAbierto}
+                  >
+                    <span>{grupo.titulo}</span>
+                    <ChevronRight
+                      size={13}
+                      className={cn("transition-transform", grupoAbierto && "rotate-90")}
+                    />
+                  </button>
+                )}
+                {grupoAbierto && (
+                  <div className="space-y-0.5">
+                    {grupo.items.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        item={item}
+                        activo={esActivo(pathname, item)}
+                        colapsado={colapsadoVisual}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-white/10 p-3">
@@ -609,6 +652,10 @@ export function RestauranteShell({
           onAbrirMenu={() => setMenuMovilAbierto(true)}
         />
         <main className="min-w-0 p-4 sm:p-6">{children}</main>
+        <ModuloOnboarding
+          habilitado={Boolean(mostrarOnboardingModulos)}
+          modulosVistos={onboardingModulosVistos ?? []}
+        />
       </div>
     </div>
   );

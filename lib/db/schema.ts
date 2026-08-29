@@ -546,6 +546,25 @@ export const usuarios = pgTable(
   ],
 );
 
+export const usuarioOnboardingModulos = pgTable(
+  "usuario_onboarding_modulos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id, { onDelete: "cascade" }),
+    modulo: text("modulo").notNull(),
+    vistoEn: timestamp("visto_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("usuario_onboarding_modulos_usuario_modulo_uq").on(t.usuarioId, t.modulo),
+    index("usuario_onboarding_modulos_empresa_usuario_idx").on(t.empresaId, t.usuarioId),
+  ],
+);
+
 export const gastosPlataforma = pgTable(
   "gastos_plataforma",
   {
