@@ -5,6 +5,7 @@
  */
 
 export type PlanId = "demo" | "pro" | "enterprise";
+export type CicloFacturacion = "mensual" | "semestral" | "anual";
 
 export const DESCUENTO_ANUAL_PORCENTAJE = 15;
 export const DESCUENTO_SEMESTRAL_PORCENTAJE = 10;
@@ -280,6 +281,24 @@ export function descripcionLimiteIA(planId: PlanId): string {
 
 export function getPlan(id: string): Plan {
   return PLANES[id as PlanId] ?? PLANES.demo;
+}
+
+export function precioMensualizadoPlan(plan: Plan, ciclo: CicloFacturacion): number {
+  if (ciclo === "anual") return plan.precioAnualMensualizado;
+  if (ciclo === "semestral") return plan.precioSemestralMensualizado;
+  return plan.precioMensual;
+}
+
+export function totalAnualPlan(plan: Plan, ciclo: CicloFacturacion): number {
+  if (ciclo === "anual") return plan.precioAnual;
+  if (ciclo === "semestral") return plan.precioSemestral * 2;
+  return plan.precioMensual * 12;
+}
+
+export function descripcionTotalAnualPlan(plan: Plan, ciclo: CicloFacturacion): string {
+  const total = totalAnualPlan(plan, ciclo);
+  const etiqueta = ciclo === "anual" ? "Total anual" : "Equivalente anual";
+  return `${etiqueta}: $${total.toFixed(2)} USD`;
 }
 
 function puedeUsar(plan: Plan, feature: keyof PlanFeatures): boolean {

@@ -8,7 +8,10 @@ import { cambiarPlan, iniciarTrialPlanPago } from "@/lib/actions/planes";
 import {
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
+  descripcionTotalAnualPlan,
   descripcionLimiteIA,
+  precioMensualizadoPlan,
+  type CicloFacturacion,
   type Plan,
   type PlanId,
 } from "@/lib/pricing";
@@ -40,7 +43,7 @@ export function PlanesModal({
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
-  const [ciclo, setCiclo] = useState<"mensual" | "semestral" | "anual">("mensual");
+  const [ciclo, setCiclo] = useState<CicloFacturacion>("mensual");
   const [seleccionando, setSeleccionando] = useState<PlanId | null>(null);
   const [vista, setVista] = useState<Vista>("planes");
   const [planCheckout, setPlanCheckout] = useState<Plan | null>(null);
@@ -233,8 +236,8 @@ function VistaPlanes({
   suscripcionEstado?: "activa" | "trial" | "vencida" | "cancelada" | "suspendida" | null;
   suscripcionFinISO?: string | null;
   suscripcionBloqueada: boolean;
-  ciclo: "mensual" | "semestral" | "anual";
-  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
+  ciclo: CicloFacturacion;
+  setCiclo: (v: CicloFacturacion) => void;
   seleccionando: PlanId | null;
   onElegir: (plan: Plan) => void;
 }) {
@@ -277,11 +280,7 @@ function VistaPlanes({
             (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
           const demoBloqueado = suscripcionBloqueada && plan.id === "demo";
           const planPagoBloqueadoPorTrial = trialPagoActivo && plan.id !== "demo";
-          const precio = ciclo === "anual"
-            ? plan.precioAnualMensualizado
-            : ciclo === "semestral"
-              ? plan.precioSemestralMensualizado
-              : plan.precioMensual;
+          const precio = precioMensualizadoPlan(plan, ciclo);
           return (
             <div
               key={plan.id}
@@ -315,6 +314,9 @@ function VistaPlanes({
                   ${precio.toFixed(2)}
                 </span>
                 <span className="text-[12px] text-[color:var(--color-text-muted)]">/mes</span>
+                <div className="text-[11px] font-medium text-[color:var(--color-text-secondary)]">
+                  {descripcionTotalAnualPlan(plan, ciclo)}
+                </div>
                 {ciclo === "anual" && plan.ahorroAnualPorcentaje > 0 && (
                   <div className="text-[11px] text-[color:var(--color-success)]">
                     Ahorra {plan.ahorroAnualPorcentaje}% al año
@@ -386,8 +388,8 @@ function VistaCheckout({
   onError,
 }: {
   plan: Plan;
-  ciclo: "mensual" | "semestral" | "anual";
-  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
+  ciclo: CicloFacturacion;
+  setCiclo: (v: CicloFacturacion) => void;
   precio: number;
   onVolver: () => void;
   onExito: (recibo: ReciboData) => void;
@@ -433,6 +435,9 @@ function VistaCheckout({
             Incluye {plan.ahorroSemestralPorcentaje}% de descuento semestral
           </div>
         )}
+        <div className="mt-1 text-right text-[11px] font-medium text-[color:var(--color-text-secondary)]">
+          {descripcionTotalAnualPlan(plan, ciclo)}
+        </div>
         <div className="mt-3 flex items-center justify-between border-t border-[color:var(--color-border)] pt-3">
           <span className="font-semibold text-[color:var(--color-text-primary)]">
             Total hoy
@@ -471,8 +476,8 @@ function TogglePeriodo({
   ciclo,
   setCiclo,
 }: {
-  ciclo: "mensual" | "semestral" | "anual";
-  setCiclo: (v: "mensual" | "semestral" | "anual") => void;
+  ciclo: CicloFacturacion;
+  setCiclo: (v: CicloFacturacion) => void;
 }) {
   return (
     <div className="mt-3 inline-flex rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-1 text-small">

@@ -11,6 +11,8 @@ import {
   DESCUENTO_SEMESTRAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
+  descripcionTotalAnualPlan,
+  precioMensualizadoPlan,
 } from "@/lib/pricing";
 import { PAISES_ARRAY, PAIS_DEFAULT, type PaisCodigo, getPaisConfig } from "@/lib/paises";
 import { Button } from "@/components/ui/Button";
@@ -419,11 +421,7 @@ function registroView({
             <div className="mt-5 space-y-3">
               {PLANES_ARRAY.map((p) => {
                 const seleccionado = plan.planId === p.id;
-                const precio = plan.ciclo === "anual" 
-                  ? p.precioAnualMensualizado 
-                  : plan.ciclo === "semestral" 
-                    ? p.precioSemestralMensualizado 
-                    : p.precioMensual;
+                const precio = precioMensualizadoPlan(p, plan.ciclo);
                 return (
                   <button
                     key={p.id}
@@ -464,6 +462,9 @@ function registroView({
                             /mes
                           </div>
                         )}
+                        <div className="mt-1 text-[11px] font-medium text-[color:var(--color-text-secondary)]">
+                          {descripcionTotalAnualPlan(p, plan.ciclo)}
+                        </div>
                       </div>
                     </div>
                   </button>

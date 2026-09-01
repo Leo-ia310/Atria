@@ -8,7 +8,9 @@ import {
   DESCUENTO_SEMESTRAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
+  descripcionTotalAnualPlan,
   descripcionLimiteIA,
+  precioMensualizadoPlan,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -92,12 +94,7 @@ export function PricingToggle() {
 
       <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
         {PLANES_ARRAY.map((p) => {
-          const precio =
-            ciclo === "anual"
-              ? p.precioAnualMensualizado
-              : ciclo === "semestral"
-                ? p.precioSemestralMensualizado
-                : p.precioMensual;
+          const precio = precioMensualizadoPlan(p, ciclo);
           const ventajas = VENTAJAS_POR_PLAN[p.id] ?? [];
           return (
             <div
@@ -140,6 +137,9 @@ export function PricingToggle() {
                     {precio === 0 ? "/siempre" : "/mes"}
                   </span>
                 </div>
+                <p className="mt-1 text-[12px] font-medium text-white/60">
+                  {descripcionTotalAnualPlan(p, ciclo)}
+                </p>
                 {ciclo === "anual" && p.precioAnual > 0 && (
                   <p className="mt-1 text-[12px] text-white/45">
                     {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}
