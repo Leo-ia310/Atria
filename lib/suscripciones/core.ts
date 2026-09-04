@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, count, eq, gte, inArray, isNull, lt } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbConEmpresa } from "@/lib/db";
 import {
   clientes,
   empresas,
@@ -127,69 +127,71 @@ export async function validarUsoActual(
     clientesActivos,
     ventasMes,
     facturasMes,
-  ] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(usuarios)
-      .where(
-        and(
-          eq(usuarios.empresaId, empresaId),
-          eq(usuarios.activo, true),
-          isNull(usuarios.eliminadoEn),
+  ] = await dbConEmpresa(empresaId, (tx) =>
+    Promise.all([
+      tx
+        .select({ n: count() })
+        .from(usuarios)
+        .where(
+          and(
+            eq(usuarios.empresaId, empresaId),
+            eq(usuarios.activo, true),
+            isNull(usuarios.eliminadoEn),
+          ),
         ),
-      ),
-    db
-      .select({ n: count() })
-      .from(sucursales)
-      .where(
-        and(
-          eq(sucursales.empresaId, empresaId),
-          eq(sucursales.activa, true),
-          isNull(sucursales.eliminadoEn),
+      tx
+        .select({ n: count() })
+        .from(sucursales)
+        .where(
+          and(
+            eq(sucursales.empresaId, empresaId),
+            eq(sucursales.activa, true),
+            isNull(sucursales.eliminadoEn),
+          ),
         ),
-      ),
-    db
-      .select({ n: count() })
-      .from(productos)
-      .where(
-        and(
-          eq(productos.empresaId, empresaId),
-          eq(productos.activo, true),
-          isNull(productos.eliminadoEn),
+      tx
+        .select({ n: count() })
+        .from(productos)
+        .where(
+          and(
+            eq(productos.empresaId, empresaId),
+            eq(productos.activo, true),
+            isNull(productos.eliminadoEn),
+          ),
         ),
-      ),
-    db
-      .select({ n: count() })
-      .from(clientes)
-      .where(
-        and(
-          eq(clientes.empresaId, empresaId),
-          eq(clientes.activo, true),
-          isNull(clientes.eliminadoEn),
+      tx
+        .select({ n: count() })
+        .from(clientes)
+        .where(
+          and(
+            eq(clientes.empresaId, empresaId),
+            eq(clientes.activo, true),
+            isNull(clientes.eliminadoEn),
+          ),
         ),
-      ),
-    db
-      .select({ n: count() })
-      .from(ventas)
-      .where(
-        and(
-          eq(ventas.empresaId, empresaId),
-          isNull(ventas.anuladoEn),
-          gte(ventas.fecha, inicioMes),
-          lt(ventas.fecha, finMes),
+      tx
+        .select({ n: count() })
+        .from(ventas)
+        .where(
+          and(
+            eq(ventas.empresaId, empresaId),
+            isNull(ventas.anuladoEn),
+            gte(ventas.fecha, inicioMes),
+            lt(ventas.fecha, finMes),
+          ),
         ),
-      ),
-    db
-      .select({ n: count() })
-      .from(facturas)
-      .where(
-        and(
-          eq(facturas.empresaId, empresaId),
-          gte(facturas.fecha, inicioMes),
-          lt(facturas.fecha, finMes),
+      tx
+        .select({ n: count() })
+        .from(facturas)
+        .where(
+          and(
+            eq(facturas.empresaId, empresaId),
+            gte(facturas.fecha, inicioMes),
+            lt(facturas.fecha, finMes),
+          ),
         ),
-      ),
-  ]);
+    ]),
+  );
 
   const usados = {
     usuarios: usuariosActivos[0]?.n ?? 0,

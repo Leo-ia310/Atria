@@ -88,16 +88,22 @@ export function PlanesModal({
         mostrar("error", "Tu cuenta esta bloqueada. Paga el plan para recuperar el acceso.");
         return;
       }
-      setSeleccionando("demo");
-      const res = await cambiarPlan("demo");
-      setSeleccionando(null);
-      if (!res.ok) {
-        mostrar("error", res.error);
-        return;
+      try {
+        setSeleccionando("demo");
+        const res = await cambiarPlan("demo");
+        if (!res.ok) {
+          mostrar("error", res.error);
+          return;
+        }
+        mostrar("success", `Plan actualizado a ${res.plan}`);
+        cerrarModal();
+        router.refresh();
+      } catch (error) {
+        console.error("[planes] Error cambiando a Demo.", error);
+        mostrar("error", "No pudimos actualizar el plan. Intenta de nuevo.");
+      } finally {
+        setSeleccionando(null);
       }
-      mostrar("success", `Plan actualizado a ${res.plan}`);
-      cerrarModal();
-      router.refresh();
       return;
     }
 
@@ -122,18 +128,25 @@ export function PlanesModal({
       esActual &&
       (suscripcionBloqueada || suscripcionEstado === "vencida" || suscripcionEstado === "suspendida");
     if (!debePagarActual && !suscripcionBloqueada) {
-      setSeleccionando(plan.id);
-      const res = await iniciarTrialPlanPago(plan.id, ciclo);
-      setSeleccionando(null);
-      if (res.ok) {
-        mostrar("success", `Prueba gratis de ${res.plan} activada hasta ${formatearFecha(res.finISO)}`);
-        cerrarModal();
-        router.refresh();
+      try {
+        setSeleccionando(plan.id);
+        const res = await iniciarTrialPlanPago(plan.id, ciclo);
+        if (res.ok) {
+          mostrar("success", `Prueba gratis de ${res.plan} activada hasta ${formatearFecha(res.finISO)}`);
+          cerrarModal();
+          router.refresh();
+          return;
+        }
+        if (!res.requierePago) {
+          mostrar("error", res.error);
+          return;
+        }
+      } catch (error) {
+        console.error("[planes] Error iniciando prueba gratis.", error);
+        mostrar("error", "No pudimos activar la prueba gratis. Intenta de nuevo.");
         return;
-      }
-      if (!res.requierePago) {
-        mostrar("error", res.error);
-        return;
+      } finally {
+        setSeleccionando(null);
       }
     }
 
