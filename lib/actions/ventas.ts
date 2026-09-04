@@ -155,7 +155,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     (tx) =>
       Promise.all([
         tx
-          .select({ id: productos.id, tipo: productos.tipo, nombre: productos.nombre })
+          .select({
+            id: productos.id,
+            tipo: productos.tipo,
+            nombre: productos.nombre,
+            productoFiscalCodigo: productos.productoFiscalCodigo,
+          })
           .from(productos)
           .where(
             and(
@@ -203,6 +208,9 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   }
   const tipoPorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.tipo]));
   const nombrePorProducto = new Map(productosVenta.map((producto) => [producto.id, producto.nombre]));
+  const fiscalPorProducto = new Map(
+    productosVenta.map((producto) => [producto.id, producto.productoFiscalCodigo]),
+  );
   const esRestaurante = empresaRows[0]?.tipoEmpresa === "restaurante";
   const zonaHoraria = empresaRows[0]?.zonaHoraria ?? "America/Managua";
   const stockPorProducto = new Map(
@@ -284,10 +292,10 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
 
       const lineasFiscales: SnapshotImpuestoVentaLinea[] = data.items.map((it, index) => {
         const subtotalLinea = dinero(it.cantidad * it.precioUnitario - it.descuento);
-        return {
-          lineaReferencia: `item:${index + 1}:${it.productoId}`,
-          productoFiscalCodigo: "GENERAL_TAXABLE",
-          baseImponible: subtotalLinea,
+          return {
+            lineaReferencia: `item:${index + 1}:${it.productoId}`,
+            productoFiscalCodigo: fiscalPorProducto.get(it.productoId) ?? "GENERAL_TAXABLE",
+            baseImponible: subtotalLinea,
           impuesto: dinero(it.impuesto),
           total: dinero(subtotalLinea + it.impuesto),
           detalle: {

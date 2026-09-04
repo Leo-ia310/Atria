@@ -162,6 +162,13 @@
       "when": 1788552000000,
       "tag": "0022_compliance_core",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788555600000,
+      "tag": "0023_producto_fiscal_codigo",
+      "breakpoints": true
     }
   ]
 }

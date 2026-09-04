@@ -23,6 +23,29 @@ import { cn } from "@/lib/utils";
 
 type OpcionRef = { value: string; label: string };
 
+function valoresInicialesProducto(defaults?: Partial<ProductoInput>): Partial<ProductoInput> {
+  return {
+    sku: defaults?.sku ?? "",
+    codigoBarras: defaults?.codigoBarras ?? "",
+    nombre: defaults?.nombre ?? "",
+    descripcion: defaults?.descripcion ?? "",
+    tipo: defaults?.tipo ?? "simple",
+    categoriaId: defaults?.categoriaId ?? "",
+    marcaId: defaults?.marcaId ?? "",
+    unidadBaseId: defaults?.unidadBaseId ?? "",
+    impuestoId: defaults?.impuestoId ?? "",
+    productoFiscalCodigo: defaults?.productoFiscalCodigo ?? "GENERAL_TAXABLE",
+    precioBase: defaults?.precioBase ?? 0,
+    costoPromedio: defaults?.costoPromedio ?? 0,
+    stockMinimo: defaults?.stockMinimo ?? 0,
+    stockMaximo: defaults?.stockMaximo ?? undefined,
+    metodoCosteo: defaults?.metodoCosteo ?? "promedio",
+    manejaLotes: defaults?.manejaLotes ?? false,
+    manejaSeries: defaults?.manejaSeries ?? false,
+    fechaVencimiento: defaults?.fechaVencimiento ?? "",
+  };
+}
+
 export function ProductoForm({
   productoId,
   defaults,
@@ -30,6 +53,7 @@ export function ProductoForm({
   marcas,
   unidades,
   impuestos,
+  codigosFiscales,
 }: {
   productoId?: string;
   defaults?: Partial<ProductoInput>;
@@ -37,6 +61,7 @@ export function ProductoForm({
   marcas: OpcionRef[];
   unidades: OpcionRef[];
   impuestos: OpcionRef[];
+  codigosFiscales: OpcionRef[];
 }) {
   const router = useRouter();
   const { mostrar } = useToast();
@@ -55,25 +80,7 @@ export function ProductoForm({
     formState: { errors },
   } = useForm<ProductoInput>({
     resolver: zodResolver(productoSchema),
-    defaultValues: {
-      sku: defaults?.sku ?? "",
-      codigoBarras: defaults?.codigoBarras ?? "",
-      nombre: defaults?.nombre ?? "",
-      descripcion: defaults?.descripcion ?? "",
-      tipo: defaults?.tipo ?? "simple",
-      categoriaId: defaults?.categoriaId ?? "",
-      marcaId: defaults?.marcaId ?? "",
-      unidadBaseId: defaults?.unidadBaseId ?? "",
-      impuestoId: defaults?.impuestoId ?? "",
-      precioBase: defaults?.precioBase ?? 0,
-      costoPromedio: defaults?.costoPromedio ?? 0,
-      stockMinimo: defaults?.stockMinimo ?? 0,
-      stockMaximo: defaults?.stockMaximo ?? undefined,
-      metodoCosteo: defaults?.metodoCosteo ?? "promedio",
-      manejaLotes: defaults?.manejaLotes ?? false,
-      manejaSeries: defaults?.manejaSeries ?? false,
-      fechaVencimiento: defaults?.fechaVencimiento ?? "",
-    },
+    defaultValues: valoresInicialesProducto(defaults),
   });
 
   const categoriaId = watch("categoriaId") ?? "";
@@ -180,7 +187,7 @@ export function ProductoForm({
         abierta={seccionesAbiertas.precios}
         onToggle={() => toggleSeccion("precios")}
       >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Precio base"
               type="number"
@@ -203,6 +210,11 @@ export function ProductoForm({
               placeholder="Sin impuesto"
               {...register("impuestoId")}
               options={impuestos}
+            />
+            <Select
+              label="Código fiscal"
+              {...register("productoFiscalCodigo")}
+              options={codigosFiscales}
             />
           </div>
       </SeccionProducto>

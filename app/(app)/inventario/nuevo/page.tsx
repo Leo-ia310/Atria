@@ -1,6 +1,12 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { categorias, marcas, unidadesMedida, impuestos } from "@/lib/db/schema";
+import {
+  categorias,
+  marcas,
+  unidadesMedida,
+  impuestos,
+  codigosProductoFiscal,
+} from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProductoForm } from "@/components/productos/ProductoForm";
@@ -15,7 +21,7 @@ export default async function NuevoProductoPage({
   const codigoBarras =
     typeof params.codigoBarras === "string" ? params.codigoBarras.slice(0, 80) : "";
 
-  const [cats, mks, uns, imps] = await Promise.all([
+  const [cats, mks, uns, imps, fiscales] = await Promise.all([
     db
       .select({ id: categorias.id, nombre: categorias.nombre })
       .from(categorias)
@@ -32,6 +38,14 @@ export default async function NuevoProductoPage({
       .select({ id: impuestos.id, nombre: impuestos.nombre, tasa: impuestos.tasa })
       .from(impuestos)
       .where(eq(impuestos.empresaId, user.empresaId)),
+    db
+      .select({
+        codigo: codigosProductoFiscal.codigo,
+        nombre: codigosProductoFiscal.nombre,
+        categoria: codigosProductoFiscal.categoria,
+      })
+      .from(codigosProductoFiscal)
+      .where(eq(codigosProductoFiscal.empresaId, user.empresaId)),
   ]);
 
   return (
@@ -45,6 +59,10 @@ export default async function NuevoProductoPage({
         impuestos={imps.map((i) => ({
           value: i.id,
           label: `${i.nombre} (${(parseFloat(i.tasa) * 100).toFixed(0)}%)`,
+        }))}
+        codigosFiscales={fiscales.map((f) => ({
+          value: f.codigo,
+          label: `${f.codigo} / ${f.nombre}`,
         }))}
       />
     </div>

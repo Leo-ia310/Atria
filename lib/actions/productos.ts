@@ -8,6 +8,7 @@ import {
   marcas,
   categorias,
   productoAdvertencias,
+  codigosProductoFiscal,
   almacenes,
   existencias,
   movimientosInventario,
@@ -119,6 +120,27 @@ async function resolverSkuProducto(
   return siguienteSkuCategoria(tx, empresaId, categoriaNombre, datos.tipo);
 }
 
+async function resolverCodigoFiscalProducto(
+  tx: TX,
+  empresaId: string,
+  codigo: unknown,
+): Promise<string> {
+  const normalizado = String(codigo || "GENERAL_TAXABLE").trim().toUpperCase();
+  const [productoFiscal] = await tx
+    .select({ codigo: codigosProductoFiscal.codigo })
+    .from(codigosProductoFiscal)
+    .where(
+      and(
+        eq(codigosProductoFiscal.empresaId, empresaId),
+        eq(codigosProductoFiscal.codigo, normalizado),
+        eq(codigosProductoFiscal.activo, true),
+      ),
+    )
+    .limit(1);
+  if (!productoFiscal) throw new Error("Codigo fiscal de producto no valido");
+  return productoFiscal.codigo;
+}
+
 export async function crearProducto(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
@@ -137,7 +159,10 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
   try {
     const codigoBarras = String(datos.codigoBarras ?? "").trim();
     const creado = await dbConEmpresa(user.empresaId, async (tx) => {
-      const sku = await resolverSkuProducto(tx, user.empresaId, datos);
+      const [sku, productoFiscalCodigo] = await Promise.all([
+        resolverSkuProducto(tx, user.empresaId, datos),
+        resolverCodigoFiscalProducto(tx, user.empresaId, datos.productoFiscalCodigo),
+      ]);
       const yaExiste = await tx
         .select({ id: productos.id })
         .from(productos)
@@ -178,6 +203,7 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
           marcaId: (datos.marcaId as string | null) ?? null,
           unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
           impuestoId: (datos.impuestoId as string | null) ?? null,
+          productoFiscalCodigo,
           precioBase: datos.precioBase.toString(),
           costoPromedio: datos.costoPromedio.toString(),
           stockMinimo: datos.stockMinimo.toString(),
@@ -225,8 +251,9 @@ export async function actualizarProducto(
 
   try {
     const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
-      const [sku, existente] = await Promise.all([
+      const [sku, productoFiscalCodigo, existente] = await Promise.all([
         resolverSkuProducto(tx, user.empresaId, datos),
+        resolverCodigoFiscalProducto(tx, user.empresaId, datos.productoFiscalCodigo),
         tx
           .select({ id: productos.id })
           .from(productos)
@@ -275,6 +302,7 @@ export async function actualizarProducto(
           marcaId: (datos.marcaId as string | null) ?? null,
           unidadBaseId: (datos.unidadBaseId as string | null) ?? null,
           impuestoId: (datos.impuestoId as string | null) ?? null,
+          productoFiscalCodigo,
           precioBase: datos.precioBase.toString(),
           stockMinimo: datos.stockMinimo.toString(),
           stockMaximo: datos.stockMaximo?.toString() ?? null,

@@ -941,6 +941,7 @@ export const productos = pgTable(
     marcaId: uuid("marca_id").references(() => marcas.id),
     unidadBaseId: uuid("unidad_base_id").references(() => unidadesMedida.id),
     impuestoId: uuid("impuesto_id").references(() => impuestos.id),
+    productoFiscalCodigo: text("producto_fiscal_codigo").notNull().default("GENERAL_TAXABLE"),
     precioBase: numeric("precio_base", { precision: 18, scale: 4 }).notNull().default("0"),
     costoPromedio: numeric("costo_promedio", { precision: 18, scale: 4 })
       .notNull()
@@ -966,6 +967,7 @@ export const productos = pgTable(
     index("productos_empresa_idx").on(t.empresaId),
     index("productos_nombre_idx").on(t.nombre),
     index("productos_codigo_barras_idx").on(t.codigoBarras),
+    index("productos_empresa_fiscal_idx").on(t.empresaId, t.productoFiscalCodigo),
     index("productos_empresa_activo_eliminado_creado_idx").on(
       t.empresaId,
       t.activo,

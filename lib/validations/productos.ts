@@ -11,6 +11,7 @@ export const productoSchema = z
     marcaId: z.string().uuid().optional().or(z.literal("")),
     unidadBaseId: z.string().uuid().optional().or(z.literal("")),
     impuestoId: z.string().uuid().optional().or(z.literal("")),
+    productoFiscalCodigo: z.string().trim().min(1).max(80).default("GENERAL_TAXABLE"),
     precioBase: z.coerce.number().min(0, "No puede ser negativo"),
     costoPromedio: z.coerce.number().min(0).default(0),
     stockMinimo: z.coerce.number().min(0).default(0),
