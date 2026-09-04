@@ -5,7 +5,7 @@ export const crearCuentaFinancieraSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido").max(100),
   banco: z.string().max(100).optional().or(z.literal("")),
   numeroCuenta: z.string().max(50).optional().or(z.literal("")),
-  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD"]),
+  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD", "MXN"]),
   saldoInicial: z.coerce.number().min(0).default(0),
   cuentaContableId: z.string().uuid().optional().or(z.literal("")),
 });

@@ -3,7 +3,7 @@
  * fiscal y catálogo de cuentas base que se instala al onboarding.
  */
 
-export type PaisCodigo = "HN" | "NI" | "GT" | "CR" | "SV";
+export type PaisCodigo = "HN" | "NI" | "GT" | "CR" | "SV" | "US" | "MX";
 
 export type PaisConfig = {
   codigo: PaisCodigo;
@@ -80,6 +80,32 @@ export const CONFIG_PAIS: Record<PaisCodigo, PaisConfig> = {
     tasaDefault: 0.13,
     idFiscalNombre: "NIT",
     zonaHoraria: "America/El_Salvador",
+    formatoFecha: "DD/MM/YYYY",
+  },
+  US: {
+    codigo: "US",
+    nombre: "Estados Unidos",
+    moneda: "USD",
+    simbolo: "$",
+    impuestoNombre: "Sales Tax",
+    impuestoCodigo: "CO_SALES_TAX",
+    tasaDefault: 0.029,
+    idFiscalNombre: "EIN",
+    idFiscalFormato: /^\d{2}-?\d{7}$/,
+    zonaHoraria: "America/Denver",
+    formatoFecha: "MM/DD/YYYY",
+  },
+  MX: {
+    codigo: "MX",
+    nombre: "México",
+    moneda: "MXN",
+    simbolo: "$",
+    impuestoNombre: "IVA",
+    impuestoCodigo: "IVA16",
+    tasaDefault: 0.16,
+    idFiscalNombre: "RFC",
+    idFiscalFormato: /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i,
+    zonaHoraria: "America/Mexico_City",
     formatoFecha: "DD/MM/YYYY",
   },
 };

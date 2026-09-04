@@ -49,6 +49,7 @@ export function PlatformExpenseForm() {
             <option value="HNL">HNL</option>
             <option value="GTQ">GTQ</option>
             <option value="CRC">CRC</option>
+            <option value="MXN">MXN</option>
           </select>
         </Field>
       </div>

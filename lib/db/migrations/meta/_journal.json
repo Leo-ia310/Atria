@@ -148,6 +148,13 @@
       "when": 1788023915716,
       "tag": "0020_bumpy_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788547200000,
+      "tag": "0021_add_us_mx_countries",
+      "breakpoints": true
     }
   ]
 }

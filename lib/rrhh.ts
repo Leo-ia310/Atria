@@ -67,6 +67,18 @@ export const FERIADOS_POR_PAIS: Record<PaisCodigo, FeriadoBase[]> = {
     { nombre: "Día de los Difuntos", mes: 11, dia: 2 },
     { nombre: "Navidad", mes: 12, dia: 25 },
   ],
+  US: [
+    { nombre: "New Year's Day", mes: 1, dia: 1 },
+    { nombre: "Independence Day", mes: 7, dia: 4 },
+    { nombre: "Veterans Day", mes: 11, dia: 11 },
+    { nombre: "Christmas Day", mes: 12, dia: 25 },
+  ],
+  MX: [
+    { nombre: "Año Nuevo", mes: 1, dia: 1 },
+    { nombre: "Día del Trabajo", mes: 5, dia: 1 },
+    { nombre: "Día de la Independencia", mes: 9, dia: 16 },
+    { nombre: "Navidad", mes: 12, dia: 25 },
+  ],
 };
 
 /** Aporte laboral (trabajador) a la seguridad social por país. */
@@ -76,6 +88,8 @@ export const TASA_SEGURIDAD_SOCIAL: Record<PaisCodigo, number> = {
   GT: 0.0483, // IGSS cuota laboral
   CR: 0.1067, // CCSS aporte del trabajador
   SV: 0.0725, // ISSS + AFP aporte laboral aprox.
+  US: 0, // Referencial: FICA/FUTA depende de reglas, topes y responsabilidades configurables.
+  MX: 0, // Referencial: IMSS/ISR requiere tablas vigentes y datos patronales.
 };
 
 export const SEGURIDAD_SOCIAL_NOMBRE: Record<PaisCodigo, string> = {
@@ -84,6 +98,8 @@ export const SEGURIDAD_SOCIAL_NOMBRE: Record<PaisCodigo, string> = {
   GT: "IGSS",
   CR: "CCSS",
   SV: "ISSS/AFP",
+  US: "FICA",
+  MX: "IMSS",
 };
 
 /**
@@ -128,6 +144,8 @@ export const IR_ANUAL: Record<PaisCodigo, TramoIR[]> = {
     { desde: 10_742.88, tasa: 0.2, cuotaFija: 720 },
     { desde: 24_457.2, tasa: 0.3, cuotaFija: 3_462.84 },
   ],
+  US: [],
+  MX: [],
 };
 
 /**

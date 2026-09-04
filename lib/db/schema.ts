@@ -48,8 +48,8 @@ export const pagoSuscripcionEstadoEnum = pgEnum("pago_suscripcion_estado", [
   "fallido",
   "reembolsado",
 ]);
-export const paisEnum = pgEnum("pais", ["HN", "NI", "GT", "CR", "SV"]);
-export const monedaEnum = pgEnum("moneda", ["HNL", "NIO", "GTQ", "CRC", "USD"]);
+export const paisEnum = pgEnum("pais", ["HN", "NI", "GT", "CR", "SV", "US", "MX"]);
+export const monedaEnum = pgEnum("moneda", ["HNL", "NIO", "GTQ", "CRC", "USD", "MXN"]);
 
 export const productoTipoEnum = pgEnum("producto_tipo", [
   "simple",

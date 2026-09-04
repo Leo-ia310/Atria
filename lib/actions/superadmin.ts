@@ -30,7 +30,7 @@ const crearGastoSchema = z.object({
   proveedor: z.string().trim().max(120).optional(),
   descripcion: z.string().trim().min(3).max(240),
   monto: z.coerce.number().positive().max(1_000_000),
-  moneda: z.enum(["USD", "NIO", "HNL", "GTQ", "CRC"]),
+  moneda: z.enum(["USD", "NIO", "HNL", "GTQ", "CRC", "MXN"]),
   metodoPago: z.string().trim().max(80).optional(),
   recurrente: z.boolean(),
   notas: z.string().trim().max(600).optional(),

@@ -55,8 +55,8 @@ export const registroEmpresaSchema = z.object({
     .or(z.literal("")),
   identificacionFiscal: z.string().trim().max(50).optional().default(""),
   tipoEmpresa: z.enum(["general", "restaurante", "retail", "servicios"]).default("general"),
-  pais: z.enum(["HN", "NI", "GT", "CR", "SV"]),
-  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD"]),
+  pais: z.enum(["HN", "NI", "GT", "CR", "SV", "US", "MX"]),
+  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD", "MXN"]),
 });
 
 export const registroAdminSchema = z

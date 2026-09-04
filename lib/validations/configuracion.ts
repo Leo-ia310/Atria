@@ -146,7 +146,7 @@ export const cuentaFinancieraSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(80),
   banco: z.string().trim().max(80).optional().or(z.literal("")),
   numeroCuenta: z.string().trim().max(40).optional().or(z.literal("")),
-  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD"]),
+  moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD", "MXN"]),
   saldoInicial: z.coerce.number().min(0).default(0),
 });
 export type CuentaFinancieraInput = z.infer<typeof cuentaFinancieraSchema>;

@@ -29,6 +29,7 @@ const MONEDAS = [
   { value: "GTQ", label: "Quetzal (GTQ)" },
   { value: "CRC", label: "Colón (CRC)" },
   { value: "USD", label: "Dólar (USD)" },
+  { value: "MXN", label: "Peso mexicano (MXN)" },
 ];
 
 export function CrearCuentaForm({ monedaDefault }: { monedaDefault: string }) {
