@@ -57,6 +57,7 @@ import {
   sumarDias,
   ultimos4Token,
 } from "@/lib/restaurante/core";
+import { crearSnapshotsImpuestoVenta, type SnapshotImpuestoVentaLinea } from "@/lib/compliance-core";
 import {
   restauranteAreaSchema,
   restauranteComandaEstadoSchema,
@@ -1387,6 +1388,53 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
         };
       }),
     );
+
+    const lineasFiscales: SnapshotImpuestoVentaLinea[] = items.map((item, index) => {
+      const cantidad = parseFloat(item.cantidad);
+      const precioUnitario = parseFloat(item.precioUnitario);
+      const itemDescuento = parseFloat(item.descuento);
+      const subtotalLinea = dinero(cantidad * precioUnitario - itemDescuento);
+      const impuestoLinea = dinero(parseFloat(item.impuesto));
+      return {
+        lineaReferencia: `restaurante-item:${index + 1}:${item.id}`,
+        productoFiscalCodigo: "RESTAURANTE_PREPARED_FOOD",
+        baseImponible: subtotalLinea,
+        impuesto: impuestoLinea,
+        total: dinero(subtotalLinea + impuestoLinea),
+        detalle: {
+          ordenId: ordenBloqueada.id,
+          ordenNumero: ordenBloqueada.numero,
+          ordenItemId: item.id,
+          productoId: item.productoId,
+          nombreSnapshot: item.nombreSnapshot,
+          cantidad,
+          precioUnitario,
+          descuento: itemDescuento,
+          origen: "restaurante",
+        },
+      };
+    });
+    if (propina > 0) {
+      lineasFiscales.push({
+        lineaReferencia: `restaurante-propina:${ordenBloqueada.id}`,
+        productoFiscalCodigo: "RESTAURANTE_TIP_VOLUNTARY",
+        baseImponible: propina,
+        impuesto: 0,
+        total: propina,
+        detalle: {
+          ordenId: ordenBloqueada.id,
+          ordenNumero: ordenBloqueada.numero,
+          origen: "restaurante",
+          tipo: "propina_voluntaria",
+        },
+      });
+    }
+    await crearSnapshotsImpuestoVenta(tx, {
+      empresaId: user.empresaId,
+      referenciaTabla: "ventas",
+      referenciaId: venta.id,
+      lineas: lineasFiscales,
+    });
 
     await tx.insert(pagosVenta).values({
       ventaId: venta.id,

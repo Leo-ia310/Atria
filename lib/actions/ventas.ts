@@ -30,6 +30,7 @@ import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { getPoliticasNegocio } from "@/lib/politicas-negocio";
 import { fechaISOEnZona, fechaMediodiaUTC, horaMinutoEnZona, sumarDiasISO } from "@/lib/dates";
+import { crearSnapshotsImpuestoVenta, type SnapshotImpuestoVentaLinea } from "@/lib/compliance-core";
 
 type Resultado =
   | { ok: true; ventaId: string; numero: string; asientoId: string }
@@ -280,6 +281,30 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           subtotal: aDecimalStr(dinero(it.cantidad * it.precioUnitario - it.descuento)),
         })),
       );
+
+      const lineasFiscales: SnapshotImpuestoVentaLinea[] = data.items.map((it, index) => {
+        const subtotalLinea = dinero(it.cantidad * it.precioUnitario - it.descuento);
+        return {
+          lineaReferencia: `item:${index + 1}:${it.productoId}`,
+          productoFiscalCodigo: "GENERAL_TAXABLE",
+          baseImponible: subtotalLinea,
+          impuesto: dinero(it.impuesto),
+          total: dinero(subtotalLinea + it.impuesto),
+          detalle: {
+            productoId: it.productoId,
+            cantidad: it.cantidad,
+            precioUnitario: it.precioUnitario,
+            descuento: it.descuento,
+            origen: "pos",
+          },
+        };
+      });
+      await crearSnapshotsImpuestoVenta(tx, {
+        empresaId: user.empresaId,
+        referenciaTabla: "ventas",
+        referenciaId: venta.id,
+        lineas: lineasFiscales,
+      });
 
       await tx.insert(pagosVenta).values(
         data.pagos.map((p) => ({
