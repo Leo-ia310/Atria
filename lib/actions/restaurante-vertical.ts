@@ -69,6 +69,7 @@ import {
   restauranteMesaEstadoSchema,
   restauranteMesaLimpiaSchema,
   restauranteMesaSchema,
+  restauranteMoverMesaOrdenSchema,
   restauranteOrdenItemSchema,
   restauranteOrdenSchema,
   restauranteProductoSchema,
@@ -101,9 +102,34 @@ function texto(formData: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+function textos(formData: FormData, key: string): string[] {
+  return formData
+    .getAll(key)
+    .flatMap((value) => (typeof value === "string" ? [value.trim()] : []))
+    .filter(Boolean);
+}
+
 function checkbox(formData: FormData, key: string): boolean {
   const value = formData.get(key);
   return value === "on" || value === "true";
+}
+
+function notasCocinaDesdeForm(formData: FormData): string {
+  const notas: string[] = [];
+  for (const valor of [...textos(formData, "notasRapidas"), texto(formData, "notasCocina")]) {
+    const limpio = valor.trim();
+    if (limpio) notas.push(limpio);
+  }
+  return notas.join("\n").slice(0, 500);
+}
+
+function agregarAlertaAlergia(notas: string | null | undefined, alergias: string | null | undefined): string | null {
+  const notasBase = notas?.trim() ?? "";
+  const alergiasLimpias = alergias?.trim();
+  if (!alergiasLimpias) return notasBase || null;
+  const alerta = `Alergia: ${alergiasLimpias}`;
+  if (notasBase.toLowerCase().includes(alerta.toLowerCase())) return notasBase;
+  return [alerta, notasBase].filter(Boolean).join("\n");
 }
 
 function listaTexto(valor: string | null | undefined): string[] {
@@ -711,7 +737,7 @@ export async function agregarItemOrdenRestaurante(formData: FormData): Promise<R
     descuento: texto(formData, "descuento") || "0",
     impuesto: texto(formData, "impuesto") || "0",
     costoUnitario: texto(formData, "costoUnitario") || "0",
-    notasCocina: texto(formData, "notasCocina"),
+    notasCocina: notasCocinaDesdeForm(formData),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
@@ -742,8 +768,27 @@ export async function agregarItemOrdenRestaurante(formData: FormData): Promise<R
     }
     if (!producto) return { ok: false as const, error: "Producto no valido" };
 
+    const [ordenCompleta] = await tx
+      .select({ comensalId: restauranteOrdenes.comensalId })
+      .from(restauranteOrdenes)
+      .where(and(eq(restauranteOrdenes.id, data.ordenId), eq(restauranteOrdenes.empresaId, user.empresaId)))
+      .limit(1);
+    const [comensal] = ordenCompleta?.comensalId
+      ? await tx
+          .select({ alergias: restauranteComensales.alergias })
+          .from(restauranteComensales)
+          .where(
+            and(
+              eq(restauranteComensales.id, ordenCompleta.comensalId),
+              eq(restauranteComensales.empresaId, user.empresaId),
+            ),
+          )
+          .limit(1)
+      : [];
+
     const precioUnitario = parseFloat(producto.precioBase);
     const costoUnitario = parseFloat(producto.costoPromedio);
+    const notasCocina = agregarAlertaAlergia(data.notasCocina, comensal?.alergias);
     const [item] = await tx
       .insert(restauranteOrdenItems)
       .values({
@@ -756,7 +801,7 @@ export async function agregarItemOrdenRestaurante(formData: FormData): Promise<R
         descuento: aDecimalStr(data.descuento),
         impuesto: aDecimalStr(data.impuesto),
         costoUnitario: aDecimalStr(costoUnitario),
-        notasCocina: data.notasCocina || null,
+        notasCocina,
       })
       .returning({ id: restauranteOrdenItems.id });
 
@@ -1001,6 +1046,141 @@ export async function solicitarCuentaRestauranteForm(formData: FormData): Promis
   });
 }
 
+export async function moverMesaOrdenRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-ordenes", "restaurante.ordenes.editar");
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteMoverMesaOrdenSchema.safeParse({
+    ordenId: texto(formData, "ordenId"),
+    mesaId: texto(formData, "mesaId"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+
+  const { user } = acceso;
+  const { ordenId, mesaId } = parsed.data;
+  const resultado = await dbConEmpresa(user.empresaId, async (tx) => {
+    const [[orden], [mesaDestino]] = await Promise.all([
+      tx
+        .select({
+          id: restauranteOrdenes.id,
+          estado: restauranteOrdenes.estado,
+          sucursalId: restauranteOrdenes.sucursalId,
+          mesaId: restauranteOrdenes.mesaId,
+        })
+        .from(restauranteOrdenes)
+        .where(and(eq(restauranteOrdenes.id, ordenId), eq(restauranteOrdenes.empresaId, user.empresaId)))
+        .limit(1),
+      tx
+        .select({
+          id: restauranteMesas.id,
+          sucursalId: restauranteMesas.sucursalId,
+          estado: restauranteMesas.estado,
+          nombre: restauranteMesas.nombre,
+        })
+        .from(restauranteMesas)
+        .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)))
+        .limit(1),
+    ]);
+
+    if (!orden) return { ok: false as const, error: "Orden no encontrada" };
+    if (orden.estado === "pagada" || orden.estado === "cancelada") {
+      return { ok: false as const, error: "La orden ya esta cerrada." };
+    }
+    if (!mesaDestino || mesaDestino.sucursalId !== orden.sucursalId) {
+      return { ok: false as const, error: "La mesa destino no pertenece a la misma sucursal." };
+    }
+    if (orden.mesaId === mesaDestino.id) {
+      return { ok: true as const, id: orden.id };
+    }
+    if (mesaDestino.estado !== "disponible") {
+      return { ok: false as const, error: "La mesa destino no esta libre." };
+    }
+
+    const [ordenEnDestino] = await tx
+      .select({ id: restauranteOrdenes.id })
+      .from(restauranteOrdenes)
+      .where(
+        and(
+          eq(restauranteOrdenes.empresaId, user.empresaId),
+          eq(restauranteOrdenes.mesaId, mesaDestino.id),
+          inArray(restauranteOrdenes.estado, [
+            "abierta",
+            "borrador",
+            "en_cocina",
+            "cuenta_solicitada",
+          ]),
+        ),
+      )
+      .limit(1);
+    if (ordenEnDestino) {
+      return { ok: false as const, error: "La mesa destino ya tiene una orden abierta." };
+    }
+
+    const ahora = new Date();
+    await tx
+      .update(restauranteOrdenes)
+      .set({
+        mesaId: mesaDestino.id,
+        actualizadoEn: ahora,
+        version: sql`${restauranteOrdenes.version} + 1`,
+      })
+      .where(and(eq(restauranteOrdenes.id, orden.id), eq(restauranteOrdenes.empresaId, user.empresaId)));
+
+    await tx
+      .update(restauranteMesas)
+      .set({
+        estado: orden.estado === "cuenta_solicitada" ? "cuenta_solicitada" : "ocupada",
+        actualizadoEn: ahora,
+      })
+      .where(and(eq(restauranteMesas.id, mesaDestino.id), eq(restauranteMesas.empresaId, user.empresaId)));
+
+    if (orden.mesaId) {
+      const [otraOrden] = await tx
+        .select({ id: restauranteOrdenes.id })
+        .from(restauranteOrdenes)
+        .where(
+          and(
+            eq(restauranteOrdenes.empresaId, user.empresaId),
+            eq(restauranteOrdenes.mesaId, orden.mesaId),
+            inArray(restauranteOrdenes.estado, [
+              "abierta",
+              "borrador",
+              "en_cocina",
+              "cuenta_solicitada",
+            ]),
+          ),
+        )
+        .limit(1);
+      if (!otraOrden) {
+        await tx
+          .update(restauranteMesas)
+          .set({ estado: "disponible", actualizadoEn: ahora })
+          .where(and(eq(restauranteMesas.id, orden.mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+      }
+    }
+
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.orden.mover_mesa",
+      tabla: "restaurante_ordenes",
+      registroId: orden.id,
+      datosDespues: { mesaAnteriorId: orden.mesaId, mesaDestinoId: mesaDestino.id },
+    });
+    return { ok: true as const, id: orden.id };
+  });
+  revalidarAtencionRestaurante();
+  return resultado;
+}
+
+export async function moverMesaOrdenRestauranteForm(formData: FormData): Promise<void> {
+  const resultado = await moverMesaOrdenRestaurante(formData);
+  redirigirConFeedback(formData, resultado, "Mesa movida.", {
+    ordenId: texto(formData, "ordenId"),
+  });
+}
+
 export async function cobrarOrdenRestaurante(formData: FormData): Promise<Resultado> {
   const acceso = await requireRestaurante("restaurante-ordenes", [
     "restaurante.ordenes.editar",
@@ -1012,6 +1192,7 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
     formaPagoId: texto(formData, "formaPagoId"),
     referencia: texto(formData, "referencia"),
     propina: texto(formData, "propina") || "0",
+    montoRecibido: texto(formData, "montoRecibido") || undefined,
     idempotencyKey: texto(formData, "idempotencyKey"),
   });
   if (!parsed.success) {
@@ -1141,6 +1322,14 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
     const impuesto = dinero(...items.map((item) => item.impuesto));
     const propina = dinero(data.propina);
     const total = dinero(subtotal + impuesto + propina);
+    const montoRecibido =
+      typeof data.montoRecibido === "number" && data.montoRecibido > 0
+        ? dinero(data.montoRecibido)
+        : total;
+    if (montoRecibido < total) {
+      return { ok: false as const, error: "El monto recibido no cubre el total." };
+    }
+    const cambio = dinero(Math.max(0, montoRecibido - total));
     const costoTotal = dinero(
       ...items.map((item) =>
         dinero(parseFloat(item.cantidad) * parseFloat(item.costoUnitario)),
@@ -1204,7 +1393,7 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
       formaPagoId: formaPago.id,
       monto: aDecimalStr(total),
       referencia: data.referencia || null,
-      cambio: "0.0000",
+      cambio: aDecimalStr(cambio),
     });
 
     await tx.insert(facturas).values({
@@ -1241,6 +1430,8 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
           {
             formaPago: formaPago.nombre,
             monto: total,
+            recibido: montoRecibido,
+            cambio,
             referencia: data.referencia || null,
           },
         ],
@@ -1313,7 +1504,7 @@ export async function cobrarOrdenRestauranteForm(formData: FormData): Promise<vo
 }
 
 export async function marcarMesaLimpiaRestaurante(formData: FormData): Promise<Resultado> {
-  const acceso = await requireRestaurante("restaurante-mesas", "restaurante.mesas.editar");
+  const acceso = await requireRestaurante("restaurante-pos", "restaurante.ordenes.editar");
   if (!acceso.ok) return acceso;
   const parsed = restauranteMesaLimpiaSchema.safeParse({
     mesaId: texto(formData, "mesaId"),
@@ -1421,6 +1612,7 @@ export async function actualizarEstadoComandaRestaurante(formData: FormData): Pr
     });
   });
   revalidatePath("/restaurante/kds");
+  revalidatePath("/restaurante/pos");
   revalidatePath("/restaurante");
   return { ok: true };
 }
