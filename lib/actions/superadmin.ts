@@ -16,6 +16,7 @@ import { asegurarPlanes } from "@/lib/actions/registro";
 import { generarNumeroRecibo } from "@/lib/pagos/recibo";
 import { getPlan } from "@/lib/pricing";
 import { activarSuscripcion, type Ciclo } from "@/lib/suscripciones/core";
+import { crearSnapshotsImpuestoVenta } from "@/lib/compliance-core";
 
 export type SuperAdminActionState = {
   ok: boolean;
@@ -172,22 +173,51 @@ export async function activarMembresiaManualAction(
       ahora,
     });
 
-    await tx.insert(pagosSuscripcion).values({
-      empresaId: empresa.id,
-      suscripcionId: activada.suscripcionId,
-      numeroRecibo: generarNumeroRecibo(),
-      proveedor: "transferencia",
-      ordenId,
-      capturaId: vacioANull(data.referencia),
-      planCodigo: data.planId,
-      ciclo: data.ciclo,
-      monto: data.monto.toFixed(4),
-      moneda: "USD",
-      estado: "completado",
-      pagadorNombre: empresa.nombreComercial || empresa.razonSocial,
-      pagadorEmail: empresa.email,
-      completadoEn: ahora,
-    });
+    const [pago] = await tx
+      .insert(pagosSuscripcion)
+      .values({
+        empresaId: empresa.id,
+        suscripcionId: activada.suscripcionId,
+        numeroRecibo: generarNumeroRecibo(),
+        proveedor: "transferencia",
+        ordenId,
+        capturaId: vacioANull(data.referencia),
+        planCodigo: data.planId,
+        ciclo: data.ciclo,
+        monto: data.monto.toFixed(4),
+        moneda: "USD",
+        estado: "completado",
+        pagadorNombre: empresa.nombreComercial || empresa.razonSocial,
+        pagadorEmail: empresa.email,
+        completadoEn: ahora,
+      })
+      .returning({ id: pagosSuscripcion.id });
+
+    if (pago) {
+      await crearSnapshotsImpuestoVenta(tx, {
+        empresaId: empresa.id,
+        referenciaTabla: "pagos_suscripcion",
+        referenciaId: pago.id,
+        lineas: [
+          {
+            lineaReferencia: `plan:${data.planId}:${data.ciclo}`,
+            productoFiscalCodigo: "ARCA_SAAS_STANDARD",
+            baseImponible: data.monto,
+            impuesto: 0,
+            total: data.monto,
+            detalle: {
+              planId: data.planId,
+              ciclo: data.ciclo,
+              proveedor: "transferencia",
+              ordenId,
+              referencia: data.referencia || null,
+              pendienteMotorFiscalSuscripciones: true,
+              precioSuscripcionSinImpuestoSeparado: true,
+            },
+          },
+        ],
+      });
+    }
 
     await tx
       .update(empresas)

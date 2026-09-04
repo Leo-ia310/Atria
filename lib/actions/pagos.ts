@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbConEmpresa } from "@/lib/db";
 import {
   empresas,
   pagosSuscripcion,
@@ -36,6 +36,7 @@ import {
 import { enviarEmail } from "@/lib/email/resend";
 import { reciboPagoHtml, reciboPagoTexto } from "@/lib/email/templates/recibo-pago";
 import { withLock } from "@/lib/redis/lock";
+import { crearSnapshotsImpuestoVenta } from "@/lib/compliance-core";
 
 const PLANES_PAGADOS = new Set<PlanId>(["pro", "enterprise"]);
 const MONEDA = "USD";
@@ -278,7 +279,7 @@ async function procesarCaptura(
       : "renovacion"
     : null;
 
-  const { fin, referido } = await db.transaction(async (tx) => {
+  const { fin, referido } = await dbConEmpresa(empresaId, async (tx) => {
     const activada = await activarSuscripcion(tx, {
       empresaId,
       planRowId: planRow.id,
@@ -302,6 +303,30 @@ async function procesarCaptura(
         completadoEn: ahora,
       })
       .where(eq(pagosSuscripcion.id, pago.id));
+
+    await crearSnapshotsImpuestoVenta(tx, {
+      empresaId,
+      referenciaTabla: "pagos_suscripcion",
+      referenciaId: pago.id,
+      lineas: [
+        {
+          lineaReferencia: `plan:${planId}:${pago.ciclo}`,
+          productoFiscalCodigo: "ARCA_SAAS_STANDARD",
+          baseImponible: montoEsperado,
+          impuesto: 0,
+          total: montoEsperado,
+          detalle: {
+            planId,
+            ciclo: pago.ciclo,
+            proveedor: "paypal",
+            ordenId,
+            capturaId: captura.capturaId ?? null,
+            pendienteMotorFiscalSuscripciones: true,
+            precioSuscripcionSinImpuestoSeparado: true,
+          },
+        },
+      ],
+    });
 
     const referido =
       codigoReferido && tipoComision
