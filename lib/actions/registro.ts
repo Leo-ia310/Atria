@@ -140,6 +140,23 @@ type ResultadoRegistro =
   | { ok: true; empresaId: string; usuarioId: string }
   | { ok: false; error: string };
 
+function mensajeRegistroError(err: unknown): string {
+  const error = err as { code?: string; constraint_name?: string; message?: string } | undefined;
+  if (error?.code === "42703") {
+    return "La base de datos necesita actualizarse antes de crear cuentas.";
+  }
+  if (error?.code === "23505") {
+    return "Ya existe información registrada con esos datos. Revisa el correo o el negocio.";
+  }
+  if (error?.code === "23502") {
+    return "Falta un dato obligatorio para crear la cuenta.";
+  }
+  if (error?.code === "23503") {
+    return "Falta una configuración base para crear cuentas.";
+  }
+  return "No pudimos crear tu cuenta. Intenta de nuevo.";
+}
+
 export async function registrarEmpresa(
   formData: unknown,
 ): Promise<ResultadoRegistro> {
@@ -174,7 +191,7 @@ export async function registrarEmpresa(
 
     const planRow = await dbSuperAdmin((tx) =>
       tx
-        .select()
+        .select({ id: planesTable.id, codigo: planesTable.codigo })
         .from(planesTable)
         .where(eq(planesTable.codigo, plan.planId))
         .limit(1),
@@ -183,7 +200,7 @@ export async function registrarEmpresa(
       await asegurarPlanes();
       const reintento = await dbSuperAdmin((tx) =>
         tx
-          .select()
+          .select({ id: planesTable.id, codigo: planesTable.codigo })
           .from(planesTable)
           .where(eq(planesTable.codigo, plan.planId))
           .limit(1),
@@ -420,7 +437,7 @@ export async function registrarEmpresa(
     return { ok: true, ...resultado };
   } catch (err) {
     console.error("[registrarEmpresa]", err);
-    return { ok: false, error: "No pudimos crear tu cuenta. Intenta de nuevo." };
+    return { ok: false, error: mensajeRegistroError(err) };
   }
 }
 
