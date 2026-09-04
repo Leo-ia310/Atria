@@ -22,11 +22,20 @@ import {
   categoriasGasto,
   cuentasFinancieras,
   configuraciones,
+  perfilesFiscales,
+  jurisdiccionesFiscales,
+  codigosProductoFiscal,
+  reglasImpuestoFiscal,
 } from "@/lib/db/schema";
 import { registroCompletoSchema } from "@/lib/validations/auth";
 import { VERSION_LEGAL } from "@/lib/legal";
-import { CATALOGO_CUENTAS_BASE, getPaisConfig, CUENTAS_CLAVE } from "@/lib/paises";
+import { CATALOGO_CUENTAS_BASE, getPaisConfig, CUENTAS_CLAVE, type PaisCodigo } from "@/lib/paises";
 import { PLANES } from "@/lib/pricing";
+import {
+  PRODUCTOS_FISCALES_BASE,
+  jurisdiccionFiscalDefault,
+  reglasImpuestoDefault,
+} from "@/lib/compliance-core";
 import { finPeriodo, finTrialPlanPago } from "@/lib/suscripciones/core";
 import {
   leerCodigoReferidoDesdeCookie,
@@ -298,13 +307,22 @@ export async function registrarEmpresa(
         { empresaId: empresaCreada.id, codigo: "PQT", nombre: "Paquete", esBase: false },
       ]);
 
-      await tx.insert(impuestosTable).values({
+      const [impuestoPrincipal] = await tx.insert(impuestosTable).values({
         empresaId: empresaCreada.id,
         nombre: paisCfg.impuestoNombre,
         codigo: paisCfg.impuestoCodigo,
         tasa: paisCfg.tasaDefault.toString(),
         cuentaContableId: cuentasPorCodigo.get(CUENTAS_CLAVE.IVA_DEBITO),
         activo: true,
+      }).returning({ id: impuestosTable.id });
+      if (!impuestoPrincipal) throw new Error("No se pudo crear el impuesto principal.");
+
+      await crearComplianceBase(tx, {
+        empresaId: empresaCreada.id,
+        pais: empresa.pais,
+        razonSocial: empresa.razonSocial,
+        identificacionFiscal: empresa.identificacionFiscal.trim(),
+        impuestoId: impuestoPrincipal.id,
       });
 
       await tx.insert(listasPrecios).values({
@@ -486,6 +504,82 @@ async function crearCatalogoCuentas(
   }
   await Promise.all(parentUpdates);
   return insertadas;
+}
+
+async function crearComplianceBase(
+  tx: Tx,
+  input: {
+    empresaId: string;
+    pais: PaisCodigo;
+    razonSocial: string;
+    identificacionFiscal: string;
+    impuestoId: string;
+  },
+) {
+  await tx.insert(perfilesFiscales).values({
+    empresaId: input.empresaId,
+    pais: input.pais,
+    identificacionFiscal: input.identificacionFiscal || null,
+    nombreFiscal: input.razonSocial,
+    metadata: {
+      origen: "registro",
+      requiereRevisionFiscal: true,
+    },
+  });
+
+  const jurisdiccion = jurisdiccionFiscalDefault(input.pais);
+  const [jurisdiccionCreada] = await tx
+    .insert(jurisdiccionesFiscales)
+    .values({
+      empresaId: input.empresaId,
+      pais: jurisdiccion.pais,
+      codigo: jurisdiccion.codigo,
+      nombre: jurisdiccion.nombre,
+      tipo: jurisdiccion.tipo,
+      padreCodigo: jurisdiccion.padreCodigo,
+      metadata: jurisdiccion.metadata,
+    })
+    .returning({ id: jurisdiccionesFiscales.id });
+  if (!jurisdiccionCreada) throw new Error("No se pudo crear la jurisdiccion fiscal base.");
+
+  const productosFiscales = await tx
+    .insert(codigosProductoFiscal)
+    .values(
+      PRODUCTOS_FISCALES_BASE.map((producto) => ({
+        empresaId: input.empresaId,
+        codigo: producto.codigo,
+        nombre: producto.nombre,
+        categoria: producto.categoria,
+        descripcion: producto.descripcion,
+      })),
+    )
+    .returning({ id: codigosProductoFiscal.id, codigo: codigosProductoFiscal.codigo });
+
+  const productosPorCodigo = new Map(productosFiscales.map((producto) => [producto.codigo, producto.id]));
+  const reglas = reglasImpuestoDefault(input.pais)
+    .map((regla) => {
+      const productoFiscalId = productosPorCodigo.get(regla.productoFiscalCodigo);
+      if (!productoFiscalId) return null;
+      return {
+        empresaId: input.empresaId,
+        jurisdiccionId: jurisdiccionCreada.id,
+        productoFiscalId,
+        impuestoId: input.impuestoId,
+        codigo: regla.codigo,
+        nombre: regla.nombre,
+        pais: regla.pais,
+        autoridad: regla.autoridad,
+        tasa: regla.tasa.toString(),
+        baseImponible: regla.baseImponible,
+        aplicaDesde: regla.aplicaDesde,
+        condicion: regla.condicion,
+        fuente: regla.fuente,
+        activo: true,
+      };
+    })
+    .filter((regla): regla is NonNullable<typeof regla> => regla !== null);
+
+  if (reglas.length > 0) await tx.insert(reglasImpuestoFiscal).values(reglas);
 }
 
 export async function asegurarPlanes() {

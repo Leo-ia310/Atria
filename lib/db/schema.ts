@@ -783,6 +783,148 @@ export const impuestos = pgTable(
   ],
 );
 
+export const perfilesFiscales = pgTable(
+  "perfiles_fiscales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    pais: paisEnum("pais").notNull(),
+    identificacionFiscal: text("identificacion_fiscal"),
+    nombreFiscal: text("nombre_fiscal"),
+    regimenFiscal: text("regimen_fiscal"),
+    direccionFiscal: jsonb("direccion_fiscal")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    b2bDefault: boolean("b2b_default").notNull().default(true),
+    facturaElectronicaActiva: boolean("factura_electronica_activa").notNull().default(false),
+    proveedorFiscal: text("proveedor_fiscal"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("perfiles_fiscales_empresa_pais_uq").on(t.empresaId, t.pais),
+    index("perfiles_fiscales_empresa_idx").on(t.empresaId),
+  ],
+);
+
+export const jurisdiccionesFiscales = pgTable(
+  "jurisdicciones_fiscales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    pais: paisEnum("pais").notNull(),
+    codigo: text("codigo").notNull(),
+    nombre: text("nombre").notNull(),
+    tipo: text("tipo").notNull(),
+    padreCodigo: text("padre_codigo"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("jurisdicciones_fiscales_empresa_codigo_uq").on(t.empresaId, t.codigo),
+    index("jurisdicciones_fiscales_empresa_idx").on(t.empresaId),
+    index("jurisdicciones_fiscales_pais_idx").on(t.pais),
+  ],
+);
+
+export const codigosProductoFiscal = pgTable(
+  "codigos_producto_fiscal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    codigo: text("codigo").notNull(),
+    nombre: text("nombre").notNull(),
+    categoria: text("categoria").notNull().default("general"),
+    descripcion: text("descripcion"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("codigos_producto_fiscal_empresa_codigo_uq").on(t.empresaId, t.codigo),
+    index("codigos_producto_fiscal_empresa_idx").on(t.empresaId),
+    index("codigos_producto_fiscal_categoria_idx").on(t.categoria),
+  ],
+);
+
+export const reglasImpuestoFiscal = pgTable(
+  "reglas_impuesto_fiscal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    jurisdiccionId: uuid("jurisdiccion_id").references(() => jurisdiccionesFiscales.id),
+    productoFiscalId: uuid("producto_fiscal_id")
+      .notNull()
+      .references(() => codigosProductoFiscal.id),
+    impuestoId: uuid("impuesto_id").references(() => impuestos.id),
+    codigo: text("codigo").notNull(),
+    nombre: text("nombre").notNull(),
+    pais: paisEnum("pais").notNull(),
+    autoridad: text("autoridad").notNull(),
+    tasa: numeric("tasa", { precision: 8, scale: 6 }).notNull(),
+    baseImponible: text("base_imponible").notNull().default("subtotal"),
+    aplicaDesde: date("aplica_desde").notNull(),
+    aplicaHasta: date("aplica_hasta"),
+    prioridad: integer("prioridad").notNull().default(100),
+    condicion: jsonb("condicion").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    fuente: text("fuente"),
+    activo: boolean("activo").notNull().default(true),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("reglas_impuesto_fiscal_empresa_codigo_desde_uq").on(t.empresaId, t.codigo, t.aplicaDesde),
+    index("reglas_impuesto_fiscal_empresa_idx").on(t.empresaId),
+    index("reglas_impuesto_fiscal_pais_idx").on(t.pais),
+    index("reglas_impuesto_fiscal_vigencia_idx").on(t.empresaId, t.activo, t.aplicaDesde, t.aplicaHasta),
+  ],
+);
+
+export const snapshotsImpuestoFiscal = pgTable(
+  "snapshots_impuesto_fiscal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    empresaId: uuid("empresa_id")
+      .notNull()
+      .references(() => empresas.id, { onDelete: "cascade" }),
+    reglaId: uuid("regla_id").references(() => reglasImpuestoFiscal.id),
+    jurisdiccionId: uuid("jurisdiccion_id").references(() => jurisdiccionesFiscales.id),
+    productoFiscalId: uuid("producto_fiscal_id").references(() => codigosProductoFiscal.id),
+    referenciaTabla: text("referencia_tabla").notNull(),
+    referenciaId: uuid("referencia_id"),
+    lineaReferencia: text("linea_referencia"),
+    fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
+    pais: paisEnum("pais").notNull(),
+    moneda: monedaEnum("moneda").notNull(),
+    baseImponible: numeric("base_imponible", { precision: 18, scale: 4 }).notNull(),
+    tasa: numeric("tasa", { precision: 8, scale: 6 }).notNull(),
+    impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull(),
+    total: numeric("total", { precision: 18, scale: 4 }).notNull(),
+    detalle: jsonb("detalle").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    fuente: text("fuente"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("snapshots_impuesto_fiscal_empresa_idx").on(t.empresaId),
+    index("snapshots_impuesto_fiscal_referencia_idx").on(t.referenciaTabla, t.referenciaId),
+    index("snapshots_impuesto_fiscal_fecha_idx").on(t.empresaId, t.fecha),
+  ],
+);
+
 export const productos = pgTable(
   "productos",
   {
@@ -3595,3 +3737,8 @@ export type NominaColilla = typeof nominaColillas.$inferSelect;
 export type SolicitudRrhh = typeof solicitudesRrhh.$inferSelect;
 export type Vacante = typeof vacantes.$inferSelect;
 export type Candidato = typeof candidatos.$inferSelect;
+export type PerfilFiscal = typeof perfilesFiscales.$inferSelect;
+export type JurisdiccionFiscal = typeof jurisdiccionesFiscales.$inferSelect;
+export type CodigoProductoFiscal = typeof codigosProductoFiscal.$inferSelect;
+export type ReglaImpuestoFiscal = typeof reglasImpuestoFiscal.$inferSelect;
+export type SnapshotImpuestoFiscal = typeof snapshotsImpuestoFiscal.$inferSelect;

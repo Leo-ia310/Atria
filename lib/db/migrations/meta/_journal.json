@@ -155,6 +155,13 @@
       "when": 1788547200000,
       "tag": "0021_add_us_mx_countries",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788552000000,
+      "tag": "0022_compliance_core",
+      "breakpoints": true
     }
   ]
 }
