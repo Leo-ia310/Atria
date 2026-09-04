@@ -17,6 +17,7 @@ import {
   cajas,
   almacenes,
   productos,
+  impuestos,
   facturas,
   pedidosCocina,
   pedidoCocinaItems,
@@ -160,8 +161,10 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
             tipo: productos.tipo,
             nombre: productos.nombre,
             productoFiscalCodigo: productos.productoFiscalCodigo,
+            impuestoTasa: impuestos.tasa,
           })
           .from(productos)
+          .leftJoin(impuestos, eq(impuestos.id, productos.impuestoId))
           .where(
             and(
               eq(productos.empresaId, user.empresaId),
@@ -211,6 +214,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   const fiscalPorProducto = new Map(
     productosVenta.map((producto) => [producto.id, producto.productoFiscalCodigo]),
   );
+  const tasaImpuestoPorProducto = new Map(
+    productosVenta.map((producto) => [
+      producto.id,
+      producto.impuestoTasa ? parseFloat(producto.impuestoTasa) : 0,
+    ]),
+  );
   const esRestaurante = empresaRows[0]?.tipoEmpresa === "restaurante";
   const zonaHoraria = empresaRows[0]?.zonaHoraria ?? "America/Managua";
   const stockPorProducto = new Map(
@@ -221,6 +230,17 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
     const disponible = stockPorProducto.get(item.productoId) ?? 0;
     if (disponible < item.cantidad) {
       return { ok: false, error: "No hay stock suficiente en la sucursal seleccionada" };
+    }
+  }
+  for (const item of data.items) {
+    const subtotalLinea = dinero(item.cantidad * item.precioUnitario - item.descuento);
+    const tasa = tasaImpuestoPorProducto.get(item.productoId) ?? 0;
+    const impuestoEsperado = dinero(subtotalLinea * tasa);
+    if (Math.abs(dinero(item.impuesto) - impuestoEsperado) > 0.01) {
+      return {
+        ok: false,
+        error: "El impuesto de la venta no coincide con la configuracion del producto.",
+      };
     }
   }
 
