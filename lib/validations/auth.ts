@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().email("Correo no válido"),
+  email: z.string().trim().toLowerCase().email("Correo no válido"),
   password: z.string().min(1, "Ingresa tu contraseña"),
 });
 
@@ -61,8 +61,8 @@ export const registroEmpresaSchema = z.object({
 
 export const registroAdminSchema = z
   .object({
-    nombre: z.string().min(2, "Mínimo 2 caracteres").max(100),
-    email: z.string().email("Correo no válido"),
+    nombre: z.string().trim().min(2, "Mínimo 2 caracteres").max(100),
+    email: z.string().trim().toLowerCase().email("Correo no válido"),
     password: z
       .string()
       .min(8, "Mínimo 8 caracteres")
@@ -77,7 +77,7 @@ export const registroAdminSchema = z
 
 export const registroPlanSchema = z.object({
   planId: z.enum(["demo", "pro", "enterprise"]),
-  ciclo: z.enum(["mensual", "anual"]).default("mensual"),
+  ciclo: z.enum(["mensual", "semestral", "anual"]).default("mensual"),
 });
 
 export const registroCompletoSchema = z.object({

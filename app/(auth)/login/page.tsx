@@ -6,6 +6,7 @@ import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { verificarCorreoLogin } from "@/lib/actions/login";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -20,12 +21,23 @@ function LoginForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(values: LoginInput) {
     setErrorGlobal(null);
     setEnviando(true);
+    const correo = await verificarCorreoLogin(values.email);
+    if (!correo.existe) {
+      setEnviando(false);
+      setError("email", {
+        type: "manual",
+        message: "No encontramos una cuenta registrada con este correo",
+      });
+      return;
+    }
+
     const res = await signIn("credentials", {
       email: values.email,
       password: values.password,

@@ -7,7 +7,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
 import { usuarios, empresas } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations/auth";
@@ -79,7 +79,7 @@ export const { handlers, auth } = NextAuth({
             })
             .from(usuarios)
             .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
-            .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
+            .where(and(sql`lower(trim(${usuarios.email})) = ${email}`, isNull(usuarios.eliminadoEn)))
             .limit(1),
         );
 

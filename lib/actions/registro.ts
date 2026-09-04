@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dbSuperAdmin, type Tx } from "@/lib/db";
 import {
   empresas,
@@ -149,52 +149,52 @@ export async function registrarEmpresa(
     return { ok: false, error: primer?.message ?? "Datos inválidos" };
   }
 
-  const { empresa, admin, plan } = parsed.data;
+  try {
+    const { empresa, admin, plan } = parsed.data;
 
-  const limite = await rateLimit("registro", admin.email.toLowerCase(), 5, 60 * 60);
-  if (!limite.permitido) {
-    return { ok: false, error: "Demasiados intentos. Intenta de nuevo más tarde." };
-  }
+    const limite = await rateLimit("registro", admin.email.toLowerCase(), 5, 60 * 60);
+    if (!limite.permitido) {
+      return { ok: false, error: "Demasiados intentos. Intenta de nuevo más tarde." };
+    }
 
-  const paisCfg = getPaisConfig(empresa.pais);
-  const codigoReferido = normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
+    const paisCfg = getPaisConfig(empresa.pais);
+    const codigoReferido = normalizarCodigoReferido(await leerCodigoReferidoDesdeCookie());
 
-  // Registro corre SIN sesión (crea una empresa nueva): bypass de RLS.
-  const yaExiste = await dbSuperAdmin((tx) =>
-    tx
-      .select({ id: usuarios.id })
-      .from(usuarios)
-      .where(eq(usuarios.email, admin.email))
-      .limit(1),
-  );
-  if (yaExiste.length > 0) {
-    return { ok: false, error: "Ya existe una cuenta con ese correo" };
-  }
+    // Registro corre SIN sesión (crea una empresa nueva): bypass de RLS.
+    const yaExiste = await dbSuperAdmin((tx) =>
+      tx
+        .select({ id: usuarios.id })
+        .from(usuarios)
+        .where(sql`lower(trim(${usuarios.email})) = ${admin.email}`)
+        .limit(1),
+    );
+    if (yaExiste.length > 0) {
+      return { ok: false, error: "Ya existe una cuenta con ese correo" };
+    }
 
-  const planRow = await dbSuperAdmin((tx) =>
-    tx
-      .select()
-      .from(planesTable)
-      .where(eq(planesTable.codigo, plan.planId))
-      .limit(1),
-  );
-  if (planRow.length === 0) {
-    await asegurarPlanes();
-    const reintento = await dbSuperAdmin((tx) =>
+    const planRow = await dbSuperAdmin((tx) =>
       tx
         .select()
         .from(planesTable)
         .where(eq(planesTable.codigo, plan.planId))
         .limit(1),
     );
-    if (reintento.length === 0) {
-      return { ok: false, error: "Plan no encontrado" };
+    if (planRow.length === 0) {
+      await asegurarPlanes();
+      const reintento = await dbSuperAdmin((tx) =>
+        tx
+          .select()
+          .from(planesTable)
+          .where(eq(planesTable.codigo, plan.planId))
+          .limit(1),
+      );
+      if (reintento.length === 0) {
+        return { ok: false, error: "Plan no encontrado" };
+      }
+      planRow.push(reintento[0]);
     }
-    planRow.push(reintento[0]);
-  }
-  const planSeleccionado = planRow[0];
+    const planSeleccionado = planRow[0];
 
-  try {
     const resultado = await dbSuperAdmin(async (tx) => {
       const [empresaCreada] = await tx
         .insert(empresas)

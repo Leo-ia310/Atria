@@ -15,6 +15,11 @@ import {
   precioMensualizadoPlan,
 } from "@/lib/pricing";
 import { PAISES_ARRAY, PAIS_DEFAULT, type PaisCodigo, getPaisConfig } from "@/lib/paises";
+import {
+  registroAdminSchema,
+  registroEmpresaSchema,
+  registroPlanSchema,
+} from "@/lib/validations/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -64,8 +69,20 @@ type RegistroViewProps = {
   aceptaTerminos: boolean;
   setAceptaTerminos: Dispatch<SetStateAction<boolean>>;
   errorGlobal: string | null;
+  exitoGlobal: string | null;
+  errores: ErroresRegistro;
+  continuar: (pasoActual: Paso) => void;
   enviando: boolean;
   enviar: () => Promise<void>;
+};
+
+type ErroresEmpresa = Partial<Record<keyof EstadoEmpresa, string>>;
+type ErroresAdmin = Partial<Record<keyof EstadoAdmin, string>>;
+type ErroresPlan = Partial<Record<keyof EstadoPlan | "aceptaTerminos", string>>;
+type ErroresRegistro = {
+  empresa: ErroresEmpresa;
+  admin: ErroresAdmin;
+  plan: ErroresPlan;
 };
 
 const PASOS = [
@@ -74,10 +91,29 @@ const PASOS = [
   { num: 3, label: "Plan" },
 ];
 
+function erroresDesdeIssues<T extends string>(
+  issues: { path: (string | number)[]; message: string }[],
+): Partial<Record<T, string>> {
+  const resultado: Partial<Record<T, string>> = {};
+  for (const issue of issues) {
+    const campo = issue.path[0];
+    if (typeof campo === "string" && !resultado[campo as T]) {
+      resultado[campo as T] = issue.message;
+    }
+  }
+  return resultado;
+}
+
 export default function RegistroPage() {
   const router = useRouter();
   const [paso, setPaso] = useState<Paso>(1);
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
+  const [exitoGlobal, setExitoGlobal] = useState<string | null>(null);
+  const [errores, setErrores] = useState<ErroresRegistro>({
+    empresa: {},
+    admin: {},
+    plan: {},
+  });
   const [enviando, setEnviando] = useState(false);
 
   const paisDefault = getPaisConfig(PAIS_DEFAULT);
@@ -117,32 +153,88 @@ export default function RegistroPage() {
 
   const paisConfig = getPaisConfig(empresa.pais);
 
-  async function enviar() {
+  function validarEmpresa() {
+    const parsed = registroEmpresaSchema.safeParse(empresa);
+    const nuevos = parsed.success
+      ? {}
+      : erroresDesdeIssues<keyof EstadoEmpresa>(parsed.error.issues);
+    setErrores((actual) => ({ ...actual, empresa: nuevos }));
+    return parsed.success;
+  }
+
+  function validarAdmin() {
+    const parsed = registroAdminSchema.safeParse(admin);
+    const nuevos = parsed.success
+      ? {}
+      : erroresDesdeIssues<keyof EstadoAdmin>(parsed.error.issues);
+    setErrores((actual) => ({ ...actual, admin: nuevos }));
+    return parsed.success;
+  }
+
+  function validarPlan() {
+    const parsed = registroPlanSchema.safeParse(plan);
+    const nuevos: ErroresPlan = parsed.success
+      ? {}
+      : erroresDesdeIssues<keyof EstadoPlan>(parsed.error.issues);
     if (!aceptaTerminos) {
-      setErrorGlobal(
-        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.",
-      );
-      return;
+      nuevos.aceptaTerminos =
+        "Debes aceptar los Términos y Condiciones y la Política de Privacidad.";
     }
+    setErrores((actual) => ({ ...actual, plan: nuevos }));
+    return parsed.success && aceptaTerminos;
+  }
+
+  function continuar(pasoActual: Paso) {
     setErrorGlobal(null);
+    setExitoGlobal(null);
+    if (pasoActual === 1 && validarEmpresa()) setPaso(2);
+    if (pasoActual === 2 && validarAdmin()) setPaso(3);
+  }
+
+  async function enviar() {
+    setErrorGlobal(null);
+    setExitoGlobal(null);
+    const empresaOk = validarEmpresa();
+    const adminOk = validarAdmin();
+    const planOk = validarPlan();
+    if (!empresaOk) {
+      setPaso(1);
+      return;
+    }
+    if (!adminOk) {
+      setPaso(2);
+      return;
+    }
+    if (!planOk) {
+      setPaso(3);
+      return;
+    }
     setEnviando(true);
-    const res = await registrarEmpresa({ empresa, admin, plan, aceptaTerminos });
-    if (!res.ok) {
-      setErrorGlobal(res.error);
+    try {
+      const res = await registrarEmpresa({ empresa, admin, plan, aceptaTerminos });
+      if (!res.ok) {
+        setErrorGlobal(res.error);
+        setEnviando(false);
+        return;
+      }
+      setExitoGlobal("Cuenta creada correctamente. Iniciando sesión...");
+      const login = await signIn("credentials", {
+        email: admin.email,
+        password: admin.password,
+        redirect: false,
+      });
       setEnviando(false);
-      return;
+      if (login?.error) {
+        setErrorGlobal("Cuenta creada, pero no pudimos iniciar sesión. Intenta desde /login.");
+        return;
+      }
+      irADashboard();
+    } catch (error) {
+      console.error("[registro] Error inesperado al crear cuenta.", error);
+      setErrorGlobal("No pudimos crear tu cuenta en este momento. Intenta de nuevo.");
+      setExitoGlobal(null);
+      setEnviando(false);
     }
-    const login = await signIn("credentials", {
-      email: admin.email,
-      password: admin.password,
-      redirect: false,
-    });
-    setEnviando(false);
-    if (login?.error) {
-      setErrorGlobal("Cuenta creada, pero no pudimos iniciar sesión. Intenta desde /login.");
-      return;
-    }
-    irADashboard();
   }
 
   function irADashboard() {
@@ -164,6 +256,9 @@ export default function RegistroPage() {
     aceptaTerminos,
     setAceptaTerminos,
     errorGlobal,
+    exitoGlobal,
+    errores,
+    continuar,
     enviando,
     enviar,
   });
@@ -183,6 +278,9 @@ function registroView({
   aceptaTerminos,
   setAceptaTerminos,
   errorGlobal,
+  exitoGlobal,
+  errores,
+  continuar,
   enviando,
   enviar,
 }: RegistroViewProps) {
@@ -241,6 +339,7 @@ function registroView({
                 label="Razón social"
                 placeholder="Ferretería La Esperanza S.A."
                 value={empresa.razonSocial}
+                error={errores.empresa.razonSocial}
                 onChange={(e) =>
                   setEmpresa((p) => ({ ...p, razonSocial: e.target.value }))
                 }
@@ -249,6 +348,7 @@ function registroView({
                 label="Nombre comercial (opcional)"
                 placeholder="La Esperanza"
                 value={empresa.nombreComercial}
+                error={errores.empresa.nombreComercial}
                 onChange={(e) =>
                   setEmpresa((p) => ({ ...p, nombreComercial: e.target.value }))
                 }
@@ -256,6 +356,7 @@ function registroView({
               <Select
                 label="Tipo de empresa"
                 value={empresa.tipoEmpresa}
+                error={errores.empresa.tipoEmpresa}
                 onChange={(e) =>
                   setEmpresa((p) => ({
                     ...p,
@@ -274,6 +375,7 @@ function registroView({
                 <Select
                   label="País"
                   value={empresa.pais}
+                  error={errores.empresa.pais}
                   onChange={(e) => actualizarPais(e.target.value as PaisCodigo)}
                   options={PAISES_ARRAY.map((p) => ({
                     value: p.codigo,
@@ -283,6 +385,7 @@ function registroView({
                 <Input
                   label="Moneda"
                   value={empresa.moneda}
+                  error={errores.empresa.moneda}
                   disabled
                   hint={`Auto según ${paisConfig.nombre}`}
                 />
@@ -291,6 +394,7 @@ function registroView({
                 label={`Identificación fiscal (${paisConfig.idFiscalNombre}, opcional)`}
                 placeholder="Puedes completarlo despues"
                 value={empresa.identificacionFiscal}
+                error={errores.empresa.identificacionFiscal}
                 onChange={(e) =>
                   setEmpresa((p) => ({ ...p, identificacionFiscal: e.target.value }))
                 }
@@ -299,11 +403,7 @@ function registroView({
             </div>
             <div className="mt-7 flex justify-end">
               <Button
-                onClick={() => setPaso(2)}
-                disabled={
-                  !empresa.razonSocial ||
-                  empresa.razonSocial.length < 2
-                }
+                onClick={() => continuar(1)}
               >
                 Continuar
               </Button>
@@ -325,6 +425,7 @@ function registroView({
                 placeholder="Juan Pérez"
                 autoComplete="name"
                 value={admin.nombre}
+                error={errores.admin.nombre}
                 onChange={(e) => setAdmin((p) => ({ ...p, nombre: e.target.value }))}
               />
               <Input
@@ -333,6 +434,7 @@ function registroView({
                 autoComplete="email"
                 placeholder="juan@empresa.com"
                 value={admin.email}
+                error={errores.admin.email}
                 onChange={(e) => setAdmin((p) => ({ ...p, email: e.target.value }))}
               />
               <Input
@@ -343,9 +445,10 @@ function registroView({
                 value={admin.password}
                 onChange={(e) => setAdmin((p) => ({ ...p, password: e.target.value }))}
                 error={
-                  admin.password.length > 0
+                  errores.admin.password ||
+                  (admin.password.length > 0
                     ? validarPassword(admin.password) ?? undefined
-                    : undefined
+                    : undefined)
                 }
                 hint={
                   admin.password.length === 0
@@ -362,9 +465,10 @@ function registroView({
                   setAdmin((p) => ({ ...p, confirmarPassword: e.target.value }))
                 }
                 error={
-                  admin.confirmarPassword && admin.password !== admin.confirmarPassword
+                  errores.admin.confirmarPassword ||
+                  (admin.confirmarPassword && admin.password !== admin.confirmarPassword
                     ? "Las contraseñas no coinciden"
-                    : undefined
+                    : undefined)
                 }
               />
             </div>
@@ -373,13 +477,7 @@ function registroView({
                 ← Atrás
               </Button>
               <Button
-                onClick={() => setPaso(3)}
-                disabled={
-                  !admin.nombre ||
-                  !admin.email ||
-                  validarPassword(admin.password) !== null ||
-                  admin.password !== admin.confirmarPassword
-                }
+                onClick={() => continuar(2)}
               >
                 Continuar
               </Button>
@@ -506,11 +604,23 @@ function registroView({
               </div>
             )}
 
+            {errores.plan.aceptaTerminos && (
+              <div className="mt-4 rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
+                {errores.plan.aceptaTerminos}
+              </div>
+            )}
+
+            {exitoGlobal && (
+              <div className="mt-4 rounded-md bg-[color:var(--color-success-bg)] px-3 py-2 text-small text-[color:var(--color-success)]">
+                {exitoGlobal}
+              </div>
+            )}
+
             <div className="mt-7 flex justify-between">
               <Button variant="ghost" onClick={() => setPaso(2)} disabled={enviando}>
                 ← Atrás
               </Button>
-              <Button onClick={enviar} loading={enviando} disabled={!aceptaTerminos}>
+              <Button onClick={enviar} loading={enviando}>
                 {plan.planId === "demo" ? "Crear cuenta" : "Empezar prueba gratis"}
               </Button>
             </div>

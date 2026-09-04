@@ -8,7 +8,7 @@
  */
 
 import bcrypt from "bcryptjs";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
 import {
   empresas,
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
-  const email = parsed.data.email.toLowerCase();
+  const email = parsed.data.email;
   const { password } = parsed.data;
   const deviceId =
     typeof (body as { deviceId?: unknown }).deviceId === "string"
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       })
       .from(usuarios)
       .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
-      .where(and(eq(usuarios.email, email), isNull(usuarios.eliminadoEn)))
+      .where(and(sql`lower(trim(${usuarios.email})) = ${email}`, isNull(usuarios.eliminadoEn)))
       .limit(1),
   );
 
