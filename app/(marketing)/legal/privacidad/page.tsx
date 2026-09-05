@@ -193,7 +193,8 @@ export default function PrivacidadPage() {
       <h2 id="marco">12. Marco normativo</h2>
       <p>
         Cumplimos la legislación de protección de datos personales aplicable en los países donde
-        operamos, incluidas las normas de Honduras, Nicaragua, Guatemala, Costa Rica y El Salvador.
+        operamos, incluidas las normas de Honduras, Nicaragua, Guatemala, Costa Rica, El Salvador,
+        Estados Unidos y México.
         Cuando la ley local otorgue derechos adicionales, se aplicarán en tu favor.
       </p>
 

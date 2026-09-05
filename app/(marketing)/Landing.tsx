@@ -64,9 +64,12 @@ const REDES_SOCIALES = [
 const metricas = [
   { valor: "10 min", etiqueta: "para empezar a vender" },
   { valor: "24/7", etiqueta: "operación visible" },
-  { valor: "5 países", etiqueta: "pensado para LATAM" },
+  { valor: "7 países", etiqueta: "LATAM + USA" },
   { valor: "1 sistema", etiqueta: "ventas, stock y contabilidad" },
 ];
+
+const paisesSoportados =
+  "Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador · Estados Unidos · México";
 
 const modulos = [
   {
@@ -970,7 +973,7 @@ function landingContent() {
           <div className="mt-4 flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ARCA. Todos los derechos reservados.</span>
             <span className="max-w-xl sm:text-right">
-              Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador
+              {paisesSoportados}
             </span>
           </div>
         </div>

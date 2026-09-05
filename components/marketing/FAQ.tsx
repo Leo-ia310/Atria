@@ -19,7 +19,7 @@ const PREGUNTAS = [
   },
   {
     q: "¿Para qué países está hecho ARCA?",
-    a: "Estamos diseñados para Latinoamérica: Honduras, Nicaragua, Guatemala, Costa Rica y El Salvador. Cada país tiene su moneda, impuesto, formato de identificación fiscal y catálogo de cuentas base.",
+    a: "Estamos diseñados para Honduras, Nicaragua, Guatemala, Costa Rica, El Salvador, Estados Unidos y México. Cada país tiene su moneda, impuesto, formato de identificación fiscal y catálogo de cuentas base.",
   },
   {
     q: "¿Qué pasa si supero los límites del plan?",

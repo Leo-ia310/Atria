@@ -45,6 +45,8 @@ export const metadata: Metadata = {
     "Guatemala",
     "Costa Rica",
     "El Salvador",
+    "Estados Unidos",
+    "México",
   ],
   authors: [{ name: SITE_NAME }],
   creator: SITE_NAME,

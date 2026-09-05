@@ -157,10 +157,13 @@ const modulos = [
 
 const beneficios = [
   "Empieza a vender en menos de 10 minutos",
-  "Pensado para Honduras, Nicaragua, Guatemala, Costa Rica y El Salvador",
+  "Pensado para Honduras, Nicaragua, Guatemala, Costa Rica, El Salvador, Estados Unidos y México",
   "Funciona aunque se caiga el internet",
   "Soporte humano en español",
 ];
+
+const paisesSoportados =
+  "Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador · Estados Unidos · México";
 
 type Testimonio = {
   nombre: string;
@@ -752,7 +755,7 @@ function presentacionContent() {
           <div className="mt-4 flex flex-col gap-4 py-7 text-[12px] text-white/38 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ARCA. Todos los derechos reservados.</span>
             <span className="max-w-xl sm:text-right">
-              Honduras · Nicaragua · Guatemala · Costa Rica · El Salvador
+              {paisesSoportados}
             </span>
           </div>
         </div>

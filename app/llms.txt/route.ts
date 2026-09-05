@@ -10,9 +10,10 @@ const contenido = `# ARCA
 > inventario y la contabilidad en un solo motor: cada venta, compra, gasto o
 > ajuste genera automáticamente su asiento contable de partida doble.
 
-Pensado para negocios reales de Honduras, Nicaragua, Guatemala, Costa Rica y
-El Salvador: ferreterías, farmacias, pulperías, distribuidoras, tiendas de ropa
-y abarroterías. Todo en español, con formatos y moneda por país.
+Pensado para negocios reales de Honduras, Nicaragua, Guatemala, Costa Rica,
+El Salvador, Estados Unidos y México: ferreterías, farmacias, pulperías,
+distribuidoras, tiendas de ropa y abarroterías. Todo en español, con formatos
+y moneda por país.
 
 ## Producto
 

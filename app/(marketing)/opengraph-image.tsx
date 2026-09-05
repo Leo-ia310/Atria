@@ -78,15 +78,19 @@ export default function OpengraphImage() {
             color: "rgba(255,255,255,0.6)",
           }}
         >
-          <span>Honduras</span>
+          <span>HN</span>
           <span>·</span>
-          <span>Nicaragua</span>
+          <span>NI</span>
           <span>·</span>
-          <span>Guatemala</span>
+          <span>GT</span>
           <span>·</span>
-          <span>Costa Rica</span>
+          <span>CR</span>
           <span>·</span>
-          <span>El Salvador</span>
+          <span>SV</span>
+          <span>·</span>
+          <span>US</span>
+          <span>·</span>
+          <span>MX</span>
         </div>
       </div>
     ),
