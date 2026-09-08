@@ -45,6 +45,9 @@ export function Nav() {
           <a href="#precios" className="transition-colors hover:text-white">
             Precios
           </a>
+          <a href="#reseller" className="transition-colors hover:text-white">
+            Reseller
+          </a>
           <a href="#faq" className="transition-colors hover:text-white">
             FAQ
           </a>
@@ -92,6 +95,9 @@ export function Nav() {
             </a>
             <a href="#precios" onClick={() => setMenuAbierto(false)}>
               Precios
+            </a>
+            <a href="#reseller" onClick={() => setMenuAbierto(false)}>
+              Reseller
             </a>
             <a href="#faq" onClick={() => setMenuAbierto(false)}>
               FAQ
