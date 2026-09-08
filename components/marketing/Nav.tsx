@@ -68,7 +68,13 @@ export function Nav() {
           </Link>
         </div>
 
-        <div className="lg:hidden">
+        <div className="flex items-center gap-3 lg:hidden">
+          <a
+            href="#reseller"
+            className="text-[13px] font-semibold text-white/85 transition-colors hover:text-white"
+          >
+            Reseller
+          </a>
           <button
             type="button"
             onClick={() => setMenuAbierto((s) => !s)}
