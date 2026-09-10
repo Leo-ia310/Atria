@@ -3,13 +3,12 @@ import Link from "next/link";
 import {
   ArrowRight,
   BadgePercent,
-  Check,
   RefreshCw,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import { ArcaLogo } from "@/components/marketing/ArcaLogo";
-import { INFO_LEGAL } from "@/lib/legal";
+import { ResellerContactForm } from "@/components/marketing/ResellerContactForm";
 
 export const metadata: Metadata = {
   title: "Reseller | ARCA",
@@ -24,8 +23,6 @@ const beneficios = [
 ];
 
 export default function ResellerPage() {
-  const solicitudHref = `mailto:${INFO_LEGAL.correoSoporte}?subject=${encodeURIComponent("Quiero ser reseller de ARCA")}`;
-
   return (
     <main className="min-h-screen overflow-hidden bg-[#0b0416] text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -62,10 +59,7 @@ export default function ResellerPage() {
                 su inventario y llevar sus finanzas en orden. Cuando tus clientes crecen,
                 tú también.
               </p>
-              <a
-                href={solicitudHref}
-                className="arca-btn arca-btn-lg mt-8 bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
-              >
+              <a href="#contacto" className="arca-btn arca-btn-lg mt-8 bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]">
                 Quiero ser reseller
                 <ArrowRight size={16} />
               </a>
@@ -128,7 +122,7 @@ export default function ResellerPage() {
         </div>
       </section>
 
-      <section className="relative py-20 text-center">
+      <section id="contacto" className="relative py-20 text-center">
         <div className="relative mx-auto max-w-2xl px-5 sm:px-8">
           <h2 className="text-[32px] font-semibold leading-tight sm:text-[38px]">
             Empieza a construir tu red.
@@ -136,13 +130,7 @@ export default function ResellerPage() {
           <p className="mt-4 text-[16px] leading-7 text-white/65">
             Cuéntanos sobre ti y te compartiremos los siguientes pasos para iniciar.
           </p>
-          <a
-            href={solicitudHref}
-            className="arca-btn arca-btn-lg mt-7 bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
-          >
-            Unirme al programa
-            <Check size={16} />
-          </a>
+          <ResellerContactForm />
         </div>
       </section>
     </main>

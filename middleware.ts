@@ -76,6 +76,7 @@ export default auth((req) => {
     "/recuperar",
     "/api/auth",
     "/api/cron",
+    "/api/reseller",
     "/_next",
   ];
 
