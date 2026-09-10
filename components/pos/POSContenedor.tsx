@@ -704,7 +704,7 @@ function posContenedorView({
       )}
 
       {/* Header POS */}
-      <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3">
+      <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
@@ -744,80 +744,9 @@ function posContenedorView({
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-12 lg:overflow-hidden">
-        {/* Productos */}
-        <section className="lg:col-span-7 arca-card flex min-h-[55vh] flex-col overflow-hidden lg:min-h-0">
-          <div className="border-b border-[color:var(--color-border)] p-3">
-            <div className="space-y-2">
-            <div className="relative">
-              <Search
-                size={16}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]"
-              />
-              <label htmlFor="pos-busqueda-productos" className="sr-only">
-                Buscar producto
-              </label>
-              <input
-                id="pos-busqueda-productos"
-                ref={buscadorRef}
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Escanear código o buscar por nombre/SKU (F2)"
-                className="arca-input arca-input-con-icono text-base"
-              />
-            </div>
-            {cantidadEscaneo && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[color:var(--color-tertiary)]/40 bg-[color:var(--color-tertiary)]/10 px-3 py-2 text-small">
-                <span className="flex min-w-0 items-center gap-2 text-[color:var(--color-text-primary)]">
-                  <Barcode size={14} className="shrink-0 text-[color:var(--color-secondary)]" />
-                  <span className="truncate">{cantidadEscaneo.nombre}</span>
-                </span>
-                <span className="font-semibold text-[color:var(--color-primary)]">
-                  x{cantidadEscaneo.cantidadTexto || "1"}
-                </span>
-              </div>
-            )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-3">
-            {productosFiltrados.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-[color:var(--color-text-muted)]">
-                <div className="text-center">
-                  <Search size={32} className="mx-auto mb-2 opacity-40" />
-                  <p className="text-small">
-                    {busqueda ? "No se encontraron productos" : "Busca o escanea un producto"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-                {productosFiltrados.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => agregarAlCarrito(p)}
-                    className="group flex flex-col items-start rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3 text-left transition hover:border-[color:var(--color-tertiary)] hover:shadow-md"
-                  >
-                    <div className="text-[11px] font-mono text-[color:var(--color-text-muted)]">
-                      {p.sku}
-                    </div>
-                    <div className="mt-1 line-clamp-2 text-small font-medium text-[color:var(--color-text-primary)]">
-                      {p.nombre}
-                    </div>
-                    <div className="mt-2 text-base font-semibold text-[color:var(--color-primary)]">
-                      {formatearMoneda(p.precio, pais)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Carrito */}
-        <section className="lg:col-span-5 arca-card flex min-h-[55vh] flex-col overflow-hidden lg:min-h-0">
+      <div className="grid flex-1 grid-cols-1 border-t border-[color:var(--color-border)] lg:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.75fr)] lg:overflow-hidden">
+        {/* Ticket: permanece a la izquierda para que el cajero siempre tenga el total a la vista. */}
+        <section className="flex min-h-[55vh] flex-col overflow-hidden border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] lg:min-h-0 lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between border-b border-[color:var(--color-border)] p-3">
             <div>
               <div className="text-base font-semibold text-[color:var(--color-text-primary)]">
@@ -852,7 +781,7 @@ function posContenedorView({
             onCerrar={() => setSelectorClienteAbierto(false)}
           />
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-[color:var(--color-neutral)]/35">
             {carrito.length === 0 ? (
               <div className="flex h-full items-center justify-center p-6 text-center text-[color:var(--color-text-muted)]">
                 <div>
@@ -923,14 +852,59 @@ function posContenedorView({
                 {formatearMoneda(total, pais)}
               </span>
             </div>
-            <Button
-              onClick={intentarCobrar}
-              disabled={carrito.length === 0 || procesando}
-              className="mt-3 w-full"
-              size="lg"
-            >
-              Cobrar (F12)
+            <div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-border)]">
+              <button type="button" onClick={() => setSelectorClienteAbierto(true)} className="min-h-12 bg-[color:var(--color-surface)] px-3 text-left text-small font-medium transition hover:bg-[color:var(--color-surface-2)]">
+                Cliente <span className="float-right text-[11px] text-[color:var(--color-text-muted)]">F4</span>
+              </button>
+              <button type="button" onClick={vaciarCarrito} disabled={carrito.length === 0} className="min-h-12 bg-[color:var(--color-surface)] px-3 text-left text-small font-medium transition hover:bg-[color:var(--color-surface-2)] disabled:opacity-40">
+                Limpiar <span className="float-right text-[11px] text-[color:var(--color-text-muted)]">F8</span>
+              </button>
+              <button type="button" onClick={() => setModalCaja(true)} className="min-h-12 bg-[color:var(--color-surface)] px-3 text-left text-small font-medium transition hover:bg-[color:var(--color-surface-2)]">
+                {cajaAbierta ? "Caja abierta" : "Abrir caja"} <span className="float-right text-[11px] text-[color:var(--color-text-muted)]">F6</span>
+              </button>
+              <button type="button" onClick={() => buscadorRef.current?.focus()} className="min-h-12 bg-[color:var(--color-surface)] px-3 text-left text-small font-medium transition hover:bg-[color:var(--color-surface-2)]">
+                Buscar <span className="float-right text-[11px] text-[color:var(--color-text-muted)]">F2</span>
+              </button>
+            </div>
+            <Button onClick={intentarCobrar} disabled={carrito.length === 0 || procesando} className="mt-3 w-full" size="lg">
+              Cobrar {formatearMoneda(total, pais)} <span className="ml-auto text-xs opacity-70">F12</span>
             </Button>
+          </div>
+        </section>
+
+        {/* Catálogo */}
+        <section className="flex min-h-[55vh] flex-col overflow-hidden bg-[color:var(--color-neutral)] lg:min-h-0">
+          <div className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-base font-semibold text-[color:var(--color-text-primary)]">Catálogo</div>
+              <span className="text-[12px] text-[color:var(--color-text-muted)]">{productosFiltrados.length} productos</span>
+            </div>
+            <div className="relative mt-3">
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
+              <label htmlFor="pos-busqueda-productos" className="sr-only">Buscar producto</label>
+              <input id="pos-busqueda-productos" ref={buscadorRef} type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Escanear código o buscar por nombre/SKU (F2)" className="arca-input arca-input-con-icono text-base" />
+            </div>
+            {cantidadEscaneo && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[color:var(--color-tertiary)]/40 bg-[color:var(--color-tertiary)]/10 px-3 py-2 text-small">
+                <span className="flex min-w-0 items-center gap-2 text-[color:var(--color-text-primary)]"><Barcode size={14} className="shrink-0 text-[color:var(--color-secondary)]" /><span className="truncate">{cantidadEscaneo.nombre}</span></span>
+                <span className="font-semibold text-[color:var(--color-primary)]">x{cantidadEscaneo.cantidadTexto || "1"}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {productosFiltrados.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-[color:var(--color-text-muted)]"><div className="text-center"><Search size={32} className="mx-auto mb-2 opacity-40" /><p className="text-small">{busqueda ? "No se encontraron productos" : "Busca o escanea un producto"}</p></div></div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                {productosFiltrados.map((p) => (
+                  <button key={p.id} type="button" onClick={() => agregarAlCarrito(p)} className="group flex min-h-28 flex-col items-start border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3 text-left transition hover:border-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-primary)]">
+                    <div className="text-[11px] font-mono text-[color:var(--color-text-muted)]">{p.sku}</div>
+                    <div className="mt-2 line-clamp-2 text-small font-semibold leading-5 text-[color:var(--color-text-primary)]">{p.nombre}</div>
+                    <div className="mt-auto pt-2 text-base font-semibold text-[color:var(--color-primary)]">{formatearMoneda(p.precio, pais)}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>
