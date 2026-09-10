@@ -26,7 +26,7 @@ export function ProductoButton({
   const contenido = (
     <div
       className={cn(
-        "flex min-h-28 flex-col justify-between rounded-md border p-3 text-left shadow-sm transition",
+        "flex min-h-[132px] min-w-0 flex-col justify-between rounded-md border p-3 text-left shadow-sm transition",
         orden && puedeEditar
           ? "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)]/5"
           : "border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] opacity-60",
@@ -39,12 +39,12 @@ export function ProductoButton({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-base font-bold text-[color:var(--color-primary)]">
+        <span className="shrink-0 text-base font-bold text-[color:var(--color-primary)]">
           {formatearMoneda(producto.precioBase, pais)}
         </span>
         {producto.tiempoPreparacionMin > 0 && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--color-text-muted)]">
-            <Clock3 size={12} /> {producto.tiempoPreparacionMin}m
+          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-[color:var(--color-text-muted)]">
+            <Clock3 size={12} className="shrink-0" /> {producto.tiempoPreparacionMin}m
           </span>
         )}
       </div>

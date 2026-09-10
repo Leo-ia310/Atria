@@ -38,11 +38,11 @@ export function MesaCard({
             {orden ? `${orden.personas} personas` : `${mesa.capacidad} personas`}
           </div>
         </div>
-        <Table2 size={17} className={classEstadoMesa(estado)} />
+        <Table2 size={17} className={cn("shrink-0", classEstadoMesa(estado))} />
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
         <Badge variant={variantEstadoMesaSimple(estado)}>{labelEstadoMesaSimple(estado)}</Badge>
-        {orden && <span className="text-small font-semibold">{formatearMoneda(orden.total, pais)}</span>}
+        {orden && <span className="shrink-0 text-small font-semibold">{formatearMoneda(orden.total, pais)}</span>}
       </div>
       {estado === "por_limpiar" && (
         <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-secondary)]">

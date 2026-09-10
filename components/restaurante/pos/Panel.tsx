@@ -4,13 +4,15 @@ export function Panel({
   title,
   subtitle,
   children,
+  className,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
+    <section className={`min-w-0 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm ${className ?? ""}`}>
       <div className="border-b border-[color:var(--color-border)] px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">{title}</h2>

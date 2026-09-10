@@ -342,10 +342,10 @@ async function restaurantePosPage(params: ParamsPos) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/restaurante/kds" className="arca-btn arca-btn-ghost arca-btn-sm">
+          <Link href="/restaurante/kds" className="arca-btn arca-btn-ghost arca-btn-sm shrink-0">
             <ChefHat size={14} /> KDS
           </Link>
-          <Link href="/restaurante/ordenes" className="arca-btn arca-btn-ghost arca-btn-sm">
+          <Link href="/restaurante/ordenes" className="arca-btn arca-btn-ghost arca-btn-sm shrink-0">
             <Receipt size={14} /> Ordenes
           </Link>
         </div>
@@ -365,12 +365,12 @@ async function restaurantePosPage(params: ParamsPos) {
         </div>
       )}
 
-      <section className="grid min-h-[calc(100vh-210px)] gap-4 xl:grid-cols-[280px_minmax(360px,1fr)_360px] 2xl:grid-cols-[320px_minmax(420px,1fr)_400px]">
-        <Panel title="Mesas" subtitle={`${mesas.length} en salon`}>
+      <section className="grid min-h-[calc(100vh-210px)] gap-4 xl:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.75fr)] xl:items-start">
+        <Panel title="Mesas" subtitle={`${mesas.length} en salon`} className="xl:col-start-2 xl:row-start-1 xl:max-h-72 xl:overflow-y-auto">
           {mesas.length === 0 ? (
             <EmptyState>Configura mesas para operar el salon.</EmptyState>
           ) : (
-            <div className="grid grid-cols-2 gap-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {mesas.map((mesa) => {
                 const ordenMesa = ordenes.find((orden) => orden.mesaId === mesa.id);
                 const estado = estadoMesaSimple(
@@ -442,7 +442,7 @@ async function restaurantePosPage(params: ParamsPos) {
           )}
         </Panel>
 
-        <Panel title="Productos" subtitle={`${productosFiltrados.length} disponibles`}>
+        <Panel title="Productos" subtitle={`${productosFiltrados.length} disponibles`} className="xl:col-start-2 xl:row-start-2">
           <form method="get" action="/restaurante/pos" className="space-y-3">
             {ordenActiva && <input type="hidden" name="ordenId" value={ordenActiva.id} />}
             {categoriaSeleccionada && (
@@ -470,7 +470,7 @@ async function restaurantePosPage(params: ParamsPos) {
             <Link
               href={hrefPos(params, { categoriaId: undefined, productoId: undefined })}
               className={cn(
-                "whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
+                "shrink-0 whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
                 !categoriaSeleccionada
                   ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white"
                   : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]",
@@ -483,7 +483,7 @@ async function restaurantePosPage(params: ParamsPos) {
                 key={categoria.id}
                 href={hrefPos(params, { categoriaId: categoria.id, productoId: undefined })}
                 className={cn(
-                  "whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
+                  "shrink-0 whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
                   categoriaSeleccionada === categoria.id
                     ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white"
                     : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]",
@@ -494,7 +494,7 @@ async function restaurantePosPage(params: ParamsPos) {
             ))}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {productosFiltrados.map((producto) => (
               <ProductoButton
                 key={producto.id}
@@ -518,7 +518,7 @@ async function restaurantePosPage(params: ParamsPos) {
           )}
         </Panel>
 
-        <aside className="xl:sticky xl:top-4 xl:self-start">
+        <aside className="xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:sticky xl:top-4 xl:self-start">
           <Panel title="Orden actual" subtitle={ordenActiva ? ordenActiva.numero : "Sin mesa"}>
             {!ordenActiva ? (
               <EmptyState>Toca una mesa libre u ocupada para empezar.</EmptyState>
