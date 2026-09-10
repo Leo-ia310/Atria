@@ -45,9 +45,9 @@ export function Nav() {
           <a href="#precios" className="transition-colors hover:text-white">
             Precios
           </a>
-          <a href="#reseller" className="transition-colors hover:text-white">
+          <Link href="/reseller" className="transition-colors hover:text-white">
             Reseller
-          </a>
+          </Link>
           <a href="#faq" className="transition-colors hover:text-white">
             FAQ
           </a>
@@ -69,12 +69,12 @@ export function Nav() {
         </div>
 
         <div className="flex items-center gap-3 lg:hidden">
-          <a
-            href="#reseller"
+          <Link
+            href="/reseller"
             className="text-[13px] font-semibold text-white/85 transition-colors hover:text-white"
           >
             Reseller
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => setMenuAbierto((s) => !s)}
@@ -102,9 +102,9 @@ export function Nav() {
             <a href="#precios" onClick={() => setMenuAbierto(false)}>
               Precios
             </a>
-            <a href="#reseller" onClick={() => setMenuAbierto(false)}>
+            <Link href="/reseller" onClick={() => setMenuAbierto(false)}>
               Reseller
-            </a>
+            </Link>
             <a href="#faq" onClick={() => setMenuAbierto(false)}>
               FAQ
             </a>

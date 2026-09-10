@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  BadgePercent,
   BookOpen,
   Building2,
   Check,
@@ -21,7 +20,6 @@ import {
   LockKeyhole,
   Package,
   Quote,
-  RefreshCw,
   Receipt,
   Shield,
   ShoppingCart,
@@ -40,7 +38,6 @@ import { ModulesSection } from "@/components/marketing/ModulesSection";
 import { SavingsCalculator } from "@/components/marketing/SavingsCalculator";
 import { LandingCookieNotice } from "@/components/marketing/LandingCookieNotice";
 import { MarketingAvatar } from "@/components/marketing/MarketingAvatar";
-import { INFO_LEGAL } from "@/lib/legal";
 
 const REDES_SOCIALES = [
   {
@@ -773,61 +770,6 @@ function landingContent() {
           </div>
         </section>
 
-        <section id="reseller" className="relative overflow-hidden py-24 text-white">
-          <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(440px,0.9fr)] lg:items-end">
-              <div data-reveal>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#c4b5fd]">
-                  Programa Reseller
-                </span>
-                <h2 className="mt-3 max-w-2xl text-[36px] font-semibold leading-tight sm:text-[42px]">
-                  Haz crecer tu red con <span className="arca-grad-text">ARCA</span>.
-                </h2>
-                <p className="mt-4 max-w-xl text-[16px] leading-7 text-white/65">
-                  Comparte una plataforma que ayuda a los negocios a vender, controlar
-                  su inventario y llevar sus finanzas en orden. Cada cliente que llega
-                  por ti abre una oportunidad de ingreso para ambos.
-                </p>
-                <a
-                  href={`mailto:${INFO_LEGAL.correoSoporte}?subject=${encodeURIComponent("Quiero ser reseller de ARCA")}`}
-                  className="arca-btn arca-btn-lg mt-7 bg-white text-[#160827] transition hover:-translate-y-0.5 hover:bg-[#efe7ff]"
-                >
-                  Quiero ser reseller
-                  <ArrowRight size={16} />
-                </a>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2" data-reveal>
-                <article className="arca-tilt min-h-[230px] rounded-[12px] border border-[#c4b5fd]/30 bg-[#20103a]/90 p-6 hover:border-[#c4b5fd]/70">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-white text-[#5b21b6] shadow-[0_10px_26px_rgba(167,139,250,0.32)]">
-                    <BadgePercent size={21} />
-                  </div>
-                  <p className="mt-7 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#c4b5fd]">
-                    Primera venta
-                  </p>
-                  <p className="mt-2 text-[42px] font-semibold leading-none">20%</p>
-                  <p className="mt-3 text-[14px] leading-6 text-white/60">
-                    Recibe el 20% cuando tu cliente realiza su primer pago.
-                  </p>
-                </article>
-
-                <article className="arca-tilt min-h-[230px] rounded-[12px] border border-white/12 bg-white/[0.06] p-6 hover:border-[#60a5fa]/60">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#60a5fa] text-[#0b1733] shadow-[0_10px_26px_rgba(96,165,250,0.26)]">
-                    <RefreshCw size={20} />
-                  </div>
-                  <p className="mt-7 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#93c5fd]">
-                    Cada mes
-                  </p>
-                  <p className="mt-2 text-[42px] font-semibold leading-none">10%</p>
-                  <p className="mt-3 text-[14px] leading-6 text-white/60">
-                    Recibe el 10% mensual mientras tu cliente siga pagando ARCA.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {testimoniosSection()}
 
         <section id="faq" className="relative overflow-hidden py-24">
@@ -947,7 +889,7 @@ function landingContent() {
                     ["Calculadora", "#calculadora"],
                     ["Tu viaje", "#viaje"],
                     ["Precios", "#precios"],
-                    ["Reseller", "#reseller"],
+                    ["Reseller", "/reseller"],
                     ["Preguntas frecuentes", "#faq"],
                   ].map(([label, href]) => (
                     <a
