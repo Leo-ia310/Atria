@@ -96,6 +96,8 @@ type ImportadorState = {
   resultado: ResultadoServidor | null;
   notasIA: { fila: number; nota: string; descartada: boolean }[];
   iaEstado: "idle" | "hecho" | "error";
+  filasArchivo: number;
+  filasVacias: number;
 };
 
 const IMPORTADOR_INICIAL: ImportadorState = {
@@ -106,11 +108,13 @@ const IMPORTADOR_INICIAL: ImportadorState = {
   resultado: null,
   notasIA: [],
   iaEstado: "idle",
+  filasArchivo: 0,
+  filasVacias: 0,
 };
 
 type ImportadorAction =
   | { type: "seleccionInicio"; nombreArchivo: string }
-  | { type: "seleccionLista"; preview: PreviewFila[] }
+  | { type: "seleccionLista"; preview: PreviewFila[]; filasArchivo: number; filasVacias: number }
   | { type: "seleccionFin" }
   | { type: "cerrarModal" }
   | { type: "resultado"; resultado: ResultadoServidor }
@@ -132,7 +136,13 @@ function importadorReducer(
         nombreArchivo: action.nombreArchivo,
       };
     case "seleccionLista":
-      return { ...state, preview: action.preview, abierto: true };
+      return {
+        ...state,
+        preview: action.preview,
+        filasArchivo: action.filasArchivo,
+        filasVacias: action.filasVacias,
+        abierto: true,
+      };
     case "seleccionFin":
       return { ...state, cargando: false };
     case "cerrarModal":
@@ -197,7 +207,17 @@ function importadorReducer(
 export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, dispatch] = useReducer(importadorReducer, IMPORTADOR_INICIAL);
-  const { abierto, preview, nombreArchivo, cargando, resultado, notasIA, iaEstado } = state;
+  const {
+    abierto,
+    preview,
+    nombreArchivo,
+    cargando,
+    resultado,
+    notasIA,
+    iaEstado,
+    filasArchivo,
+    filasVacias,
+  } = state;
   const [pendiente, startTransition] = useTransition();
   const [revisandoIA, iniciarRevisionIA] = useTransition();
   const router = useRouter();
@@ -255,13 +275,15 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
     dispatch({ type: "seleccionInicio", nombreArchivo: file.name });
     try {
       const matriz = await leerArchivo(file);
-      const filas = construirPreview(matriz);
-      dispatch({ type: "seleccionLista", preview: filas });
+      const { filas, filasVacias } = construirPreview(matriz);
+      dispatch({
+        type: "seleccionLista",
+        preview: filas,
+        filasArchivo: matriz.length,
+        filasVacias,
+      });
       if (filas.length === 0) {
         mostrar("error", "No encontramos filas con datos.");
-      } else {
-        // Capa 2: la IA verifica todo automaticamente (descarta basura, corrige).
-        ejecutarSupervision(filas, true);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "No pudimos leer el archivo.";
@@ -273,6 +295,10 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
   }
 
   function confirmar() {
+    if (listas.errores > 0) {
+      mostrar("error", `Corrige las ${listas.errores} fila(s) con error antes de cargar. No se guardó ningún producto.`);
+      return;
+    }
     if (validas.length === 0) {
       mostrar("error", "No hay filas validas para cargar.");
       return;
@@ -337,7 +363,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             <Button
               onClick={confirmar}
               loading={pendiente}
-              disabled={validas.length === 0 || revisandoIA}
+              disabled={validas.length === 0 || listas.errores > 0 || revisandoIA}
             >
               <Upload size={14} /> Cargar {validas.length}
             </Button>
@@ -351,6 +377,19 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             <Resumen icon={Trash2} label="Descartadas" value={listas.descartadas} />
             <Resumen icon={XCircle} label="Errores criticos" value={listas.errores} />
           </div>
+
+          {filasArchivo > 0 && (
+            <p className="text-small text-[color:var(--color-text-muted)]">
+              Se detectaron {preview.length} fila(s) de producto en {filasArchivo} fila(s) del archivo.
+              {filasVacias > 0 ? ` ${filasVacias} fila(s) vacía(s) se ignoraron.` : ""}
+            </p>
+          )}
+
+          {listas.errores > 0 && (
+            <div className="rounded-md border border-[color:var(--color-error)]/30 bg-[color:var(--color-error-bg)] p-3 text-small text-[color:var(--color-error)]">
+              Hay {listas.errores} fila(s) con errores críticos. La importación se bloqueará hasta corregirlas para evitar cargas parciales.
+            </div>
+          )}
 
           {resultado?.ok && (
             <div className="rounded-md border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 p-3 text-small">
@@ -500,9 +539,10 @@ async function leerArchivo(file: File): Promise<unknown[][]> {
   throw new Error("Formato no soportado. Usa .xlsx, .csv o .tsv.");
 }
 
-function construirPreview(matriz: unknown[][]): PreviewFila[] {
+function construirPreview(matriz: unknown[][]): { filas: PreviewFila[]; filasVacias: number } {
   const limpias = matriz.filter((row) => row.some((cell) => texto(cell) !== ""));
-  if (limpias.length === 0) return [];
+  const filasVacias = matriz.length - limpias.length;
+  if (limpias.length === 0) return { filas: [], filasVacias };
   const cabecera = detectarCabecera(limpias);
   const mapping =
     cabecera.index >= 0
@@ -512,7 +552,7 @@ function construirPreview(matriz: unknown[][]): PreviewFila[] {
   const filas = limpias.slice(inicio);
   const vistos = new Set<string>();
 
-  return filas.flatMap((row, i) => {
+  const preview = filas.flatMap((row, i) => {
     const filaExcel = inicio + i + 1;
     const parsed = filaPreview(row, filaExcel, mapping);
     if (!parsed) return [];
@@ -526,6 +566,7 @@ function construirPreview(matriz: unknown[][]): PreviewFila[] {
     }
     return [parsed];
   });
+  return { filas: preview, filasVacias };
 }
 
 function detectarCabecera(rows: unknown[][]): { index: number; score: number } {

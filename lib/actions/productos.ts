@@ -356,6 +356,19 @@ export async function importarProductosInventario(
   }
 
   const filas = parsed.data.filas;
+  const skuDuplicado = encontrarDuplicado(filas.map((fila) => fila.sku.trim().toLowerCase()));
+  if (skuDuplicado) {
+    return { ok: false, error: `SKU duplicado en el archivo: ${skuDuplicado}` };
+  }
+  const codigosBarras = filas.reduce<string[]>((codigos, fila) => {
+    const codigo = fila.codigoBarras?.trim() ?? "";
+    if (codigo) codigos.push(codigo);
+    return codigos;
+  }, []);
+  const codigoDuplicado = encontrarDuplicado(codigosBarras);
+  if (codigoDuplicado) {
+    return { ok: false, error: `Codigo de barras duplicado en el archivo: ${codigoDuplicado}` };
+  }
   const skus = [...new Set(filas.map((f) => f.sku.trim()))];
   const existentes = skus.length
     ? await dbConEmpresa(user.empresaId, (tx) =>
@@ -519,6 +532,15 @@ export async function importarProductosInventario(
     console.error("[importarProductosInventario]", err);
     return { ok: false, error: "No pudimos importar el inventario." };
   }
+}
+
+function encontrarDuplicado(valores: string[]): string | null {
+  const vistos = new Set<string>();
+  for (const valor of valores) {
+    if (vistos.has(valor)) return valor;
+    vistos.add(valor);
+  }
+  return null;
 }
 
 export async function registrarEntradaInventarioPorLector(

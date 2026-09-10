@@ -252,11 +252,12 @@ export async function validarLimitePlan(
     return { ok: true };
   }
 
+  const disponibles = Math.max(0, estado.limite - usado);
   return {
     ok: false,
     error: `Tu plan ${access.plan.nombre} permite ${estado.limite} ${labelRecurso(
       recurso,
-    )}. Ya tienes ${usado}.`,
+    )}. Ya tienes ${usado}; puedes agregar ${disponibles} más y esta operación requiere ${cantidadNueva}.`,
   };
 }
 
