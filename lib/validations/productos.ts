@@ -67,7 +67,10 @@ export const productoImportadoSchema = z.object({
 });
 
 export const importarProductosSchema = z.object({
-  filas: z.array(productoImportadoSchema).min(1, "No hay productos validos").max(1000),
+  filas: z
+    .array(productoImportadoSchema)
+    .min(1, "No hay productos validos")
+    .max(5000, "El archivo admite hasta 5,000 productos por carga"),
 });
 
 export const entradaInventarioLectorSchema = z.object({

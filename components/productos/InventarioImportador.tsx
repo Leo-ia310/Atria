@@ -382,6 +382,7 @@ export function InventarioImportador({ pais }: { pais: PaisCodigo }) {
             <p className="text-small text-[color:var(--color-text-muted)]">
               Se detectaron {preview.length} fila(s) de producto en {filasArchivo} fila(s) del archivo.
               {filasVacias > 0 ? ` ${filasVacias} fila(s) vacía(s) se ignoraron.` : ""}
+              {" "}Puedes cargar hasta 5,000 productos por archivo.
             </p>
           )}
 
