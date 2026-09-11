@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowLeftRight,
   Bell,
   ChefHat,
   CreditCard,
@@ -21,7 +20,6 @@ import {
   productos,
   restauranteComandaItems,
   restauranteComensales,
-  restauranteMesas,
   restauranteOrdenItems,
   restauranteOrdenes,
   restauranteProductos,
@@ -31,12 +29,9 @@ import { requireModulo } from "@/lib/server-access";
 import { tienePermiso } from "@/lib/access-control";
 import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import {
-  agregarItemOrdenRestauranteForm,
   cobrarOrdenRestauranteForm,
   crearOrdenRestauranteForm,
   enviarComandasOrdenRestauranteForm,
-  marcarMesaLimpiaRestauranteForm,
-  moverMesaOrdenRestauranteForm,
   solicitarCuentaRestauranteForm,
 } from "@/lib/actions/restaurante-vertical";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
@@ -47,17 +42,14 @@ import { notaRestauranteVisible } from "@/lib/restaurante/display";
 import { EmptyState } from "@/components/restaurante/pos/EmptyState";
 import { EstadoItemBadge } from "@/components/restaurante/pos/EstadoItemBadge";
 import { FilaTotal } from "@/components/restaurante/pos/FilaTotal";
-import { MesaCard } from "@/components/restaurante/pos/MesaCard";
 import { MiniInfo } from "@/components/restaurante/pos/MiniInfo";
 import { ModalFrame } from "@/components/restaurante/pos/ModalFrame";
-import { OpcionesProducto } from "@/components/restaurante/pos/OpcionesProducto";
 import { Panel } from "@/components/restaurante/pos/Panel";
 import { ProductoButton } from "@/components/restaurante/pos/ProductoButton";
 import type { OrdenItemPos, ProductoPos } from "@/components/restaurante/pos/types";
 import {
   cantidadSinCeros,
   estadoItemMesero,
-  estadoMesaSimple,
   labelCanal,
   labelEstadoOrden,
   minutosDesde,
@@ -82,10 +74,7 @@ type PageProps = {
     error?: string;
     ordenId?: string;
     ordenNumero?: string;
-    abrirMesaId?: string;
-    productoId?: string;
     cuenta?: string;
-    moverMesa?: string;
   }>;
 };
 
@@ -110,24 +99,8 @@ async function restaurantePosPage(params: ParamsPos) {
   const puedeEnviarCocina = tienePermiso(access, "restaurante.comandas.enviar");
   const puedeCobrar = tienePermiso(access, "ventas.crear");
 
-  const [mesas, ordenes, productosVentaBase, formasPagoList] = await dbConEmpresa(user.empresaId, (tx) =>
+  const [ordenes, productosVentaBase, formasPagoList] = await dbConEmpresa(user.empresaId, (tx) =>
     Promise.all([
-      tx
-        .select({
-          id: restauranteMesas.id,
-          sucursalId: restauranteMesas.sucursalId,
-          nombre: restauranteMesas.nombre,
-          capacidad: restauranteMesas.capacidad,
-          estado: restauranteMesas.estado,
-        })
-        .from(restauranteMesas)
-        .where(
-          and(
-            eq(restauranteMesas.empresaId, user.empresaId),
-            visibles ? inArray(restauranteMesas.sucursalId, visibles) : undefined,
-          ),
-        )
-        .orderBy(asc(restauranteMesas.nombre)),
       tx
         .select({
           id: restauranteOrdenes.id,
@@ -294,37 +267,15 @@ async function restaurantePosPage(params: ParamsPos) {
     }
   }
 
-  const mesaPorId = new Map(mesas.map((mesa) => [mesa.id, mesa]));
-  const mesasConOrden = new Set(
-    ordenes
-      .map((orden) => orden.mesaId)
-      .filter((mesaId): mesaId is string => Boolean(mesaId)),
-  );
   const ordenActiva =
     ordenes.find((orden) => orden.id === params.ordenId) ??
     ordenes.find((orden) => orden.estado !== "cuenta_solicitada") ??
     ordenes[0] ??
     null;
-  const mesaActiva = ordenActiva?.mesaId ? mesaPorId.get(ordenActiva.mesaId) ?? null : null;
   const itemsOrdenActiva = ordenActiva ? itemsPorOrden.get(ordenActiva.id) ?? [] : [];
   const nuevosOrdenActiva = itemsOrdenActiva.filter((item) => item.estado === "borrador");
-  const mesasLibresMismaSucursal = ordenActiva
-    ? mesas.filter(
-        (mesa) =>
-          mesa.sucursalId === ordenActiva.sucursalId &&
-          mesa.estado === "disponible" &&
-          !mesasConOrden.has(mesa.id),
-      )
-    : [];
-  const mesaParaAbrir = params.abrirMesaId
-    ? mesas.find((mesa) => mesa.id === params.abrirMesaId)
-    : null;
-  const productoModal =
-    ordenActiva && params.productoId
-      ? productosVenta.find((producto) => producto.id === params.productoId)
-      : null;
+  const sucursalNuevaOrdenId = ordenActiva?.sucursalId ?? visibles?.[0] ?? scope.sucursalIds[0] ?? "";
   const mostrarCuenta = Boolean(ordenActiva && params.cuenta === "1");
-  const mostrarMoverMesa = Boolean(ordenActiva && params.moverMesa === "1");
   const feedback = params.error
     ? { tipo: "error" as const, mensaje: normalizarFeedback(params.error) }
     : params.guardado
@@ -338,10 +289,26 @@ async function restaurantePosPage(params: ParamsPos) {
           <p className="text-label">{scope.visible ? scope.etiqueta : "Turno actual"}</p>
           <h1 className="mt-1 text-xl">POS Restaurante</h1>
           <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-            Mesas, carta y orden actual en una sola pantalla.
+            Carta y orden actual en una sola pantalla.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {puedeAbrirOrden && (
+            <form action={crearOrdenRestauranteForm}>
+              <input type="hidden" name="redirectTo" value="/restaurante/pos" />
+              <input type="hidden" name="sucursalId" value={sucursalNuevaOrdenId} />
+              <input type="hidden" name="canal" value="salon" />
+              <input type="hidden" name="personas" value="1" />
+              <input type="hidden" name="idempotencyKey" value={randomUUID()} />
+              <button
+                type="submit"
+                disabled={!sucursalNuevaOrdenId}
+                className="arca-btn arca-btn-primary arca-btn-sm shrink-0"
+              >
+                <Plus size={14} /> Nueva orden
+              </button>
+            </form>
+          )}
           <Link href="/restaurante/kds" className="arca-btn arca-btn-ghost arca-btn-sm shrink-0">
             <ChefHat size={14} /> KDS
           </Link>
@@ -366,83 +333,7 @@ async function restaurantePosPage(params: ParamsPos) {
       )}
 
       <section className="grid min-h-[calc(100vh-210px)] gap-4 xl:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.75fr)] xl:items-start">
-        <Panel title="Mesas" subtitle={`${mesas.length} en salon`} className="xl:col-start-2 xl:row-start-1 xl:max-h-72 xl:overflow-y-auto">
-          {mesas.length === 0 ? (
-            <EmptyState>Configura mesas para operar el salon.</EmptyState>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {mesas.map((mesa) => {
-                const ordenMesa = ordenes.find((orden) => orden.mesaId === mesa.id);
-                const estado = estadoMesaSimple(
-                  mesa,
-                  ordenMesa,
-                  ordenMesa ? itemsPorOrden.get(ordenMesa.id) ?? [] : [],
-                  estadoKdsPorItem,
-                );
-                const activa = ordenMesa?.id === ordenActiva?.id;
-                const contenido = (
-                  <MesaCard
-                    mesa={mesa}
-                    orden={ordenMesa}
-                    estado={estado}
-                    activa={activa}
-                    pais={pais}
-                  />
-                );
-
-                if (ordenMesa) {
-                  return (
-                    <Link
-                      key={mesa.id}
-                      href={hrefPos(params, {
-                        ordenId: ordenMesa.id,
-                        abrirMesaId: undefined,
-                        productoId: undefined,
-                        cuenta: undefined,
-                        moverMesa: undefined,
-                      })}
-                      className="block"
-                    >
-                      {contenido}
-                    </Link>
-                  );
-                }
-
-                if (mesa.estado === "por_limpiar" && puedeEditarOrden) {
-                  return (
-                    <form key={mesa.id} action={marcarMesaLimpiaRestauranteForm}>
-                      <input type="hidden" name="mesaId" value={mesa.id} />
-                      <button type="submit" className="w-full text-left">
-                        {contenido}
-                      </button>
-                    </form>
-                  );
-                }
-
-                if (estado === "libre" && puedeAbrirOrden) {
-                  return (
-                    <Link
-                      key={mesa.id}
-                      href={hrefPos(params, {
-                        abrirMesaId: mesa.id,
-                        productoId: undefined,
-                        cuenta: undefined,
-                        moverMesa: undefined,
-                      })}
-                      className="block"
-                    >
-                      {contenido}
-                    </Link>
-                  );
-                }
-
-                return <div key={mesa.id}>{contenido}</div>;
-              })}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Productos" subtitle={`${productosFiltrados.length} disponibles`} className="xl:col-start-2 xl:row-start-2">
+        <Panel title="Productos" subtitle={`${productosFiltrados.length} disponibles`} className="xl:col-start-2 xl:row-start-1">
           <form method="get" action="/restaurante/pos" className="space-y-3">
             {ordenActiva && <input type="hidden" name="ordenId" value={ordenActiva.id} />}
             {categoriaSeleccionada && (
@@ -468,7 +359,7 @@ async function restaurantePosPage(params: ParamsPos) {
 
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             <Link
-              href={hrefPos(params, { categoriaId: undefined, productoId: undefined })}
+              href={hrefPos(params, { categoriaId: undefined })}
               className={cn(
                 "shrink-0 whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
                 !categoriaSeleccionada
@@ -481,7 +372,7 @@ async function restaurantePosPage(params: ParamsPos) {
             {categoriasCarta.map((categoria) => (
               <Link
                 key={categoria.id}
-                href={hrefPos(params, { categoriaId: categoria.id, productoId: undefined })}
+                href={hrefPos(params, { categoriaId: categoria.id })}
                 className={cn(
                   "shrink-0 whitespace-nowrap rounded-md border px-3 py-2 text-small font-medium",
                   categoriaSeleccionada === categoria.id
@@ -501,12 +392,6 @@ async function restaurantePosPage(params: ParamsPos) {
                 producto={producto}
                 orden={ordenActiva}
                 pais={pais}
-                href={hrefPos(params, {
-                  ordenId: ordenActiva?.id,
-                  productoId: producto.id,
-                  cuenta: undefined,
-                  moverMesa: undefined,
-                })}
                 puedeEditar={puedeEditarOrden}
               />
             ))}
@@ -518,17 +403,17 @@ async function restaurantePosPage(params: ParamsPos) {
           )}
         </Panel>
 
-        <aside className="xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:sticky xl:top-4 xl:self-start">
-          <Panel title="Orden actual" subtitle={ordenActiva ? ordenActiva.numero : "Sin mesa"}>
+        <aside className="xl:col-start-1 xl:row-start-1 xl:sticky xl:top-4 xl:self-start">
+          <Panel title="Orden actual" subtitle={ordenActiva ? ordenActiva.numero : "Sin orden"}>
             {!ordenActiva ? (
-              <EmptyState>Toca una mesa libre u ocupada para empezar.</EmptyState>
+              <EmptyState>Crea una orden nueva para empezar.</EmptyState>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-lg font-semibold">
-                        {mesaActiva?.nombre ?? labelCanal(ordenActiva.canal)}
+                        {labelCanal(ordenActiva.canal)}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--color-text-muted)]">
                         <span className="inline-flex items-center gap-1">
@@ -609,31 +494,15 @@ async function restaurantePosPage(params: ParamsPos) {
                       {nuevosOrdenActiva.length > 0 ? "Enviar a cocina" : "Sin nuevos"}
                     </button>
                   </form>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2">
                     <Link
                       href={hrefPos(params, {
                         ordenId: ordenActiva.id,
                         cuenta: "1",
-                        productoId: undefined,
-                        moverMesa: undefined,
                       })}
                       className="arca-btn arca-btn-secondary h-11 justify-center"
                     >
                       <Receipt size={15} /> Cuenta
-                    </Link>
-                    <Link
-                      href={hrefPos(params, {
-                        ordenId: ordenActiva.id,
-                        moverMesa: "1",
-                        productoId: undefined,
-                        cuenta: undefined,
-                      })}
-                      className={cn(
-                        "arca-btn arca-btn-ghost h-11 justify-center",
-                        !mesaActiva && "pointer-events-none opacity-50",
-                      )}
-                    >
-                      <ArrowLeftRight size={15} /> Mover
                     </Link>
                   </div>
                 </div>
@@ -643,125 +512,10 @@ async function restaurantePosPage(params: ParamsPos) {
         </aside>
       </section>
 
-      {mesaParaAbrir && (
-        <ModalFrame
-          title={mesaParaAbrir.nombre}
-          subtitle="Abrir mesa"
-          closeHref={hrefPos(params, { abrirMesaId: undefined })}
-        >
-          <form action={crearOrdenRestauranteForm} className="space-y-4">
-            <input type="hidden" name="redirectTo" value="/restaurante/pos" />
-            <input type="hidden" name="sucursalId" value={mesaParaAbrir.sucursalId} />
-            <input type="hidden" name="mesaId" value={mesaParaAbrir.id} />
-            <input type="hidden" name="canal" value="salon" />
-            <input type="hidden" name="idempotencyKey" value={randomUUID()} />
-            <label className="block">
-              <span className="text-label">Personas</span>
-              <input
-                name="personas"
-                type="number"
-                min="1"
-                max="80"
-                defaultValue={mesaParaAbrir.capacidad}
-                className="arca-input mt-1 h-14 text-center text-xl font-semibold"
-              />
-            </label>
-            <div className="rounded-md bg-[color:var(--color-surface-2)] px-3 py-2 text-small">
-              Mesero: <span className="font-semibold">{user.nombre}</span>
-            </div>
-            <button type="submit" className="arca-btn arca-btn-primary h-12 w-full justify-center">
-              Abrir mesa
-            </button>
-          </form>
-        </ModalFrame>
-      )}
-
-      {ordenActiva && productoModal && (
-        <ModalFrame
-          title={productoModal.nombre}
-          subtitle={formatearMoneda(productoModal.precioBase, pais)}
-          closeHref={hrefPos(params, { productoId: undefined })}
-        >
-          <form action={agregarItemOrdenRestauranteForm} className="space-y-4">
-            <input type="hidden" name="redirectTo" value="/restaurante/pos" />
-            <input type="hidden" name="ordenId" value={ordenActiva.id} />
-            <input type="hidden" name="productoId" value={productoModal.id} />
-            <input type="hidden" name="precioUnitario" value="0" />
-            <input type="hidden" name="descuento" value="0" />
-            <input type="hidden" name="impuesto" value="0" />
-            <input type="hidden" name="costoUnitario" value="0" />
-            {productoModal.alergenos.length > 0 && (
-              <div className="rounded-md border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 px-3 py-2 text-small font-medium text-[color:var(--color-warning)]">
-                <AlertTriangle size={14} className="mr-1 inline" />
-                Contiene: {productoModal.alergenos.join(", ")}
-              </div>
-            )}
-            <label className="block">
-              <span className="text-label">Cantidad</span>
-              <input
-                name="cantidad"
-                type="number"
-                min="0.01"
-                step="1"
-                defaultValue="1"
-                className="arca-input mt-1 h-12 text-center text-lg font-semibold"
-              />
-            </label>
-            <OpcionesProducto producto={productoModal} />
-            <label className="block">
-              <span className="text-label">Nota</span>
-              <textarea
-                name="notasCocina"
-                rows={3}
-                placeholder="Sin sal, sin cebolla, alergia..."
-                className="arca-input mt-1 min-h-24"
-              />
-            </label>
-            <button type="submit" className="arca-btn arca-btn-primary h-12 w-full justify-center">
-              <Plus size={16} /> Agregar
-            </button>
-          </form>
-        </ModalFrame>
-      )}
-
-      {ordenActiva && mostrarMoverMesa && (
-        <ModalFrame
-          title="Mover mesa"
-          subtitle={mesaActiva ? mesaActiva.nombre : ordenActiva.numero}
-          closeHref={hrefPos(params, { moverMesa: undefined })}
-        >
-          <form action={moverMesaOrdenRestauranteForm} className="space-y-4">
-            <input type="hidden" name="redirectTo" value="/restaurante/pos" />
-            <input type="hidden" name="ordenId" value={ordenActiva.id} />
-            {mesasLibresMismaSucursal.length === 0 ? (
-              <EmptyState>No hay mesas libres en esta sucursal.</EmptyState>
-            ) : (
-              <label className="block">
-                <span className="text-label">Mesa destino</span>
-                <select name="mesaId" className="arca-input mt-1 h-12">
-                  {mesasLibresMismaSucursal.map((mesa) => (
-                    <option key={mesa.id} value={mesa.id}>
-                      {mesa.nombre} - {mesa.capacidad} personas
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <button
-              type="submit"
-              disabled={mesasLibresMismaSucursal.length === 0}
-              className="arca-btn arca-btn-primary h-12 w-full justify-center"
-            >
-              <ArrowLeftRight size={16} /> Mover mesa
-            </button>
-          </form>
-        </ModalFrame>
-      )}
-
       {ordenActiva && mostrarCuenta && (
         <ModalFrame
           title="Cuenta"
-          subtitle={mesaActiva ? `${mesaActiva.nombre} - ${ordenActiva.personas} personas` : ordenActiva.numero}
+          subtitle={`${ordenActiva.numero} - ${ordenActiva.personas} personas`}
           closeHref={hrefPos(params, { cuenta: undefined })}
         >
           <div className="space-y-4">
@@ -877,14 +631,11 @@ function hrefPos(params: ParamsPos, overrides: Partial<ParamsPos>): string {
     q: params.q,
     categoriaId: params.categoriaId,
     ordenId: params.ordenId,
-    abrirMesaId: params.abrirMesaId,
-    productoId: params.productoId,
     cuenta: params.cuenta,
-    moverMesa: params.moverMesa,
     ...overrides,
   };
   const qs = new URLSearchParams();
-  for (const key of ["q", "categoriaId", "ordenId", "abrirMesaId", "productoId", "cuenta", "moverMesa"] as const) {
+  for (const key of ["q", "categoriaId", "ordenId", "cuenta"] as const) {
     const value = merged[key];
     if (value) qs.set(key, value);
   }

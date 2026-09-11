@@ -1,28 +1,21 @@
-import Link from "next/link";
 import { Clock3 } from "lucide-react";
 import { agregarItemOrdenRestauranteForm } from "@/lib/actions/restaurante-vertical";
 import { cn, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import type { OrdenPos, ProductoPos } from "@/components/restaurante/pos/types";
-import {
-  labelTipoProducto,
-  productoRequiereModal,
-} from "@/components/restaurante/pos/utils";
+import { labelTipoProducto } from "@/components/restaurante/pos/utils";
 
 export function ProductoButton({
   producto,
   orden,
   pais,
-  href,
   puedeEditar,
 }: {
   producto: ProductoPos;
   orden: OrdenPos | null;
   pais: PaisCodigo;
-  href: string;
   puedeEditar: boolean;
 }) {
-  const requiereModal = productoRequiereModal(producto);
   const contenido = (
     <div
       className={cn(
@@ -52,14 +45,6 @@ export function ProductoButton({
   );
 
   if (!orden || !puedeEditar) return contenido;
-
-  if (requiereModal) {
-    return (
-      <Link href={href} className="block">
-        {contenido}
-      </Link>
-    );
-  }
 
   return (
     <form action={agregarItemOrdenRestauranteForm}>
