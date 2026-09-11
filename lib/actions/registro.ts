@@ -435,6 +435,7 @@ export async function registrarEmpresa(
         codigoReferido: codigoReferido || null,
         inicioPeriodo: inicio,
         finPeriodo: fin,
+        notas: planIdInicial === "demo" ? "Demo inicial" : `Prueba gratis de ${PLANES[planIdInicial].nombre}`,
       });
 
       await tx.insert(configuraciones).values([

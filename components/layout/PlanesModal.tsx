@@ -143,7 +143,12 @@ export function PlanesModal({
         }
       } catch (error) {
         console.error("[planes] Error iniciando prueba gratis.", error);
-        mostrar("error", "No pudimos activar la prueba gratis. Intenta de nuevo.");
+        mostrar(
+          "error",
+          error instanceof Error && error.message
+            ? error.message
+            : "No pudimos activar la prueba gratis. Intenta de nuevo.",
+        );
         return;
       } finally {
         setSeleccionando(null);

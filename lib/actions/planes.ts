@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { pagosSuscripcion, planes as planesTable, suscripciones } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -96,7 +96,10 @@ export async function iniciarTrialPlanPago(
   ciclo: Ciclo = "mensual",
 ): Promise<ResultadoTrial> {
   const user = await requireSession();
-  const acceso = await validarAccion(user, { soloAdmin: true });
+  const acceso = await validarAccion(user, {
+    soloAdmin: true,
+    permitirConSuscripcionBloqueada: true,
+  });
   if (!acceso.ok) return acceso;
 
   if (planId !== "pro" && planId !== "enterprise") {
@@ -166,7 +169,7 @@ export async function iniciarTrialPlanPago(
 }
 
 async function puedeIniciarTrialPago(empresaId: string): Promise<boolean> {
-  const [[subsPagadas], [pagosCompletados]] = await Promise.all([
+  const [[trialsPagosUsados], [pagosCompletados]] = await Promise.all([
     dbConEmpresa(empresaId, (tx) =>
       tx
         .select({ n: count() })
@@ -176,6 +179,7 @@ async function puedeIniciarTrialPago(empresaId: string): Promise<boolean> {
           and(
             eq(suscripciones.empresaId, empresaId),
             inArray(planesTable.codigo, ["pro", "enterprise"]),
+            ilike(suscripciones.notas, "Prueba gratis%"),
           ),
         ),
     ),
@@ -193,5 +197,5 @@ async function puedeIniciarTrialPago(empresaId: string): Promise<boolean> {
     ),
   ]);
 
-  return (subsPagadas?.n ?? 0) === 0 && (pagosCompletados?.n ?? 0) === 0;
+  return (trialsPagosUsados?.n ?? 0) === 0 && (pagosCompletados?.n ?? 0) === 0;
 }

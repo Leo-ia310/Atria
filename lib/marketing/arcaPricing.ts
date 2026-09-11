@@ -3,12 +3,12 @@ export const ARCA_PRICING = {
   maxUsers: 100,
   pro: {
     name: "Pro",
-    monthlyPrice: 20,
+    monthlyPrice: 19.99,
     includedUsers: 7,
   },
   enterprise: {
     name: "Enterprise",
-    monthlyPrice: 99,
+    monthlyPrice: 89.99,
     includedUsers: 20,
     additionalUserPrice: 5,
   },
