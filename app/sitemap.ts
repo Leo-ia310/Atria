@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { urlAbsoluta } from "@/lib/seo";
+import { SEO_PAGES, getSeoPath } from "@/lib/seo-pages";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const ahora = new Date();
@@ -11,6 +12,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }[] = [
     { path: "/", priority: 1, changeFrequency: "weekly" },
     { path: "/precios", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/soluciones", priority: 0.86, changeFrequency: "weekly" },
+    { path: "/alternativas", priority: 0.82, changeFrequency: "monthly" },
+    { path: "/reseller", priority: 0.72, changeFrequency: "monthly" },
     { path: "/legal", priority: 0.3, changeFrequency: "yearly" },
     { path: "/legal/terminos", priority: 0.3, changeFrequency: "yearly" },
     { path: "/legal/privacidad", priority: 0.3, changeFrequency: "yearly" },
@@ -20,7 +24,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/legal/inteligencia-artificial", priority: 0.3, changeFrequency: "yearly" },
   ];
 
-  return publicas.map(({ path, priority, changeFrequency }) => ({
+  const seoPages = SEO_PAGES.map((page) => ({
+    path: getSeoPath(page),
+    priority: page.priority,
+    changeFrequency: "weekly" as const,
+  }));
+
+  return [...publicas, ...seoPages].map(({ path, priority, changeFrequency }) => ({
     url: urlAbsoluta(path),
     lastModified: ahora,
     changeFrequency,

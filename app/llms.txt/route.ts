@@ -19,6 +19,8 @@ y moneda por país.
 
 - [Inicio](${SITE_URL}/): Visión general de ARCA, módulos y beneficios.
 - [Precios](${SITE_URL}/precios): Planes Demo, Pro y Enterprise con sus límites.
+- [Soluciones](${SITE_URL}/soluciones): Rutas por intención de búsqueda.
+- [Alternativa a Treinta](${SITE_URL}/alternativas/treinta): Comparativa para negocios que evalúan POS, inventario, facturación y contabilidad.
 
 ## Módulos principales
 
@@ -27,6 +29,19 @@ y moneda por país.
 - Facturación fiscal por país.
 - Contabilidad automática de partida doble.
 - Reportes de ventas, rentabilidad, cuentas por cobrar y stock.
+
+## Soluciones SEO
+
+- [Sistema POS](${SITE_URL}/soluciones/punto-de-venta)
+- [Software de inventario](${SITE_URL}/soluciones/inventario)
+- [Software de facturación](${SITE_URL}/soluciones/facturacion)
+- [Software contable](${SITE_URL}/soluciones/contabilidad)
+- [Software para restaurantes](${SITE_URL}/soluciones/restaurantes)
+- [Software para tiendas](${SITE_URL}/soluciones/tiendas)
+- [Software para ferreterías](${SITE_URL}/soluciones/ferreterias)
+- [Software para farmacias](${SITE_URL}/soluciones/farmacias)
+- [Software para distribuidoras](${SITE_URL}/soluciones/distribuidoras)
+- [Software para pulperías](${SITE_URL}/soluciones/pulperias)
 
 ## Legal
 

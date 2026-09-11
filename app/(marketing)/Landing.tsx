@@ -884,6 +884,8 @@ function landingContent() {
                 </p>
                 <div className="mt-5 flex flex-col gap-3.5">
                   {[
+                    ["Soluciones", "/soluciones"],
+                    ["ARCA vs Treinta", "/alternativas/treinta"],
                     ["Qué es ARCA", "#caracteristicas"],
                     ["Módulos", "#modulos"],
                     ["Calculadora", "#calculadora"],

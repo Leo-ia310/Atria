@@ -33,24 +33,27 @@ export function Nav() {
         </Link>
 
         <nav className="hidden items-center gap-5 text-small text-white/75 lg:flex">
-          <a href="#caracteristicas" className="transition-colors hover:text-white">
+          <Link href="/soluciones" className="transition-colors hover:text-white">
+            Soluciones
+          </Link>
+          <Link href="/#caracteristicas" className="transition-colors hover:text-white">
             Características
-          </a>
-          <a href="#modulos" className="transition-colors hover:text-white">
+          </Link>
+          <Link href="/#modulos" className="transition-colors hover:text-white">
             Módulos
-          </a>
-          <a href="#calculadora" className="transition-colors hover:text-white">
+          </Link>
+          <Link href="/#calculadora" className="transition-colors hover:text-white">
             Calculadora
-          </a>
-          <a href="#precios" className="transition-colors hover:text-white">
+          </Link>
+          <Link href="/#precios" className="transition-colors hover:text-white">
             Precios
-          </a>
+          </Link>
           <Link href="/reseller" className="transition-colors hover:text-white">
             Reseller
           </Link>
-          <a href="#faq" className="transition-colors hover:text-white">
+          <Link href="/#faq" className="transition-colors hover:text-white">
             FAQ
-          </a>
+          </Link>
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -90,24 +93,27 @@ export function Nav() {
       {menuAbierto && (
         <div className="border-t border-white/10 bg-[#0b0416]/90 px-5 py-4 text-white backdrop-blur-xl lg:hidden">
           <nav className="flex flex-col gap-3 text-small text-white/80">
-            <a href="#caracteristicas" onClick={() => setMenuAbierto(false)}>
+            <Link href="/soluciones" onClick={() => setMenuAbierto(false)}>
+              Soluciones
+            </Link>
+            <Link href="/#caracteristicas" onClick={() => setMenuAbierto(false)}>
               Características
-            </a>
-            <a href="#modulos" onClick={() => setMenuAbierto(false)}>
+            </Link>
+            <Link href="/#modulos" onClick={() => setMenuAbierto(false)}>
               Módulos
-            </a>
-            <a href="#calculadora" onClick={() => setMenuAbierto(false)}>
+            </Link>
+            <Link href="/#calculadora" onClick={() => setMenuAbierto(false)}>
               Calculadora
-            </a>
-            <a href="#precios" onClick={() => setMenuAbierto(false)}>
+            </Link>
+            <Link href="/#precios" onClick={() => setMenuAbierto(false)}>
               Precios
-            </a>
+            </Link>
             <Link href="/reseller" onClick={() => setMenuAbierto(false)}>
               Reseller
             </Link>
-            <a href="#faq" onClick={() => setMenuAbierto(false)}>
+            <Link href="/#faq" onClick={() => setMenuAbierto(false)}>
               FAQ
-            </a>
+            </Link>
             <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
               <Link
                 href="/login"

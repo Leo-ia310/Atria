@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
+import { JsonLd } from "@/components/marketing/JsonLd";
+import { organizationJsonLd, softwareJsonLd } from "@/lib/seo-pages";
 import { Landing } from "./Landing";
 
 export const metadata: Metadata = {
@@ -24,5 +26,10 @@ export const metadata: Metadata = {
 };
 
 export default function LandingPage() {
-  return <Landing />;
+  return (
+    <>
+      <JsonLd data={[organizationJsonLd(), softwareJsonLd()]} />
+      <Landing />
+    </>
+  );
 }
