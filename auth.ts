@@ -7,7 +7,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { desc, eq, and, isNull, sql } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
 import { usuarios, empresas } from "@/lib/db/schema";
 import { loginSchema } from "@/lib/validations/auth";
@@ -80,14 +80,18 @@ export const { handlers, auth } = NextAuth({
             .from(usuarios)
             .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
             .where(and(sql`lower(trim(${usuarios.email})) = ${email}`, isNull(usuarios.eliminadoEn)))
-            .limit(1),
+            .orderBy(desc(usuarios.creadoEn)),
         );
 
-        const user = filas[0];
-        if (!user || !user.activo || !user.empresaActiva) return null;
-
-        const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
+        const candidatos = filas.filter((fila) => fila.activo && fila.empresaActiva);
+        const comparaciones = await Promise.all(
+          candidatos.map(async (fila) => ({
+            user: fila,
+            ok: await bcrypt.compare(password, fila.passwordHash),
+          })),
+        );
+        const user = comparaciones.find((fila) => fila.ok)?.user;
+        if (!user) return null;
 
         const promoverSuperAdmin = !user.esSuperAdmin && esCorreoDueno(user.email);
         const esSuperAdmin = user.esSuperAdmin || promoverSuperAdmin;

@@ -8,7 +8,7 @@
  */
 
 import bcrypt from "bcryptjs";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { dbSuperAdmin } from "@/lib/db";
 import {
   empresas,
@@ -83,16 +83,18 @@ export async function POST(request: Request) {
       .from(usuarios)
       .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
       .where(and(sql`lower(trim(${usuarios.email})) = ${email}`, isNull(usuarios.eliminadoEn)))
-      .limit(1),
+      .orderBy(desc(usuarios.creadoEn)),
   );
 
-  const user = filas[0];
-  if (!user || !user.activo || !user.empresaActiva) {
-    return Response.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
-  }
-
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) {
+  const candidatos = filas.filter((fila) => fila.activo && fila.empresaActiva);
+  const comparaciones = await Promise.all(
+    candidatos.map(async (fila) => ({
+      user: fila,
+      ok: await bcrypt.compare(password, fila.passwordHash),
+    })),
+  );
+  const user = comparaciones.find((fila) => fila.ok)?.user;
+  if (!user) {
     return Response.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
 
