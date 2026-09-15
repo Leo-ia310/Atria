@@ -1,12 +1,16 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { verificarCorreoLogin } from "@/lib/actions/login";
+import {
+  verificarCorreoLogin,
+  verificarCredencialesLogin,
+  type EmpresaLoginOption,
+} from "@/lib/actions/login";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -16,18 +20,45 @@ function LoginForm() {
   const params = useSearchParams();
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [empresas, setEmpresas] = useState<EmpresaLoginOption[]>([]);
+  const credencialesOpcionesRef = useRef<{ email: string; password: string } | null>(null);
   const restablecida = params.get("restablecida") === "1";
 
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+  const emailActual = watch("email");
+  const passwordActual = watch("password");
+  const empresaSeleccionada = watch("empresaId");
+
+  useEffect(() => {
+    if (empresas.length === 0) return;
+    const credenciales = credencialesOpcionesRef.current;
+    if (credenciales?.email === emailActual && credenciales.password === passwordActual) {
+      return;
+    }
+    setEmpresas([]);
+    setValue("empresaId", undefined);
+    credencialesOpcionesRef.current = null;
+  }, [emailActual, passwordActual, empresas.length, setValue]);
 
   async function onSubmit(values: LoginInput) {
     setErrorGlobal(null);
     setEnviando(true);
+    if (empresas.length > 0 && !values.empresaId) {
+      setEnviando(false);
+      setError("empresaId", {
+        type: "manual",
+        message: "Selecciona la empresa a la que quieres entrar",
+      });
+      return;
+    }
+
     const correo = await verificarCorreoLogin(values.email);
     if (!correo.existe) {
       setEnviando(false);
@@ -38,9 +69,29 @@ function LoginForm() {
       return;
     }
 
+    const credenciales = await verificarCredencialesLogin(values);
+    if (!credenciales.ok) {
+      setEnviando(false);
+      setEmpresas([]);
+      credencialesOpcionesRef.current = null;
+      setErrorGlobal(credenciales.error);
+      return;
+    }
+    if (credenciales.requiereSeleccion) {
+      setEnviando(false);
+      credencialesOpcionesRef.current = {
+        email: values.email,
+        password: values.password,
+      };
+      setEmpresas(credenciales.empresas);
+      setErrorGlobal(null);
+      return;
+    }
+
     const res = await signIn("credentials", {
       email: values.email,
       password: values.password,
+      empresaId: credenciales.empresaId,
       redirect: false,
     });
     setEnviando(false);
@@ -101,6 +152,40 @@ function LoginForm() {
             {...register("password")}
           />
 
+          {empresas.length > 0 && (
+            <fieldset className="space-y-2 rounded-md border border-[color:var(--color-border)] p-3">
+              <legend className="px-1 text-small font-medium text-[color:var(--color-text-primary)]">
+                Elige la empresa
+              </legend>
+              <div className="space-y-2">
+                {empresas.map((empresa) => (
+                  <label
+                    key={empresa.id}
+                    className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-small hover:bg-[color:var(--color-surface-2)]"
+                  >
+                    <input
+                      type="radio"
+                      value={empresa.id}
+                      className="mt-0.5"
+                      {...register("empresaId")}
+                    />
+                    <span>
+                      <span className="block font-medium">{empresa.nombre}</span>
+                      <span className="block text-[11px] text-[color:var(--color-text-muted)]">
+                        Usuario: {empresa.usuario}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {errors.empresaId?.message && (
+                <p className="text-[11px] text-[color:var(--color-error)]">
+                  {errors.empresaId.message}
+                </p>
+              )}
+            </fieldset>
+          )}
+
           {errorGlobal && (
             <div className="rounded-md bg-[color:var(--color-error-bg)] px-3 py-2 text-small text-[color:var(--color-error)]">
               {errorGlobal}
@@ -108,7 +193,9 @@ function LoginForm() {
           )}
 
           <Button type="submit" className="w-full" loading={enviando}>
-            Iniciar sesión
+            {empresas.length > 0 && !empresaSeleccionada
+              ? "Continuar"
+              : "Iniciar sesión"}
           </Button>
         </form>
 

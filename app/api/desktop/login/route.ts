@@ -51,8 +51,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
-  const email = parsed.data.email;
-  const { password } = parsed.data;
+  const { email, password, empresaId } = parsed.data;
   const deviceId =
     typeof (body as { deviceId?: unknown }).deviceId === "string"
       ? ((body as { deviceId: string }).deviceId || "desconocido")
@@ -86,7 +85,12 @@ export async function POST(request: Request) {
       .orderBy(desc(usuarios.creadoEn)),
   );
 
-  const candidatos = filas.filter((fila) => fila.activo && fila.empresaActiva);
+  const candidatos = filas.filter(
+    (fila) =>
+      fila.activo &&
+      fila.empresaActiva &&
+      (!empresaId || fila.empresaId === empresaId),
+  );
   const comparaciones = await Promise.all(
     candidatos.map(async (fila) => ({
       user: fila,

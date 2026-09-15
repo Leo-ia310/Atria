@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import {
@@ -175,7 +175,12 @@ export async function crearUsuario(input: unknown): Promise<Resultado> {
     const yaExiste = await db
       .select({ id: usuarios.id })
       .from(usuarios)
-      .where(and(eq(usuarios.empresaId, user.empresaId), eq(usuarios.email, d.email)))
+      .where(
+        and(
+          eq(usuarios.empresaId, user.empresaId),
+          sql`lower(trim(${usuarios.email})) = ${d.email}`,
+        ),
+      )
       .limit(1);
     if (yaExiste.length > 0) {
       return { ok: false, error: "Ya existe un usuario con ese correo" };
@@ -282,7 +287,12 @@ export async function actualizarUsuario(
     const duplicado = await db
       .select({ id: usuarios.id })
       .from(usuarios)
-      .where(and(eq(usuarios.empresaId, user.empresaId), eq(usuarios.email, d.email)))
+      .where(
+        and(
+          eq(usuarios.empresaId, user.empresaId),
+          sql`lower(trim(${usuarios.email})) = ${d.email}`,
+        ),
+      )
       .limit(1);
     if (duplicado.length > 0 && duplicado[0].id !== id) {
       return { ok: false, error: "Ya existe un usuario con ese correo" };

@@ -51,7 +51,7 @@ export const { handlers, auth } = NextAuth({
       authorize: async (credentials, request) => {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
-        const { email, password } = parsed.data;
+        const { email, password, empresaId } = parsed.data;
 
         // Rate limiting por email + por IP (fail-open si Redis no está
         // disponible). El de email frena fuerza bruta contra una cuenta; el de
@@ -83,14 +83,21 @@ export const { handlers, auth } = NextAuth({
             .orderBy(desc(usuarios.creadoEn)),
         );
 
-        const candidatos = filas.filter((fila) => fila.activo && fila.empresaActiva);
+        const candidatos = filas.filter(
+          (fila) =>
+            fila.activo &&
+            fila.empresaActiva &&
+            (!empresaId || fila.empresaId === empresaId),
+        );
         const comparaciones = await Promise.all(
           candidatos.map(async (fila) => ({
             user: fila,
             ok: await bcrypt.compare(password, fila.passwordHash),
           })),
         );
-        const user = comparaciones.find((fila) => fila.ok)?.user;
+        const coincidencias = comparaciones.filter((fila) => fila.ok);
+        if (!empresaId && coincidencias.length > 1) return null;
+        const user = coincidencias[0]?.user;
         if (!user) return null;
 
         const promoverSuperAdmin = !user.esSuperAdmin && esCorreoDueno(user.email);
