@@ -169,7 +169,7 @@ export default async function RestauranteComprasPage({ searchParams }: PageProps
       actions={[
         { href: "/restaurante/compras?sugeridas=1", label: "Compras sugeridas", icon: PackageSearch },
         { href: "/restaurante/proveedores", label: "Proveedores", icon: Truck },
-        { href: "/restaurante/cxp", label: "CxP", icon: WalletCards },
+        { href: "/cxp", label: "CxP", icon: WalletCards },
         { href: "/restaurante/existencias", label: "Existencias", icon: PackageSearch },
       ]}
       kpis={[

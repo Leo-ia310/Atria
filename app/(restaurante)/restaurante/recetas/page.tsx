@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
-import { Filter, FlaskConical, Plus, ReceiptText } from "lucide-react";
+import { FlaskConical, Plus, ReceiptText } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   productos,
@@ -23,6 +23,7 @@ import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Recetas | ARCA Restaurante",
@@ -111,8 +112,33 @@ export default async function RestauranteRecetasPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <FilterDialog title="Filtros de recetas">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input aria-label="Filtrar por receta" placeholder="Receta o producto" className="arca-input h-10" />
+              <select aria-label="Filtrar por tipo" className="arca-input h-10" defaultValue="">
+                <option value="">Tipo</option>
+                <option value="insumo">Insumo</option>
+                <option value="preparacion">Preparacion</option>
+                <option value="platillo">Platillo</option>
+                <option value="combo">Combo</option>
+              </select>
+              <select aria-label="Filtrar por estacion" className="arca-input h-10" defaultValue="">
+                <option value="">Estacion</option>
+                {estaciones.map((estacion) => (
+                  <option key={estacion.id} value={estacion.id}>
+                    {estacion.nombre}
+                  </option>
+                ))}
+              </select>
+              <select aria-label="Filtrar por disponibilidad" className="arca-input h-10" defaultValue="">
+                <option value="">Disponibilidad</option>
+                <option value="disponible">Disponible</option>
+                <option value="oculto">Oculto</option>
+              </select>
+            </div>
+          </FilterDialog>
           <a href="#clasificar-producto" className="arca-btn arca-btn-secondary arca-btn-sm">
-            <Filter size={14} /> Filtros
+            <FlaskConical size={14} /> Clasificar producto
           </a>
           <a href="#nueva-receta" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nueva receta
@@ -123,7 +149,7 @@ export default async function RestauranteRecetasPage() {
       <section className="grid gap-4">
         <div className="grid gap-4 xl:grid-cols-2">
           <details id="clasificar-producto" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-            <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros y clasificacion</summary>
+            <summary className="cursor-pointer px-4 py-3 font-semibold">Clasificar producto</summary>
           <Card>
             <CardHeader title="Clasificar producto" />
             <CardBody>

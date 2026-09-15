@@ -1,7 +1,7 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Filter, PackageMinus, PackageSearch, Plus, Search } from "lucide-react";
+import { PackageMinus, PackageSearch, Plus, Search } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   almacenes,
@@ -20,6 +20,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { FormField } from "@/components/ui/FormField";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Insumos | ARCA Restaurante",
@@ -96,35 +97,30 @@ export default async function RestauranteInventarioPage() {
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
             <input aria-label="Buscar insumos" placeholder="Buscar..." className="arca-input h-9 w-48 pl-9" />
           </div>
-          <a href="#filtros-insumos" className="arca-btn arca-btn-secondary arca-btn-sm">
-            <Filter size={14} /> Filtros
-          </a>
+          <FilterDialog title="Filtros de insumos">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <input aria-label="Filtrar por producto" placeholder="Producto" className="arca-input h-10" />
+              <select aria-label="Filtrar por tipo" className="arca-input h-10" defaultValue="">
+                <option value="">Tipo</option>
+                <option value="insumo">Insumo</option>
+                <option value="preparacion">Preparacion</option>
+                <option value="producto_directo">Producto directo</option>
+              </select>
+              <select aria-label="Filtrar por almacen" className="arca-input h-10" defaultValue="">
+                <option value="">Almacen</option>
+                {almacenesList.map((almacen) => (
+                  <option key={almacen.id} value={almacen.id}>
+                    {almacen.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </FilterDialog>
           <Link href="/restaurante/recetas#clasificar-producto" className="arca-btn arca-btn-primary arca-btn-sm">
             <Plus size={14} /> Nuevo insumo
           </Link>
         </div>
       </header>
-
-      <details id="filtros-insumos" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
-        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-3">
-          <input aria-label="Filtrar por producto" placeholder="Producto" className="arca-input" />
-          <select aria-label="Filtrar por tipo" className="arca-input" defaultValue="">
-            <option value="">Tipo</option>
-            <option value="insumo">Insumo</option>
-            <option value="preparacion">Preparacion</option>
-            <option value="producto_directo">Producto directo</option>
-          </select>
-          <select aria-label="Filtrar por almacen" className="arca-input" defaultValue="">
-            <option value="">Almacen</option>
-            {almacenesList.map((almacen) => (
-              <option key={almacen.id} value={almacen.id}>
-                {almacen.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-      </details>
 
       <section className="grid gap-4">
         <Card>

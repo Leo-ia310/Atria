@@ -4,7 +4,6 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Banknote,
   BarChart3,
   CalendarDays,
   CalendarCheck,
@@ -13,7 +12,6 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
-  FileText,
   Gift,
   History,
   LayoutDashboard,
@@ -24,7 +22,6 @@ import {
   Receipt,
   ReceiptText,
   Repeat2,
-  Scale,
   Settings,
   ShoppingCart,
   ShieldCheck,
@@ -195,7 +192,7 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         modulo: "compras",
       },
       {
-        href: "/restaurante/cxp",
+        href: "/cxp",
         label: "CxP",
         icon: WalletCards,
         modulo: "cxp",
@@ -210,42 +207,6 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         label: "Turnos",
         icon: Store,
         modulo: "caja",
-      },
-    ],
-  },
-  {
-    titulo: "Finanzas",
-    items: [
-      {
-        href: "/restaurante/facturacion",
-        label: "Facturacion",
-        icon: FileText,
-        modulo: "facturas",
-      },
-      {
-        href: "/restaurante/gastos",
-        label: "Gastos",
-        icon: ReceiptText,
-        modulo: "tesoreria",
-      },
-      {
-        href: "/restaurante/tesoreria",
-        label: "Tesoreria",
-        icon: Banknote,
-        modulo: "tesoreria",
-      },
-      {
-        href: "/restaurante/contabilidad",
-        label: "Contabilidad",
-        icon: BarChart3,
-        modulo: "contabilidad",
-      },
-      {
-        href: "/restaurante/impuestos",
-        label: "Impuestos",
-        icon: Scale,
-        modulo: "restaurante-configuracion",
-        feature: "impuestosPage",
       },
     ],
   },
@@ -431,17 +392,14 @@ export function RestauranteShell({
     if (items.length > 0) acc.push({ ...grupo, items });
     return acc;
   }, []);
-  const hrefsOcultosPorFeature = new Set(
-    NAV_GROUPS_RESTAURANTE.flatMap((grupo) =>
-      grupo.items
-        .filter(
-          (item) =>
-            (grupo.feature && !RESTAURANTE_FEATURES[grupo.feature]) ||
-            (item.feature && !RESTAURANTE_FEATURES[item.feature]),
-        )
-        .map((item) => item.href),
-    ),
-  );
+  const hrefsOcultosPorFeature = NAV_GROUPS_RESTAURANTE.reduce<Set<string>>((hrefs, grupo) => {
+    for (const item of grupo.items) {
+      const grupoOculto = grupo.feature && !RESTAURANTE_FEATURES[grupo.feature];
+      const itemOculto = item.feature && !RESTAURANTE_FEATURES[item.feature];
+      if (grupoOculto || itemOculto) hrefs.add(item.href);
+    }
+    return hrefs;
+  }, new Set());
   const commandItems = COMMAND_ITEMS_RESTAURANTE.filter((item) =>
     permitidos.has(item.modulo) && !hrefsOcultosPorFeature.has(item.href),
   );

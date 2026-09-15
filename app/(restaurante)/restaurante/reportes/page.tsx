@@ -59,15 +59,15 @@ export default async function RestauranteReportesPage() {
 
       <RestaurantModuleGrid
         title="Reportes empresariales"
-        subtitle="Ventas, inventario, compras, finanzas, fiscal y personal usando el mismo ARCA Core."
+        subtitle="Ventas, inventario, compras, caja, fiscal y personal usando el mismo ARCA Core."
         actions={[
-          { href: "/restaurante/facturacion", label: "Ventas e impuestos" },
+          { href: "/facturas", label: "Ventas e impuestos" },
           { href: "/restaurante/existencias", label: "Inventario y vencimientos" },
           { href: "/restaurante/compras", label: "Compras y costos" },
-          { href: "/restaurante/tesoreria", label: "Flujo y tesoreria" },
-          { href: "/restaurante/gastos", label: "Gastos operativos" },
+          { href: "/tesoreria", label: "Flujo y tesoreria" },
+          { href: "/tesoreria/gastos", label: "Gastos operativos" },
           { href: "/restaurante/nomina", label: "Nomina y personal" },
-          { href: "/restaurante/contabilidad", label: "Libro contable" },
+          { href: "/contabilidad", label: "Libro contable" },
           { href: "/restaurante/auditoria", label: "Auditoria" },
         ]}
       />

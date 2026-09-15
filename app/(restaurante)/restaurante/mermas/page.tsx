@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Filter, PackageMinus, Search } from "lucide-react";
+import { PackageMinus, Search } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import { productos, restauranteMermas, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -11,6 +11,7 @@ import { formatearFechaHora, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Mermas | ARCA Restaurante",
@@ -57,29 +58,24 @@ export default async function RestauranteMermasPage() {
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
             <input aria-label="Buscar mermas" placeholder="Buscar..." className="arca-input h-9 w-48 pl-9" />
           </div>
-          <a href="#filtros-mermas" className="arca-btn arca-btn-secondary arca-btn-sm">
-            <Filter size={14} /> Filtros
-          </a>
+          <FilterDialog title="Filtros de mermas">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input type="date" aria-label="Filtrar por fecha" className="arca-input h-10" />
+              <input aria-label="Filtrar por producto" placeholder="Producto" className="arca-input h-10" />
+              <input aria-label="Filtrar por sucursal" placeholder="Sucursal" className="arca-input h-10" />
+              <select aria-label="Filtrar por motivo" className="arca-input h-10" defaultValue="">
+                <option value="">Motivo</option>
+                <option value="caducidad">Caducidad</option>
+                <option value="preparacion">Preparacion</option>
+                <option value="desperdicio">Desperdicio</option>
+              </select>
+            </div>
+          </FilterDialog>
           <Link href="/restaurante/inventario#registrar-merma" className="arca-btn arca-btn-primary arca-btn-sm">
             Registrar merma
           </Link>
         </div>
       </header>
-
-      <details id="filtros-mermas" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
-        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-4">
-          <input type="date" aria-label="Filtrar por fecha" className="arca-input" />
-          <input aria-label="Filtrar por producto" placeholder="Producto" className="arca-input" />
-          <input aria-label="Filtrar por sucursal" placeholder="Sucursal" className="arca-input" />
-          <select aria-label="Filtrar por motivo" className="arca-input" defaultValue="">
-            <option value="">Motivo</option>
-            <option value="caducidad">Caducidad</option>
-            <option value="preparacion">Preparacion</option>
-            <option value="desperdicio">Desperdicio</option>
-          </select>
-        </div>
-      </details>
 
       <Card>
         <CardHeader title="Ultimas mermas" />

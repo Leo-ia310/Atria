@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { Metadata } from "next";
-import { CalendarDays, Clock, Filter, Search, UserPlus, UsersRound } from "lucide-react";
+import { CalendarDays, Clock, Search, UserPlus, UsersRound } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   restauranteListaEspera,
@@ -19,6 +19,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
 import { notaRestauranteVisible } from "@/lib/restaurante/display";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Reservas | ARCA Restaurante",
@@ -98,9 +99,22 @@ export default async function RestauranteReservacionesPage() {
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
             <input aria-label="Buscar reservas" placeholder="Buscar..." className="arca-input h-9 w-48 pl-9" />
           </div>
-          <a href="#filtros-reservas" className="arca-btn arca-btn-secondary arca-btn-sm">
-            <Filter size={14} /> Filtros
-          </a>
+          <FilterDialog title="Filtros de reservas">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input type="date" aria-label="Filtrar por fecha" className="arca-input h-10" />
+              <select aria-label="Filtrar por estado" className="arca-input h-10" defaultValue="">
+                <option value="">Estado</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="sentada">Sentada</option>
+                <option value="cancelada">Cancelada</option>
+                <option value="no_show">No-show</option>
+              </select>
+              <input aria-label="Filtrar por mesa" placeholder="Mesa" className="arca-input h-10" />
+              <input aria-label="Filtrar por personas" placeholder="Personas" className="arca-input h-10" />
+              <input aria-label="Filtrar por cliente" placeholder="Cliente" className="arca-input h-10 sm:col-span-2" />
+            </div>
+          </FilterDialog>
           <a href="#nueva-reservacion" className="arca-btn arca-btn-primary arca-btn-sm">
             Nueva reservacion
           </a>
@@ -109,24 +123,6 @@ export default async function RestauranteReservacionesPage() {
           </a>
         </div>
       </header>
-
-      <details id="filtros-reservas" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
-        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-5">
-          <input type="date" aria-label="Filtrar por fecha" className="arca-input" />
-          <select aria-label="Filtrar por estado" className="arca-input" defaultValue="">
-            <option value="">Estado</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="confirmada">Confirmada</option>
-            <option value="sentada">Sentada</option>
-            <option value="cancelada">Cancelada</option>
-            <option value="no_show">No-show</option>
-          </select>
-          <input aria-label="Filtrar por mesa" placeholder="Mesa" className="arca-input" />
-          <input aria-label="Filtrar por personas" placeholder="Personas" className="arca-input" />
-          <input aria-label="Filtrar por cliente" placeholder="Cliente" className="arca-input" />
-        </div>
-      </details>
 
       <section className="grid gap-4">
         <div className="grid gap-4 xl:grid-cols-2">

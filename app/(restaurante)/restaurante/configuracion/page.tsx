@@ -103,13 +103,13 @@ const CORE_RESTAURANTE: ConfigCard[] = [
     icon: Store,
   },
   {
-    href: "/restaurante/facturacion",
+    href: "/facturas",
     title: "Facturacion",
     text: "Comprobantes internos, facturas, impuestos y documentos fiscales configurados.",
     icon: Receipt,
   },
   {
-    href: "/restaurante/tesoreria",
+    href: "/tesoreria",
     title: "Tesoreria",
     text: "Cuentas financieras, gastos, pagos y conciliacion.",
     icon: Banknote,

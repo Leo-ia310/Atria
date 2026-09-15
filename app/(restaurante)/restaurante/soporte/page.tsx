@@ -21,7 +21,7 @@ export default async function RestauranteSoportePage() {
         <p className="text-label">Ayuda operativa</p>
         <h1 className="mt-1 text-xl">Soporte ARCA Restaurante</h1>
         <p className="mt-1 max-w-3xl text-small text-[color:var(--color-text-muted)]">
-          Resuelve dudas operativas de reservas, insumos, compras, finanzas y reportes
+          Resuelve dudas operativas de reservas, insumos, compras, caja y reportes
           sin salir del entorno restaurante.
         </p>
       </header>
@@ -32,7 +32,7 @@ export default async function RestauranteSoportePage() {
             <p className="text-label">Asistente especializado</p>
             <h2 className="mt-1 text-lg font-semibold">Preguntas de restaurante</h2>
             <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-              Reservas, inventario de cocina, compras, finanzas y reportes de restaurante.
+              Reservas, inventario de cocina, compras, caja y reportes de restaurante.
             </p>
           </div>
           <span className="arca-badge arca-badge-info">
@@ -44,7 +44,7 @@ export default async function RestauranteSoportePage() {
           planNombre={access.plan.nombre}
           preguntasDiarias={limitesIA.preguntasDiarias}
           palabrasPorPregunta={limitesIA.palabrasPorPregunta}
-          mensajeInicial="Hola. Soy el asistente de ARCA Restaurante. Puedo ayudarte con POS, reservaciones, insumos, recetas, mermas, compras, finanzas y food cost."
+          mensajeInicial="Hola. Soy el asistente de ARCA Restaurante. Puedo ayudarte con POS, reservaciones, insumos, recetas, mermas, compras, caja y food cost."
           sugerencias={[
             ["Food cost", "Como reviso el food cost por receta?"],
             ["Compras", "Como reviso compras sugeridas sin generar obligaciones?"],

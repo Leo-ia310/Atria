@@ -21,6 +21,7 @@ import { notaRestauranteVisible } from "@/lib/restaurante/display";
 import { cn, formatearFechaHora } from "@/lib/utils";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import type { PaisCodigo } from "@/lib/paises";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "KDS | ARCA Restaurante",
@@ -161,26 +162,28 @@ export default async function RestauranteKdsPage({ searchParams }: PageProps) {
           </Link>
         </div>
         {tab === "historial" && (
-          <form className="flex flex-wrap gap-2" action="/restaurante/kds">
-            <input type="hidden" name="tab" value="historial" />
-            <select name="estacionId" aria-label="Filtrar por estacion" defaultValue={params.estacionId ?? ""} className="arca-input h-9 w-44">
-              <option value="">Todas las estaciones</option>
-              {estaciones.map((estacion) => (
-                <option key={estacion.id} value={estacion.id}>
-                  {estacion.nombre}
-                </option>
-              ))}
-            </select>
-            <select name="estado" aria-label="Filtrar por estado" defaultValue={params.estado ?? ""} className="arca-input h-9 w-36">
-              <option value="">Estado</option>
-              <option value="entregada">Entregada</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
-            <input name="mesa" aria-label="Filtrar por mesa" defaultValue={params.mesa ?? ""} placeholder="Mesa" className="arca-input h-9 w-32" />
-            <button type="submit" className="arca-btn arca-btn-secondary arca-btn-sm">
-              Filtrar
-            </button>
-          </form>
+          <FilterDialog title="Filtros de historial KDS">
+            <form className="grid gap-3 sm:grid-cols-2" action="/restaurante/kds">
+              <input type="hidden" name="tab" value="historial" />
+              <select name="estacionId" aria-label="Filtrar por estacion" defaultValue={params.estacionId ?? ""} className="arca-input h-10">
+                <option value="">Todas las estaciones</option>
+                {estaciones.map((estacion) => (
+                  <option key={estacion.id} value={estacion.id}>
+                    {estacion.nombre}
+                  </option>
+                ))}
+              </select>
+              <select name="estado" aria-label="Filtrar por estado" defaultValue={params.estado ?? ""} className="arca-input h-10">
+                <option value="">Estado</option>
+                <option value="entregada">Entregada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+              <input name="mesa" aria-label="Filtrar por mesa" defaultValue={params.mesa ?? ""} placeholder="Mesa" className="arca-input h-10 sm:col-span-2" />
+              <button type="submit" className="arca-btn arca-btn-primary justify-center sm:col-span-2">
+                Aplicar filtros
+              </button>
+            </form>
+          </FilterDialog>
         )}
       </div>
 
@@ -214,8 +217,8 @@ export default async function RestauranteKdsPage({ searchParams }: PageProps) {
                       <Card key={comanda.id} className="border-[color:var(--color-border-strong)]">
                         <CardHeader
                           title={
-                            <span className="inline-flex items-center gap-2">
-                              <ChefHat size={16} /> {comanda.numero}
+                            <span className="inline-flex min-w-0 items-center gap-2 leading-tight">
+                              <ChefHat size={16} className="shrink-0" /> <span className="min-w-0 break-words">{comanda.numero}</span>
                             </span>
                           }
                           subtitle={`Orden ${comanda.ordenNumero}`}
@@ -241,8 +244,8 @@ export default async function RestauranteKdsPage({ searchParams }: PageProps) {
                               const notaCocina = notaRestauranteVisible(item.notasCocina);
                               return (
                                 <div key={item.id} className="rounded-md bg-[color:var(--color-surface-2)] px-3 py-2">
-                                  <div className="flex items-center justify-between gap-3 text-small">
-                                    <span className="font-medium">{item.nombreSnapshot}</span>
+                                  <div className="flex items-start justify-between gap-3 text-small">
+                                    <span className="min-w-0 break-words font-medium leading-snug">{item.nombreSnapshot}</span>
                                     <span>x{parseFloat(item.cantidad).toFixed(0)}</span>
                                   </div>
                                   {notaCocina && (

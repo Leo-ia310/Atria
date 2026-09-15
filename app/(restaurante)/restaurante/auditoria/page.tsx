@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { and, desc, eq } from "drizzle-orm";
-import { Filter, History, ShieldCheck } from "lucide-react";
+import { History, ShieldCheck } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import { auditoria, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -12,6 +12,7 @@ import {
   RestaurantCoreModulePage,
   RestaurantModuleList,
 } from "@/components/restaurante/RestaurantCoreModulePage";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Auditoria Restaurante | ARCA",
@@ -72,7 +73,6 @@ export default async function RestauranteAuditoriaPage() {
       title="Auditoria restaurante"
       subtitle="Registro visible de cambios criticos sin reemplazar el historial transaccional append-only."
       actions={[
-        { href: "/restaurante/auditoria?filtros=1", label: "Filtros", icon: Filter },
         { href: "/restaurante/configuracion", label: "Configuracion", icon: ShieldCheck },
         { href: "/restaurante/reportes", label: "Reportes", icon: History },
       ]}
@@ -84,6 +84,20 @@ export default async function RestauranteAuditoriaPage() {
       ]}
     >
       <section className="grid gap-4">
+        <div className="flex justify-end">
+          <FilterDialog title="Filtros de auditoria">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input aria-label="Filtrar por usuario" placeholder="Usuario" className="arca-input h-10" />
+              <input aria-label="Filtrar por modulo" placeholder="Modulo" className="arca-input h-10" />
+              <select aria-label="Filtrar por criticidad" className="arca-input h-10" defaultValue="">
+                <option value="">Criticidad</option>
+                <option value="criticos">Solo criticos</option>
+                <option value="snapshots">Con snapshot</option>
+              </select>
+              <input type="date" aria-label="Filtrar por fecha" className="arca-input h-10" />
+            </div>
+          </FilterDialog>
+        </div>
         <RestaurantModuleList
           title="Bitacora reciente"
           subtitle="Se muestra usuario, accion, modulo, entidad y momento. Los IDs tecnicos quedan para Ver detalles."

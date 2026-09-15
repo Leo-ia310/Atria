@@ -119,7 +119,7 @@ export default async function RestauranteCajaPage() {
       subtitle="Apertura, cobros, medios de pago, diferencias y cierres usando el modulo de caja core."
       actions={[
         { href: "/restaurante/pos", label: "Abrir POS", icon: Receipt },
-        { href: "/restaurante/facturacion", label: "Facturacion", icon: WalletCards },
+        { href: "/facturas", label: "Facturacion", icon: WalletCards },
       ]}
       kpis={[
         { label: "Cajas", value: String(cajasRows.length), hint: `${cajasRows.filter((row) => row.activa).length} activas`, icon: Store },
@@ -162,7 +162,7 @@ export default async function RestauranteCajaPage() {
             subtitle="Caja no duplica ventas ni tesoreria."
             actions={[
               { href: "/restaurante/pos", label: "Cobrar ordenes" },
-              { href: "/restaurante/tesoreria", label: "Movimientos financieros" },
+              { href: "/tesoreria", label: "Movimientos financieros" },
               { href: "/restaurante/auditoria", label: "Auditoria de cierres" },
             ]}
           />

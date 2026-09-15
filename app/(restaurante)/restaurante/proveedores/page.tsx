@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { Filter, Plus, Scale, Search, Truck, WalletCards } from "lucide-react";
+import { Plus, Scale, Search, Truck, WalletCards } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   compraDetalle,
@@ -21,6 +21,7 @@ import {
   RestaurantModuleList,
 } from "@/components/restaurante/RestaurantCoreModulePage";
 import { cantidad, estadoTone, numero } from "@/lib/restaurante/core-pages";
+import { FilterDialog } from "@/components/restaurante/FilterDialog";
 
 export const metadata: Metadata = {
   title: "Proveedores Restaurante | ARCA",
@@ -144,7 +145,7 @@ export default async function RestauranteProveedoresPage({ searchParams }: PageP
         { href: "/restaurante/proveedores?comparar=1", label: "Comparar costos", icon: Scale, primary: true },
         { href: "/compras/proveedores/nuevo", label: "Nuevo proveedor", icon: Plus },
         { href: "/restaurante/compras", label: "Compras", icon: Truck },
-        { href: "/restaurante/cxp", label: "Pagos pendientes", icon: WalletCards },
+        { href: "/cxp", label: "Pagos pendientes", icon: WalletCards },
       ]}
       kpis={[
         { label: "Proveedores", value: String(proveedoresRows.length), hint: `${proveedoresActivos} activos`, icon: Truck },
@@ -158,27 +159,22 @@ export default async function RestauranteProveedoresPage({ searchParams }: PageP
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
           <input aria-label="Buscar proveedores" placeholder="Buscar..." className="arca-input h-9 w-56 pl-9" />
         </div>
-        <a href="#filtros-proveedores" className="arca-btn arca-btn-secondary arca-btn-sm">
-          <Filter size={14} /> Filtros
-        </a>
+        <FilterDialog title="Filtros de proveedores">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input aria-label="Filtrar por proveedor" placeholder="Proveedor" className="arca-input h-10" />
+            <select aria-label="Filtrar por estado" className="arca-input h-10" defaultValue="">
+              <option value="">Estado</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+            <select aria-label="Filtrar por condicion" className="arca-input h-10" defaultValue="">
+              <option value="">Condicion</option>
+              <option value="credito">Credito</option>
+              <option value="contado">Contado</option>
+            </select>
+          </div>
+        </FilterDialog>
       </div>
-
-      <details id="filtros-proveedores" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
-        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-3">
-          <input aria-label="Filtrar por proveedor" placeholder="Proveedor" className="arca-input" />
-          <select aria-label="Filtrar por estado" className="arca-input" defaultValue="">
-            <option value="">Estado</option>
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
-          <select aria-label="Filtrar por condicion" className="arca-input" defaultValue="">
-            <option value="">Condicion</option>
-            <option value="credito">Credito</option>
-            <option value="contado">Contado</option>
-          </select>
-        </div>
-      </details>
 
       <section className={comparar ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]" : "grid gap-4"}>
         <RestaurantModuleList
