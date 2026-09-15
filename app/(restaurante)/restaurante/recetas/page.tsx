@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { FlaskConical, Plus, ReceiptText } from "lucide-react";
+import type { Metadata } from "next";
+import { Filter, FlaskConical, Plus, ReceiptText } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   productos,
@@ -22,6 +23,11 @@ import type { PaisCodigo } from "@/lib/paises";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
+
+export const metadata: Metadata = {
+  title: "Recetas | ARCA Restaurante",
+  description: "Recetario, clasificacion de productos y costo de preparaciones de cocina.",
+};
 
 export default async function RestauranteRecetasPage() {
   const user = await requireSession();
@@ -96,16 +102,28 @@ export default async function RestauranteRecetasPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-label">Insumos, preparaciones y platillos</p>
-        <h1 className="mt-1 text-xl">Recetas y food cost</h1>
-        <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-          Clasifica productos del inventario y calcula costo por porcion.
-        </p>
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-label">Insumos, preparaciones y platillos</p>
+          <h1 className="mt-1 text-xl">Recetas</h1>
+          <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+            Listado operativo de recetas, rendimiento, precio y food cost.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a href="#clasificar-producto" className="arca-btn arca-btn-secondary arca-btn-sm">
+            <Filter size={14} /> Filtros
+          </a>
+          <a href="#nueva-receta" className="arca-btn arca-btn-primary arca-btn-sm">
+            <Plus size={14} /> Nueva receta
+          </a>
+        </div>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-[380px_1fr]">
-        <div className="space-y-4">
+      <section className="grid gap-4">
+        <div className="grid gap-4 xl:grid-cols-2">
+          <details id="clasificar-producto" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+            <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros y clasificacion</summary>
           <Card>
             <CardHeader title="Clasificar producto" />
             <CardBody>
@@ -167,6 +185,10 @@ export default async function RestauranteRecetasPage() {
             </CardBody>
           </Card>
 
+          </details>
+
+          <details id="nueva-receta" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+            <summary className="cursor-pointer px-4 py-3 font-semibold">Nueva receta</summary>
           <Card>
             <CardHeader title="Nueva receta" />
             <CardBody>
@@ -214,6 +236,7 @@ export default async function RestauranteRecetasPage() {
               </form>
             </CardBody>
           </Card>
+          </details>
         </div>
 
         <div className="space-y-4">

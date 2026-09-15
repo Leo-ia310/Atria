@@ -21,7 +21,6 @@ import { formatearFecha, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import {
   RestaurantCoreModulePage,
-  RestaurantModuleGrid,
   RestaurantModuleList,
 } from "@/components/restaurante/RestaurantCoreModulePage";
 import { cantidad, estadoTone, labelEstado, numero } from "@/lib/restaurante/core-pages";
@@ -42,7 +41,13 @@ type SugerenciaCompra = {
   sugerido: number;
 };
 
-export default async function RestauranteComprasPage() {
+type PageProps = {
+  searchParams?: Promise<{ sugeridas?: string }>;
+};
+
+export default async function RestauranteComprasPage({ searchParams }: PageProps) {
+  const params = searchParams ? await searchParams : {};
+  const mostrarSugeridas = params.sugeridas === "1";
   const user = await requireSession();
   await requireModulo(user, "compras");
   const [empresa, scope] = await Promise.all([
@@ -162,6 +167,7 @@ export default async function RestauranteComprasPage() {
       title="Compras restaurante"
       subtitle="Proveedor, orden, recepcion, inventario, impuestos, CxP y contabilidad usando ARCA Core."
       actions={[
+        { href: "/restaurante/compras?sugeridas=1", label: "Compras sugeridas", icon: PackageSearch },
         { href: "/restaurante/proveedores", label: "Proveedores", icon: Truck },
         { href: "/restaurante/cxp", label: "CxP", icon: WalletCards },
         { href: "/restaurante/existencias", label: "Existencias", icon: PackageSearch },
@@ -173,7 +179,7 @@ export default async function RestauranteComprasPage() {
         { label: "OC abiertas", value: String(ordenesAbiertas), hint: "Borrador, enviadas o parciales" },
       ]}
     >
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className={mostrarSugeridas ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]" : "grid gap-4"}>
         <RestaurantModuleList
           title="Historial de compras"
           subtitle="Cada compra confirmada alimenta inventario, impuestos, CxP y asiento contable desde el core."
@@ -188,7 +194,7 @@ export default async function RestauranteComprasPage() {
             tone: row.esCredito ? "warning" : estadoTone(row.estado),
           }))}
         />
-        <div className="space-y-4">
+        {mostrarSugeridas && (
           <RestaurantModuleList
             title="Compras sugeridas"
             subtitle="Basadas en stock actual y minimo configurado. No generan obligaciones sin revision humana."
@@ -203,17 +209,7 @@ export default async function RestauranteComprasPage() {
               tone: "warning",
             }))}
           />
-          <RestaurantModuleGrid
-            title="Flujo conectado"
-            subtitle="Entradas al mismo nucleo empresarial."
-            actions={[
-              { href: "/restaurante/compras", label: "Historial y recepciones" },
-              { href: "/restaurante/proveedores", label: "Condiciones de proveedor" },
-              { href: "/restaurante/cxp", label: "Cuentas por pagar" },
-              { href: "/restaurante/contabilidad", label: "Asientos contables" },
-            ]}
-          />
-        </div>
+        )}
       </section>
     </RestaurantCoreModulePage>
   );

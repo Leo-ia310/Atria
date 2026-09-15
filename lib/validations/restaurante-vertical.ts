@@ -24,6 +24,18 @@ export const restauranteMesaSchema = z.object({
   posY: z.coerce.number().min(0).max(1).default(0.5),
 });
 
+export const restauranteMesaLayoutSchema = z.object({
+  mesaId: z.string().uuid(),
+  areaId: z.string().uuid().optional().or(z.literal("")),
+  posX: z.coerce.number().min(0).max(1),
+  posY: z.coerce.number().min(0).max(1),
+  ancho: z.coerce.number().min(0.06).max(0.6),
+  alto: z.coerce.number().min(0.06).max(0.6),
+  rotacion: z.coerce.number().min(-180).max(180).default(0),
+  forma: z.enum(["redonda", "cuadrada", "rectangular", "barra"]),
+  capacidad: z.coerce.number().int().min(1).max(50),
+});
+
 export const restauranteMesaEstadoSchema = z.object({
   mesaId: z.string().uuid(),
   estado: z.enum([
@@ -34,6 +46,8 @@ export const restauranteMesaEstadoSchema = z.object({
     "cuenta_solicitada",
     "deshabilitada",
   ]),
+  motivo: textoLibre(240),
+  limpiarOverride: z.coerce.boolean().default(false),
 });
 
 export const restauranteProductoSchema = z.object({
@@ -224,6 +238,7 @@ export const restaurantePromocionSchema = z.object({
 
 export type RestauranteAreaInput = z.infer<typeof restauranteAreaSchema>;
 export type RestauranteMesaInput = z.infer<typeof restauranteMesaSchema>;
+export type RestauranteMesaLayoutInput = z.infer<typeof restauranteMesaLayoutSchema>;
 export type RestauranteProductoInput = z.infer<typeof restauranteProductoSchema>;
 export type RestauranteRecetaInput = z.infer<typeof restauranteRecetaSchema>;
 export type RestauranteRecetaIngredienteInput =

@@ -68,6 +68,7 @@ import {
   restauranteEsperaSchema,
   restauranteMermaSchema,
   restauranteMesaEstadoSchema,
+  restauranteMesaLayoutSchema,
   restauranteMesaLimpiaSchema,
   restauranteMesaSchema,
   restauranteMoverMesaOrdenSchema,
@@ -209,6 +210,25 @@ async function auditar(
   });
 }
 
+async function actualizarEstadoMesaDerivado(
+  tx: Tx,
+  empresaId: string,
+  mesaId: string,
+  estado: typeof restauranteMesas.$inferInsert.estado,
+  ahora = new Date(),
+) {
+  await tx
+    .update(restauranteMesas)
+    .set({ estado, actualizadoEn: ahora })
+    .where(
+      and(
+        eq(restauranteMesas.id, mesaId),
+        eq(restauranteMesas.empresaId, empresaId),
+        eq(restauranteMesas.estadoOverrideManual, false),
+      ),
+    );
+}
+
 export async function crearAreaRestaurante(formData: FormData): Promise<Resultado> {
   const acceso = await requireRestaurante("restaurante-mesas", "restaurante.mesas.editar");
   if (!acceso.ok) return acceso;
@@ -309,12 +329,19 @@ export async function crearMesaRestauranteForm(formData: FormData): Promise<void
   await crearMesaRestaurante(formData);
 }
 
-export async function actualizarEstadoMesaRestaurante(formData: FormData): Promise<Resultado> {
+export async function actualizarLayoutMesaRestaurante(formData: FormData): Promise<Resultado> {
   const acceso = await requireRestaurante("restaurante-mesas", "restaurante.mesas.editar");
   if (!acceso.ok) return acceso;
-  const parsed = restauranteMesaEstadoSchema.safeParse({
+  const parsed = restauranteMesaLayoutSchema.safeParse({
     mesaId: texto(formData, "mesaId"),
-    estado: texto(formData, "estado"),
+    areaId: texto(formData, "areaId"),
+    posX: texto(formData, "posX"),
+    posY: texto(formData, "posY"),
+    ancho: texto(formData, "ancho"),
+    alto: texto(formData, "alto"),
+    rotacion: texto(formData, "rotacion") || "0",
+    forma: texto(formData, "forma") || "rectangular",
+    capacidad: texto(formData, "capacidad") || "2",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
@@ -324,7 +351,71 @@ export async function actualizarEstadoMesaRestaurante(formData: FormData): Promi
   await dbConEmpresa(user.empresaId, async (tx) => {
     await tx
       .update(restauranteMesas)
-      .set({ estado: data.estado, actualizadoEn: new Date() })
+      .set({
+        areaId: data.areaId || null,
+        posX: aDecimalStr(data.posX),
+        posY: aDecimalStr(data.posY),
+        ancho: aDecimalStr(data.ancho),
+        alto: aDecimalStr(data.alto),
+        rotacion: aDecimalStr(data.rotacion),
+        forma: data.forma,
+        capacidad: data.capacidad,
+        actualizadoEn: new Date(),
+      })
+      .where(and(eq(restauranteMesas.id, data.mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+    await auditar(tx, {
+      empresaId: user.empresaId,
+      usuarioId: user.id,
+      accion: "restaurante.mesa.layout",
+      tabla: "restaurante_mesas",
+      registroId: data.mesaId,
+      datosDespues: {
+        areaId: data.areaId || null,
+        posX: data.posX,
+        posY: data.posY,
+        ancho: data.ancho,
+        alto: data.alto,
+        rotacion: data.rotacion,
+        forma: data.forma,
+        capacidad: data.capacidad,
+      },
+    });
+  });
+  revalidatePath("/restaurante/mesas");
+  revalidatePath("/restaurante/pos");
+  return { ok: true, id: data.mesaId };
+}
+
+export async function actualizarLayoutMesaRestauranteForm(formData: FormData): Promise<void> {
+  await actualizarLayoutMesaRestaurante(formData);
+}
+
+export async function actualizarEstadoMesaRestaurante(formData: FormData): Promise<Resultado> {
+  const acceso = await requireRestaurante("restaurante-mesas", "restaurante.mesas.editar");
+  if (!acceso.ok) return acceso;
+  const parsed = restauranteMesaEstadoSchema.safeParse({
+    mesaId: texto(formData, "mesaId"),
+    estado: texto(formData, "estado"),
+    motivo: texto(formData, "motivo"),
+    limpiarOverride: checkbox(formData, "limpiarOverride"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const { user } = acceso;
+  const data = parsed.data;
+  await dbConEmpresa(user.empresaId, async (tx) => {
+    const ahora = new Date();
+    await tx
+      .update(restauranteMesas)
+      .set({
+        estado: data.estado,
+        estadoOverrideManual: !data.limpiarOverride,
+        estadoOverrideUsuarioId: data.limpiarOverride ? null : user.id,
+        estadoOverrideMotivo: data.limpiarOverride ? null : data.motivo || "Ajuste manual",
+        estadoOverrideEn: data.limpiarOverride ? null : ahora,
+        actualizadoEn: ahora,
+      })
       .where(and(eq(restauranteMesas.id, data.mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
     await auditar(tx, {
       empresaId: user.empresaId,
@@ -332,7 +423,11 @@ export async function actualizarEstadoMesaRestaurante(formData: FormData): Promi
       accion: "restaurante.mesa.estado",
       tabla: "restaurante_mesas",
       registroId: data.mesaId,
-      datosDespues: { estado: data.estado },
+      datosDespues: {
+        estado: data.estado,
+        overrideManual: !data.limpiarOverride,
+        motivo: data.limpiarOverride ? null : data.motivo || "Ajuste manual",
+      },
     });
   });
   revalidatePath("/restaurante/mesas");
@@ -692,10 +787,7 @@ export async function crearOrdenRestaurante(formData: FormData): Promise<Resulta
       .returning({ id: restauranteOrdenes.id, numero: restauranteOrdenes.numero });
 
     if (mesaId) {
-      await tx
-        .update(restauranteMesas)
-        .set({ estado: "ocupada", actualizadoEn: new Date() })
-        .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+      await actualizarEstadoMesaDerivado(tx, user.empresaId, mesaId, "ocupada");
     }
 
     await auditar(tx, {
@@ -1015,15 +1107,7 @@ export async function solicitarCuentaRestaurante(formData: FormData): Promise<Re
       .where(and(eq(restauranteOrdenes.id, ordenId), eq(restauranteOrdenes.empresaId, user.empresaId)));
 
     if (orden.mesaId) {
-      await tx
-        .update(restauranteMesas)
-        .set({ estado: "cuenta_solicitada", actualizadoEn: ahora })
-        .where(
-          and(
-            eq(restauranteMesas.id, orden.mesaId),
-            eq(restauranteMesas.empresaId, user.empresaId),
-          ),
-        );
+      await actualizarEstadoMesaDerivado(tx, user.empresaId, orden.mesaId, "cuenta_solicitada", ahora);
     }
 
     await auditar(tx, {
@@ -1128,13 +1212,13 @@ export async function moverMesaOrdenRestaurante(formData: FormData): Promise<Res
       })
       .where(and(eq(restauranteOrdenes.id, orden.id), eq(restauranteOrdenes.empresaId, user.empresaId)));
 
-    await tx
-      .update(restauranteMesas)
-      .set({
-        estado: orden.estado === "cuenta_solicitada" ? "cuenta_solicitada" : "ocupada",
-        actualizadoEn: ahora,
-      })
-      .where(and(eq(restauranteMesas.id, mesaDestino.id), eq(restauranteMesas.empresaId, user.empresaId)));
+    await actualizarEstadoMesaDerivado(
+      tx,
+      user.empresaId,
+      mesaDestino.id,
+      orden.estado === "cuenta_solicitada" ? "cuenta_solicitada" : "ocupada",
+      ahora,
+    );
 
     if (orden.mesaId) {
       const [otraOrden] = await tx
@@ -1154,10 +1238,7 @@ export async function moverMesaOrdenRestaurante(formData: FormData): Promise<Res
         )
         .limit(1);
       if (!otraOrden) {
-        await tx
-          .update(restauranteMesas)
-          .set({ estado: "disponible", actualizadoEn: ahora })
-          .where(and(eq(restauranteMesas.id, orden.mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
+        await actualizarEstadoMesaDerivado(tx, user.empresaId, orden.mesaId, "disponible", ahora);
       }
     }
 
@@ -1513,15 +1594,7 @@ export async function cobrarOrdenRestaurante(formData: FormData): Promise<Result
       );
 
     if (ordenBloqueada.mesaId) {
-      await tx
-        .update(restauranteMesas)
-        .set({ estado: "por_limpiar", actualizadoEn: ahora })
-        .where(
-          and(
-            eq(restauranteMesas.id, ordenBloqueada.mesaId),
-            eq(restauranteMesas.empresaId, user.empresaId),
-          ),
-        );
+      await actualizarEstadoMesaDerivado(tx, user.empresaId, ordenBloqueada.mesaId, "por_limpiar", ahora);
     }
 
     await auditar(tx, {
@@ -1593,7 +1666,14 @@ export async function marcarMesaLimpiaRestaurante(formData: FormData): Promise<R
 
     await tx
       .update(restauranteMesas)
-      .set({ estado: "disponible", actualizadoEn: new Date() })
+      .set({
+        estado: "disponible",
+        estadoOverrideManual: false,
+        estadoOverrideUsuarioId: null,
+        estadoOverrideMotivo: null,
+        estadoOverrideEn: null,
+        actualizadoEn: new Date(),
+      })
       .where(and(eq(restauranteMesas.id, mesaId), eq(restauranteMesas.empresaId, user.empresaId)));
     await auditar(tx, {
       empresaId: user.empresaId,

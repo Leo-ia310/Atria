@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { and, desc, eq } from "drizzle-orm";
-import { History, ShieldCheck } from "lucide-react";
+import { Filter, History, ShieldCheck } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import { auditoria, usuarios } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -10,7 +10,6 @@ import { formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import {
   RestaurantCoreModulePage,
-  RestaurantModuleGrid,
   RestaurantModuleList,
 } from "@/components/restaurante/RestaurantCoreModulePage";
 
@@ -73,6 +72,7 @@ export default async function RestauranteAuditoriaPage() {
       title="Auditoria restaurante"
       subtitle="Registro visible de cambios criticos sin reemplazar el historial transaccional append-only."
       actions={[
+        { href: "/restaurante/auditoria?filtros=1", label: "Filtros", icon: Filter },
         { href: "/restaurante/configuracion", label: "Configuracion", icon: ShieldCheck },
         { href: "/restaurante/reportes", label: "Reportes", icon: History },
       ]}
@@ -83,31 +83,76 @@ export default async function RestauranteAuditoriaPage() {
         { label: "Usuarios", value: String(new Set(filas.map((row) => row.usuario ?? "sistema")).size) },
       ]}
     >
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="grid gap-4">
         <RestaurantModuleList
           title="Bitacora reciente"
-          subtitle="Se muestra usuario, modulo, entidad y momento. Los detalles completos quedan en la tabla de auditoria."
+          subtitle="Se muestra usuario, accion, modulo, entidad y momento. Los IDs tecnicos quedan para Ver detalles."
           empty="No hay eventos de auditoria registrados."
-          items={filas.map((row) => ({
-            id: row.id,
-            title: row.accion,
-            subtitle: `${row.tabla}${row.registroId ? ` / ${row.registroId}` : ""}`,
-            meta: `${row.usuario ?? "Sistema"} / ${formatearFechaHora(row.creadoEn, pais, empresa?.zonaHoraria)}`,
-            badge: row.tieneAntes || row.tieneDespues ? "Snapshot" : "Evento",
-            tone: criticaIds.has(row.id) ? "warning" : "neutral",
-          }))}
-        />
-        <RestaurantModuleGrid
-          title="Prioridad de revision"
-          subtitle="Accesos internos para investigar cambios sensibles."
-          actions={[
-            { href: "/restaurante/caja", label: "Cierres de caja" },
-            { href: "/restaurante/mermas", label: "Mermas y ajustes" },
-            { href: "/restaurante/compras", label: "Compras y pagos" },
-            { href: "/restaurante/ordenes", label: "Anulaciones de orden" },
-          ]}
+          items={filas.map((row) => {
+            const evento = traducirEvento(row.accion, row.tabla);
+            return {
+              id: row.id,
+              title: `${row.usuario ?? "Sistema"} - ${evento.accion}`,
+              subtitle: `${evento.entidad}${resumenAuditoria(row.tieneAntes, row.tieneDespues)}`,
+              meta: `${evento.modulo} / ${formatearFechaHora(row.creadoEn, pais, empresa?.zonaHoraria)}`,
+              badge: "Ver detalles",
+              tone: criticaIds.has(row.id) ? "warning" : "neutral",
+            };
+          })}
         />
       </section>
     </RestaurantCoreModulePage>
   );
+}
+
+function traducirEvento(accion: string, tabla: string | null) {
+  const acciones: Record<string, { accion: string; modulo: string }> = {
+    "restaurante.kds.estado": { accion: "Cambio de estado en cocina", modulo: "KDS" },
+    "restaurante.comanda.enviar": { accion: "Envio comanda a cocina", modulo: "KDS" },
+    "restaurante.mesa.estado": { accion: "Cambio estado de mesa", modulo: "Mesas" },
+    "restaurante.mesa.layout": { accion: "Movio mesa en plano", modulo: "Mesas" },
+    "restaurante.orden.crear": { accion: "Abrio orden", modulo: "POS" },
+    "restaurante.orden.cobrar": { accion: "Cobro orden", modulo: "Caja" },
+    "restaurante.orden.solicitar_cuenta": { accion: "Solicito cuenta", modulo: "POS" },
+    "restaurante.orden.mover_mesa": { accion: "Cambio mesa de orden", modulo: "Mesas" },
+    "restaurante.merma.crear": { accion: "Registro merma", modulo: "Inventario" },
+  };
+  const entidades: Record<string, string> = {
+    restaurante_comandas: "Comanda",
+    restaurante_ordenes: "Orden",
+    restaurante_mesas: "Mesa",
+    restaurante_areas: "Area",
+    restaurante_mermas: "Merma",
+    compras: "Compra",
+    cuentas_por_pagar: "Cuenta por pagar",
+    sesiones_caja: "Turno de caja",
+  };
+  const traducida = acciones[accion] ?? {
+    accion: humanizar(accion),
+    modulo: tabla?.startsWith("restaurante_") ? "Restaurante" : "ARCA Core",
+  };
+  return {
+    ...traducida,
+    entidad: tabla ? entidades[tabla] ?? humanizar(tabla) : "Registro",
+  };
+}
+
+function resumenAuditoria(antes: unknown, despues: unknown): string {
+  const datos = (despues ?? antes) as Record<string, unknown> | null;
+  if (!datos || typeof datos !== "object") return "";
+  if ("estado" in datos) return ` / Estado: ${humanizar(String(datos.estado))}`;
+  if ("total" in datos) return ` / Total: ${String(datos.total)}`;
+  if ("mesaDestinoId" in datos) return " / Mesa reasignada";
+  return "";
+}
+
+function humanizar(valor: string): string {
+  return valor
+    .replace(/^restaurante[._]/, "")
+    .replaceAll("_", " ")
+    .replaceAll(".", " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1))
+    .join(" ");
 }

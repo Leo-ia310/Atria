@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { CalendarDays, Clock, UserPlus, UsersRound } from "lucide-react";
+import type { Metadata } from "next";
+import { CalendarDays, Clock, Filter, Search, UserPlus, UsersRound } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   restauranteListaEspera,
@@ -18,6 +19,11 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FormField } from "@/components/ui/FormField";
 import { notaRestauranteVisible } from "@/lib/restaurante/display";
+
+export const metadata: Metadata = {
+  title: "Reservas | ARCA Restaurante",
+  description: "Gestion de reservaciones, horarios y lista de espera para el salon.",
+};
 
 export default async function RestauranteReservacionesPage() {
   const user = await requireSession();
@@ -79,16 +85,53 @@ export default async function RestauranteReservacionesPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-label">{scope.visible ? scope.etiqueta : "Recepcion"}</p>
-        <h1 className="mt-1 text-xl">Reservaciones y lista de espera</h1>
-        <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-          Asigna mesas, registra llegadas y prepara recordatorios futuros.
-        </p>
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-label">{scope.visible ? scope.etiqueta : "Recepcion"}</p>
+          <h1 className="mt-1 text-xl">Reservas</h1>
+          <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+            CRM de reservas conectado con comensales y mesas.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
+            <input aria-label="Buscar reservas" placeholder="Buscar..." className="arca-input h-9 w-48 pl-9" />
+          </div>
+          <a href="#filtros-reservas" className="arca-btn arca-btn-secondary arca-btn-sm">
+            <Filter size={14} /> Filtros
+          </a>
+          <a href="#nueva-reservacion" className="arca-btn arca-btn-primary arca-btn-sm">
+            Nueva reservacion
+          </a>
+          <a href="#lista-espera" className="arca-btn arca-btn-secondary arca-btn-sm">
+            Lista de espera
+          </a>
+        </div>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-[380px_1fr]">
-        <div className="space-y-4">
+      <details id="filtros-reservas" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
+        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-5">
+          <input type="date" aria-label="Filtrar por fecha" className="arca-input" />
+          <select aria-label="Filtrar por estado" className="arca-input" defaultValue="">
+            <option value="">Estado</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="sentada">Sentada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="no_show">No-show</option>
+          </select>
+          <input aria-label="Filtrar por mesa" placeholder="Mesa" className="arca-input" />
+          <input aria-label="Filtrar por personas" placeholder="Personas" className="arca-input" />
+          <input aria-label="Filtrar por cliente" placeholder="Cliente" className="arca-input" />
+        </div>
+      </details>
+
+      <section className="grid gap-4">
+        <div className="grid gap-4 xl:grid-cols-2">
+          <details id="nueva-reservacion" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+            <summary className="cursor-pointer px-4 py-3 font-semibold">Nueva reservacion</summary>
           <Card>
             <CardHeader
               title={
@@ -162,7 +205,10 @@ export default async function RestauranteReservacionesPage() {
               </form>
             </CardBody>
           </Card>
+          </details>
 
+          <details id="lista-espera" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+            <summary className="cursor-pointer px-4 py-3 font-semibold">Lista de espera</summary>
           <Card>
             <CardHeader
               title={
@@ -213,6 +259,7 @@ export default async function RestauranteReservacionesPage() {
               </form>
             </CardBody>
           </Card>
+          </details>
         </div>
 
         <div className="space-y-4">

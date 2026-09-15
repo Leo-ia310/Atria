@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { Scale, Truck, WalletCards } from "lucide-react";
+import { Filter, Plus, Scale, Search, Truck, WalletCards } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   compraDetalle,
@@ -27,7 +27,13 @@ export const metadata: Metadata = {
   description: "Proveedores, condiciones, saldos y comparacion de costos de restaurante.",
 };
 
-export default async function RestauranteProveedoresPage() {
+type PageProps = {
+  searchParams?: Promise<{ comparar?: string }>;
+};
+
+export default async function RestauranteProveedoresPage({ searchParams }: PageProps) {
+  const params = searchParams ? await searchParams : {};
+  const comparar = params.comparar === "1";
   const user = await requireSession();
   await requireModulo(user, "compras");
   const [empresa, scope] = await Promise.all([
@@ -135,6 +141,8 @@ export default async function RestauranteProveedoresPage() {
       title="Proveedores restaurante"
       subtitle="Condiciones comerciales, saldos pendientes e historial de costos del mismo modulo de compras."
       actions={[
+        { href: "/restaurante/proveedores?comparar=1", label: "Comparar costos", icon: Scale, primary: true },
+        { href: "/compras/proveedores/nuevo", label: "Nuevo proveedor", icon: Plus },
         { href: "/restaurante/compras", label: "Compras", icon: Truck },
         { href: "/restaurante/cxp", label: "Pagos pendientes", icon: WalletCards },
       ]}
@@ -145,7 +153,34 @@ export default async function RestauranteProveedoresPage() {
         { label: "Costos comparables", value: String(precios.length), hint: "Producto/proveedor", icon: Scale },
       ]}
     >
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="flex flex-wrap gap-2">
+        <div className="relative">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
+          <input aria-label="Buscar proveedores" placeholder="Buscar..." className="arca-input h-9 w-56 pl-9" />
+        </div>
+        <a href="#filtros-proveedores" className="arca-btn arca-btn-secondary arca-btn-sm">
+          <Filter size={14} /> Filtros
+        </a>
+      </div>
+
+      <details id="filtros-proveedores" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
+        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-3">
+          <input aria-label="Filtrar por proveedor" placeholder="Proveedor" className="arca-input" />
+          <select aria-label="Filtrar por estado" className="arca-input" defaultValue="">
+            <option value="">Estado</option>
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </select>
+          <select aria-label="Filtrar por condicion" className="arca-input" defaultValue="">
+            <option value="">Condicion</option>
+            <option value="credito">Credito</option>
+            <option value="contado">Contado</option>
+          </select>
+        </div>
+      </details>
+
+      <section className={comparar ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]" : "grid gap-4"}>
         <RestaurantModuleList
           title="Directorio de proveedores"
           subtitle="Datos fiscales y condiciones de pago disponibles para compras de restaurante."
@@ -165,6 +200,7 @@ export default async function RestauranteProveedoresPage() {
             };
           })}
         />
+        {comparar && (
         <RestaurantModuleList
           title="Comparacion de costos"
           subtitle="Costo promedio historico por proveedor; util para revisar variaciones antes de comprar."
@@ -179,6 +215,7 @@ export default async function RestauranteProveedoresPage() {
             tone: "info",
           }))}
         />
+        )}
       </section>
     </RestaurantCoreModulePage>
   );

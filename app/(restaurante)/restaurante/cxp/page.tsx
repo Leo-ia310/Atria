@@ -83,7 +83,7 @@ export default async function RestauranteCxpPage() {
       ]}
     >
       <RestaurantModuleList
-        title="Documentos por pagar"
+        title="Cuentas por pagar"
         subtitle="Cada pago debe originar movimiento financiero y asiento contable desde ARCA Core."
         empty="No hay cuentas por pagar registradas."
         items={rows.map((row) => {

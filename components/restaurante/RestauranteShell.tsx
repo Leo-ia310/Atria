@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import type { CommandItem } from "@/components/layout/nav-items";
 import type { ModuloAcceso } from "@/lib/access-control";
 import type { PlanId } from "@/lib/pricing";
+import { RESTAURANTE_FEATURES } from "@/lib/restaurante/features";
 
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
@@ -81,11 +82,13 @@ type NavItem = {
   icon: LucideIcon;
   modulo: ModuloAcceso;
   exact?: boolean;
+  feature?: keyof typeof RESTAURANTE_FEATURES;
 };
 
 type NavGroup = {
   titulo: string;
   items: NavItem[];
+  feature?: keyof typeof RESTAURANTE_FEATURES;
 };
 
 const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
@@ -123,6 +126,7 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         label: "Delivery",
         icon: Truck,
         modulo: "restaurante-ordenes",
+        feature: "delivery",
       },
     ],
   },
@@ -130,7 +134,7 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
     titulo: "Cocina",
     items: [
       { href: "/restaurante/kds", label: "KDS", icon: ChefHat, modulo: "restaurante-kds" },
-      { href: "/restaurante/menu", label: "Menu QR", icon: Utensils, modulo: "restaurante-menu" },
+      { href: "/restaurante/menu", label: "Menu QR", icon: Utensils, modulo: "restaurante-menu", feature: "menuQr" },
       {
         href: "/restaurante/recetas",
         label: "Recetas",
@@ -241,11 +245,13 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         label: "Impuestos",
         icon: Scale,
         modulo: "restaurante-configuracion",
+        feature: "impuestosPage",
       },
     ],
   },
   {
     titulo: "Personal",
+    feature: "personalSidebar",
     items: [
       {
         href: "/restaurante/empleados",
@@ -416,12 +422,28 @@ export function RestauranteShell({
   const colapsadoVisual = !esMovil && colapsado;
   const permitidos = new Set(modulosPermitidos);
   const grupos = NAV_GROUPS_RESTAURANTE.reduce<NavGroup[]>((acc, grupo) => {
-    const items = grupo.items.filter((item) => permitidos.has(item.modulo));
+    if (grupo.feature && !RESTAURANTE_FEATURES[grupo.feature]) return acc;
+    const items = grupo.items.filter(
+      (item) =>
+        permitidos.has(item.modulo) &&
+        (!item.feature || RESTAURANTE_FEATURES[item.feature]),
+    );
     if (items.length > 0) acc.push({ ...grupo, items });
     return acc;
   }, []);
+  const hrefsOcultosPorFeature = new Set(
+    NAV_GROUPS_RESTAURANTE.flatMap((grupo) =>
+      grupo.items
+        .filter(
+          (item) =>
+            (grupo.feature && !RESTAURANTE_FEATURES[grupo.feature]) ||
+            (item.feature && !RESTAURANTE_FEATURES[item.feature]),
+        )
+        .map((item) => item.href),
+    ),
+  );
   const commandItems = COMMAND_ITEMS_RESTAURANTE.filter((item) =>
-    permitidos.has(item.modulo),
+    permitidos.has(item.modulo) && !hrefsOcultosPorFeature.has(item.href),
   );
 
   useEffect(() => {

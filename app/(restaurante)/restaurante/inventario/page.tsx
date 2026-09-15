@@ -1,5 +1,7 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { PackageMinus, PackageSearch } from "lucide-react";
+import Link from "next/link";
+import type { Metadata } from "next";
+import { Filter, PackageMinus, PackageSearch, Plus, Search } from "lucide-react";
 import { dbConEmpresa } from "@/lib/db";
 import {
   almacenes,
@@ -18,6 +20,11 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import { FormField } from "@/components/ui/FormField";
+
+export const metadata: Metadata = {
+  title: "Insumos | ARCA Restaurante",
+  description: "Catalogo operativo de insumos, stock base y registro de mermas para restaurante.",
+};
 
 export default async function RestauranteInventarioPage() {
   const user = await requireSession();
@@ -76,15 +83,50 @@ export default async function RestauranteInventarioPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-label">Stock operativo</p>
-        <h1 className="mt-1 text-xl">Insumos e inventario restaurante</h1>
-        <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
-          El kardex sigue siendo ARCA Core; aqui ves el dominio de cocina.
-        </p>
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-label">Stock operativo</p>
+          <h1 className="mt-1 text-xl">Insumos</h1>
+          <p className="mt-1 text-small text-[color:var(--color-text-muted)]">
+            Catalogo limpio de cocina sobre el inventario de ARCA Core.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
+            <input aria-label="Buscar insumos" placeholder="Buscar..." className="arca-input h-9 w-48 pl-9" />
+          </div>
+          <a href="#filtros-insumos" className="arca-btn arca-btn-secondary arca-btn-sm">
+            <Filter size={14} /> Filtros
+          </a>
+          <Link href="/restaurante/recetas#clasificar-producto" className="arca-btn arca-btn-primary arca-btn-sm">
+            <Plus size={14} /> Nuevo insumo
+          </Link>
+        </div>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <details id="filtros-insumos" className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+        <summary className="cursor-pointer px-4 py-3 font-semibold">Filtros</summary>
+        <div className="grid gap-3 border-t border-[color:var(--color-border)] p-4 sm:grid-cols-3">
+          <input aria-label="Filtrar por producto" placeholder="Producto" className="arca-input" />
+          <select aria-label="Filtrar por tipo" className="arca-input" defaultValue="">
+            <option value="">Tipo</option>
+            <option value="insumo">Insumo</option>
+            <option value="preparacion">Preparacion</option>
+            <option value="producto_directo">Producto directo</option>
+          </select>
+          <select aria-label="Filtrar por almacen" className="arca-input" defaultValue="">
+            <option value="">Almacen</option>
+            {almacenesList.map((almacen) => (
+              <option key={almacen.id} value={almacen.id}>
+                {almacen.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </details>
+
+      <section className="grid gap-4">
         <Card>
           <CardHeader title="Catalogo operativo" subtitle={`${insumos.length} productos clasificados`} />
           <CardBody>
@@ -129,97 +171,105 @@ export default async function RestauranteInventarioPage() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader
-            title={
-              <span className="inline-flex items-center gap-2">
-                <PackageMinus size={16} /> Registrar merma
-              </span>
-            }
-            subtitle="Genera movimiento de inventario y auditoria"
-          />
-          <CardBody>
-            <form action={registrarMermaRestauranteForm} className="space-y-3">
-              <FormField label="Sucursal">
-                <select
-                  name="sucursalId"
-                  defaultValue={sucursalDefault?.id}
-                  disabled={sucursalesList.length === 0}
-                  className="arca-input"
-                >
-                  {sucursalesList.map((sucursal) => (
-                    <option key={sucursal.id} value={sucursal.id}>
-                      {sucursal.nombre}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Almacen">
-                <select
-                  name="almacenId"
-                  defaultValue={almacenDefault?.id}
-                  disabled={almacenesList.length === 0}
-                  className="arca-input"
-                >
-                  {almacenesList.map((almacen) => (
-                    <option key={almacen.id} value={almacen.id}>
-                      {almacen.nombre}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Insumo">
-                <select name="productoId" disabled={insumos.length === 0} className="arca-input">
-                  {insumos.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nombre}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <div className="grid grid-cols-2 gap-2">
-                <FormField label="Cantidad">
-                  <input name="cantidad" className="arca-input" />
-                </FormField>
-                <FormField label="Unidad">
-                  <select name="unidadId" defaultValue="" className="arca-input">
-                    <option value="">Unidad base</option>
-                    {unidades.map((unidad) => (
-                      <option key={unidad.id} value={unidad.id}>
-                        {unidad.codigo}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-              </div>
-              <FormField label="Costo unitario">
-                <input name="costoUnitario" className="arca-input" />
-              </FormField>
-              <FormField label="Motivo">
-                <select name="motivo" defaultValue="desperdicio" className="arca-input">
-                  <option value="caducidad">Caducidad</option>
-                  <option value="preparacion">Preparacion</option>
-                  <option value="accidente">Accidente</option>
-                  <option value="desperdicio">Desperdicio</option>
-                  <option value="devolucion">Devolucion</option>
-                  <option value="cortesia">Cortesia</option>
-                  <option value="otro">Otro</option>
-                </select>
-              </FormField>
-              <FormField label="Observacion">
-                <textarea name="observacion" className="arca-input min-h-24" />
-              </FormField>
-              {!puedeRegistrarMerma && (
-                <p className="text-[12px] text-[color:var(--color-warning)]">
-                  Necesitas sucursal, almacen e insumos clasificados antes de registrar mermas.
-                </p>
-              )}
-              <button type="submit" disabled={!puedeRegistrarMerma} className="arca-btn arca-btn-primary w-full">
-                <PackageSearch size={14} /> Registrar merma
-              </button>
-            </form>
-          </CardBody>
-        </Card>
+        <details
+          id="registrar-merma"
+          className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+        >
+          <summary className="cursor-pointer px-4 py-3 font-semibold">Registrar merma</summary>
+          <div className="px-4 pb-4">
+            <Card>
+              <CardHeader
+                title={
+                  <span className="inline-flex items-center gap-2">
+                    <PackageMinus size={16} /> Registrar merma
+                  </span>
+                }
+                subtitle="Genera movimiento de inventario y auditoria"
+              />
+              <CardBody>
+                <form action={registrarMermaRestauranteForm} className="space-y-3">
+                  <FormField label="Sucursal">
+                    <select
+                      name="sucursalId"
+                      defaultValue={sucursalDefault?.id}
+                      disabled={sucursalesList.length === 0}
+                      className="arca-input"
+                    >
+                      {sucursalesList.map((sucursal) => (
+                        <option key={sucursal.id} value={sucursal.id}>
+                          {sucursal.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="Almacen">
+                    <select
+                      name="almacenId"
+                      defaultValue={almacenDefault?.id}
+                      disabled={almacenesList.length === 0}
+                      className="arca-input"
+                    >
+                      {almacenesList.map((almacen) => (
+                        <option key={almacen.id} value={almacen.id}>
+                          {almacen.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="Insumo">
+                    <select name="productoId" disabled={insumos.length === 0} className="arca-input">
+                      {insumos.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField label="Cantidad">
+                      <input name="cantidad" className="arca-input" />
+                    </FormField>
+                    <FormField label="Unidad">
+                      <select name="unidadId" defaultValue="" className="arca-input">
+                        <option value="">Unidad base</option>
+                        {unidades.map((unidad) => (
+                          <option key={unidad.id} value={unidad.id}>
+                            {unidad.codigo}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                  </div>
+                  <FormField label="Costo unitario">
+                    <input name="costoUnitario" className="arca-input" />
+                  </FormField>
+                  <FormField label="Motivo">
+                    <select name="motivo" defaultValue="desperdicio" className="arca-input">
+                      <option value="caducidad">Caducidad</option>
+                      <option value="preparacion">Preparacion</option>
+                      <option value="accidente">Accidente</option>
+                      <option value="desperdicio">Desperdicio</option>
+                      <option value="devolucion">Devolucion</option>
+                      <option value="cortesia">Cortesia</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Observacion">
+                    <textarea name="observacion" className="arca-input min-h-24" />
+                  </FormField>
+                  {!puedeRegistrarMerma && (
+                    <p className="text-[12px] text-[color:var(--color-warning)]">
+                      Necesitas sucursal, almacen e insumos clasificados antes de registrar mermas.
+                    </p>
+                  )}
+                  <button type="submit" disabled={!puedeRegistrarMerma} className="arca-btn arca-btn-primary w-full">
+                    <PackageSearch size={14} /> Registrar merma
+                  </button>
+                </form>
+              </CardBody>
+            </Card>
+          </div>
+        </details>
       </section>
     </div>
   );

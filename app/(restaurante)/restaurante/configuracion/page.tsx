@@ -9,7 +9,6 @@ import {
   ClipboardList,
   CreditCard,
   Gift,
-  LifeBuoy,
   MonitorSmartphone,
   Package,
   QrCode,
@@ -29,6 +28,7 @@ import {
 import { requireSession } from "@/lib/actions/session-helpers";
 import { requireModulo } from "@/lib/server-access";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { RESTAURANTE_FEATURES } from "@/lib/restaurante/features";
 
 export const metadata: Metadata = {
   title: "Configuracion Restaurante | ARCA",
@@ -40,6 +40,7 @@ type ConfigCard = {
   title: string;
   text: string;
   icon: LucideIcon;
+  feature?: keyof typeof RESTAURANTE_FEATURES;
 };
 
 const CONFIG_RESTAURANTE: ConfigCard[] = [
@@ -54,6 +55,7 @@ const CONFIG_RESTAURANTE: ConfigCard[] = [
     title: "Carta QR",
     text: "Menus publicos, platillos, disponibilidad y QR general.",
     icon: QrCode,
+    feature: "menuQr",
   },
   {
     href: "/restaurante/recetas",
@@ -163,12 +165,6 @@ const CUENTA_RESTAURANTE: ConfigCard[] = [
     text: "Define que puede hacer cada perfil en salon, cocina, caja y administracion.",
     icon: UserCog,
   },
-  {
-    href: "/restaurante/soporte",
-    title: "Soporte restaurante",
-    text: "Ayuda enfocada en salon, cocina, QR, reservas, insumos y reportes.",
-    icon: LifeBuoy,
-  },
 ];
 
 const ADMINISTRACION: ConfigCard[] = [
@@ -216,7 +212,7 @@ export default async function RestauranteConfiguracionPage() {
       <section className="space-y-3">
         <SectionTitle title="Empresa y cuenta" subtitle="Administracion general dentro de ARCA Restaurante." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {CUENTA_RESTAURANTE.map((item) => (
+          {visiblesPorFeature(CUENTA_RESTAURANTE).map((item) => (
             <ConfigTile key={item.href} {...item} />
           ))}
         </div>
@@ -225,7 +221,7 @@ export default async function RestauranteConfiguracionPage() {
       <section className="space-y-3">
         <SectionTitle title="Operacion" subtitle="Configuracion diaria del servicio." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {CONFIG_RESTAURANTE.map((item) => (
+          {visiblesPorFeature(CONFIG_RESTAURANTE).map((item) => (
             <ConfigTile key={item.href} {...item} />
           ))}
         </div>
@@ -234,7 +230,7 @@ export default async function RestauranteConfiguracionPage() {
       <section className="space-y-3">
         <SectionTitle title="Empresa operativa" subtitle="Modulos core adaptados al restaurante." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {CORE_RESTAURANTE.map((item) => (
+          {visiblesPorFeature(CORE_RESTAURANTE).map((item) => (
             <ConfigTile key={item.href} {...item} />
           ))}
         </div>
@@ -243,13 +239,17 @@ export default async function RestauranteConfiguracionPage() {
       <section className="space-y-3">
         <SectionTitle title="Administracion restaurante" subtitle="Seguimiento de clientes y control gerencial." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {ADMINISTRACION.map((item) => (
+          {visiblesPorFeature(ADMINISTRACION).map((item) => (
             <ConfigTile key={item.href} {...item} />
           ))}
         </div>
       </section>
     </div>
   );
+}
+
+function visiblesPorFeature(items: ConfigCard[]): ConfigCard[] {
+  return items.filter((item) => !item.feature || RESTAURANTE_FEATURES[item.feature]);
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
