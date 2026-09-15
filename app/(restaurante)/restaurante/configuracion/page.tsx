@@ -152,13 +152,13 @@ const CUENTA_RESTAURANTE: ConfigCard[] = [
     icon: UserRound,
   },
   {
-    href: "/restaurante/usuarios",
+    href: "/restaurante/configuracion/usuarios",
     title: "Usuarios",
     text: "Equipo con acceso al restaurante, roles asignados y estado de cuenta.",
     icon: UsersRound,
   },
   {
-    href: "/restaurante/roles",
+    href: "/restaurante/configuracion/roles",
     title: "Roles y permisos",
     text: "Define que puede hacer cada perfil en salon, cocina, caja y administracion.",
     icon: UserCog,

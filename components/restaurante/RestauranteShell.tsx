@@ -32,7 +32,6 @@ import {
   Table2,
   Truck,
   UserCheck,
-  UserCog,
   UsersRound,
   Utensils,
   WalletCards,
@@ -306,18 +305,6 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         modulo: "restaurante-configuracion",
       },
       {
-        href: "/restaurante/usuarios",
-        label: "Usuarios",
-        icon: UsersRound,
-        modulo: "restaurante-configuracion",
-      },
-      {
-        href: "/restaurante/roles",
-        label: "Roles",
-        icon: UserCog,
-        modulo: "restaurante-configuracion",
-      },
-      {
         href: "/restaurante/soporte",
         label: "Soporte",
         icon: LifeBuoy,
@@ -359,17 +346,17 @@ const COMMAND_ITEMS_RESTAURANTE: CommandItem[] = [
   },
   {
     label: "Usuarios",
-    href: "/restaurante/usuarios",
+    href: "/restaurante/configuracion/usuarios",
     grupo: "Administracion",
     modulo: "restaurante-configuracion",
-    keywords: "usuarios equipo acceso restaurante",
+    keywords: "configuracion usuarios equipo acceso restaurante",
   },
   {
     label: "Roles y permisos",
-    href: "/restaurante/roles",
+    href: "/restaurante/configuracion/roles",
     grupo: "Administracion",
     modulo: "restaurante-configuracion",
-    keywords: "roles permisos acceso restaurante",
+    keywords: "configuracion roles permisos acceso restaurante",
   },
   {
     label: "Plan",
