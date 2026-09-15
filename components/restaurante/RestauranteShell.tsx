@@ -32,6 +32,7 @@ import {
   Table2,
   Truck,
   UserCheck,
+  UserCog,
   UsersRound,
   Utensils,
   WalletCards,
@@ -49,9 +50,9 @@ import type { PlanId } from "@/lib/pricing";
 
 const ANCHO_ABIERTO = "240px";
 const ANCHO_COLAPSADO = "68px";
-const STORAGE_KEY = "arca:restaurante-sidebar-colapsado";
+const STORAGE_KEY = "arca:v1:restaurante-sidebar-colapsado";
 const STORAGE_EVENT = "arca:restaurante-sidebar-colapsado-change";
-const GRUPOS_STORAGE_KEY = "arca:restaurante-sidebar-grupos-cerrados";
+const GRUPOS_STORAGE_KEY = "arca:v1:restaurante-sidebar-grupos-cerrados";
 
 function getSidebarColapsadoSnapshot() {
   if (typeof window === "undefined") return false;
@@ -305,6 +306,18 @@ const NAV_GROUPS_RESTAURANTE: NavGroup[] = [
         modulo: "restaurante-configuracion",
       },
       {
+        href: "/restaurante/usuarios",
+        label: "Usuarios",
+        icon: UsersRound,
+        modulo: "restaurante-configuracion",
+      },
+      {
+        href: "/restaurante/roles",
+        label: "Roles",
+        icon: UserCog,
+        modulo: "restaurante-configuracion",
+      },
+      {
         href: "/restaurante/soporte",
         label: "Soporte",
         icon: LifeBuoy,
@@ -343,6 +356,20 @@ const COMMAND_ITEMS_RESTAURANTE: CommandItem[] = [
     grupo: "Administracion",
     modulo: "restaurante-configuracion",
     keywords: "impresora lector caja dispositivos",
+  },
+  {
+    label: "Usuarios",
+    href: "/restaurante/usuarios",
+    grupo: "Administracion",
+    modulo: "restaurante-configuracion",
+    keywords: "usuarios equipo acceso restaurante",
+  },
+  {
+    label: "Roles y permisos",
+    href: "/restaurante/roles",
+    grupo: "Administracion",
+    modulo: "restaurante-configuracion",
+    keywords: "roles permisos acceso restaurante",
   },
   {
     label: "Plan",
@@ -457,11 +484,9 @@ export function RestauranteShell({
   }
 
   function toggleGrupo(titulo: string) {
-    setGruposCerrados((prev) => {
-      const siguiente = { ...prev, [titulo]: !prev[titulo] };
-      localStorage.setItem(GRUPOS_STORAGE_KEY, JSON.stringify(siguiente));
-      return siguiente;
-    });
+    const siguiente = { ...gruposCerrados, [titulo]: !gruposCerrados[titulo] };
+    setGruposCerrados(siguiente);
+    localStorage.setItem(GRUPOS_STORAGE_KEY, JSON.stringify(siguiente));
   }
 
   return (

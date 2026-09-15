@@ -266,6 +266,8 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
     if (subruta === "auditoria") return "restaurante-configuracion";
     if (subruta === "empresa") return "restaurante-configuracion";
     if (subruta === "dispositivos") return "restaurante-configuracion";
+    if (subruta === "usuarios") return "restaurante-configuracion";
+    if (subruta === "roles") return "restaurante-configuracion";
     if (subruta === "plan") return "restaurante-plan";
     if (subruta === "mi-cuenta") return "mi-cuenta";
     return "restaurante-dashboard";

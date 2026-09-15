@@ -195,6 +195,8 @@ export async function crearUsuario(input: unknown): Promise<Resultado> {
       .returning({ id: usuarios.id });
 
     revalidatePath("/configuracion/usuarios");
+    revalidatePath("/restaurante/usuarios");
+    revalidatePath("/restaurante/configuracion");
     return { ok: true, id: creado.id };
   } catch (err) {
     console.error("[crearUsuario]", err);
@@ -222,6 +224,8 @@ async function cambiarEstadoUsuario(
       .set({ activo })
       .where(and(eq(usuarios.id, id), eq(usuarios.empresaId, user.empresaId)));
     revalidatePath("/configuracion/usuarios");
+    revalidatePath("/restaurante/usuarios");
+    revalidatePath("/restaurante/configuracion");
     return { ok: true };
   } catch (err) {
     console.error("[cambiarEstadoUsuario]", err);
@@ -298,6 +302,8 @@ export async function actualizarUsuario(
       .where(and(eq(usuarios.id, id), eq(usuarios.empresaId, user.empresaId)));
 
     revalidatePath("/configuracion/usuarios");
+    revalidatePath("/restaurante/usuarios");
+    revalidatePath("/restaurante/configuracion");
     return { ok: true, id };
   } catch (err) {
     console.error("[actualizarUsuario]", err);
@@ -679,6 +685,9 @@ export async function crearRol(input: unknown): Promise<Resultado> {
       return rol.id;
     });
     revalidatePath("/configuracion/roles");
+    revalidatePath("/restaurante/roles");
+    revalidatePath("/restaurante/usuarios");
+    revalidatePath("/restaurante/configuracion");
     return { ok: true, id: rolId };
   } catch (err) {
     console.error("[crearRol]", err);
@@ -710,6 +719,9 @@ export async function actualizarPermisosRol(
       }
     });
     revalidatePath("/configuracion/roles");
+    revalidatePath("/restaurante/roles");
+    revalidatePath("/restaurante/usuarios");
+    revalidatePath("/restaurante/configuracion");
     return { ok: true };
   } catch (err) {
     console.error("[actualizarPermisosRol]", err);

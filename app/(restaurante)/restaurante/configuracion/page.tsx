@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Store,
   Table2,
+  UserCog,
   Truck,
   UserRound,
   UserCheck,
@@ -149,6 +150,18 @@ const CUENTA_RESTAURANTE: ConfigCard[] = [
     title: "Mi perfil",
     text: "Datos del usuario, correo, telefono y cambio de contrasena.",
     icon: UserRound,
+  },
+  {
+    href: "/restaurante/usuarios",
+    title: "Usuarios",
+    text: "Equipo con acceso al restaurante, roles asignados y estado de cuenta.",
+    icon: UsersRound,
+  },
+  {
+    href: "/restaurante/roles",
+    title: "Roles y permisos",
+    text: "Define que puede hacer cada perfil en salon, cocina, caja y administracion.",
+    icon: UserCog,
   },
   {
     href: "/restaurante/soporte",
