@@ -69,7 +69,10 @@ export async function verificarCredencialesLogin(
       ok: await bcrypt.compare(password, fila.passwordHash),
     })),
   );
-  const coincidencias = comparaciones.filter((fila) => fila.ok).map((fila) => fila.user);
+  const coincidencias: (typeof candidatos)[number][] = [];
+  for (const comparacion of comparaciones) {
+    if (comparacion.ok) coincidencias.push(comparacion.user);
+  }
   if (coincidencias.length === 0) {
     return { ok: false, error: "Correo o contraseña incorrectos" };
   }
