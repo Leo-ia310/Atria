@@ -157,7 +157,7 @@ export default async function RestauranteProveedoresPage({ searchParams }: PageP
       <div className="flex flex-wrap gap-2">
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
-          <input aria-label="Buscar proveedores" placeholder="Buscar..." className="arca-input h-9 w-56 pl-9" />
+          <input aria-label="Buscar proveedores" placeholder="Buscar..." className="arca-input arca-input-con-icono h-9 w-56" />
         </div>
         <FilterDialog title="Filtros de proveedores">
           <div className="grid gap-3 sm:grid-cols-3">

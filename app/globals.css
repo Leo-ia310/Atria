@@ -206,7 +206,7 @@ textarea:focus {
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.arca-input-con-icono {
+.arca-input.arca-input-con-icono {
   padding-left: 2.5rem;
 }
 

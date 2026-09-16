@@ -440,7 +440,7 @@ async function restaurantePosPage(params: ParamsPos) {
                 name="q"
                 defaultValue={params.q ?? ""}
                 placeholder="Buscar producto..."
-                className="arca-input h-12 pl-10 text-base"
+                className="arca-input arca-input-con-icono h-12 text-base"
               />
             </div>
           </form>
