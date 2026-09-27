@@ -3,14 +3,22 @@
 import { useEffect, useMemo, useReducer, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Barcode, PackagePlus, Plus, TriangleAlert } from "lucide-react";
-import { registrarEntradaInventarioPorLector } from "@/lib/actions/productos";
+import { registrarCompraRapidaInventarioPorLector } from "@/lib/actions/productos";
 import { useBarcodeScanner } from "@/components/dispositivos/useBarcodeScanner";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+
+type CompraProductoEscaneable = {
+  proveedorId: string;
+  proveedorNombre: string;
+  ultimoCosto: number;
+  fecha: string;
+};
 
 type ProductoEscaneable = {
   id: string;
@@ -19,6 +27,7 @@ type ProductoEscaneable = {
   nombre: string;
   precioBase: number;
   costoPromedio: number;
+  compras: CompraProductoEscaneable[];
 };
 
 type AlmacenEntrada = {
@@ -35,18 +44,16 @@ type LectorState = {
   entrada: EntradaActiva | null;
   codigoNuevo: string | null;
   cantidad: string;
-  fechaVencimiento: string;
-  precioBase: string;
-  costoPromedio: string;
+  proveedorId: string;
+  costoUnitario: string;
 };
 
 const LECTOR_INICIAL: LectorState = {
   entrada: null,
   codigoNuevo: null,
   cantidad: "1",
-  fechaVencimiento: "",
-  precioBase: "",
-  costoPromedio: "",
+  proveedorId: "",
+  costoUnitario: "",
 };
 
 type LectorAction =
@@ -60,9 +67,11 @@ function lectorReducer(state: LectorState, action: LectorAction): LectorState {
       ...state,
       entrada: action.entrada,
       cantidad: "1",
-      fechaVencimiento: "",
-      precioBase: String(action.entrada.producto.precioBase),
-      costoPromedio: String(action.entrada.producto.costoPromedio),
+      proveedorId: action.entrada.producto.compras[0]?.proveedorId ?? "",
+      costoUnitario: String(
+        action.entrada.producto.compras[0]?.ultimoCosto ??
+          action.entrada.producto.costoPromedio,
+      ),
     };
   }
   if (action.type === "cerrarEntrada") {
@@ -88,7 +97,7 @@ export function InventarioLectorBarras({
   const { mostrar } = useToast();
   const cantidadRef = useRef<HTMLInputElement>(null);
   const [lector, dispatchLector] = useReducer(lectorReducer, LECTOR_INICIAL);
-  const { entrada, codigoNuevo, cantidad, fechaVencimiento, precioBase, costoPromedio } = lector;
+  const { entrada, codigoNuevo, cantidad, proveedorId, costoUnitario } = lector;
   const [pendiente, startTransition] = useTransition();
 
   const productosPorCodigo = useMemo(() => {
@@ -127,12 +136,17 @@ export function InventarioLectorBarras({
         return;
       }
       if (encontrados.length > 1) {
-        mostrar("error", "Ese codigo esta repetido en varios productos");
+        mostrar("error", "Ese codigo de barras o QR esta repetido en varios productos");
         return;
       }
       const producto = encontrados[0];
+      if (producto.compras.length === 0) {
+        mostrar("warning", "Este producto aun no tiene proveedor en compras");
+        return;
+      }
       dispatchLector({ type: "abrirEntrada", entrada: { codigo, producto } });
     },
+    maxInterKeyDelayMs: 150,
   });
 
   function cerrarEntrada() {
@@ -142,14 +156,13 @@ export function InventarioLectorBarras({
   function submitEntrada() {
     if (!entrada || !almacen) return;
     startTransition(async () => {
-      const res = await registrarEntradaInventarioPorLector({
+      const res = await registrarCompraRapidaInventarioPorLector({
         productoId: entrada.producto.id,
         almacenId: almacen.id,
+        proveedorId,
         codigoBarras: entrada.codigo,
         cantidad,
-        fechaVencimiento,
-        precioBase,
-        costoPromedio,
+        costoUnitario,
       });
       if (!res.ok) {
         mostrar("error", res.error);
@@ -175,13 +188,13 @@ export function InventarioLectorBarras({
         className="arca-btn arca-btn-secondary arca-btn-sm cursor-default"
         title={almacen ? `Recibiendo en ${almacen.nombre}` : "Sin almacen activo"}
       >
-        <Barcode size={14} /> Lector activo
+        <Barcode size={14} /> Lector barras/QR activo
       </span>
 
       <Modal
         abierto={!!entrada}
         onCerrar={pendiente ? () => {} : cerrarEntrada}
-        titulo="Entrada por codigo de barras"
+        titulo="Compra rapida por codigo de barras o QR"
         descripcion={entrada ? `${entrada.producto.sku} - ${entrada.producto.nombre}` : undefined}
         ancho="md"
         footer={
@@ -209,7 +222,7 @@ export function InventarioLectorBarras({
                   {entrada.codigo}
                 </span>
                 <span className="font-semibold text-[color:var(--color-primary)]">
-                  {formatearMoneda(parseFloat(precioBase) || 0, pais)}
+                  {formatearMoneda(parseFloat(costoUnitario) || 0, pais)}
                 </span>
               </div>
               <div className="mt-1 font-medium text-[color:var(--color-text-primary)]">
@@ -229,36 +242,43 @@ export function InventarioLectorBarras({
                   dispatchLector({ type: "patch", patch: { cantidad: event.target.value } })
                 }
               />
-              <Input
-                label="Vence"
-                type="date"
-                value={fechaVencimiento}
-                onChange={(event) =>
+              <Select
+                label="Proveedor"
+                value={proveedorId}
+                onChange={(event) => {
+                  const compra = entrada.producto.compras.find(
+                    (item) => item.proveedorId === event.target.value,
+                  );
                   dispatchLector({
                     type: "patch",
-                    patch: { fechaVencimiento: event.target.value },
-                  })
-                }
-                hint="Opcional"
+                    patch: {
+                      proveedorId: event.target.value,
+                      costoUnitario: String(compra?.ultimoCosto ?? costoUnitario),
+                    },
+                  });
+                }}
+                options={entrada.producto.compras.map((compra) => ({
+                  value: compra.proveedorId,
+                  label: compra.proveedorNombre,
+                }))}
               />
               <Input
-                label="Precio"
+                label="Costo de compra"
                 type="number"
                 min="0"
                 step="0.0001"
-                value={precioBase}
+                value={costoUnitario}
                 onChange={(event) =>
-                  dispatchLector({ type: "patch", patch: { precioBase: event.target.value } })
+                  dispatchLector({ type: "patch", patch: { costoUnitario: event.target.value } })
                 }
-              />
-              <Input
-                label="Costo"
-                type="number"
-                min="0"
-                step="0.0001"
-                value={costoPromedio}
-                onChange={(event) =>
-                  dispatchLector({ type: "patch", patch: { costoPromedio: event.target.value } })
+                hint={
+                  entrada.producto.compras.find((compra) => compra.proveedorId === proveedorId)
+                    ? `Ultima compra: ${
+                        entrada.producto.compras.find(
+                          (compra) => compra.proveedorId === proveedorId,
+                        )?.fecha
+                      }`
+                    : undefined
                 }
               />
             </div>
@@ -270,7 +290,7 @@ export function InventarioLectorBarras({
         abierto={!!codigoNuevo}
         onCerrar={() => dispatchLector({ type: "patch", patch: { codigoNuevo: null } })}
         titulo="Producto no registrado"
-        descripcion={codigoNuevo ? `Codigo ${codigoNuevo}` : undefined}
+        descripcion={codigoNuevo ? `Codigo de barras o QR ${codigoNuevo}` : undefined}
         ancho="sm"
         footer={
           <>
@@ -290,7 +310,7 @@ export function InventarioLectorBarras({
           <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[color:var(--color-warning)]" />
           <div>
             <div className="font-medium text-[color:var(--color-text-primary)]">
-              No encontramos un producto con ese codigo.
+              No encontramos un producto con ese codigo de barras o QR.
             </div>
             <p className="mt-1 text-[color:var(--color-text-muted)]">
               Puedes crearlo ahora y el formulario saldra con el codigo ya cargado.

@@ -12,19 +12,26 @@ import {
   almacenes,
   existencias,
   movimientosInventario,
+  compraDetalle,
+  compras,
+  proveedores,
+  impuestos,
 } from "@/lib/db/schema";
 import {
   productoSchema,
   entradaInventarioLectorSchema,
+  compraRapidaInventarioLectorSchema,
   crearMarcaSchema,
   crearCategoriaSchema,
   importarProductosSchema,
 } from "@/lib/validations/productos";
+import { procesarCompra } from "@/lib/actions/compras";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { formatearSku, normalizarSku, prefijoSkuCategoria } from "@/lib/sku";
+import { fechaISOEnZona } from "@/lib/dates";
 import type { TX } from "@/lib/contabilidad/helpers";
 
 type Resultado =
@@ -43,6 +50,9 @@ type ResultadoImportacion =
   | { ok: false; error: string };
 type ResultadoEntradaLector =
   | { ok: true; productoId: string; existencia: number }
+  | { ok: false; error: string };
+type ResultadoCompraRapidaLector =
+  | { ok: true; productoId: string; compraId: string; existencia: number }
   | { ok: false; error: string };
 
 function dec(n: number): string {
@@ -676,6 +686,149 @@ export async function registrarEntradaInventarioPorLector(
   } catch (err) {
     console.error("[registrarEntradaInventarioPorLector]", err);
     return { ok: false, error: "No pudimos registrar la entrada por lector." };
+  }
+}
+
+export async function registrarCompraRapidaInventarioPorLector(
+  input: unknown,
+): Promise<ResultadoCompraRapidaLector> {
+  const user = await requireSession();
+  const acceso = await validarAccion(user, {
+    modulo: "inventario",
+    permisos: "inventario.ajustar",
+  });
+  if (!acceso.ok) return acceso;
+  const parsed = compraRapidaInventarioLectorSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+  }
+  const data = parsed.data;
+  const codigoBarras = data.codigoBarras.trim();
+
+  try {
+    const [[producto], [almacen], [compraPrevia]] = await dbConEmpresa(
+      user.empresaId,
+      (tx) =>
+        Promise.all([
+          tx
+            .select({
+              id: productos.id,
+              nombre: productos.nombre,
+              codigoBarras: productos.codigoBarras,
+              tipo: productos.tipo,
+              impuestoTasa: impuestos.tasa,
+            })
+            .from(productos)
+            .leftJoin(
+              impuestos,
+              and(
+                eq(impuestos.id, productos.impuestoId),
+                eq(impuestos.empresaId, user.empresaId),
+              ),
+            )
+            .where(
+              and(
+                eq(productos.id, data.productoId),
+                eq(productos.empresaId, user.empresaId),
+                isNull(productos.eliminadoEn),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ id: almacenes.id })
+            .from(almacenes)
+            .where(
+              and(
+                eq(almacenes.id, data.almacenId),
+                eq(almacenes.empresaId, user.empresaId),
+                eq(almacenes.activo, true),
+              ),
+            )
+            .limit(1),
+          tx
+            .select({ compraId: compras.id })
+            .from(compraDetalle)
+            .innerJoin(compras, eq(compras.id, compraDetalle.compraId))
+            .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
+            .where(
+              and(
+                eq(compras.empresaId, user.empresaId),
+                eq(compras.proveedorId, data.proveedorId),
+                eq(compraDetalle.productoId, data.productoId),
+                eq(proveedores.empresaId, user.empresaId),
+                eq(proveedores.activo, true),
+                isNull(proveedores.eliminadoEn),
+                isNull(compras.anuladoEn),
+              ),
+            )
+            .orderBy(desc(compras.fecha), desc(compras.creadoEn))
+            .limit(1),
+        ]),
+    );
+
+    if (!producto) return { ok: false, error: "Producto no encontrado" };
+    if (!almacen) return { ok: false, error: "Almacen no disponible" };
+    if (!compraPrevia) {
+      return {
+        ok: false,
+        error: "Este producto aun no tiene compras registradas con ese proveedor",
+      };
+    }
+    if (producto.tipo === "servicio") {
+      return { ok: false, error: "Los servicios no manejan existencia" };
+    }
+    if ((producto.codigoBarras ?? "").trim() !== codigoBarras) {
+      return {
+        ok: false,
+        error: "El codigo escaneado ya no coincide con este producto",
+      };
+    }
+
+    const impuestoTasa = producto.impuestoTasa ? parseFloat(producto.impuestoTasa) : 0;
+    const res = await procesarCompra({
+      proveedorId: data.proveedorId,
+      almacenId: data.almacenId,
+      numeroFactura: "",
+      fecha: fechaISOEnZona(),
+      esCredito: true,
+      diasCredito: 0,
+      cuentaFinancieraId: "",
+      items: [
+        {
+          productoId: data.productoId,
+          cantidad: data.cantidad,
+          costoUnitario: data.costoUnitario,
+          impuesto: data.cantidad * data.costoUnitario * impuestoTasa,
+        },
+      ],
+      notas: `Entrada rapida por lector: ${codigoBarras}`,
+    });
+    if (!res.ok) return res;
+
+    const [existencia] = await dbConEmpresa(user.empresaId, (tx) =>
+      tx
+        .select({ cantidad: existencias.cantidad })
+        .from(existencias)
+        .where(
+          and(
+            eq(existencias.empresaId, user.empresaId),
+            eq(existencias.productoId, data.productoId),
+            eq(existencias.almacenId, data.almacenId),
+            isNull(existencias.loteId),
+          ),
+        )
+        .limit(1),
+    );
+
+    return {
+      ok: true,
+      productoId: data.productoId,
+      compraId: res.compraId,
+      existencia: existencia ? parseFloat(existencia.cantidad) : data.cantidad,
+    };
+  } catch (err) {
+    console.error("[registrarCompraRapidaInventarioPorLector]", err);
+    return { ok: false, error: "No pudimos registrar la compra rapida por lector." };
   }
 }
 

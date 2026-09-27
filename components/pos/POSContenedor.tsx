@@ -94,6 +94,7 @@ type POSContenedorViewProps = {
   cantidadEscaneo: CantidadEscaneoPendiente | null;
   productosFiltrados: ProductoPOS[];
   agregarAlCarrito: (producto: ProductoPOS, cantidad?: number) => void;
+  agregarCodigoBarrasAlCarrito: (codigo: string, opciones?: { avisarSiNoExiste?: boolean }) => boolean;
   carrito: ItemCarrito[];
   cliente: ClientePOS | undefined;
   clientes: ClientePOS[];
@@ -515,33 +516,43 @@ export function POSContenedor({
       .map(({ producto }) => producto);
   }, [productos, busqueda]);
 
+  function agregarCodigoBarrasAlCarrito(
+    codigo: string,
+    opciones: { avisarSiNoExiste?: boolean } = {},
+  ) {
+    const normalizado = normalizarCodigoBarras(codigo);
+    if (!normalizado) return false;
+    const encontrados = productosPorCodigo.get(normalizado) ?? [];
+    if (encontrados.length === 0) {
+      if (opciones.avisarSiNoExiste) {
+        setBusqueda("");
+        mostrar("warning", `Codigo de barras o QR ${normalizado} no registrado en inventario`);
+        buscadorRef.current?.focus();
+      }
+      return false;
+    }
+    setBusqueda("");
+    if (encontrados.length > 1) {
+      mostrar("error", "Ese codigo de barras o QR esta repetido en varios productos");
+      buscadorRef.current?.focus();
+      return true;
+    }
+    const producto = encontrados[0];
+    agregarAlCarrito(producto, 1);
+    setCantidadEscaneo({
+      productoId: producto.id,
+      nombre: producto.nombre,
+      cantidadTexto: "",
+      cantidadAplicada: 1,
+      expiraEn: Date.now() + 5000,
+    });
+    return true;
+  }
+
   useBarcodeScanner({
     enabled: !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto,
-    onScan: (codigo) => {
-      const normalizado = normalizarCodigoBarras(codigo);
-      const encontrados = productosPorCodigo.get(normalizado) ?? [];
-      if (encontrados.length === 0) {
-        setBusqueda("");
-        mostrar("warning", `Codigo ${normalizado} no registrado en inventario`);
-        buscadorRef.current?.focus();
-        return;
-      }
-      if (encontrados.length > 1) {
-        setBusqueda("");
-        mostrar("error", "Ese codigo esta repetido en varios productos");
-        buscadorRef.current?.focus();
-        return;
-      }
-      const producto = encontrados[0];
-      agregarAlCarrito(producto, 1);
-      setCantidadEscaneo({
-        productoId: producto.id,
-        nombre: producto.nombre,
-        cantidadTexto: "",
-        cantidadAplicada: 1,
-        expiraEn: Date.now() + 5000,
-      });
-    },
+    maxInterKeyDelayMs: 150,
+    onScan: (codigo) => agregarCodigoBarrasAlCarrito(codigo, { avisarSiNoExiste: true }),
   });
 
   function actualizarCantidadEscaneada(transformar: (texto: string) => string) {
@@ -608,6 +619,7 @@ export function POSContenedor({
     cantidadEscaneo,
     productosFiltrados,
     agregarAlCarrito,
+    agregarCodigoBarrasAlCarrito,
     carrito,
     cliente,
     clientes,
@@ -654,6 +666,7 @@ function posContenedorView({
   cantidadEscaneo,
   productosFiltrados,
   agregarAlCarrito,
+  agregarCodigoBarrasAlCarrito,
   carrito,
   cliente,
   clientes,
@@ -882,7 +895,20 @@ function posContenedorView({
             <div className="relative mt-3">
               <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)]" />
               <label htmlFor="pos-busqueda-productos" className="sr-only">Buscar producto</label>
-              <input id="pos-busqueda-productos" ref={buscadorRef} type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Escanear código o buscar por nombre/SKU (F2)" className="arca-input arca-input-con-icono text-base" />
+              <input
+                id="pos-busqueda-productos"
+                ref={buscadorRef}
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.defaultPrevented) return;
+                  if (event.key !== "Enter") return;
+                  if (agregarCodigoBarrasAlCarrito(busqueda)) event.preventDefault();
+                }}
+                placeholder="Escanear código de barras/QR o buscar por nombre/SKU (F2)"
+                className="arca-input arca-input-con-icono text-base"
+              />
             </div>
             {cantidadEscaneo && (
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[color:var(--color-tertiary)]/40 bg-[color:var(--color-tertiary)]/10 px-3 py-2 text-small">
@@ -893,7 +919,7 @@ function posContenedorView({
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {productosFiltrados.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-[color:var(--color-text-muted)]"><div className="text-center"><Search size={32} className="mx-auto mb-2 opacity-40" /><p className="text-small">{busqueda ? "No se encontraron productos" : "Busca o escanea un producto"}</p></div></div>
+              <div className="flex h-full items-center justify-center text-[color:var(--color-text-muted)]"><div className="text-center"><Search size={32} className="mx-auto mb-2 opacity-40" /><p className="text-small">{busqueda ? "No se encontraron productos" : "Busca o escanea un producto con codigo de barras o QR"}</p></div></div>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {productosFiltrados.map((p) => (

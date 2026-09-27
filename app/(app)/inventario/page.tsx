@@ -4,8 +4,11 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   almacenes,
+  compraDetalle,
+  compras,
   categorias,
   existencias,
+  proveedores,
   productoAdvertencias,
   productos,
   restauranteProductos,
@@ -35,6 +38,13 @@ type Fila = {
   existencia: number;
   stockMinimo: string;
   activo: boolean;
+};
+
+type CompraLector = {
+  proveedorId: string;
+  proveedorNombre: string;
+  ultimoCosto: number;
+  fecha: string;
 };
 
 export default async function InventarioPage() {
@@ -127,6 +137,50 @@ export default async function InventarioPage() {
       .limit(100),
   ]);
   const [almacenEntrada] = almacenEntradaRows;
+  const productoIdsLector = productosLector.map((producto) => producto.id);
+  const comprasLectorRows =
+    productoIdsLector.length === 0
+      ? []
+      : await db
+          .select({
+            productoId: compraDetalle.productoId,
+            proveedorId: proveedores.id,
+            proveedorNombre: proveedores.razonSocial,
+            costoUnitario: compraDetalle.costoUnitario,
+            fecha: compras.fecha,
+          })
+          .from(compraDetalle)
+          .innerJoin(compras, eq(compras.id, compraDetalle.compraId))
+          .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
+          .where(
+            and(
+              eq(compras.empresaId, user.empresaId),
+              eq(proveedores.empresaId, user.empresaId),
+              eq(proveedores.activo, true),
+              isNull(proveedores.eliminadoEn),
+              isNull(compras.anuladoEn),
+              inArray(compraDetalle.productoId, productoIdsLector),
+            ),
+          )
+          .orderBy(desc(compras.fecha), desc(compras.creadoEn))
+          .limit(5000);
+
+  const comprasPorProducto = new Map<string, CompraLector[]>();
+  const comprasVistas = new Set<string>();
+  for (const compra of comprasLectorRows) {
+    const clave = `${compra.productoId}:${compra.proveedorId}`;
+    if (comprasVistas.has(clave)) continue;
+    comprasVistas.add(clave);
+    const opciones = comprasPorProducto.get(compra.productoId) ?? [];
+    if (opciones.length >= 5) continue;
+    opciones.push({
+      proveedorId: compra.proveedorId,
+      proveedorNombre: compra.proveedorNombre,
+      ultimoCosto: desdeDecimal(compra.costoUnitario),
+      fecha: compra.fecha,
+    });
+    comprasPorProducto.set(compra.productoId, opciones);
+  }
 
   const existenciaPorProducto = new Map(
     stockRows.map((row) => [row.productoId, parseFloat(row.existencia)]),
@@ -199,6 +253,7 @@ export default async function InventarioPage() {
                 nombre: p.nombre,
                 precioBase: desdeDecimal(p.precioBase),
                 costoPromedio: desdeDecimal(p.costoPromedio),
+                compras: comprasPorProducto.get(p.id) ?? [],
               }))}
             />
             <AsistenteProductoIA />
