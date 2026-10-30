@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import {
-  DESCUENTO_ANUAL_PORCENTAJE,
   DESCUENTO_SEMESTRAL_PORCENTAJE,
   DIAS_TRIAL_PLAN_PAGO,
   PLANES_ARRAY,
@@ -81,7 +80,7 @@ export function PricingToggle() {
         <div className="flex flex-col gap-1">
           {ciclo === "anual" && (
             <span className="rounded-full bg-[#052e1b] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#34d399]">
-              Ahorra {DESCUENTO_ANUAL_PORCENTAJE}%
+              Hasta $269 de descuento
             </span>
           )}
           {ciclo === "semestral" && (
@@ -140,6 +139,12 @@ export function PricingToggle() {
                 <p className="mt-1 text-[12px] font-medium text-white/60">
                   {descripcionTotalAnualPlan(p, ciclo)}
                 </p>
+                {ciclo === "anual" && p.id === "enterprise" && (
+                  <div className="mt-2.5 inline-flex items-center gap-1.5 self-start rounded-full border border-[#34d399]/30 bg-[#052e1b] px-3 py-1 text-[11px] font-semibold text-[#34d399]">
+                    <Sparkles size={11} />
+                    <span>269 dólares de descuento</span>
+                  </div>
+                )}
                 {ciclo === "anual" && p.precioAnual > 0 && (
                   <p className="mt-1 text-[12px] text-white/45">
                     {DIAS_TRIAL_PLAN_PAGO} dias gratis. Luego facturado anual: ${p.precioAnual.toFixed(2)}

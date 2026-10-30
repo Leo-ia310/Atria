@@ -58,6 +58,8 @@ export type Plan = {
   precioAnualMensualizado: number;
   ahorroSemestralPorcentaje: number;
   ahorroAnualPorcentaje: number;
+  descuentoAnualMonto?: number;
+  descuentoAnualTexto?: string;
   maxSucursales: number | null;
   maxUsuarios: number | null;
   maxProductos: number | null;
@@ -147,11 +149,11 @@ export const PLANES: Record<PlanId, Plan> = {
     id: "pro",
     nombre: "Pro",
     descripcionCorta: "Operacion completa para una sucursal: ventas, finanzas y nomina.",
-    precioMensual: 19.99,
-    precioSemestral: 107.95,
-    precioSemestralMensualizado: 17.99,
-    precioAnual: 203.9,
-    precioAnualMensualizado: 16.99,
+    precioMensual: 20,
+    precioSemestral: 108,
+    precioSemestralMensualizado: 18,
+    precioAnual: 204,
+    precioAnualMensualizado: 17,
     ahorroSemestralPorcentaje: DESCUENTO_SEMESTRAL_PORCENTAJE,
     ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
     maxSucursales: 1,
@@ -186,13 +188,15 @@ export const PLANES: Record<PlanId, Plan> = {
     id: "enterprise",
     nombre: "Enterprise",
     descripcionCorta: "Multi-sucursal, IA integrada, API y control corporativo.",
-    precioMensual: 89.99,
-    precioSemestral: 485.95,
-    precioSemestralMensualizado: 80.99,
-    precioAnual: 917.9,
-    precioAnualMensualizado: 76.49,
+    precioMensual: 89,
+    precioSemestral: 480.6,
+    precioSemestralMensualizado: 80.1,
+    precioAnual: 800,
+    precioAnualMensualizado: 66.67,
     ahorroSemestralPorcentaje: DESCUENTO_SEMESTRAL_PORCENTAJE,
-    ahorroAnualPorcentaje: DESCUENTO_ANUAL_PORCENTAJE,
+    ahorroAnualPorcentaje: 25,
+    descuentoAnualMonto: 269,
+    descuentoAnualTexto: "269 dólares de descuento",
     maxSucursales: 5,
     maxUsuarios: 20,
     maxProductos: null,
@@ -298,6 +302,9 @@ export function totalAnualPlan(plan: Plan, ciclo: CicloFacturacion): number {
 export function descripcionTotalAnualPlan(plan: Plan, ciclo: CicloFacturacion): string {
   const total = totalAnualPlan(plan, ciclo);
   const etiqueta = ciclo === "anual" ? "Total anual" : "Equivalente anual";
+  if (ciclo === "anual" && plan.id === "enterprise") {
+    return `${etiqueta}: $${total.toFixed(2)} USD (269 dólares de descuento)`;
+  }
   return `${etiqueta}: $${total.toFixed(2)} USD`;
 }
 

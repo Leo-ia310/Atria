@@ -337,7 +337,7 @@ function VistaPlanes({
                 </div>
                 {ciclo === "anual" && plan.ahorroAnualPorcentaje > 0 && (
                   <div className="text-[11px] text-[color:var(--color-success)]">
-                    Ahorra {plan.ahorroAnualPorcentaje}% al año
+                    {plan.id === 'enterprise' ? '269 dólares de descuento al año' : `Ahorra ${plan.ahorroAnualPorcentaje}% al año`}
                   </div>
                 )}
                 {ciclo === "semestral" && plan.ahorroSemestralPorcentaje > 0 && (
@@ -445,7 +445,7 @@ function VistaCheckout({
         </div>
         {ciclo === "anual" && plan.ahorroAnualPorcentaje > 0 && (
           <div className="mt-1 text-right text-[11px] text-[color:var(--color-success)]">
-            Incluye {plan.ahorroAnualPorcentaje}% de descuento anual
+            {plan.id === 'enterprise' ? 'Incluye 269 dólares de descuento anual' : `Incluye ${plan.ahorroAnualPorcentaje}% de descuento anual`}
           </div>
         )}
         {ciclo === "semestral" && plan.ahorroSemestralPorcentaje > 0 && (

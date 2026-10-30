@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
+import { esApiDesktopSinCookie } from "@/lib/desktop-public-routes";
 
 const { auth } = NextAuth(authConfig);
 
@@ -120,6 +121,7 @@ export default auth((req) => {
 
   const esRutaPublica =
     pathname === "/" ||
+    esApiDesktopSinCookie(pathname) ||
     esMenuPublico ||
     PREFIJOS_PUBLICOS.some((prefijo) => pathname.startsWith(prefijo));
 
