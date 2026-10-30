@@ -15,6 +15,11 @@
 
 ## Quick start
 
+Requiere **Node.js 26.13.0 LTS o superior dentro de la rama 26.x**, con los
+parches de seguridad de octubre de 2026. La versión de desarrollo está fijada
+en `.nvmrc` (`nvm install` y `nvm use`). En Vercel, `engines.node` selecciona la
+rama 26.x; la plataforma administra las actualizaciones menores y de parche.
+
 ```bash
 # 1. Instalar dependencias
 npm install
