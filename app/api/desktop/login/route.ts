@@ -20,6 +20,7 @@ import {
 import { loginSchema } from "@/lib/validations/auth";
 import { rateLimit } from "@/lib/redis/rate-limit";
 import { firmarGrantCanonico } from "@/lib/desktop-grant";
+import { desktopBootstrap } from "@/lib/desktop-bootstrap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,6 +147,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
+    bootstrap: await desktopBootstrap({ ...user, email: user.email, rolId: user.rolId }, listaSucursales.map((s) => s.id)),
     user: {
       id: user.id,
       empresaId: user.empresaId,
