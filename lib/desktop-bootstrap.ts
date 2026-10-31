@@ -16,7 +16,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[])
       identificacion_fiscal: empresas.identificacionFiscal, pais: empresas.pais,
       moneda: empresas.moneda, direccion: empresas.direccion, telefono: empresas.telefono,
     }).from(empresas).where(eq(empresas.id, user.empresaId));
-    const sucursales = await tx.execute(sql`select s.id, s.empresa_id, s.nombre, s.direccion, s.telefono, s.activo,
+    const sucursales = await tx.execute(sql`select s.id, s.empresa_id, s.nombre, s.direccion, s.telefono, s.activa as activo,
       (select a.id from almacenes a where a.empresa_id = s.empresa_id and a.sucursal_id = s.id
         and a.activo = true order by a.es_principal desc, a.id limit 1) as almacen_id
       from sucursales s where s.empresa_id = ${user.empresaId}::uuid
