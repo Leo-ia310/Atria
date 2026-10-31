@@ -33,7 +33,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[])
         where empresa_id = ${user.empresaId}::uuid`) : [];
     const impuestos = await tx.execute(sql`select id, empresa_id, nombre, tasa, activo from impuestos where empresa_id = ${user.empresaId}::uuid`);
     const formas_pago = await tx.execute(sql`select id, empresa_id, nombre, codigo as tipo, activa as activo from formas_pago where empresa_id = ${user.empresaId}::uuid`);
-    const proveedores = puedeAccederModulo(access, "compras") ? await tx.execute(sql`select id, empresa_id, nombre, identificacion_fiscal, telefono, email, activo, eliminado_en from proveedores where empresa_id = ${user.empresaId}::uuid`) : [];
+    const proveedores = puedeAccederModulo(access, "compras") ? await tx.execute(sql`select id, empresa_id, coalesce(nombre_comercial, razon_social) as nombre, identificacion_fiscal, telefono, email, activo, eliminado_en from proveedores where empresa_id = ${user.empresaId}::uuid`) : [];
     const puedeVentas = puedeAccederModulo(access, "ventas");
     const ventas = puedeVentas ? await tx.execute(sql`select id, empresa_id, sucursal_id, sesion_caja_id,
       cliente_id, numero as numero_local, numero as numero_servidor, fecha, estado, subtotal,
