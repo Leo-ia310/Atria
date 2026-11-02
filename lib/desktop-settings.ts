@@ -1,3 +1,4 @@
+import * as supplierActions from "./actions/proveedores";
 import { and,eq,sql } from "drizzle-orm";
 import {clientes} from "./db/schema";
 import { z } from "zod";
@@ -20,7 +21,7 @@ export async function executeDesktopSettings(tx:Tx,user:SessionUser,branches:str
   const args=z.array(z.unknown()).max(3).parse(payload.args);
   const id=()=>z.string().uuid().parse(args[0]);
   const input=()=>z.record(z.unknown()).parse(args[0]);
-  async function owned(table:"usuarios"|"roles"|"formas_pago"|"productos"|"clientes",recordId:string) {
+  async function owned(table:"usuarios"|"roles"|"formas_pago"|"productos"|"clientes"|"proveedores",recordId:string) {
     const rows=await tx.execute(sql`select id from ${sql.identifier(table)} where id=${recordId}::uuid and empresa_id=${user.empresaId}::uuid`);
     if(!rows.length)throw new DesktopSettingsRejected("El registro no pertenece a esta empresa.");
   }
@@ -31,6 +32,8 @@ export async function executeDesktopSettings(tx:Tx,user:SessionUser,branches:str
     if(!rows.length)throw new DesktopSettingsRejected("Cuenta financiera no autorizada para este dispositivo.");
   }
   switch(action) {
+    case "crearProveedor":return supplierActions.crearProveedor(input());
+    case "actualizarProveedor":await owned("proveedores",id());return supplierActions.actualizarProveedor(id(),args[1]);
     case "crearProducto":return productActions.crearProducto(input());
     case "actualizarProducto":await owned("productos",id());return productActions.actualizarProducto(id(),args[1]);
     case "actualizarCliente":{

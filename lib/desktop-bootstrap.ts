@@ -14,7 +14,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
   const access = await getAccessContext(user);
   if (access.suscripcionBloqueada) throw new Error("La suscripcion no permite descargar datos.");
   const branches = sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(sucursalIds)}::jsonb)::uuid)`;
-  const scopeHash = desktopScopeHash([14,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
+  const scopeHash = desktopScopeHash([15,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
   const cursorScope = { empresaId: user.empresaId, userId: user.id, deviceId: options?.deviceId ?? "", scopeHash };
   const previous = options?.cursor ? readDesktopCursor(options.cursor, cursorScope) : null;
   return dbSuperAdmin(async (tx) => {
@@ -71,7 +71,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
         where empresa_id = ${user.empresaId}::uuid`) : [];
     const impuestos = await query("impuestos", sql`select id, empresa_id, nombre, tasa, activo from impuestos where empresa_id = ${user.empresaId}::uuid`);
     const formas_pago = await query("formas_pago", sql`select id, empresa_id, nombre, codigo as tipo, activa as activo from formas_pago where empresa_id = ${user.empresaId}::uuid`);
-    const proveedores = puedeAccederModulo(access, "compras") ? await query("proveedores", sql`select id, empresa_id, coalesce(nombre_comercial, razon_social) as nombre, identificacion_fiscal, telefono, email, activo, eliminado_en from proveedores where empresa_id = ${user.empresaId}::uuid`) : [];
+    const proveedores = puedeAccederModulo(access, "compras") ? await query("proveedores", sql`select id, empresa_id, coalesce(nombre_comercial, razon_social) as nombre, identificacion_fiscal, telefono, email, activo, eliminado_en, to_jsonb(proveedores)::text AS detalle_json from proveedores where empresa_id = ${user.empresaId}::uuid`) : [];
     const puedeVentas = puedeAccederModulo(access, "ventas");
     const transferencias_pendientes=(puedeVentas||puedeAccederModulo(access,"cxc")||puedeAccederModulo(access,"tesoreria"))?await query("transferencias_pendientes",sql`select t.*,v.numero as numero_venta,c.nombre as cliente_nombre from transferencias_pendientes t join ventas v on v.id=t.venta_id and v.empresa_id=t.empresa_id left join clientes c on c.id=v.cliente_id and c.empresa_id=t.empresa_id where t.empresa_id=${user.empresaId}::uuid and t.sucursal_id=any(${branches})`):[];
     const ventas = puedeVentas ? await query("ventas", sql`select id, empresa_id, sucursal_id, sesion_caja_id,
@@ -141,7 +141,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       where a.empresa_id = ${user.empresaId}::uuid and (a.sucursal_id is null or a.sucursal_id = any(${branches}))`) : [];
     const compras = puedeAccederModulo(access, "compras") ? await query("compras", sql`select c.id, c.empresa_id,
       coalesce(c.sucursal_id, a.sucursal_id)::text as sucursal_id, c.proveedor_id,
-      coalesce(c.numero_factura, c.id::text) as numero_local, c.fecha, c.estado, c.subtotal, c.impuesto,
+      coalesce(c.numero_factura, c.id::text) as numero_local, c.numero_factura, c.fecha, c.estado, c.subtotal, c.impuesto,
       c.total, c.usuario_id, 'web:' || c.id::text as idempotency_key
       from compras c join almacenes a on a.id = c.almacen_id
       where c.empresa_id = ${user.empresaId}::uuid and coalesce(c.sucursal_id, a.sucursal_id) = any(${branches})`) : [];

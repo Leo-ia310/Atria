@@ -27,6 +27,12 @@ export async function checkDesktopInventory({db,s,sql,user,branch,branch2,wareho
  await assert.rejects(run(config('actualizarCliente',[randomUUID(),{nombre:'Ajeno'}])),/no pertenece/);
  await db.insert(s.restauranteProductos).values({empresaId:user.empresaId,productoId:created.id,tipo:'insumo'});
  const bootstrap=await desktopBootstrap(user,[branch],{deviceId:device1});
+ const supplierForm={razonSocial:'Proveedor Desktop QA completo',nombreComercial:'Comercial QA',identificacionFiscal:'',email:'',telefono:'12345678',direccion:'Dirección QA',diasCredito:30,contacto:'Contacto QA',notas:'Notas QA'};
+ const supplierOperation=config('crearProveedor',[supplierForm]);const supplier=await run(supplierOperation);assert.ok(supplier.id);assert.equal((await run(supplierOperation)).id,supplier.id);
+ const supplierEdit=config('actualizarProveedor',[supplier.id,{...supplierForm,razonSocial:'Proveedor Desktop editado QA'}]);await run(supplierEdit);await run(supplierEdit);
+ const [supplierSaved]=await db.execute(sql`select razon_social,direccion,dias_credito,notas from proveedores where id=${supplier.id}::uuid`);assert.equal(supplierSaved.razon_social,'Proveedor Desktop editado QA');assert.equal(supplierSaved.direccion,'Dirección QA');assert.equal(supplierSaved.dias_credito,30);assert.equal(supplierSaved.notas,'Notas QA');
+ await assert.rejects(run(config('actualizarProveedor',[randomUUID(),supplierForm])),/no pertenece/);
+ const supplierBootstrap=await desktopBootstrap(user,[branch],{deviceId:device1});assert.equal(JSON.parse(supplierBootstrap.proveedores.find(row=>row.id===supplier.id).detalle_json).direccion,'Dirección QA');
  assert.equal(bootstrap.productos.find(row=>row.id===created.id).inventario_visible,false);assert.equal(JSON.parse(bootstrap.productos.find(row=>row.id===created.id).detalle_json).descripcion,form.descripcion);
  assert.ok(bootstrap.settings.inventario_catalogos[0].categorias.some(row=>row.id===category.id));
  console.log(JSON.stringify({desktopProductEditorWebService:'passed',excelImportIdempotency:'passed',confirmedAiProposalWebService:'passed',barcodePurchaseIdempotency:'passed',inventoryWarehouseScope:'passed',customerEditPreservesFields:'passed',inventoryMetadataBootstrap:'passed'}));
