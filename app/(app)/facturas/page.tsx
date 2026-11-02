@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock, FileText, HandCoins, WalletCards } from "lucide-react";
-import { and, count, eq, inArray, sum, type SQL } from "drizzle-orm";
-import {facturaTieneSaldo} from "@/lib/factura-settlement";
-import { db } from "@/lib/db";
-import { facturas, ventas } from "@/lib/db/schema";
+import { dbConEmpresa } from "@/lib/db";
+import { consultarResumenFacturas } from "@/lib/factura-summary";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -23,25 +21,12 @@ export default async function FacturasPage() {
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const moneda = getPaisConfig(pais);
 
-  const cond: SQL[] = [eq(facturas.empresaId, user.empresaId)];
-  if (sucursalIds) cond.push(inArray(ventas.sucursalId, sucursalIds));
-
-  const resumenRows = await db
-    .select({
-      esCredito: facturas.esCredito,
-      cantidad: count(facturas.id),
-      total: sum(facturas.total),
-    })
-    .from(facturas)
-    .leftJoin(ventas, eq(ventas.id, facturas.ventaId))
-    .where(and(...cond))
-    .groupBy(facturas.esCredito);
+  const {resumenRows,porCobrar}=await dbConEmpresa(user.empresaId,tx=>consultarResumenFacturas(tx,user.empresaId,sucursalIds));
 
   const cobradas = metricas(resumenRows, false);
   const credito = metricas(resumenRows, true);
   const totalCantidad = cobradas.cantidad + credito.cantidad;
   const totalMonto = cobradas.total + credito.total;
-  const [porCobrar]=await db.select({cantidad:count(facturas.id),total:sum(facturas.total)}).from(facturas).leftJoin(ventas,eq(ventas.id,facturas.ventaId)).where(and(...cond,eq(facturas.esCredito,false),facturaTieneSaldo()));
   cobradas.cantidad-=Number(porCobrar?.cantidad??0);cobradas.total-=Number(porCobrar?.total??0);
 
   return (

@@ -1,4 +1,5 @@
 import "server-only";
+import { facturaTieneSaldo } from "@/lib/factura-settlement";
 import { rangoReporte, inicioDoceMeses, margenReporte } from "@/lib/reportes/core";
 import { and, asc, desc, eq, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -1494,7 +1495,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
 async function queryFacturas(ctx: ExportCtx, esCredito: boolean): Promise<Record<string, unknown>[]> {
   const sp = ctx.params;
   const cond: SQL[] = [eq(facturas.empresaId, ctx.user.empresaId), eq(facturas.esCredito, esCredito)];
-  if(!esCredito)cond.push(sql`not exists(select 1 from cuentas_por_cobrar c where c.empresa_id=${facturas.empresaId} and c.venta_id=${facturas.ventaId} and c.saldo>0 and c.estado not in ('anulada','cancelada'))`);
+  if(!esCredito)cond.push(sql`not (${facturaTieneSaldo()})`);
   const numero = sp.get("numero");
   if (numero) cond.push(ilike(facturas.numero, `%${numero}%`));
   const desde = sp.get("desde");
