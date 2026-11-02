@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { Users, Plus } from "lucide-react";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { asc, count } from "drizzle-orm";
+import {
+  FiltrosListado,
+  PaginacionListado,
+} from "@/components/ui/FiltrosListado";
+import { customerListWhere } from "@/lib/list-query";
+import {
+  hasListFilters,
+  LIST_PAGE_SIZE,
+  parseListFilters,
+  type ListSearchParams,
+} from "@/lib/list-filters";
 import { dbConEmpresa } from "@/lib/db";
 import { clientes } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -23,13 +34,27 @@ type Fila = {
   esConsumidorFinal: boolean;
 };
 
-export default async function ClientesPage() {
-  const user = await requireSession();
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<ListSearchParams>;
+}) {
+  const [user, sp] = await Promise.all([requireSession(), searchParams]);
+  const filters = parseListFilters(sp, "clientes"),
+    where = customerListWhere(user.empresaId, filters);
 
-  const [empresa, filas] = await Promise.all([
+  const [empresa, result] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
-    dbConEmpresa(user.empresaId, (tx) =>
-      tx
+    dbConEmpresa(user.empresaId, async (tx) => {
+      const [{ total }] = await tx
+        .select({ total: count() })
+        .from(clientes)
+        .where(where);
+      const pagina = Math.min(
+        filters.pagina,
+        Math.max(1, Math.ceil(total / LIST_PAGE_SIZE)),
+      );
+      const filas = await tx
         .select({
           id: clientes.id,
           nombre: clientes.nombre,
@@ -40,11 +65,15 @@ export default async function ClientesPage() {
           esConsumidorFinal: clientes.esConsumidorFinal,
         })
         .from(clientes)
-        .where(and(eq(clientes.empresaId, user.empresaId), isNull(clientes.eliminadoEn)))
-        .orderBy(desc(clientes.creadoEn))
-        .limit(200),
-    ),
+        .where(where)
+        .orderBy(asc(clientes.nombre), asc(clientes.id))
+        .limit(LIST_PAGE_SIZE)
+        .offset((pagina - 1) * LIST_PAGE_SIZE);
+      return { filas, total, pagina };
+    }),
   ]);
+  const { filas, total, pagina } = result;
+  filters.pagina = pagina;
 
   const columnas: Columna<Fila>[] = [
     {
@@ -110,16 +139,20 @@ export default async function ClientesPage() {
     <div>
       <PageHeader
         title="Clientes"
-        subtitle={`${filas.length} clientes registrados`}
+        subtitle={`${total} clientes${hasListFilters(filters) ? " encontrados" : " registrados"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BotonExportarExcel recurso="clientes" />
-            <Link href="/clientes/nuevo" className="arca-btn arca-btn-primary arca-btn-sm">
+            <Link
+              href="/clientes/nuevo"
+              className="arca-btn arca-btn-primary arca-btn-sm"
+            >
               <Plus size={14} /> Nuevo cliente
             </Link>
           </div>
         }
       />
+      <FiltrosListado kind="clientes" path="/clientes" value={filters} />
       <DataTable
         data={filas}
         columns={columnas}
@@ -127,8 +160,16 @@ export default async function ClientesPage() {
         empty={
           <EmptyState
             icon={Users}
-            titulo="Aún no hay clientes"
-            descripcion="Registra a tus clientes para emitirles facturas con sus datos."
+            titulo={
+              hasListFilters(filters)
+                ? "No hay clientes con estos filtros"
+                : "Aún no hay clientes"
+            }
+            descripcion={
+              hasListFilters(filters)
+                ? "Prueba otra búsqueda o limpia los filtros."
+                : "Registra a tus clientes para emitirles facturas con sus datos."
+            }
             accion={
               <Link href="/clientes/nuevo">
                 <Button size="sm">
@@ -139,6 +180,7 @@ export default async function ClientesPage() {
           />
         }
       />
+      <PaginacionListado path="/clientes" value={filters} total={total} />
     </div>
   );
 }

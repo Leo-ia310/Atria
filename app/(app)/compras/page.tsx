@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { Truck, Plus, FileText } from "lucide-react";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { count, desc, eq } from "drizzle-orm";
+import { dbConEmpresa } from "@/lib/db";
+import {
+  FiltrosListado,
+  PaginacionListado,
+} from "@/components/ui/FiltrosListado";
+import { purchaseListWhere } from "@/lib/list-query";
+import {
+  hasListFilters,
+  LIST_PAGE_SIZE,
+  parseListFilters,
+  type ListSearchParams,
+} from "@/lib/list-filters";
 import { compras, proveedores, sucursales } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
@@ -25,36 +36,54 @@ type Fila = {
   estado: string;
 };
 
-export default async function ComprasPage() {
-  const user = await requireSession();
+export default async function ComprasPage({
+  searchParams,
+}: {
+  searchParams: Promise<ListSearchParams>;
+}) {
+  const [user, sp] = await Promise.all([requireSession(), searchParams]);
+  const filters = parseListFilters(sp, "compras");
   const [empresa, scope] = await Promise.all([
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
   ]);
   const sucursalIds = selectedSucursalIds(scope);
 
-  const filas: Fila[] = await db
-    .select({
-      id: compras.id,
-      numeroFactura: compras.numeroFactura,
-      fecha: compras.fecha,
-      proveedor: proveedores.razonSocial,
-      sucursal: sucursales.nombre,
-      total: compras.total,
-      esCredito: compras.esCredito,
-      estado: compras.estado,
-    })
-    .from(compras)
-    .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
-    .leftJoin(sucursales, eq(sucursales.id, compras.sucursalId))
-    .where(
-      and(
-        eq(compras.empresaId, user.empresaId),
-        sucursalIds ? inArray(compras.sucursalId, sucursalIds) : undefined,
-      ),
-    )
-    .orderBy(desc(compras.fecha))
-    .limit(200);
+  const where = purchaseListWhere(user.empresaId, sucursalIds, filters);
+  const { filas, total, pagina } = await dbConEmpresa(
+    user.empresaId,
+    async (tx) => {
+      const [{ total }] = await tx
+        .select({ total: count() })
+        .from(compras)
+        .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
+        .where(where);
+      const pagina = Math.min(
+        filters.pagina,
+        Math.max(1, Math.ceil(total / LIST_PAGE_SIZE)),
+      );
+      const filas: Fila[] = await tx
+        .select({
+          id: compras.id,
+          numeroFactura: compras.numeroFactura,
+          fecha: compras.fecha,
+          proveedor: proveedores.razonSocial,
+          sucursal: sucursales.nombre,
+          total: compras.total,
+          esCredito: compras.esCredito,
+          estado: compras.estado,
+        })
+        .from(compras)
+        .innerJoin(proveedores, eq(proveedores.id, compras.proveedorId))
+        .leftJoin(sucursales, eq(sucursales.id, compras.sucursalId))
+        .where(where)
+        .orderBy(desc(compras.fecha), desc(compras.creadoEn), desc(compras.id))
+        .limit(LIST_PAGE_SIZE)
+        .offset((pagina - 1) * LIST_PAGE_SIZE);
+      return { filas, total, pagina };
+    },
+  );
+  filters.pagina = pagina;
 
   const columnas: Columna<Fila>[] = [
     {
@@ -115,19 +144,26 @@ export default async function ComprasPage() {
     <div>
       <PageHeader
         title="Compras"
-        subtitle={`${filas.length} compras registradas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        subtitle={`${total} compras${hasListFilters(filters) ? " encontradas" : " registradas"}${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex gap-2">
             <BotonExportarExcel recurso="compras" />
-            <Link href="/compras/proveedores" className="arca-btn arca-btn-secondary arca-btn-sm">
+            <Link
+              href="/compras/proveedores"
+              className="arca-btn arca-btn-secondary arca-btn-sm"
+            >
               <Truck size={14} /> Proveedores
             </Link>
-            <Link href="/compras/nueva" className="arca-btn arca-btn-primary arca-btn-sm">
+            <Link
+              href="/compras/nueva"
+              className="arca-btn arca-btn-primary arca-btn-sm"
+            >
               <Plus size={14} /> Nueva compra
             </Link>
           </div>
         }
       />
+      <FiltrosListado kind="compras" path="/compras" value={filters} />
       <DataTable
         data={filas}
         columns={columnas}
@@ -135,8 +171,16 @@ export default async function ComprasPage() {
         empty={
           <EmptyState
             icon={FileText}
-            titulo="Aún no hay compras"
-            descripcion="Registra tu primera compra para alimentar inventario y CxP."
+            titulo={
+              hasListFilters(filters)
+                ? "No hay compras con estos filtros"
+                : "Aún no hay compras"
+            }
+            descripcion={
+              hasListFilters(filters)
+                ? "Prueba otra búsqueda o limpia los filtros."
+                : "Registra tu primera compra para alimentar inventario y CxP."
+            }
             accion={
               <Link href="/compras/nueva">
                 <Button size="sm">
@@ -147,6 +191,7 @@ export default async function ComprasPage() {
           />
         }
       />
+      <PaginacionListado path="/compras" value={filters} total={total} />
     </div>
   );
 }

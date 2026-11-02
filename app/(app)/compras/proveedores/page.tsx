@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { Truck, Plus } from "lucide-react";
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { asc, count } from "drizzle-orm";
+import { dbConEmpresa } from "@/lib/db";
+import {
+  FiltrosListado,
+  PaginacionListado,
+} from "@/components/ui/FiltrosListado";
+import { supplierListWhere } from "@/lib/list-query";
+import {
+  hasListFilters,
+  LIST_PAGE_SIZE,
+  parseListFilters,
+  type ListSearchParams,
+} from "@/lib/list-filters";
 import { proveedores } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -18,21 +29,43 @@ type Fila = {
   diasCredito: number;
 };
 
-export default async function ProveedoresPage() {
-  const user = await requireSession();
+export default async function ProveedoresPage({
+  searchParams,
+}: {
+  searchParams: Promise<ListSearchParams>;
+}) {
+  const [user, sp] = await Promise.all([requireSession(), searchParams]);
+  const filters = parseListFilters(sp, "proveedores"),
+    where = supplierListWhere(user.empresaId, filters);
 
-  const filas: Fila[] = await db
-    .select({
-      id: proveedores.id,
-      razonSocial: proveedores.razonSocial,
-      identificacionFiscal: proveedores.identificacionFiscal,
-      telefono: proveedores.telefono,
-      diasCredito: proveedores.diasCredito,
-    })
-    .from(proveedores)
-    .where(and(eq(proveedores.empresaId, user.empresaId), isNull(proveedores.eliminadoEn)))
-    .orderBy(desc(proveedores.creadoEn))
-    .limit(200);
+  const { filas, total, pagina } = await dbConEmpresa(
+    user.empresaId,
+    async (tx) => {
+      const [{ total }] = await tx
+        .select({ total: count() })
+        .from(proveedores)
+        .where(where);
+      const pagina = Math.min(
+        filters.pagina,
+        Math.max(1, Math.ceil(total / LIST_PAGE_SIZE)),
+      );
+      const filas: Fila[] = await tx
+        .select({
+          id: proveedores.id,
+          razonSocial: proveedores.razonSocial,
+          identificacionFiscal: proveedores.identificacionFiscal,
+          telefono: proveedores.telefono,
+          diasCredito: proveedores.diasCredito,
+        })
+        .from(proveedores)
+        .where(where)
+        .orderBy(asc(proveedores.razonSocial), asc(proveedores.id))
+        .limit(LIST_PAGE_SIZE)
+        .offset((pagina - 1) * LIST_PAGE_SIZE);
+      return { filas, total, pagina };
+    },
+  );
+  filters.pagina = pagina;
 
   const columnas: Columna<Fila>[] = [
     {
@@ -83,7 +116,7 @@ export default async function ProveedoresPage() {
     <div>
       <PageHeader
         title="Proveedores"
-        subtitle={`${filas.length} proveedores activos`}
+        subtitle={`${total} proveedores${hasListFilters(filters) ? " encontrados" : " registrados"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BotonExportarExcel recurso="proveedores" />
@@ -96,6 +129,11 @@ export default async function ProveedoresPage() {
           </div>
         }
       />
+      <FiltrosListado
+        kind="proveedores"
+        path="/compras/proveedores"
+        value={filters}
+      />
       <DataTable
         data={filas}
         columns={columnas}
@@ -103,8 +141,16 @@ export default async function ProveedoresPage() {
         empty={
           <EmptyState
             icon={Truck}
-            titulo="Aún no hay proveedores"
-            descripcion="Registra a tus proveedores para crear órdenes de compra."
+            titulo={
+              hasListFilters(filters)
+                ? "No hay proveedores con estos filtros"
+                : "Aún no hay proveedores"
+            }
+            descripcion={
+              hasListFilters(filters)
+                ? "Prueba otra búsqueda o limpia los filtros."
+                : "Registra a tus proveedores para crear órdenes de compra."
+            }
             accion={
               <Link href="/compras/proveedores/nuevo">
                 <Button size="sm">
@@ -114,6 +160,11 @@ export default async function ProveedoresPage() {
             }
           />
         }
+      />
+      <PaginacionListado
+        path="/compras/proveedores"
+        value={filters}
+        total={total}
       />
     </div>
   );
