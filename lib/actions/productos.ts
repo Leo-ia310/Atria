@@ -36,26 +36,7 @@ import { formatearSku, normalizarSku, prefijoSkuCategoria } from "@/lib/sku";
 import { fechaISOEnZona } from "@/lib/dates";
 import type { TX } from "@/lib/contabilidad/helpers";
 
-type Resultado =
-  | { ok: true; id: string }
-  | { ok: false; error: string };
-type ResultadoSimple = { ok: true } | { ok: false; error: string };
-type ResultadoImportacion =
-  | {
-      ok: true;
-      creados: number;
-      actualizados: number;
-      advertencias: number;
-      stockAjustado: number;
-      mensajes: string[];
-    }
-  | { ok: false; error: string };
-type ResultadoEntradaLector =
-  | { ok: true; productoId: string; existencia: number }
-  | { ok: false; error: string };
-type ResultadoCompraRapidaLector =
-  | { ok: true; productoId: string; compraId: string; existencia: number }
-  | { ok: false; error: string };
+import type {Resultado,ResultadoSimple,ResultadoImportacion,ResultadoEntradaLector,ResultadoCompraRapidaLector} from "../inventory-results";
 
 function dec(n: number): string {
   return (Math.round(n * 10000) / 10000).toFixed(4);

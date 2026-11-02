@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateBusinessPath as revalidatePath } from "../business-action";
 import { and, desc, eq, isNull, like } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
@@ -30,58 +30,7 @@ import { ejecutarIA, extraerJSON, iaConfigurada, type MensajeIA } from "@/lib/ai
 import { contarPalabras, reservarUsoIA, liberarUsoIA } from "@/lib/ai/uso";
 import type { TX } from "@/lib/contabilidad/helpers";
 
-type ResultadoPropuesta =
-  | {
-      ok: true;
-      productos: PropuestaProducto[];
-      preguntas: string[];
-      nota: string;
-      restantesDia: number | null;
-    }
-  | { ok: false; error: string; tipo?: "error" | "warning" };
-
-type FilaSupervisada = {
-  fila: number;
-  descartar: boolean;
-  sku: string;
-  codigoBarras: string;
-  nombre: string;
-  descripcion: string;
-  precioBase: number;
-  costoPromedio: number;
-  stockMinimo: number;
-  stockMaximo?: number;
-  existenciaInicial: number;
-  nota: string;
-};
-
-type ResultadoSupervision =
-  | { ok: true; filas: FilaSupervisada[]; restantesDia: number | null }
-  | { ok: false; error: string; tipo?: "error" | "warning" };
-
-type ResultadoCrear =
-  | { ok: true; id: string; nombre: string; sku: string; existencia: number }
-  | { ok: false; error: string };
-
-type ProductoCreado = {
-  id: string;
-  nombre: string;
-  sku: string;
-  existencia: number;
-};
-
-type ResultadoCrearMultiple =
-  | {
-      ok: true;
-      productos: ProductoCreado[];
-      creados: number;
-      existenciaTotal: number;
-    }
-  | { ok: false; error: string };
-
-type ResultadoTransaccionCrear =
-  | { productos: ProductoCreado[] }
-  | { error: string };
+import type {ResultadoPropuesta,ResultadoSupervision,ResultadoCrear,ProductoCreado,ResultadoCrearMultiple,ResultadoTransaccionCrear,FilaSupervisada} from "../inventory-results";
 
 function dec(n: number): string {
   return (Math.round(n * 10000) / 10000).toFixed(4);

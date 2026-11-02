@@ -324,6 +324,8 @@ try {
   // A failure after the sale INSERT must revert its payment and stock as well.
   const {checkPosRounding}=await import("./check-pos-rounding.mjs");
   await checkPosRounding({db,s,sql,user,branch,warehouse,method,cardMethod});
+  const {checkDesktopInventory}=await import("./check-desktop-inventory.mjs");
+  await checkDesktopInventory({db,s,sql,user,branch,branch2,warehouse,product,supplierId:supplier.entityId,customerId:customer.entityId,config,applyDesktopOperation,desktopBootstrap,device1});
   const beforeFailure=await db.execute(sql`select (select count(*)::int from ventas where empresa_id=${empresaId}::uuid) as sales,(select count(*)::int from pagos_venta p join ventas v on v.id=p.venta_id where v.empresa_id=${empresaId}::uuid) as payments,(select sum(cantidad)::text from existencias where empresa_id=${empresaId}::uuid) as stock`);
   await db.execute(sql`update periodos_contables set estado='cerrado' where empresa_id=${empresaId}::uuid`);
   await assert.rejects(applyDesktopOperation(user,device1,[branch],sale(1)),/venta|período|periodo/i);

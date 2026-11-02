@@ -14,7 +14,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
   const access = await getAccessContext(user);
   if (access.suscripcionBloqueada) throw new Error("La suscripcion no permite descargar datos.");
   const branches = sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(sucursalIds)}::jsonb)::uuid)`;
-  const scopeHash = desktopScopeHash([13,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
+  const scopeHash = desktopScopeHash([14,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
   const cursorScope = { empresaId: user.empresaId, userId: user.id, deviceId: options?.deviceId ?? "", scopeHash };
   const previous = options?.cursor ? readDesktopCursor(options.cursor, cursorScope) : null;
   return dbSuperAdmin(async (tx) => {
@@ -57,8 +57,13 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
     const productos = puedeAccederModulo(access, "inventario") || puedeAccederModulo(access, "pos")
       ? await query("productos", sql`select p.id, p.empresa_id, p.sku, p.codigo_barras, p.nombre,
         p.precio_base, p.costo_promedio, p.stock_minimo, coalesce(i.tasa,0) as impuesto_tasa,
-        p.activo, p.actualizado_en, p.eliminado_en
+        p.activo, p.actualizado_en, p.eliminado_en,
+        not exists(select 1 from restaurante_productos rp where rp.empresa_id=p.empresa_id and rp.producto_id=p.id and rp.tipo='insumo') as inventario_visible,
+        (to_jsonb(p)||jsonb_build_object('categoria_nombre',c.nombre,'marca_nombre',m.nombre,'unidad_nombre',u.nombre,'impuesto_nombre',i.nombre))::text as detalle_json
         from productos p left join impuestos i on i.id = p.impuesto_id
+        left join categorias c on c.id=p.categoria_id and c.empresa_id=p.empresa_id
+        left join marcas m on m.id=p.marca_id and m.empresa_id=p.empresa_id
+        left join unidades_medida u on u.id=p.unidad_base_id and u.empresa_id=p.empresa_id
         where p.empresa_id = ${user.empresaId}::uuid`) : [];
     const clientes = puedeAccederModulo(access, "clientes")
       ? await query("clientes", sql`select id, empresa_id, nombre, identificacion_fiscal, telefono,
@@ -176,6 +181,12 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       settings.gastos_recurrentes=await query("settings.gastos_recurrentes",sql`select r.*,c.nombre as categoria,f.nombre as cuenta from gastos_recurrentes r join categorias_gasto c on c.id=r.categoria_id and c.empresa_id=r.empresa_id join cuentas_financieras f on f.id=r.cuenta_financiera_id and f.empresa_id=r.empresa_id where r.empresa_id=${user.empresaId}::uuid and (r.sucursal_id is null or r.sucursal_id=any(${branches}))`);
       settings.gastos_detalles=await query("settings.gastos_detalles",sql`select g.id,g.empresa_id,g.sucursal_id,g.categoria_id,c.nombre as categoria,g.cuenta_financiera_id,f.nombre as cuenta,g.fecha,g.descripcion,g.referencia,g.subtotal,g.impuesto,g.total,g.asiento_id,g.recurrente_id from gastos g join categorias_gasto c on c.id=g.categoria_id and c.empresa_id=g.empresa_id join cuentas_financieras f on f.id=g.cuenta_financiera_id and f.empresa_id=g.empresa_id where g.empresa_id=${user.empresaId}::uuid and (g.sucursal_id is null or g.sucursal_id=any(${branches}))`);
     }
+    if(puedeAccederModulo(access,"inventario"))settings.inventario_catalogos=[{id:user.empresaId,
+      categorias:[...await tx.execute(sql`select id,nombre from categorias where empresa_id=${user.empresaId}::uuid`)],
+      marcas:[...await tx.execute(sql`select id,nombre from marcas where empresa_id=${user.empresaId}::uuid`)],
+      unidades:[...await tx.execute(sql`select id,nombre from unidades_medida where empresa_id=${user.empresaId}::uuid`)],
+      impuestos:[...await tx.execute(sql`select id,nombre from impuestos where empresa_id=${user.empresaId}::uuid and activo=true`)],
+      fiscales:[...await tx.execute(sql`select codigo as id,nombre from codigos_producto_fiscal where empresa_id=${user.empresaId}::uuid`)]}];
     settings.access=previous?[]:[{id:user.id,can_manage:puedeAccederModulo(access,"configuracion")&&access.esAdminEmpresa}];
     if (puedeAccederModulo(access,"configuracion") && access.esAdminEmpresa) {
       settings.empresa = await query("settings.empresa",sql`select id,razon_social,nombre_comercial,identificacion_fiscal,pais,moneda,direccion,telefono,tipo_empresa,vertical_empresa from empresas where id=${user.empresaId}::uuid`);

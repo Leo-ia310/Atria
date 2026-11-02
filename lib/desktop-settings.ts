@@ -1,4 +1,5 @@
-import { sql } from "drizzle-orm";
+import { and,eq,sql } from "drizzle-orm";
+import {clientes} from "./db/schema";
 import { z } from "zod";
 import type { Tx } from "./db";
 import type { SessionUser } from "./actions/session-helpers";
@@ -6,6 +7,9 @@ import * as actions from "./actions/configuracion";
 import { crearCaja } from "./actions/caja";
 import { crearPeriodo, cerrarPeriodo, reabrirPeriodo } from "./actions/periodos";
 import { resolverTransferencia } from "./actions/transferencias";
+import * as productActions from "./actions/productos";
+import * as inventoryAi from "./actions/inventario-ia";
+import { actualizarCliente } from "./actions/clientes";
 import { currentBusinessContext } from "./business-context";
 import { crearCuentaFinanciera as crearCuentaTesoreria, crearGasto, actualizarGastoRecurrente } from "./actions/tesoreria";
 export class DesktopSettingsRejected extends Error {}
@@ -16,7 +20,7 @@ export async function executeDesktopSettings(tx:Tx,user:SessionUser,branches:str
   const args=z.array(z.unknown()).max(3).parse(payload.args);
   const id=()=>z.string().uuid().parse(args[0]);
   const input=()=>z.record(z.unknown()).parse(args[0]);
-  async function owned(table:"usuarios"|"roles"|"formas_pago",recordId:string) {
+  async function owned(table:"usuarios"|"roles"|"formas_pago"|"productos"|"clientes",recordId:string) {
     const rows=await tx.execute(sql`select id from ${sql.identifier(table)} where id=${recordId}::uuid and empresa_id=${user.empresaId}::uuid`);
     if(!rows.length)throw new DesktopSettingsRejected("El registro no pertenece a esta empresa.");
   }
@@ -27,6 +31,25 @@ export async function executeDesktopSettings(tx:Tx,user:SessionUser,branches:str
     if(!rows.length)throw new DesktopSettingsRejected("Cuenta financiera no autorizada para este dispositivo.");
   }
   switch(action) {
+    case "crearProducto":return productActions.crearProducto(input());
+    case "actualizarProducto":await owned("productos",id());return productActions.actualizarProducto(id(),args[1]);
+    case "actualizarCliente":{
+      await owned("clientes",id());const [current]=await tx.select().from(clientes).where(and(eq(clientes.id,id()),eq(clientes.empresaId,user.empresaId)));
+      return actualizarCliente(id(),{...current,identificacionFiscal:current.identificacionFiscal??"",email:current.email??"",telefono:current.telefono??"",direccion:current.direccion??"",notas:current.notas??"",...z.record(z.unknown()).parse(args[1])});
+    }
+    case "crearMarca":return productActions.crearMarca(input());
+    case "crearCategoria":return productActions.crearCategoria(input());
+    case "interpretarProductoTexto":return inventoryAi.interpretarProductoTexto(input());
+    case "supervisarImportacionIA":return inventoryAi.supervisarImportacionIA(input());
+    case "importarProductosInventario":
+    case "registrarCompraRapidaInventarioPorLector":
+    case "crearProductosDesdeAsistente": {
+      const value=input();const scope=currentBusinessContext()?.sucursalIds??branches;
+      if(value.almacenId){const warehouses=await tx.execute(sql`select id from almacenes where id=${z.string().uuid().parse(value.almacenId)}::uuid and empresa_id=${user.empresaId}::uuid and activo=true and sucursal_id=any(ARRAY(select jsonb_array_elements_text(${JSON.stringify(scope)}::jsonb)::uuid))`);if(!warehouses.length)throw new DesktopSettingsRejected("Almacén no autorizado para esta operación.");}
+      if(action==="importarProductosInventario")return productActions.importarProductosInventario(value);
+      if(action==="crearProductosDesdeAsistente")return inventoryAi.crearProductosDesdeAsistente(value);
+      return productActions.registrarCompraRapidaInventarioPorLector(value);
+    }
     case "resolverTransferencia":return resolverTransferencia(input());
     case "crearPeriodo":return crearPeriodo(input());
     case "cerrarPeriodo":return cerrarPeriodo(input());
