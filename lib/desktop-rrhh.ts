@@ -32,6 +32,13 @@ export async function executeDesktopRrhh(tx: Tx, user: SessionUser, branches: st
     await detail(rows[0].nomina_detalle_id);
   }
   switch(action) {
+    case "crearFeriado": return actions.crearFeriado(input());
+    case "sembrarFeriados": return actions.sembrarFeriados(z.number().int().min(1900).max(2200).parse(args[0]));
+    case "actualizarFeriado": case "eliminarFeriado": {
+      const rows=await tx.execute(sql`select id from feriados where id=${id()}::uuid and empresa_id=${user.empresaId}::uuid`);
+      if(!rows.length)throw new DesktopRrhhRejected("Feriado no disponible para esta empresa.");
+      return action==="actualizarFeriado"?actions.actualizarFeriado(id(),z.record(z.unknown()).parse(args[1])):actions.eliminarFeriado(id());
+    }
     case "crearEmpleado": case "actualizarEmpleado": {
       const values = z.record(z.unknown()).parse(action==="crearEmpleado" ? args[0] : args[1]);
       if (values.sucursalId && !branches.includes(String(values.sucursalId))) throw new DesktopRrhhRejected("Sucursal no autorizada.");

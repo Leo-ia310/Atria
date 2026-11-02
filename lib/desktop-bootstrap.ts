@@ -14,7 +14,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
   const access = await getAccessContext(user);
   if (access.suscripcionBloqueada) throw new Error("La suscripcion no permite descargar datos.");
   const branches = sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(sucursalIds)}::jsonb)::uuid)`;
-  const scopeHash = desktopScopeHash([15,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
+  const scopeHash = desktopScopeHash([16,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
   const cursorScope = { empresaId: user.empresaId, userId: user.id, deviceId: options?.deviceId ?? "", scopeHash };
   const previous = options?.cursor ? readDesktopCursor(options.cursor, cursorScope) : null;
   return dbSuperAdmin(async (tx) => {
@@ -163,7 +163,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
     const rrhh: Record<string, unknown[]> = {};
     if (puedeAccederModulo(access, "rrhh") && access.esAdminEmpresa) {
       rrhh.empleados = [...await query("rrhh.empleados", sql`select * from empleados where empresa_id = ${user.empresaId}::uuid and eliminado_en is null and (sucursal_id is null or sucursal_id = any(${branches}))`)];
-      rrhh.asistencia = [...await query("rrhh.asistencia", sql`select a.*, e.nombres || ' ' || e.apellidos as empleado from asistencias a join empleados e on e.id = a.empleado_id where a.empresa_id = ${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id = any(${branches}))`)];
+      rrhh.asistencia = [...await query("rrhh.asistencia", sql`select a.*, e.nombres || ' ' || e.apellidos as empleado from asistencias a join empleados e on e.id = a.empleado_id where a.empresa_id = ${user.empresaId}::uuid and e.empresa_id=${user.empresaId}::uuid and e.eliminado_en is null and (e.sucursal_id is null or e.sucursal_id = any(${branches}))`)];
       rrhh.nomina = [...await query("rrhh.nomina", sql`select * from nominas where empresa_id = ${user.empresaId}::uuid`)];
       rrhh.ingresos = [...await query("rrhh.ingresos", sql`select i.*, e.nombres || ' ' || e.apellidos as empleado, t.nombre as concepto from nomina_ingresos i join nomina_detalles d on d.id = i.nomina_detalle_id join empleados e on e.id = d.empleado_id join tipos_ingreso t on t.id = i.tipo_ingreso_id where i.empresa_id = ${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id = any(${branches}))`)];
       rrhh.deducciones = [...await query("rrhh.deducciones", sql`select i.*, e.nombres || ' ' || e.apellidos as empleado, t.nombre as concepto from nomina_deducciones i join nomina_detalles d on d.id = i.nomina_detalle_id join empleados e on e.id = d.empleado_id join tipos_deduccion t on t.id = i.tipo_deduccion_id where i.empresa_id = ${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id = any(${branches}))`)];
@@ -171,7 +171,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       rrhh.detalles = await query("rrhh.detalles", sql`select d.*, e.nombres || ' ' || e.apellidos as empleado, e.puesto, e.codigo from nomina_detalles d join empleados e on e.id=d.empleado_id where d.empresa_id=${user.empresaId}::uuid and e.empresa_id=${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id=any(${branches}))`);
       rrhh.tipos_ingreso = await query("rrhh.tipos_ingreso", sql`select id,nombre,activo from tipos_ingreso where empresa_id=${user.empresaId}::uuid`);
       rrhh.tipos_deduccion = await query("rrhh.tipos_deduccion", sql`select id,nombre,activo from tipos_deduccion where empresa_id=${user.empresaId}::uuid`);
-      rrhh.feriados = await query("rrhh.feriados", sql`select id,nombre,fecha,es_recurrente from feriados where empresa_id=${user.empresaId}::uuid`);
+      rrhh.feriados = await query("rrhh.feriados", sql`select id,nombre,fecha,es_nacional,es_recurrente from feriados where empresa_id=${user.empresaId}::uuid`);
       rrhh.colillas = await query("rrhh.colillas", sql`select c.id,c.nomina_id,c.nomina_detalle_id,c.snapshot from nomina_colillas c join empleados e on e.id=c.empleado_id where c.empresa_id=${user.empresaId}::uuid and e.empresa_id=${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id=any(${branches}))`);
     }
     const settings: Record<string,unknown[]> = {};

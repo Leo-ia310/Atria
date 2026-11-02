@@ -150,6 +150,17 @@ try {
   const [paymentResult]=await db.execute(sql`select saldo,(select count(*)::int from pagos_proveedor where cxp_id=${payable.id}::uuid) as n from cuentas_por_pagar where id=${payable.id}::uuid`);
   assert.equal(Number(paymentResult.saldo),2);assert.equal(paymentResult.n,1);
   const hr=(action,args)=>op("rrhh_command",{action,args},"command");
+  const holidayCommand=hr("crearFeriado",[{nombre:"Feriado Desktop QA",fecha:"2031-03-15",esNacional:true,esRecurrente:false}]);
+  await applyDesktopOperation(user,device1,[branch],holidayCommand);await applyDesktopOperation(user,device1,[branch],holidayCommand);
+  const holidays=await db.execute(sql`select id,nombre from feriados where empresa_id=${empresaId}::uuid and fecha='2031-03-15'`);assert.equal(holidays.length,1);
+  await applyDesktopOperation(user,device1,[branch],hr("actualizarFeriado",[holidays[0].id,{nombre:"Feriado editado QA",fecha:"2031-03-16"}]));
+  await assert.rejects(applyDesktopOperation(user,device1,[branch],hr("actualizarFeriado",[randomUUID(),{nombre:"Ajeno",fecha:"2031-03-16"}])),/no disponible/);
+  const holidayBootstrap=await desktopBootstrap(user,[branch],{deviceId:device1});assert.equal(holidayBootstrap.rrhh.feriados.find(row=>row.id===holidays[0].id).es_nacional,true);
+  const removeHoliday=hr("eliminarFeriado",[holidays[0].id]);await applyDesktopOperation(user,device1,[branch],removeHoliday);await applyDesktopOperation(user,device1,[branch],removeHoliday);
+  assert.equal((await db.execute(sql`select id from feriados where id=${holidays[0].id}::uuid`)).length,0);
+  await applyDesktopOperation(user,device1,[branch],hr("sembrarFeriados",[2031]));const [seededHolidays]=await db.execute(sql`select count(*)::int as n from feriados where empresa_id=${empresaId}::uuid and fecha between '2031-01-01' and '2031-12-31'`);
+  await applyDesktopOperation(user,device1,[branch],hr("sembrarFeriados",[2031]));assert.equal((await db.execute(sql`select count(*)::int as n from feriados where empresa_id=${empresaId}::uuid and fecha between '2031-01-01' and '2031-12-31'`))[0].n,seededHolidays.n);assert.ok(seededHolidays.n>0);
+  console.log(JSON.stringify({holidayCreateRetry:'passed',holidayEditTenantScope:'passed',holidayDeleteRetry:'passed',holidayNationalCalendar:'passed',holidayMetadata:'passed'}));
   const employeeCommand=hr("crearEmpleado",[{nombres:"Ana",apellidos:"Prueba",puesto:"Cajera",tipoContrato:"indefinido",fechaIngreso:day,salarioBase:1000,frecuenciaPago:"mensual",sucursalId:branch}]);
   const employeeResult=await applyDesktopOperation(user,device1,[branch],employeeCommand);
   const repeatedEmployee=await applyDesktopOperation(user,device1,[branch],employeeCommand);
