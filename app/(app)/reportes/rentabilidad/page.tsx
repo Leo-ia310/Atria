@@ -1,4 +1,5 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { inicioDoceMeses, rangoReporte, procesarRentabilidadReporte, margenReporte } from "@/lib/reportes/core";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ventas } from "@/lib/db/schema";
@@ -17,11 +18,6 @@ import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
 import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
-const MESES_ES = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
-];
-
 export default async function ReporteRentabilidadPage() {
   const user = await requireSession();
 
@@ -32,13 +28,11 @@ export default async function ReporteRentabilidadPage() {
   const pais = (empresa?.pais ?? "NI") as PaisCodigo;
   const sucursalIds = selectedSucursalIds(scope);
 
-  const hace12 = new Date();
-  hace12.setFullYear(hace12.getFullYear() - 1);
-  hace12.setDate(1);
-
-  // Group sales by YYYY-MM period
-  const periodoExpr = sql<string>`TO_CHAR(${ventas.fecha}, 'YYYY-MM')`;
-
+  const zona=empresa?.zonaHoraria??"America/Managua";
+  const range=rangoReporte(30,zona);
+  const desde=inicioDoceMeses(range.hasta);
+  const fechaLocal=sql`(${ventas.fecha} AT TIME ZONE ${zona})::date`;
+  const periodoExpr=sql<string>`TO_CHAR(${ventas.fecha} AT TIME ZONE ${zona}, 'YYYY-MM')`;
   const scopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
   const datos = await cacheModulo(
     user.empresaId,
@@ -58,7 +52,7 @@ export default async function ReporteRentabilidadPage() {
           and(
             eq(ventas.empresaId, user.empresaId),
             eq(ventas.estado, "completada"),
-            gte(ventas.fecha, hace12),
+            sql`${fechaLocal} >= ${desde}`, sql`${fechaLocal} <= ${range.hasta}`,
             sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
           ),
         )
@@ -66,21 +60,12 @@ export default async function ReporteRentabilidadPage() {
         .orderBy(periodoExpr),
   );
 
-  const chartData = datos.map((d) => {
-    const [anioStr, mesStr] = d.periodo.split("-");
-    const mes = parseInt(mesStr, 10);
-    return {
-      mes: `${MESES_ES[mes - 1]} ${anioStr}`,
-      ingresos: parseFloat(d.ingresos),
-      costos: parseFloat(d.costos),
-      margen: parseFloat(d.ingresos) - parseFloat(d.costos),
-    };
-  });
+  const chartData = procesarRentabilidadReporte(datos);
 
   const totalIngresos = chartData.reduce((a, d) => a + d.ingresos, 0);
   const totalCostos = chartData.reduce((a, d) => a + d.costos, 0);
-  const totalMargen = totalIngresos - totalCostos;
-  const pctMargen = totalIngresos > 0 ? (totalMargen / totalIngresos) * 100 : 0;
+  const {margen:totalMargen,porcentaje:pctMargen}=margenReporte(totalIngresos,totalCostos);
+
 
   return (
     <div>

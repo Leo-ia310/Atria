@@ -5,9 +5,11 @@ import postgres from "postgres";
 // Validate every raw bootstrap query against the configured schema. EXPLAIN
 // without ANALYZE in a READ ONLY transaction does not fetch business rows.
 const source = fs.readFileSync(new URL("../lib/desktop-bootstrap.ts", import.meta.url), "utf8");
-const queries = [...source.matchAll(/tx\.execute\(sql`([\s\S]*?)`\)/g)].map((match) => match[1]
+const queries = [...source.matchAll(/query\("[^"]+",\s*sql`([\s\S]*?)`\)/g)].map((match) => match[1]
   .replaceAll("${user.empresaId}", "'00000000-0000-0000-0000-000000000000'")
-  .replaceAll("${branches}", "ARRAY[]::uuid[]"));
+  .replaceAll("${branches}", "ARRAY[]::uuid[]")
+  .replaceAll("${!previous}", "true")
+  .replaceAll("${JSON.stringify(changes.inventario_base ?? [])}", "'[]'"));
 assert.ok(queries.length >= 10);
 assert.ok(queries.every((query) => !query.includes("${")));
 const connection = process.env.DATABASE_POOL_URL || process.env.DATABASE_URL;

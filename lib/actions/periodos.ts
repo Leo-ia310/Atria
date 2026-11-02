@@ -1,5 +1,6 @@
 "use server";
 
+import { executeBusinessAction } from "@/lib/business-action";
 import { and, eq } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { periodosContables } from "@/lib/db/schema";
@@ -18,6 +19,9 @@ function fechasPeriodo(anio: number, mes: number): { fechaInicio: string; fechaF
 }
 
 export async function crearPeriodo(data: unknown) {
+  return executeBusinessAction(await requireSession(),()=>crearPeriodoBusiness(data));
+}
+async function crearPeriodoBusiness(data: unknown) {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "contabilidad",
@@ -65,6 +69,9 @@ export async function crearPeriodo(data: unknown) {
 }
 
 export async function cerrarPeriodo(data: unknown) {
+  return executeBusinessAction(await requireSession(),()=>cerrarPeriodoBusiness(data));
+}
+async function cerrarPeriodoBusiness(data: unknown) {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "contabilidad",
@@ -103,6 +110,9 @@ export async function cerrarPeriodo(data: unknown) {
 }
 
 export async function reabrirPeriodo(data: unknown) {
+  return executeBusinessAction(await requireSession(),()=>reabrirPeriodoBusiness(data));
+}
+async function reabrirPeriodoBusiness(data: unknown) {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "contabilidad",

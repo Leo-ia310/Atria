@@ -1,4 +1,5 @@
 export type ResultadoTarjeta = {
+  terminalIndependent?: boolean;
   autorizacion?: string;
   ultimos4?: string;
   marca?: string;

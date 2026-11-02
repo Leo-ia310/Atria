@@ -1,3 +1,4 @@
+import { saldoCorrido as calcularSaldoCorrido } from "@/lib/contabilidad/report-core";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
@@ -70,17 +71,11 @@ export default async function LibroMayorPage({
             }),
           ),
         )
-        .orderBy(asc(asientosContables.fecha), asc(asientosContables.numero))
+        .orderBy(asc(asientosContables.fecha), asc(asientosContables.numero), asc(asientoPartidas.orden), asc(asientoPartidas.id))
     : [];
 
-  let saldoCorrido = 0;
-  const filas = movimientos.map((m) => {
-    const debe = parseFloat(m.debe);
-    const haber = parseFloat(m.haber);
-    saldoCorrido +=
-      cuentaSeleccionada?.naturaleza === "deudora" ? debe - haber : haber - debe;
-    return { ...m, debe, haber, saldo: saldoCorrido };
-  });
+  const filas=calcularSaldoCorrido(movimientos,cuentaSeleccionada?.naturaleza??"deudora");
+  const saldoCorrido=filas.at(-1)?.saldo??0;
 
   const totalDebe = filas.reduce((a, f) => a + f.debe, 0);
   const totalHaber = filas.reduce((a, f) => a + f.haber, 0);

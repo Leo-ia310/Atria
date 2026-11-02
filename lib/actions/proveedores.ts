@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { businessEntityId } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, eq } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { proveedores } from "@/lib/db/schema";
@@ -11,6 +13,10 @@ import { validarAccion } from "@/lib/server-access";
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
 export async function crearProveedor(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearProveedorBusiness(input));
+}
+
+async function crearProveedorBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
   if (!acceso.ok) return acceso;
@@ -22,6 +28,7 @@ export async function crearProveedor(input: unknown): Promise<Resultado> {
       tx
         .insert(proveedores)
         .values({
+          id: businessEntityId("proveedor"),
           empresaId: user.empresaId,
           razonSocial: d.razonSocial,
           nombreComercial: d.nombreComercial || null,
@@ -45,6 +52,10 @@ export async function crearProveedor(input: unknown): Promise<Resultado> {
 }
 
 export async function actualizarProveedor(id: string, input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarProveedorBusiness(id, input));
+}
+
+async function actualizarProveedorBusiness(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
   if (!acceso.ok) return acceso;

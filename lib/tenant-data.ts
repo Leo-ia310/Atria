@@ -1,11 +1,11 @@
+import { currentBusinessContext } from "./business-context";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { empresas, sucursales } from "@/lib/db/schema";
 
-const cargarEmpresa = unstable_cache(
-  async (empresaId: string) => {
+async function leerEmpresa(empresaId:string) {
     const [empresa] = await dbConEmpresa(empresaId, (tx) =>
       tx
         .select({
@@ -32,13 +32,14 @@ const cargarEmpresa = unstable_cache(
       verticalEmpresa:
         empresa.tipoEmpresa === "restaurante" ? "restaurante" : empresa.verticalEmpresa,
     };
-  },
+}
+const cargarEmpresa = unstable_cache(
+  leerEmpresa,
   ["empresa-metadata-v1"],
   { revalidate: 300, tags: ["empresa-metadata"] },
 );
 
-const cargarSucursalesActivas = unstable_cache(
-  async (empresaId: string) =>
+const leerSucursalesActivas = async (empresaId: string) =>
     dbConEmpresa(empresaId, (tx) =>
       tx
         .select({
@@ -55,15 +56,18 @@ const cargarSucursalesActivas = unstable_cache(
           ),
         )
         .orderBy(sucursales.nombre),
-    ),
+    );
+const cargarSucursalesActivas = unstable_cache(
+  leerSucursalesActivas,
   ["sucursales-activas-v1"],
   { revalidate: 60 },
 );
 
-export const getEmpresaMetadata = cache((empresaId: string) =>
-  cargarEmpresa(empresaId),
-);
-
-export const getSucursalesActivas = cache((empresaId: string) =>
-  cargarSucursalesActivas(empresaId),
-);
+const empresaPorRequest=cache(cargarEmpresa);
+const sucursalesPorRequest=cache(cargarSucursalesActivas);
+export function getEmpresaMetadata(empresaId:string) {
+  return currentBusinessContext() ? leerEmpresa(empresaId) : empresaPorRequest(empresaId);
+}
+export function getSucursalesActivas(empresaId:string) {
+  return currentBusinessContext() ? leerSucursalesActivas(empresaId) : sucursalesPorRequest(empresaId);
+}

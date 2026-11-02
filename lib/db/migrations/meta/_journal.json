@@ -169,6 +169,27 @@
       "when": 1788555600000,
       "tag": "0023_producto_fiscal_codigo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793556000000,
+      "tag": "0024_manual_payment_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793556060000,
+      "tag": "0025_pending_transfers",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793556120000,
+      "tag": "0026_internal_fiscal_status",
+      "breakpoints": true
     }
   ]
 }

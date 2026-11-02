@@ -1,3 +1,4 @@
+import { businessEntityId } from "../business-context";
 import { and, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { gastos, gastosRecurrentes } from "@/lib/db/schema";
@@ -33,6 +34,7 @@ export async function registrarGastoEnTransaccion(tx: TX, data: DatosGasto): Pro
   const [gasto] = await tx
     .insert(gastos)
     .values({
+      id: businessEntityId("gasto"),
       empresaId: data.empresaId,
       sucursalId: data.sucursalId ?? null,
       categoriaId: data.categoriaId,

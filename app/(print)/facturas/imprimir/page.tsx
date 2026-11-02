@@ -9,6 +9,7 @@ import { getPaisConfig, type PaisCodigo } from "@/lib/paises";
 import { reciboDesdeSnapshot } from "@/lib/facturas";
 import { Recibo } from "@/components/pos/Recibo";
 import { AutoPrintFacturas } from "@/components/facturas/AutoPrintFacturas";
+import {facturaTieneSaldo} from "@/lib/factura-settlement";
 
 type FiltrosFactura = {
   numero?: string;
@@ -64,6 +65,7 @@ export default async function ImprimirFacturasPage({
       .limit(300);
   } else {
     const condicionesFactura = [eq(facturas.empresaId, user.empresaId)];
+    if(sp.tipo==="contado")condicionesFactura.push(sql`not (${facturaTieneSaldo()})`);
     if (sp.numero) condicionesFactura.push(ilike(facturas.numero, `%${sp.numero}%`));
     if (sp.desde && /^\d{4}-\d{2}-\d{2}$/.test(sp.desde)) {
       condicionesFactura.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${sp.desde}`);

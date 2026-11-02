@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath, revalidateBusinessTag as revalidateTag } from "@/lib/business-action";
 import { and, count, eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -77,6 +77,10 @@ type Resultado = { ok: true; id?: string } | { ok: false; error: string };
 /* ------------------------------ Sucursales ------------------------------ */
 
 export async function crearSucursal(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearSucursalBusiness(input));
+}
+
+async function crearSucursalBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -152,6 +156,10 @@ export async function crearSucursal(input: unknown): Promise<Resultado> {
 /* ------------------------------- Usuarios ------------------------------- */
 
 export async function crearUsuario(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearUsuarioBusiness(input));
+}
+
+async function crearUsuarioBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -241,6 +249,13 @@ async function cambiarEstadoUsuario(
 }
 
 export async function actualizarUsuario(
+  id: string,
+  input: unknown,
+): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarUsuarioBusiness(id,input));
+}
+
+async function actualizarUsuarioBusiness(
   id: string,
   input: unknown,
 ): Promise<Resultado> {
@@ -447,6 +462,12 @@ export async function actualizarTipoEmpresa(input: unknown): Promise<Resultado> 
 export async function actualizarPoliticasNegocio(
   input: unknown,
 ): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarPoliticasNegocioBusiness(input));
+}
+
+async function actualizarPoliticasNegocioBusiness(
+  input: unknown,
+): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -491,6 +512,12 @@ export async function actualizarPoliticasNegocio(
 }
 
 export async function actualizarConfiguracionNegocio(
+  input: unknown,
+): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarConfiguracionNegocioBusiness(input));
+}
+
+async function actualizarConfiguracionNegocioBusiness(
   input: unknown,
 ): Promise<Resultado> {
   const user = await requireSession();
@@ -663,6 +690,10 @@ async function contarDatosRestaurante(empresaId: string): Promise<{
 /* ------------------------------ Roles ------------------------------ */
 
 export async function crearRol(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearRolBusiness(input));
+}
+
+async function crearRolBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -714,6 +745,13 @@ export async function actualizarPermisosRol(
   rolId: string,
   permisoIds: string[],
 ): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarPermisosRolBusiness(rolId,permisoIds));
+}
+
+async function actualizarPermisosRolBusiness(
+  rolId: string,
+  permisoIds: string[],
+): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -749,6 +787,10 @@ export async function actualizarPermisosRol(
 /* ------------------------- Cuentas financieras ------------------------- */
 
 export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearCuentaFinancieraBusiness(input));
+}
+
+async function crearCuentaFinancieraBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -782,6 +824,10 @@ export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> 
 /* --------------------------- Facturación fiscal --------------------------- */
 
 export async function crearSecuenciaFiscal(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearSecuenciaFiscalBusiness(input));
+}
+
+async function crearSecuenciaFiscalBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -848,6 +894,10 @@ export async function crearSecuenciaFiscal(input: unknown): Promise<Resultado> {
 /* ----------------------------- Formas de pago ---------------------------- */
 
 export async function crearFormaPago(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearFormaPagoBusiness(input));
+}
+
+async function crearFormaPagoBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -888,6 +938,13 @@ export async function actualizarFormaPago(
   id: string,
   input: unknown,
 ): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarFormaPagoBusiness(id,input));
+}
+
+async function actualizarFormaPagoBusiness(
+  id: string,
+  input: unknown,
+): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -923,6 +980,10 @@ export async function actualizarFormaPago(
 }
 
 export async function eliminarFormaPago(id: string): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => eliminarFormaPagoBusiness(id));
+}
+
+async function eliminarFormaPagoBusiness(id: string): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -943,6 +1004,10 @@ export async function eliminarFormaPago(id: string): Promise<Resultado> {
 /* ------------------------------- Impuestos ------------------------------- */
 
 export async function crearImpuesto(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearImpuestoBusiness(input));
+}
+
+async function crearImpuestoBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;

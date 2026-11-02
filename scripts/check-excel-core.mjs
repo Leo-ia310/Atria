@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import Module from "node:module";
+const load=Module._load;Module._load=function(name,...args){return name==="server-only"?{}:load.call(this,name,...args);};
+const [{construirLibro},{default:ExcelJS}]=await Promise.all([import("../lib/excel/builder.ts"),import("exceljs")]);
+const output=await construirLibro({empresa:{nombreComercial:"ARCA QA",pais:"NI"},titulo:"Fechas y números",zonaHoraria:"America/Managua",columnas:[{header:"Texto",key:"texto",tipo:"texto"},{header:"Importe",key:"importe",tipo:"moneda",total:true},{header:"Fecha",key:"fecha",tipo:"fecha"},{header:"Fecha y hora",key:"hora",tipo:"fechaHora"}],filas:[{texto:"=SUM(1,2)",importe:12.5,fecha:"2026-11-01",hora:"2026-11-01T02:30:00Z"},{texto:"00123",importe:-2.25,fecha:"2026-11-01",hora:"2026-11-01T02:30:00Z"}]});
+assert.ok(Buffer.isBuffer(output));
+const book=new ExcelJS.Workbook();await book.xlsx.load(output);const ws=book.worksheets[0];
+assert.equal(ws.getCell(8,1).value,"=SUM(1,2)");assert.equal(ws.getCell(8,1).type,ExcelJS.ValueType.String);
+assert.equal(ws.getCell(9,1).value,"00123");assert.equal(ws.getCell(8,2).value,12.5);assert.equal(ws.getCell(9,2).value,-2.25);
+assert.equal(ws.getCell(10,2).value,10.25);assert.equal(ws.getCell(8,3).value.toISOString(),"2026-11-01T00:00:00.000Z");assert.equal(ws.getCell(8,4).value.toISOString(),"2026-10-31T20:30:00.000Z");assert.match(ws.getCell(8,2).numFmt,/C\$/);
+console.log(JSON.stringify({excelWebBufferCompatibility:"passed",excelBusinessTimezone:"passed",excelNumericTotals:"passed",excelTextLiteral:"passed"}));

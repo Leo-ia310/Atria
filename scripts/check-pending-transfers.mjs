@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+export async function checkPendingTransfers({db,sql,op,sale,config,applyDesktopOperation,desktopBootstrap,user,device1,device2,branch,branch2,transferMethod,cardAccount}){
+ const empresaId=user.empresaId;
+ const customer=op("cliente",{nombre:"Cliente transferencia sin crédito",limiteCredito:0,diasCredito:0});await applyDesktopOperation(user,device1,[branch],customer);
+ const pending=async(reference="DECLARED-QA",mixed=false)=>{
+  const intent=randomUUID(),receivable=randomUUID(),operation=sale(1);operation.payload.clienteId=customer.entityId;
+  operation.payload.payments=[{formaPagoId:transferMethod,monto:mixed?6:10,referencia:reference,paymentSource:"bank_transfer_pending"}];
+  const cashMethod=sale(1).payload.payments[0].formaPagoId;
+  if(mixed)operation.payload.payments.push({formaPagoId:cashMethod,monto:4});
+  operation.payload.localIds={transferencias_pendientes:[intent],cuentas_por_cobrar:[receivable],pagos_venta:mixed?[randomUUID()]:[]};
+  await applyDesktopOperation(user,device1,[branch],operation);await applyDesktopOperation(user,device1,[branch],operation);
+  return {operation,intent,receivable};
+ };
+ const bankBalance=async()=>Number((await db.execute(sql`select coalesce(sum(p.debe-p.haber),0) as amount from asiento_partidas p join asientos_contables a on a.id=p.asiento_id join cuentas_financieras c on c.cuenta_contable_id=p.cuenta_id where c.id=${cardAccount}::uuid and a.empresa_id=${empresaId}::uuid and a.estado='registrado'`))[0].amount);
+ const balance=await bankBalance();
+ const first=await pending();assert.equal(await bankBalance(),balance,"Una solicitud no aumenta el banco");
+ const [initial]=await db.execute(sql`select (select count(*)::int from pagos_venta where venta_id=${first.operation.entityId}::uuid) as payments,(select saldo from cuentas_por_cobrar where id=${first.receivable}::uuid) as saldo,(select status from transferencias_pendientes where id=${first.intent}::uuid) as status`);
+ assert.equal(initial.payments,0);assert.equal(Number(initial.saldo),10);assert.equal(initial.status,"pending_verification");
+ const before=await desktopBootstrap(user,[branch],{deviceId:device1});assert.ok(before.transferencias_pendientes.some((row)=>row.id===first.intent));
+ const resolve=(intent,extra={})=>config("resolverTransferencia",[{id:intent,expectedVersion:0,decision:"verify",bankReference:"BANK-RECEIPT-001",bankReceiptConfirmed:true,...extra}]);
+ await assert.rejects(applyDesktopOperation(user,device1,[branch],resolve(first.intent,{bankReceiptConfirmed:false})),/Confirma el abono/);
+ const wrongBranch=resolve(first.intent);wrongBranch.sucursalId=branch2;await assert.rejects(applyDesktopOperation(user,device1,[branch2],wrongBranch),/no autorizada/);
+ const verify=resolve(first.intent),verified=await applyDesktopOperation(user,device1,[branch],verify);assert.equal((await applyDesktopOperation(user,device1,[branch],verify)).abonoId,verified.abonoId);
+ assert.equal(await bankBalance(),balance+10);
+ const [posted]=await db.execute(sql`select (select count(*)::int from abonos_cliente where cxc_id=${first.receivable}::uuid) as abonos,(select saldo from cuentas_por_cobrar where id=${first.receivable}::uuid) as saldo,(select version from transferencias_pendientes where id=${first.intent}::uuid) as version`);assert.equal(posted.abonos,1);assert.equal(Number(posted.saldo),0);assert.equal(posted.version,1);
+ await assert.rejects(applyDesktopOperation(user,device2,[branch],resolve(first.intent)),/cambió|resuelta/);
+ const delta=await desktopBootstrap(user,[branch],{deviceId:device1,cursor:before.serverCursor});assert.equal(delta.transferencias_pendientes.find((row)=>row.id===first.intent).status,"verified");assert.equal(Number(delta.cuentas_por_cobrar.find((row)=>row.id===first.receivable).saldo),0);assert.equal(delta.facturas.find((row)=>row.venta_id===first.operation.entityId).snapshot_json.includes('"verified"'),true);
+ const duplicate=await pending("CLAIMED-DUPLICATE");await assert.rejects(applyDesktopOperation(user,device1,[branch],resolve(duplicate.intent,{bankReference:" bank-receipt-001 "})),/ya fue verificada/);assert.equal(await bankBalance(),balance+10);
+ const rejected=await pending("CLAIMED-REJECTED");await applyDesktopOperation(user,device1,[branch],resolve(rejected.intent,{decision:"reject",bankReceiptConfirmed:false,bankReference:"",reason:"El banco no recibió el importe"}));
+ const [debt]=await db.execute(sql`select saldo from cuentas_por_cobrar where id=${rejected.receivable}::uuid`);assert.equal(Number(debt.saldo),10);assert.equal(await bankBalance(),balance+10);
+ const mixed=await pending("CLAIMED-MIXED",true);const [mixedDebt]=await db.execute(sql`select saldo from cuentas_por_cobrar where id=${mixed.receivable}::uuid`);assert.equal(Number(mixedDebt.saldo),6);
+ const results=await Promise.allSettled([applyDesktopOperation(user,device1,[branch],resolve(mixed.intent,{bankReference:"BANK-CONCURRENT-002"})),applyDesktopOperation(user,device2,[branch],resolve(mixed.intent,{bankReference:"BANK-CONCURRENT-002"}))]);assert.equal(results.filter((row)=>row.status==='fulfilled').length,1);assert.equal(await bankBalance(),balance+16);
+ const [mixedCount]=await db.execute(sql`select count(*)::int as n from abonos_cliente where cxc_id=${mixed.receivable}::uuid`);assert.equal(mixedCount.n,1);
+ const rollback=await pending("CLAIMED-ROLLBACK");await db.execute(sql`update periodos_contables set estado='cerrado' where empresa_id=${empresaId}::uuid`);
+ await assert.rejects(applyDesktopOperation(user,device1,[branch],resolve(rollback.intent,{bankReference:"BANK-ROLLBACK-003"})),/período|periodo/i);
+ const [rolled]=await db.execute(sql`select (select count(*)::int from abonos_cliente where cxc_id=${rollback.receivable}::uuid) as abonos,(select saldo from cuentas_por_cobrar where id=${rollback.receivable}::uuid) as saldo,(select status from transferencias_pendientes where id=${rollback.intent}::uuid) as status`);assert.equal(rolled.abonos,0);assert.equal(Number(rolled.saldo),10);assert.equal(rolled.status,"pending_verification");assert.equal(await bankBalance(),balance+16);
+ await db.execute(sql`update periodos_contables set estado='abierto' where empresa_id=${empresaId}::uuid`);
+ console.log(JSON.stringify({pendingTransferNoBankFunds:"passed",transferReceivable:"passed",transferIdempotentVerification:"passed",transferBankReferenceUnique:"passed",transferConcurrentDevices:"passed",transferRejectionKeepsDebt:"passed",transferAccountingRollback:"passed",transferDeltaPull:"passed"}));
+}

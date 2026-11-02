@@ -24,6 +24,7 @@ import {
   date,
   unique,
   index,
+  uniqueIndex,
   primaryKey,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -1589,9 +1590,21 @@ export const pagosVenta = pgTable(
     monto: numeric("monto", { precision: 18, scale: 4 }).notNull(),
     referencia: text("referencia"),
     cambio: numeric("cambio", { precision: 18, scale: 4 }).notNull().default("0"),
+      paymentSource: text("payment_source").notNull().default("legacy"),
+      paymentStatus: text("payment_status").notNull().default("unverified"),
+      terminalApproved: boolean("terminal_approved").notNull().default(false),
+      terminalIndependent: boolean("terminal_independent").notNull().default(false),
+      terminalAuthorization: text("terminal_authorization"),
   },
   (t) => [index("pagos_venta_venta_idx").on(t.ventaId)],
 );
+
+export const transferenciasPendientes=pgTable("transferencias_pendientes",{
+  id:uuid("id").primaryKey().defaultRandom(),empresaId:uuid("empresa_id").notNull().references(()=>empresas.id),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),
+  ventaId:uuid("venta_id").notNull().references(()=>ventas.id),formaPagoId:uuid("forma_pago_id").notNull().references(()=>formasPago.id),
+  monto:numeric("monto",{precision:18,scale:4}).notNull(),referencia:text("referencia").notNull(),status:text("status").notNull().default("pending_verification"),version:integer("version").notNull().default(0),
+  cuentaFinancieraId:uuid("cuenta_financiera_id").references(()=>cuentasFinancieras.id),bankReference:text("bank_reference"),resolutionReason:text("resolution_reason"),abonoId:uuid("abono_id"),resolvedBy:uuid("resolved_by").references(()=>usuarios.id),resolvedAt:timestamp("resolved_at",{withTimezone:true}),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},(t)=>[index("pending_transfers_scope_idx").on(t.empresaId,t.sucursalId,t.status),uniqueIndex("pending_transfer_bank_receipt_uq").on(t.empresaId,t.cuentaFinancieraId,t.bankReference).where(sql`${t.status}='verified'`)]);
 
 export const menusVirtuales = pgTable(
   "menus_virtuales",

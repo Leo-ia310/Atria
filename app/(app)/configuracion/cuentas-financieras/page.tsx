@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { cuentasFinancieras } from "@/lib/db/schema";
+import { getCuentasConSaldoContable } from "@/lib/tesoreria/saldos";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -9,8 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CrearCuentaForm } from "@/components/configuracion/CrearCuentaForm";
 import { Wallet } from "lucide-react";
-import { formatearMoneda } from "@/lib/utils";
-import type { PaisCodigo } from "@/lib/paises";
+
 
 const TIPO_LABEL: Record<string, string> = {
   caja: "Caja",
@@ -23,21 +20,11 @@ export default async function CuentasFinancierasPage() {
   const user = await requireSession();
 
   const empresa = await getEmpresaMetadata(user.empresaId);
-  const pais = (empresa?.pais ?? "NI") as PaisCodigo;
 
-  const filas = await db
-    .select({
-      id: cuentasFinancieras.id,
-      tipo: cuentasFinancieras.tipo,
-      nombre: cuentasFinancieras.nombre,
-      banco: cuentasFinancieras.banco,
-      numeroCuenta: cuentasFinancieras.numeroCuenta,
-      moneda: cuentasFinancieras.moneda,
-      saldoActual: cuentasFinancieras.saldoActual,
-      activa: cuentasFinancieras.activa,
-    })
-    .from(cuentasFinancieras)
-    .where(eq(cuentasFinancieras.empresaId, user.empresaId));
+
+  const filas=(await getCuentasConSaldoContable(user.empresaId)).map((row)=>({...row,numeroCuenta:row.numero_cuenta}));
+  const money=(amount:string,currency:string)=>new Intl.NumberFormat("es",{style:"currency",currency}).format(Number(amount));
+  const messages:Record<string,string>={sin_vincular:"Sin cuenta contable vinculada",cuenta_compartida:"Cuenta contable compartida: no se distribuye el saldo",requiere_conversion:"Requiere conversión de moneda"};
 
   return (
     <div>
@@ -47,6 +34,7 @@ export default async function CuentasFinancierasPage() {
         actions={<CrearCuentaForm monedaDefault={empresa?.moneda ?? "NIO"} />}
       />
 
+      <p className="mb-4 text-small text-[color:var(--color-text-muted)]">El saldo contable usa los asientos registrados. La apertura se muestra por separado; la conciliación bancaria se revisa con los comprobantes del banco.</p>
       {filas.length === 0 ? (
         <Card>
           <EmptyState
@@ -77,11 +65,13 @@ export default async function CuentasFinancierasPage() {
                   </div>
                 )}
                 <div className="mt-3 text-xl font-bold text-[color:var(--color-primary)]">
-                  {formatearMoneda(parseFloat(c.saldoActual), pais)}
+                  {c.saldo_contable===null ? "—" : money(c.saldo_contable,c.moneda)}
                 </div>
                 <div className="text-[11px] text-[color:var(--color-text-muted)]">
-                  Saldo actual · {c.moneda}
+                  Saldo contable · {c.moneda}
                 </div>
+                {c.saldo_contable===null && <p className="mt-1 text-small text-[color:var(--color-warning)]">{messages[c.estado_saldo]}</p>}
+                <p className="mt-2 text-small text-[color:var(--color-text-muted)]">Apertura registrada: {money(c.saldo_actual,c.moneda)}</p>
               </CardBody>
             </Card>
           ))}

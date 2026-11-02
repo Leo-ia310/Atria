@@ -1,5 +1,6 @@
 import { formatearMoneda, formatearFechaHora } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import { INTERNAL_FISCAL_NOTICE } from "@/lib/fiscal-document";
 
 export type ReciboItem = {
   nombre: string;
@@ -16,6 +17,7 @@ export type ReciboPago = {
 };
 
 export type ReciboData = {
+  documentType?: "internal_receipt";
   pais: PaisCodigo;
   empresa: {
     nombre: string;
@@ -142,6 +144,7 @@ export function Recibo({ data }: { data: ReciboData }) {
       )}
 
       <div className="mt-4 text-center text-[11px] text-[color:var(--color-text-muted)]">
+        {data.documentType === "internal_receipt" && <p className="mb-2">{INTERNAL_FISCAL_NOTICE}</p>}
         ¡Gracias por su compra!
       </div>
     </div>

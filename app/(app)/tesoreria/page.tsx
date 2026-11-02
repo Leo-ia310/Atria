@@ -11,9 +11,12 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatearMoneda, formatearFecha } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
+import {listarTransferenciasPendientes,resolverTransferencia} from "@/lib/actions/transferencias";
+import {PendingTransfersPanel} from "@/components/tesoreria/PendingTransfersPanel";
 
 export default async function TesoreriaPage() {
   const user = await requireSession();
+  const transfers=await listarTransferenciasPendientes();
 
   const gastosPromise = db
     .select({
@@ -47,6 +50,7 @@ export default async function TesoreriaPage() {
         }
       />
 
+      {transfers.ok&&<PendingTransfersPanel rows={transfers.rows} online={true} onResolve={resolverTransferencia}/>}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">
           Gastos recientes

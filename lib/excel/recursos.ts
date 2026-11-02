@@ -1,4 +1,5 @@
 import "server-only";
+import { rangoReporte, inicioDoceMeses, margenReporte } from "@/lib/reportes/core";
 import { and, asc, desc, eq, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -1239,10 +1240,10 @@ export const RECURSOS: Record<string, RecursoExport> = {
       { header: "% Margen", key: "pctMargen", tipo: "porcentaje" },
     ],
     async query(ctx) {
-      const hace12 = new Date();
-      hace12.setFullYear(hace12.getFullYear() - 1);
-      hace12.setDate(1);
-      const periodoExpr = sql<string>`TO_CHAR(${ventas.fecha}, 'YYYY-MM')`;
+      const range=rangoReporte(30,ctx.zonaHoraria);
+      const desde=inicioDoceMeses(range.hasta);
+      const fechaLocal=sql`(${ventas.fecha} AT TIME ZONE ${ctx.zonaHoraria})::date`;
+      const periodoExpr = sql<string>`TO_CHAR(${ventas.fecha} AT TIME ZONE ${ctx.zonaHoraria}, 'YYYY-MM')`;
       const rows = await db
         .select({
           periodo: periodoExpr,
@@ -1254,7 +1255,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
           and(
             eq(ventas.empresaId, ctx.user.empresaId),
             eq(ventas.estado, "completada"),
-            sql`${ventas.fecha} >= ${hace12}`,
+            sql`${fechaLocal} >= ${desde}`, sql`${fechaLocal} <= ${range.hasta}`,
             ctx.sucursalIds ? inArray(ventas.sucursalId, ctx.sucursalIds) : undefined,
           ),
         )
@@ -1264,7 +1265,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
         const [anio, mes] = d.periodo.split("-");
         const ingresos = parseFloat(d.ingresos);
         const costos = parseFloat(d.costos);
-        const margen = ingresos - costos;
+        const {margen}=margenReporte(ingresos,costos);
         return {
           periodo: `${MESES_ES[parseInt(mes, 10) - 1]} ${anio}`,
           ingresos,
@@ -1287,9 +1288,9 @@ export const RECURSOS: Record<string, RecursoExport> = {
     ],
     async query(ctx) {
       const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${ctx.zonaHoraria})::date`;
-      const hace30 = new Date();
-      hace30.setDate(hace30.getDate() - 30);
-      const hace30ISO = hace30.toISOString().slice(0, 10);
+      const range=rangoReporte(30,ctx.zonaHoraria);
+
+
       const rows = await db
         .select({
           nombre: productos.nombre,
@@ -1304,7 +1305,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
           and(
             eq(ventas.empresaId, ctx.user.empresaId),
             eq(ventas.estado, "completada"),
-            sql`${fechaVentaLocal} >= ${hace30ISO}`,
+            sql`${fechaVentaLocal} >= ${range.desde}`, sql`${fechaVentaLocal} <= ${range.hasta}`,
             ctx.sucursalIds ? inArray(ventas.sucursalId, ctx.sucursalIds) : undefined,
           ),
         )
@@ -1493,6 +1494,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
 async function queryFacturas(ctx: ExportCtx, esCredito: boolean): Promise<Record<string, unknown>[]> {
   const sp = ctx.params;
   const cond: SQL[] = [eq(facturas.empresaId, ctx.user.empresaId), eq(facturas.esCredito, esCredito)];
+  if(!esCredito)cond.push(sql`not exists(select 1 from cuentas_por_cobrar c where c.empresa_id=${facturas.empresaId} and c.venta_id=${facturas.ventaId} and c.saldo>0 and c.estado not in ('anulada','cancelada'))`);
   const numero = sp.get("numero");
   if (numero) cond.push(ilike(facturas.numero, `%${numero}%`));
   const desde = sp.get("desde");

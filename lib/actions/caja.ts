@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { businessEntityId, businessEventDate } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, eq, isNull, sum } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { cajas, sesionesCaja, sucursales, ventas } from "@/lib/db/schema";
@@ -12,6 +14,10 @@ import { aDecimalStr, dinero } from "@/lib/contabilidad/helpers";
 type Resultado = { ok: true } | { ok: false; error: string };
 
 export async function crearCaja(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearCajaBusiness(input));
+}
+
+async function crearCajaBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { soloAdmin: true });
   if (!acceso.ok) return acceso;
@@ -72,6 +78,12 @@ export async function crearCaja(input: unknown): Promise<Resultado> {
 export async function abrirSesion(
   input: unknown,
 ): Promise<{ ok: true; sesionId: string } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => abrirSesionBusiness(input));
+}
+
+async function abrirSesionBusiness(
+  input: unknown,
+): Promise<{ ok: true; sesionId: string } | { ok: false; error: string }> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "caja", permisos: "ventas.crear" });
   if (!acceso.ok) return acceso;
@@ -110,6 +122,8 @@ export async function abrirSesion(
     tx
       .insert(sesionesCaja)
       .values({
+          id: businessEntityId("sesion_caja"),
+        abiertaEn: businessEventDate(),
         empresaId: user.empresaId,
         cajaId: data.cajaId,
         usuarioId: user.id,
@@ -124,6 +138,10 @@ export async function abrirSesion(
 }
 
 export async function cerrarSesion(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => cerrarSesionBusiness(input));
+}
+
+async function cerrarSesionBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "caja", permisos: "ventas.crear" });
   if (!acceso.ok) return acceso;
@@ -182,7 +200,7 @@ export async function cerrarSesion(input: unknown): Promise<Resultado> {
         montoFinalEsperado: aDecimalStr(montoFinalEsperado),
         montoFinalReal: aDecimalStr(montoFinalReal),
         diferencia: aDecimalStr(diferencia),
-        cerradaEn: new Date(),
+        cerradaEn: businessEventDate(),
         notas: data.notas || null,
       })
       .where(eq(sesionesCaja.id, data.sesionId)),

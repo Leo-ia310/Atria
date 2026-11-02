@@ -12,7 +12,7 @@ import { getSucursalScope, selectedSucursalIds } from "@/lib/sucursal-scope";
 import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
-import { fechaISOEnZona, sumarDiasISO } from "@/lib/dates";
+import { rangoReporte } from "@/lib/reportes/core";
 import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
 
 export default async function ReporteVentasPage() {
@@ -23,8 +23,8 @@ export default async function ReporteVentasPage() {
   ]);
   const pais = empresa?.pais ?? "NI";
   const zonaHoraria = empresa?.zonaHoraria ?? "America/Managua";
-  const hoyLocal = fechaISOEnZona(new Date(), zonaHoraria);
-  const hace30Local = sumarDiasISO(hoyLocal, -30);
+  const range=rangoReporte(30,zonaHoraria);
+  const hace30Local=range.desde;
   const fechaVentaLocal = sql<string>`(${ventas.fecha} AT TIME ZONE ${zonaHoraria})::date`;
   const sucursalIds = selectedSucursalIds(scope);
   const filtroSucursalVenta = sucursalIds
@@ -42,7 +42,7 @@ export default async function ReporteVentasPage() {
       and(
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
-        sql`${fechaVentaLocal} >= ${hace30Local}`,
+        sql`${fechaVentaLocal} >= ${hace30Local}`, sql`${fechaVentaLocal} <= ${range.hasta}`,
         filtroSucursalVenta,
       ),
     )
@@ -64,7 +64,7 @@ export default async function ReporteVentasPage() {
       and(
         eq(ventas.empresaId, user.empresaId),
         eq(ventas.estado, "completada"),
-        sql`${fechaVentaLocal} >= ${hace30Local}`,
+        sql`${fechaVentaLocal} >= ${hace30Local}`, sql`${fechaVentaLocal} <= ${range.hasta}`,
         filtroSucursalVenta,
       ),
     )

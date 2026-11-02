@@ -24,6 +24,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { reciboDesdeSnapshot } from "@/lib/facturas";
 import { fechaEstaVencida, getPoliticasNegocio } from "@/lib/politicas-negocio";
 import { fechaISOEnZona } from "@/lib/dates";
+import {facturaTieneSaldo} from "@/lib/factura-settlement";
 
 export type ModoFacturas = "cobradas" | "credito";
 
@@ -111,6 +112,7 @@ async function facturasLista({
     eq(facturas.esCredito, esCredito),
   ];
   if (searchParams.numero) cond.push(ilike(facturas.numero, `%${searchParams.numero}%`));
+  if(!esCredito)cond.push(sql`not (${facturaTieneSaldo()})`);
   if (searchParams.desde && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.desde)) {
     cond.push(sql`(${facturas.fecha} AT TIME ZONE ${zonaHoraria})::date >= ${searchParams.desde}`);
   }

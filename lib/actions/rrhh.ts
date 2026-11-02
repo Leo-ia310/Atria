@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, desc, eq, gte, isNull, lte, sql, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -97,6 +97,10 @@ async function siguienteCodigoVacante(empresaId: string): Promise<string> {
 /* ============================ EMPLEADOS ============================ */
 
 export async function crearEmpleado(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearEmpleadoBusiness(input));
+}
+
+async function crearEmpleadoBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -151,6 +155,10 @@ export async function crearEmpleado(input: unknown): Promise<Resultado> {
 }
 
 export async function actualizarEmpleado(id: string, input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarEmpleadoBusiness(id, input));
+}
+
+async function actualizarEmpleadoBusiness(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -206,6 +214,13 @@ export async function cambiarEstadoEmpleado(
   id: string,
   estado: "activo" | "vacaciones" | "licencia" | "suspendido" | "baja",
 ): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => cambiarEstadoEmpleadoBusiness(id, estado));
+}
+
+async function cambiarEstadoEmpleadoBusiness(
+  id: string,
+  estado: "activo" | "vacaciones" | "licencia" | "suspendido" | "baja",
+): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -230,6 +245,10 @@ export async function cambiarEstadoEmpleado(
 /* ============================ ASISTENCIA ============================ */
 
 export async function registrarAsistencia(input: unknown): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => registrarAsistenciaBusiness(input));
+}
+
+async function registrarAsistenciaBusiness(input: unknown): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -388,6 +407,10 @@ function contarDias(inicio?: string, fin?: string): number {
 }
 
 export async function crearSolicitud(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearSolicitudBusiness(input));
+}
+
+async function crearSolicitudBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -464,6 +487,14 @@ export async function resolverSolicitud(
   aprobar: boolean,
   comentario?: string,
 ): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => resolverSolicitudBusiness(id, aprobar, comentario));
+}
+
+async function resolverSolicitudBusiness(
+  id: string,
+  aprobar: boolean,
+  comentario?: string,
+): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -494,6 +525,10 @@ export async function resolverSolicitud(
 /* ============================ NÓMINA ============================ */
 
 export async function generarNomina(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => generarNominaBusiness(input));
+}
+
+async function generarNominaBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -773,6 +808,10 @@ async function pagarNomina(
 }
 
 export async function eliminarNominaBorrador(id: string): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => eliminarNominaBorradorBusiness(id));
+}
+
+async function eliminarNominaBorradorBusiness(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -899,6 +938,12 @@ async function recalcularIngresosDetalle(detalleId: string): Promise<string | nu
 export async function crearTipoDeduccion(
   input: unknown,
 ): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => crearTipoDeduccionBusiness(input));
+}
+
+async function crearTipoDeduccionBusiness(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -929,6 +974,10 @@ export async function crearTipoDeduccion(
 }
 
 export async function agregarDeduccionVariable(input: unknown): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => agregarDeduccionVariableBusiness(input));
+}
+
+async function agregarDeduccionVariableBusiness(input: unknown): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -979,6 +1028,10 @@ export async function agregarDeduccionVariable(input: unknown): Promise<Resultad
 }
 
 export async function eliminarDeduccionVariable(id: string): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => eliminarDeduccionVariableBusiness(id));
+}
+
+async function eliminarDeduccionVariableBusiness(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1017,6 +1070,12 @@ export async function eliminarDeduccionVariable(id: string): Promise<ResultadoSi
 export async function crearTipoIngreso(
   input: unknown,
 ): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => crearTipoIngresoBusiness(input));
+}
+
+async function crearTipoIngresoBusiness(
+  input: unknown,
+): Promise<{ ok: true; id: string; nombre: string } | { ok: false; error: string }> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1047,6 +1106,10 @@ export async function crearTipoIngreso(
 }
 
 export async function agregarIngresoVariable(input: unknown): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => agregarIngresoVariableBusiness(input));
+}
+
+async function agregarIngresoVariableBusiness(input: unknown): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1097,6 +1160,10 @@ export async function agregarIngresoVariable(input: unknown): Promise<ResultadoS
 }
 
 export async function eliminarIngresoVariable(id: string): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => eliminarIngresoVariableBusiness(id));
+}
+
+async function eliminarIngresoVariableBusiness(id: string): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1129,6 +1196,12 @@ export async function eliminarIngresoVariable(id: string): Promise<ResultadoSimp
 }
 
 export async function verificarNomina(
+  id: string,
+): Promise<{ ok: true; nivel: number; bloqueada: boolean } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => verificarNominaBusiness(id));
+}
+
+async function verificarNominaBusiness(
   id: string,
 ): Promise<{ ok: true; nivel: number; bloqueada: boolean } | { ok: false; error: string }> {
   const user = await requireSession();
@@ -1471,6 +1544,13 @@ export async function pagarDetalleNomina(
   detalleId: string,
   pagar: boolean,
 ): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => pagarDetalleNominaBusiness(detalleId, pagar));
+}
+
+async function pagarDetalleNominaBusiness(
+  detalleId: string,
+  pagar: boolean,
+): Promise<ResultadoSimple> {
   const user = await requireSession();
   const acceso = await validarAccesoRrhh(user);
   if (!acceso.ok) return acceso;
@@ -1511,6 +1591,13 @@ export async function pagarDetalleNomina(
 // Paga a todos y finaliza: marca todos los recibos como pagados, genera el
 // asiento de pago consolidado y deja la nómina como pagada.
 export async function finalizarPagoNomina(
+  id: string,
+  cuentaFinancieraId: string,
+): Promise<ResultadoSimple> {
+  return executeBusinessAction(await requireSession(), () => finalizarPagoNominaBusiness(id, cuentaFinancieraId));
+}
+
+async function finalizarPagoNominaBusiness(
   id: string,
   cuentaFinancieraId: string,
 ): Promise<ResultadoSimple> {

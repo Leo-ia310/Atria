@@ -22,6 +22,7 @@ export function reciboDesdeSnapshot({
     : [];
 
   return {
+    documentType: snapshot.documentType === "internal_receipt" ? "internal_receipt" : undefined,
     pais,
     empresa,
     numero: String(snapshot.numero ?? ""),
@@ -40,7 +41,7 @@ export function reciboDesdeSnapshot({
       subtotal: Number(it.subtotal ?? 0),
     })),
     pagos: pagos.map((p) => ({
-      formaPago: String(p.formaPago ?? "Otro"),
+      formaPago: String(p.formaPago ?? "Otro")+(p.paymentSource==="bank_transfer_pending"?(p.paymentStatus==="verified"?" · Abono verificado":p.paymentStatus==="rejected"?" · Rechazada; saldo por cobrar":" · Pendiente de verificación; no es dinero recibido"):""),
       monto: Number(p.monto ?? 0),
       referencia: p.referencia != null ? String(p.referencia) : null,
     })),

@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { currentBusinessContext } from "../business-context";
 
 // La app en ejecución usa el Transaction Pooler de Supabase (Supavisor, 6543).
 // Orden de resolución (el primero definido gana), compatible con ambas
@@ -26,13 +27,28 @@ const client = postgres(connectionString, {
   max: process.env.NODE_ENV === "production" ? 5 : 10,
   idle_timeout: 20,
   connect_timeout: 10,
+  onnotice: process.env.NODE_ENV === "test" ? () => {} : undefined,
 });
 
-export const db = drizzle(client, { schema });
+export async function disconnectIsolatedTestDatabase(): Promise<void> {
+  const value = process.env.ARCA_TEST_DATABASE_URL;
+  if (!value || connectionString !== value || new URL(value).hostname !== "127.0.0.1") throw new Error("Solo se puede cerrar la conexión aislada de pruebas.");
+  await client.end({ timeout: 5 });
+}
+
+const connection = drizzle(client, { schema });
+/** Existing services join the active command transaction, including db.* users. */
+export const db = new Proxy(connection, {
+  get(target, property) {
+    const active = currentBusinessContext()?.tx ?? target;
+    const value: unknown = Reflect.get(active, property);
+    return typeof value === "function" ? value.bind(active) : value;
+  },
+});
 export { schema };
 
 /** Transacción de Drizzle (el `tx` que recibe `db.transaction`). */
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof connection.transaction>[0]>[0];
 
 /**
  * Ejecuta `fn` dentro de una transacción con el tenant fijado a nivel LOCAL
@@ -49,7 +65,12 @@ export async function dbConEmpresa<T>(
   empresaId: string,
   fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return db.transaction(async (tx) => {
+  const active = currentBusinessContext();
+  if (active) {
+    if (active.user.empresaId !== empresaId) throw new Error("La operación intentó cambiar de empresa.");
+    return fn(active.tx);
+  }
+  return connection.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.empresa_id', ${empresaId}, true)`);
     return fn(tx);
   });
@@ -59,9 +80,12 @@ export async function dbConEmpresa<T>(
  * Bypass controlado de RLS para el panel de super-admin (consultas cross-tenant
  * legítimas). También LOCAL a la transacción.
  */
-export async function dbSuperAdmin<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return db.transaction(async (tx) => {
+export async function dbSuperAdmin<T>(fn: (tx: Tx) => Promise<T>, options?: { isolationLevel: "repeatable read" | "read committed" | "serializable" }): Promise<T> {
+  const active = currentBusinessContext();
+  // Nested services keep the command tenant; they cannot enable bypass in it.
+  if (active) return fn(active.tx);
+  return connection.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.bypass_rls', 'true', true)`);
     return fn(tx);
-  });
+  }, options);
 }

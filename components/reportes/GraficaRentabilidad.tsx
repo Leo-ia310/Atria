@@ -31,6 +31,7 @@ export function GraficaRentabilidad({
           <Tooltip
             contentStyle={{
               backgroundColor: "#FFFFFF",
+              color: "#2A2040",
               border: "1px solid #E2DFF0",
               borderRadius: 8,
               fontSize: 13,

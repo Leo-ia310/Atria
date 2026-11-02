@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2, CreditCard, Loader2, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -38,11 +38,14 @@ export function PagoTarjetaPanel({
   const [ultimos4, setUltimos4] = useState("");
   const [marca, setMarca] = useState("");
   const [rechazado, setRechazado] = useState(false);
+  const [confirmacion, setConfirmacion] = useState(false);
+  useEffect(()=>{setAutorizacion("");setConfirmacion(false);setRechazado(false);},[total]);
 
   function aprobar() {
-    if (procesando) return;
+    if (procesando || !autorizacion.trim() || !confirmacion) return;
     onAprobado({
-      autorizacion: autorizacion.trim() || undefined,
+      autorizacion: autorizacion.trim(),
+      terminalIndependent: true,
       ultimos4: ultimos4.trim() || undefined,
       marca: marca || undefined,
     });
@@ -51,6 +54,8 @@ export function PagoTarjetaPanel({
   function rechazar() {
     if (procesando) return;
     setRechazado(true);
+    setConfirmacion(false);
+    setAutorizacion("");
     onRechazado();
   }
 
@@ -85,13 +90,18 @@ export function PagoTarjetaPanel({
           onChange={(e) => setUltimos4(e.target.value.replace(/\D/g, "").slice(0, 4))}
         />
         <Input
-          label="Autorización (opcional)"
+          label="Autorización del datáfono"
+          maxLength={120}
           placeholder="Código del voucher"
           value={autorizacion}
           onChange={(e) => setAutorizacion(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))}
         />
       </div>
 
+      <label className="flex items-start gap-2 text-small text-[color:var(--color-text-primary)]">
+        <input type="checkbox" checked={confirmacion} onChange={(event)=>setConfirmacion(event.target.checked)} disabled={procesando} />
+        El datáfono independiente aprobó este cobro. Confirmo la autorización del voucher.
+      </label>
       {rechazado && !procesando && (
         <div className="rounded-md bg-[color:var(--color-danger-bg,rgba(220,38,38,0.1))] p-3 text-small text-[color:var(--color-danger)]">
           Pago rechazado. Intenta de nuevo en el datáfono o usa otra forma de pago.
@@ -110,7 +120,7 @@ export function PagoTarjetaPanel({
         <button
           type="button"
           onClick={aprobar}
-          disabled={procesando}
+          disabled={procesando || !confirmacion || !autorizacion.trim()}
           className="flex items-center justify-center gap-2 rounded-md bg-[color:var(--color-success)] px-4 py-2.5 text-small font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
         >
           {procesando ? (

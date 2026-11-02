@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { businessEntityId, businessChildId, businessEventDate } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, eq, desc, inArray, isNull, sql } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
@@ -19,10 +21,13 @@ import {
   productos,
   impuestos,
   facturas,
+  transferenciasPendientes,
   pedidosCocina,
   pedidoCocinaItems,
 } from "@/lib/db/schema";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
+import { preparePosPayment, manualPaymentKind, saleSettlement } from "@/lib/pos-payment";
+import { pendingFiscalDocument } from "@/lib/fiscal-document";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
@@ -34,10 +39,14 @@ import { fechaISOEnZona, fechaMediodiaUTC, horaMinutoEnZona, sumarDiasISO } from
 import { crearSnapshotsImpuestoVenta, type SnapshotImpuestoVentaLinea } from "@/lib/compliance-core";
 
 type Resultado =
-  | { ok: true; ventaId: string; numero: string; asientoId: string }
+  | { ok: true; ventaId: string; numero: string; asientoId: string;pendienteVerificacion?:boolean }
   | { ok: false; error: string };
 
 export async function procesarVenta(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => procesarVentaBusiness(input));
+}
+
+async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "pos", permisos: "ventas.crear" });
   if (!acceso.ok) return acceso;
@@ -60,6 +69,20 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   if (!limiteTransacciones.ok) return limiteTransacciones;
   if (!limiteFacturas.ok) return limiteFacturas;
   const data = parsed.data;
+  if (data.esCredito && data.pagos.length) return {ok:false,error:"Una venta al crédito no puede incluir pagos confirmados."};
+  const paymentEvidence = new Map<number, ReturnType<typeof preparePosPayment>>();
+  const transferIds = new Map<number,string>();
+  if (data.pagos.length) {
+    const methods = await dbConEmpresa(user.empresaId,(tx)=>tx.select({id:formasPagoTable.id,codigo:formasPagoTable.codigo}).from(formasPagoTable).where(and(eq(formasPagoTable.empresaId,user.empresaId),eq(formasPagoTable.activa,true),inArray(formasPagoTable.id,data.pagos.map((payment)=>payment.formaPagoId)))));
+    for (const [index,payment] of data.pagos.entries()) {
+      const method = methods.find((row)=>row.id===payment.formaPagoId);
+      if (!method) return {ok:false,error:"Forma de pago no autorizada o inactiva."};
+      if (manualPaymentKind(method.codigo) !== "unsupported" || payment.paymentSource || payment.terminalApproved || payment.terminalIndependent || payment.terminalAuthorization) {
+        try { paymentEvidence.set(index,preparePosPayment(method.codigo,payment)); }
+        catch (error) { return {ok:false,error:error instanceof Error?error.message:"Pago sin confirmación."}; }
+      }
+    }
+  }
 
   const subtotal = dinero(
     ...data.items.map((i) => dinero(i.cantidad * i.precioUnitario - i.descuento)),
@@ -75,6 +98,15 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   );
 
   const totalPagos = dinero(...data.pagos.map((p) => p.monto));
+  let settlement:ReturnType<typeof saleSettlement>;
+  try {settlement=saleSettlement(total,data.esCredito,data.pagos.map((payment,index)=>({...payment,paymentStatus:paymentEvidence.get(index)?.paymentStatus})));}
+  catch(error){return {ok:false,error:error instanceof Error?error.message:"Pagos inválidos."};}
+  if(settlement.pending>0){
+    const permission=await validarAccion(user,{modulo:"cxc",permisos:["ventas.ver","ventas.crear"]});if(!permission.ok)return permission;
+    if(!data.clienteId)return {ok:false,error:"Selecciona un cliente para registrar la transferencia pendiente."};
+    const [customer]=await dbConEmpresa(user.empresaId,(tx)=>tx.select({id:clientes.id}).from(clientes).where(and(eq(clientes.id,data.clienteId!),eq(clientes.empresaId,user.empresaId),eq(clientes.activo,true),isNull(clientes.eliminadoEn))).limit(1));
+    if(!customer)return {ok:false,error:"Cliente no autorizado o inactivo."};
+  }
   if (!data.esCredito && Math.abs(totalPagos - total) > 0.01) {
     return {
       ok: false,
@@ -258,7 +290,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
   }
 
   try {
-    const fechaVenta = new Date();
+    const fechaVenta = businessEventDate();
     const fechaLocalVenta = fechaISOEnZona(fechaVenta, zonaHoraria);
     const fechaContable = fechaMediodiaUTC(fechaLocalVenta);
     const fechaVencimiento = data.esCredito
@@ -277,6 +309,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       const [venta] = await tx
         .insert(ventas)
         .values({
+          id: businessEntityId("venta"),
           empresaId: user.empresaId,
           sucursalId: data.sucursalId,
           sesionCajaId,
@@ -334,12 +367,14 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         lineas: lineasFiscales,
       });
 
-      await tx.insert(pagosVenta).values(
-        data.pagos.map((p) => ({
+      if (data.pagos.some((_payment,index)=>paymentEvidence.get(index)?.paymentStatus!=="pending_verification")) await tx.insert(pagosVenta).values(
+        data.pagos.filter((_payment,index)=>paymentEvidence.get(index)?.paymentStatus!=="pending_verification").map((p,index) => ({
+          id: businessChildId("pagos_venta",index),
           ventaId: venta.id,
           formaPagoId: p.formaPagoId,
           monto: aDecimalStr(p.monto),
           referencia: p.referencia || null,
+          ...paymentEvidence.get(data.pagos.indexOf(p)),
         })),
       );
 
@@ -375,6 +410,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       if (itemsInventario.length > 0) {
         await tx.insert(movimientosInventario).values(
           itemsInventario.map((it) => ({
+            id: businessChildId(`movement:${it.productoId}`,0),
             empresaId: user.empresaId,
             productoId: it.productoId,
             almacenId: data.almacenId,
@@ -413,19 +449,24 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         ),
       );
 
-      if (data.esCredito && data.clienteId) {
+      if (settlement.receivable>0 && data.clienteId) {
         await tx.insert(cuentasPorCobrar).values({
+          id: businessChildId("cuentas_por_cobrar",0),
           empresaId: user.empresaId,
           clienteId: data.clienteId,
           ventaId: venta.id,
           fechaEmision: fechaLocalVenta,
-          fechaVencimiento: fechaVencimiento!,
-          monto: aDecimalStr(total),
-          saldo: aDecimalStr(total),
+          fechaVencimiento: fechaVencimiento ?? fechaLocalVenta,
+          monto: aDecimalStr(settlement.receivable),
+          saldo: aDecimalStr(settlement.receivable),
           estado: "pendiente",
         });
       }
 
+      const pending=data.pagos.map((payment,index)=>({payment,index})).filter(({index})=>paymentEvidence.get(index)?.paymentStatus==="pending_verification");
+      for(const [index,{payment,index:inputIndex}] of pending.entries()){
+        const [intent]=await tx.insert(transferenciasPendientes).values({id:businessChildId("transferencias_pendientes",index),empresaId:user.empresaId,sucursalId:data.sucursalId,ventaId:venta.id,formaPagoId:payment.formaPagoId,monto:aDecimalStr(payment.monto),referencia:payment.referencia!.trim(),createdAt:fechaVenta}).returning({id:transferenciasPendientes.id});transferIds.set(inputIndex,intent.id);
+      }
       return venta;
     });
 
@@ -446,7 +487,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       ? undefined
       : data.pagos.reduce<{ cuentaFinancieraId: string; monto: number }[]>((acc, p) => {
           const cuentaFinancieraId = mapaFormas.get(p.formaPagoId);
-          if (cuentaFinancieraId) {
+          if (cuentaFinancieraId && paymentEvidence.get(data.pagos.indexOf(p))?.paymentStatus!=="pending_verification") {
             acc.push({ cuentaFinancieraId, monto: p.monto });
           }
           return acc;
@@ -463,6 +504,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       total,
       costoTotal,
       esCredito: data.esCredito,
+      montoPorCobrar: settlement.receivable,
       sucursalId: data.sucursalId,
       pagos: pagosContables,
     });
@@ -530,6 +572,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         zonaHoraria,
         esCredito: data.esCredito,
         cliente: clienteNombre,
+        ...(businessEntityId("venta") ? pendingFiscalDocument() : {}),
         cajero: user.nombre,
         items: data.items.map((it) => {
           const p = mapaProd.get(it.productoId);
@@ -543,10 +586,12 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
             subtotal: dinero(it.cantidad * it.precioUnitario - it.descuento),
           };
         }),
-        pagos: data.pagos.map((p) => ({
+        pagos: data.pagos.map((p,index) => ({
+          transferId:transferIds.get(index),
           formaPago: mapaFormasNombre.get(p.formaPagoId) ?? "Otro",
           monto: p.monto,
           referencia: p.referencia || null,
+          ...paymentEvidence.get(index),
         })),
         subtotal,
         descuento: descuentoTotal,
@@ -558,6 +603,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
         tx
           .insert(facturas)
           .values({
+          id: businessChildId("facturas",0),
             empresaId: user.empresaId,
             ventaId: resultado.id,
             numero: resultado.numero,
@@ -586,7 +632,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
           }),
       );
     } catch (errFactura) {
-      console.error("[procesarVenta:factura]", errFactura);
+      throw errFactura;
     }
 
     revalidatePath("/ventas");
@@ -603,7 +649,7 @@ export async function procesarVenta(input: unknown): Promise<Resultado> {
       MODULOS.CONTABILIDAD,
     ]);
 
-    return { ok: true, ventaId: resultado.id, numero: resultado.numero, asientoId };
+    return { ok: true, ventaId: resultado.id, numero: resultado.numero, asientoId,pendienteVerificacion:settlement.pending>0 };
   } catch (err) {
     console.error("[procesarVenta]", err);
     const msg = err instanceof Error ? err.message : "Error desconocido";

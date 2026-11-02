@@ -1,3 +1,4 @@
+import { businessChildId } from "../business-context";
 /**
  * ⚡ MOTOR CONTABLE — Núcleo del sistema
  *
@@ -89,6 +90,7 @@ async function crearAsiento(
   const [asiento] = await tx
     .insert(asientosContables)
     .values({
+      id: businessChildId("asientos_contables",0),
       empresaId: opciones.empresaId,
       sucursalId: opciones.sucursalId ?? null,
       periodoId,
@@ -136,6 +138,7 @@ export type RegistrarVentaInput = {
   costoTotal: number;
   esCredito: boolean;
   /** Si es contado, qué cuentas financieras y cuánto cobró por cada una */
+  montoPorCobrar?: number;
   pagos?: { cuentaFinancieraId: string; monto: number }[];
 };
 
@@ -147,20 +150,23 @@ export async function registrarVenta(input: RegistrarVentaInput): Promise<string
 
     const partidas: PartidaAsiento[] = [];
 
-    if (input.esCredito) {
+    const porCobrar=input.montoPorCobrar ?? (input.esCredito?input.total:0);
+    if(porCobrar<0||porCobrar>input.total)throw new Error("Importe por cobrar inválido.");
+    if (porCobrar>0) {
       partidas.push({
         cuentaId: cuentas.CXC_CLIENTES,
-        descripcion: `Venta ${input.numero} al crédito`,
-        debe: input.total,
+        descripcion: input.esCredito?`Venta ${input.numero} al crédito`:`Transferencia por verificar venta ${input.numero}`,
+        debe: porCobrar,
         haber: 0,
       });
-    } else {
+    }
+    if (!input.esCredito) {
       const pagos = input.pagos ?? [];
-      if (pagos.length === 0) {
+      if (pagos.length === 0 && porCobrar===0) {
         throw new Error("Venta de contado requiere al menos un pago");
       }
       const totalPagos = pagos.reduce((a, p) => a + p.monto, 0);
-      if (Math.abs(totalPagos - input.total) > 0.0001) {
+      if (Math.abs(totalPagos + porCobrar - input.total) > 0.0001) {
         throw new Error(
           `Pagos no cubren el total: pagos=${totalPagos}, total=${input.total}`,
         );

@@ -1,6 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { fechaMediodiaUTC } from "@/lib/dates";
+
+import { businessEntityId, businessChildId } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -27,6 +31,10 @@ type Resultado =
   | { ok: false; error: string };
 
 export async function procesarCompra(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => procesarCompraBusiness(input));
+}
+
+async function procesarCompraBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
   if (!acceso.ok) return acceso;
@@ -87,7 +95,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
   }
 
   try {
-    const fecha = new Date(data.fecha);
+    const fecha = fechaMediodiaUTC(data.fecha);
     const fechaVencimiento = data.esCredito
       ? new Date(fecha.getTime() + diasCreditoCompra * 24 * 3600 * 1000)
       : null;
@@ -105,6 +113,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
       const [compra] = await tx
         .insert(compras)
         .values({
+          id: businessEntityId("compra"),
           empresaId: user.empresaId,
           sucursalId: almacen.sucursalId,
           almacenId: data.almacenId,
@@ -252,6 +261,7 @@ export async function procesarCompra(input: unknown): Promise<Resultado> {
 
       if (data.esCredito) {
         await tx.insert(cuentasPorPagar).values({
+          id: businessChildId("cuentas_por_pagar",0),
           empresaId: user.empresaId,
           proveedorId: data.proveedorId,
           compraId: compra.id,

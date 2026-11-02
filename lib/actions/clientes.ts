@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { businessEntityId } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, eq } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { clientes } from "@/lib/db/schema";
@@ -11,6 +13,10 @@ import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
 export async function crearCliente(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearClienteBusiness(input));
+}
+
+async function crearClienteBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "clientes",
@@ -29,6 +35,7 @@ export async function crearCliente(input: unknown): Promise<Resultado> {
       tx
         .insert(clientes)
         .values({
+          id: businessEntityId("cliente"),
           empresaId: user.empresaId,
           nombre: d.nombre,
           identificacionFiscal: d.identificacionFiscal || null,
@@ -52,6 +59,10 @@ export async function crearCliente(input: unknown): Promise<Resultado> {
 }
 
 export async function actualizarCliente(id: string, input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarClienteBusiness(id, input));
+}
+
+async function actualizarClienteBusiness(id: string, input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "clientes",

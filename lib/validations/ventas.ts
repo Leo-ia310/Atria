@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { manualPaymentEvidenceSchema } from "../pos-payment";
 
 export const ventaItemSchema = z.object({
   productoId: z.string().uuid(),
@@ -9,7 +10,7 @@ export const ventaItemSchema = z.object({
   costoUnitario: z.coerce.number().min(0),
 });
 
-export const ventaPagoSchema = z.object({
+export const ventaPagoSchema = manualPaymentEvidenceSchema.extend({
   formaPagoId: z.string().uuid(),
   monto: z.coerce.number().positive(),
   referencia: z.string().optional().or(z.literal("")),
@@ -20,12 +21,12 @@ export const procesarVentaSchema = z.object({
   almacenId: z.string().uuid(),
   clienteId: z.string().uuid().optional().or(z.literal("")),
   items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto"),
-  pagos: z.array(ventaPagoSchema).min(1, "Indica al menos un pago"),
+  pagos: z.array(ventaPagoSchema),
   descuentoGlobal: z.coerce.number().min(0).default(0),
   esCredito: z.boolean().default(false),
   diasCredito: z.coerce.number().int().min(0).default(0),
   notas: z.string().max(500).optional().or(z.literal("")),
-});
+}).refine((data) => data.esCredito || data.pagos.length > 0, { message: "Indica al menos un pago", path: ["pagos"] });
 
 export type VentaItemInput = z.infer<typeof ventaItemSchema>;
 export type VentaPagoInput = z.infer<typeof ventaPagoSchema>;

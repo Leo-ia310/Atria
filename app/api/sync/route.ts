@@ -1,193 +1,40 @@
-/**
- * Recepción de sincronización desde Arca Desktop.
- *
- * Ruta AISLADA y ADITIVA. NO escribe en las tablas de negocio: valida la firma
- * del "offline grant" (HMAC con AUTH_SECRET), y persiste cada operación en una
- * bandeja de entrada idempotente (`desktop_sync_inbox`). La empresa se toma del
- * grant VERIFICADO, nunca de lo que declare el cliente (a prueba de suplantación
- * de tenant). Aplicar la bandeja a las tablas vivas (con reconciliación de IDs
- * locales → reales) es un paso server-side posterior y deliberado.
- */
-
-import { timingSafeEqual } from "node:crypto";
-import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { dbSuperAdmin } from "@/lib/db";
-import { empresas, usuarios } from "@/lib/db/schema";
-import { firmarGrantCanonico } from "@/lib/desktop-grant";
+import { authorizeDesktop, desktopGrantSchema, DesktopAuthError } from "@/lib/desktop-auth";
+import { applyDesktopOperation, desktopOperationSchema, DesktopOperationError, operationPriority } from "@/lib/desktop-operations";
+import { rateLimit } from "@/lib/redis/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const authSchema = z.object({
-  userId: z.string().uuid(),
-  empresaId: z.string().uuid(),
-  sucursalIds: z.array(z.string()).default([]),
-  deviceId: z.string().min(1),
-  issuedAt: z.string(),
-  expiresAt: z.string(),
-  signature: z.string().min(1),
-});
-
-const operationSchema = z.object({
-  id: z.string().min(1),
-  entityType: z.string().min(1).max(80),
-  entityId: z.string().min(1).max(120).optional().nullable(),
-  operation: z.string().min(1).max(40),
-  payload: z.record(z.unknown()).default({}),
-  createdAt: z.string().optional(),
-  idempotencyKey: z.string().min(1).max(200),
-  priority: z.number().int().min(0).max(100).default(50),
-});
-
-const bodySchema = z.object({
-  protocolVersion: z.number().optional(),
-  deviceId: z.string().optional(),
-  pushedAt: z.string().optional(),
-  auth: authSchema,
-  operations: z.array(operationSchema).max(500).default([]),
-});
-
-let inboxReady: Promise<void> | null = null;
-
-function asegurarInbox(): Promise<void> {
-  if (!inboxReady) {
-    inboxReady = dbSuperAdmin(async (tx) => {
-      await tx.execute(sql`
-        CREATE TABLE IF NOT EXISTS desktop_sync_inbox (
-          idempotency_key text PRIMARY KEY,
-          operation_id text NOT NULL,
-          empresa_id uuid NOT NULL,
-          user_id uuid,
-          device_id text,
-          entity_type text NOT NULL,
-          entity_id text,
-          operation text NOT NULL,
-          payload jsonb NOT NULL,
-          priority integer NOT NULL DEFAULT 50,
-          client_created_at timestamptz,
-          received_at timestamptz NOT NULL DEFAULT now(),
-          status text NOT NULL DEFAULT 'received',
-          applied_at timestamptz
-        )
-      `);
-      await tx.execute(sql`
-        CREATE INDEX IF NOT EXISTS desktop_sync_inbox_empresa_status_idx
-          ON desktop_sync_inbox(empresa_id, status)
-      `);
-    }).catch((err) => {
-      inboxReady = null; // permite reintentar la creación en la próxima petición
-      throw err;
-    });
-  }
-  return inboxReady;
-}
-
-/**
- * Revocación efectiva: un grant sigue firmado y "válido" hasta 30 días, pero el
- * usuario pudo ser desactivado, eliminado o movido de empresa en ese lapso.
- * Se revalida contra la fuente de verdad (Postgres) que el usuario siga activo,
- * pertenezca a la empresa del grant y la empresa esté activa.
- */
-async function grantSigueAutorizado(
-  userId: string,
-  empresaId: string,
-): Promise<boolean> {
-  const filas = await dbSuperAdmin((tx) =>
-    tx
-      .select({ id: usuarios.id })
-      .from(usuarios)
-      .innerJoin(empresas, eq(usuarios.empresaId, empresas.id))
-      .where(
-        and(
-          eq(usuarios.id, userId),
-          eq(usuarios.empresaId, empresaId),
-          eq(usuarios.activo, true),
-          isNull(usuarios.eliminadoEn),
-          eq(empresas.activa, true),
-        ),
-      )
-      .limit(1),
-  );
-  return filas.length > 0;
-}
-
-function grantValido(secret: string, a: z.infer<typeof authSchema>): boolean {
-  const esperado = firmarGrantCanonico(secret, {
-    userId: a.userId,
-    empresaId: a.empresaId,
-    sucursalIds: a.sucursalIds,
-    deviceId: a.deviceId,
-    issuedAt: a.issuedAt,
-    expiresAt: a.expiresAt,
-  });
-  const bufEsperado = Buffer.from(esperado, "hex");
-  const bufRecibido = Buffer.from(a.signature, "hex");
-  if (bufEsperado.length !== bufRecibido.length) return false;
-  if (!timingSafeEqual(bufEsperado, bufRecibido)) return false;
-  return new Date(a.expiresAt).getTime() > Date.now();
-}
+const bodySchema = z.object({ deviceId: z.string().uuid(), auth: desktopGrantSchema, operations: z.array(desktopOperationSchema).max(50) });
 
 export async function POST(request: Request) {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    return Response.json({ ok: false, error: "Servidor sin AUTH_SECRET" }, { status: 503 });
-  }
-
-  let raw: unknown;
   try {
-    raw = await request.json();
-  } catch {
-    return Response.json({ ok: false, error: "Cuerpo invalido" }, { status: 400 });
-  }
-
-  const parsed = bodySchema.safeParse(raw);
-  if (!parsed.success) {
-    return Response.json({ ok: false, error: "Solicitud invalida" }, { status: 400 });
-  }
-  const { auth, operations } = parsed.data;
-
-  if (!grantValido(secret, auth)) {
-    return Response.json({ ok: false, error: "Grant invalido o vencido" }, { status: 401 });
-  }
-
-  if (!(await grantSigueAutorizado(auth.userId, auth.empresaId))) {
-    return Response.json({ ok: false, error: "Acceso revocado" }, { status: 401 });
-  }
-
-  try {
-    await asegurarInbox();
-  } catch {
-    return Response.json({ ok: false, error: "No se pudo preparar la recepcion" }, { status: 503 });
-  }
-
-  const accepted: { id: string }[] = [];
-  const errors: { id: string; error: string; retryable: boolean }[] = [];
-
-  await dbSuperAdmin(async (tx) => {
-    for (const op of operations) {
+    const raw = await request.text();
+    if (raw.length > 5000000) return Response.json({ ok: false, error: "Lote demasiado grande" }, { status: 413 });
+    const body = bodySchema.parse(JSON.parse(raw));
+    const { user, sucursalIds } = await authorizeDesktop(body.auth,body.deviceId);
+    const limit = await rateLimit("desktop-push",`${user.empresaId}:${body.deviceId}`,60,60);
+    if (!limit.permitido) return Response.json({ ok: false, error: "Espera antes de reintentar" }, { status: 429 });
+    const accepted: Array<{ id: string; result: unknown }> = [];
+    const conflicts: Array<{ id: string; reason: string; code: string }> = [];
+    const errors: Array<{ id: string; error: string; code: string; retryable: boolean }> = [];
+    for (const op of body.operations.slice().sort((a,b) => operationPriority(a)-operationPriority(b))) {
       try {
-        await tx.execute(sql`
-          INSERT INTO desktop_sync_inbox
-            (idempotency_key, operation_id, empresa_id, user_id, device_id,
-             entity_type, entity_id, operation, payload, priority, client_created_at)
-          VALUES (
-            ${op.idempotencyKey}, ${op.id}, ${auth.empresaId}::uuid, ${auth.userId}::uuid, ${auth.deviceId},
-            ${op.entityType}, ${op.entityId ?? null}, ${op.operation},
-            ${JSON.stringify(op.payload)}::jsonb, ${op.priority}, ${op.createdAt ?? null}
-          )
-          ON CONFLICT (idempotency_key) DO NOTHING
-        `);
-        accepted.push({ id: op.id });
-      } catch (err) {
-        errors.push({
-          id: op.id,
-          error: err instanceof Error ? err.message : "Error al recibir",
-          retryable: true,
-        });
+        accepted.push({ id: op.id, result: await applyDesktopOperation(user,body.deviceId,sucursalIds,op) });
+      } catch (error) {
+        if (error instanceof DesktopOperationError && !error.retryable) conflicts.push({ id: op.id, reason: error.message, code: error.code });
+        else if (error instanceof z.ZodError) conflicts.push({ id: op.id, reason: "La operación contiene datos incompatibles. Requiere revisión.", code: "INVALID_PAYLOAD" });
+        else {
+          errors.push({ id: op.id, error: error instanceof DesktopOperationError ? error.message : "No se pudo aplicar la operación. Se conservará para reintentar.", code: error instanceof DesktopOperationError ? error.code : "SERVER_ERROR", retryable: true });
+          if (!(error instanceof DesktopOperationError)) console.error("[desktop-push] Operación revertida por error del servidor.");
+        }
       }
     }
-  });
-
-  return Response.json({ ok: true, accepted, conflicts: [], errors });
+    return Response.json({ ok: true, applied: true, accepted, conflicts, errors }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof DesktopAuthError) return Response.json({ ok: false, error: error.message }, { status: 401 });
+    if (error instanceof z.ZodError || error instanceof SyntaxError) return Response.json({ ok: false, error: "Solicitud de sincronización inválida" }, { status: 400 });
+    console.error("[desktop-push] No se pudo preparar la sincronización.");
+    return Response.json({ ok: false, error: "Servidor temporalmente no disponible" }, { status: 503 });
+  }
 }

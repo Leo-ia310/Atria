@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { businessEntityId } from "@/lib/business-context";
+
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, desc, eq, inArray, isNull, like, ne } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
@@ -152,6 +154,10 @@ async function resolverCodigoFiscalProducto(
 }
 
 export async function crearProducto(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearProductoBusiness(input));
+}
+
+async function crearProductoBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "inventario",
@@ -203,6 +209,7 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
       const [fila] = await tx
         .insert(productos)
         .values({
+          id: businessEntityId("producto"),
           empresaId: user.empresaId,
           sku,
           codigoBarras: codigoBarras || null,
@@ -243,6 +250,13 @@ export async function crearProducto(input: unknown): Promise<Resultado> {
 }
 
 export async function actualizarProducto(
+  id: string,
+  input: unknown,
+): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarProductoBusiness(id, input));
+}
+
+async function actualizarProductoBusiness(
   id: string,
   input: unknown,
 ): Promise<Resultado> {
@@ -556,6 +570,12 @@ function encontrarDuplicado(valores: string[]): string | null {
 export async function registrarEntradaInventarioPorLector(
   input: unknown,
 ): Promise<ResultadoEntradaLector> {
+  return executeBusinessAction(await requireSession(), () => registrarEntradaInventarioPorLectorBusiness(input));
+}
+
+async function registrarEntradaInventarioPorLectorBusiness(
+  input: unknown,
+): Promise<ResultadoEntradaLector> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
     modulo: "inventario",
@@ -648,6 +668,7 @@ export async function registrarEntradaInventarioPorLector(
       }
 
       await tx.insert(movimientosInventario).values({
+        id: businessEntityId("movimiento_inventario"),
         empresaId: user.empresaId,
         productoId: producto.id,
         almacenId: almacen.id,

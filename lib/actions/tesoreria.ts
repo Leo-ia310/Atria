@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
@@ -24,6 +24,10 @@ import {
 type Resultado = { ok: true } | { ok: false; error: string };
 
 export async function crearCuentaFinanciera(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => crearCuentaFinancieraBusiness(input));
+}
+
+async function crearCuentaFinancieraBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "tesoreria", permisos: "tesoreria.ver" });
   if (!acceso.ok) return acceso;
@@ -76,6 +80,12 @@ async function crearCategoriaGasto(input: unknown): Promise<Resultado> {
 }
 
 export async function crearGasto(
+  input: unknown,
+): Promise<{ ok: true; gastoId: string } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => crearGastoBusiness(input));
+}
+
+async function crearGastoBusiness(
   input: unknown,
 ): Promise<{ ok: true; gastoId: string } | { ok: false; error: string }> {
   const user = await requireSession();
@@ -168,6 +178,10 @@ export async function crearGasto(
 }
 
 export async function actualizarGastoRecurrente(input: unknown): Promise<Resultado> {
+  return executeBusinessAction(await requireSession(), () => actualizarGastoRecurrenteBusiness(input));
+}
+
+async function actualizarGastoRecurrenteBusiness(input: unknown): Promise<Resultado> {
   const user = await requireSession();
   const acceso = await validarAccion(user, { modulo: "tesoreria", permisos: "tesoreria.ver" });
   if (!acceso.ok) return acceso;

@@ -17,6 +17,7 @@ import { getEmpresaMetadata } from "@/lib/tenant-data";
 import { cacheModulo } from "@/lib/redis/cache";
 import { MODULOS, TTL } from "@/lib/redis/keys";
 import { BotonExportarExcel } from "@/components/ui/BotonExportarExcel";
+import { procesarInventarioReporte } from "@/lib/reportes/core";
 
 export default async function ReporteInventarioPage() {
   const user = await requireSession();
@@ -87,17 +88,7 @@ export default async function ReporteInventarioPage() {
     },
   );
 
-  const procesados = rows
-    .map((r) => ({
-      productoId: r.productoId,
-      nombre: r.nombre,
-      sku: r.sku,
-      stockTotal: parseFloat(r.stockTotal),
-      stockMinimo: parseFloat(r.stockMinimo),
-      costoPromedio: parseFloat(r.costoPromedio),
-      valorTotal: parseFloat(r.stockTotal) * parseFloat(r.costoPromedio),
-    }))
-    .sort((a, b) => b.valorTotal - a.valorTotal);
+  const procesados = procesarInventarioReporte(rows);
 
   const totalValorizado = procesados.reduce((a, p) => a + p.valorTotal, 0);
   const bajoMinimo = procesados.filter((p) => p.stockTotal < p.stockMinimo);

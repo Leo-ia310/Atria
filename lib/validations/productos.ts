@@ -76,7 +76,7 @@ export const importarProductosSchema = z.object({
 export const entradaInventarioLectorSchema = z.object({
   productoId: z.string().uuid("Producto invalido"),
   almacenId: z.string().uuid("Almacen invalido"),
-  codigoBarras: z.string().trim().min(1, "Codigo de barras requerido").max(80),
+  codigoBarras: z.string().trim().max(80),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor que cero"),
   fechaVencimiento: z
     .string()

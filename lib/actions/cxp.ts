@@ -1,18 +1,25 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { invalidarModulos } from "@/lib/redis/cache";
 import { MODULOS } from "@/lib/redis/keys";
 import { and, eq } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import { cuentasPorPagar, pagosProveedor, cuentasFinancieras, compras } from "@/lib/db/schema";
 import { registrarPagoSchema } from "@/lib/validations/cxp";
+import { businessEntityId } from "@/lib/business-context";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import { registrarPagoProveedor } from "@/lib/contabilidad/motor-asientos";
 import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
 
 export async function registrarPago(
+  input: unknown,
+): Promise<{ ok: true; pagoId: string } | { ok: false; error: string }> {
+  return executeBusinessAction(await requireSession(), () => registrarPagoBusiness(input));
+}
+
+async function registrarPagoBusiness(
   input: unknown,
 ): Promise<{ ok: true; pagoId: string } | { ok: false; error: string }> {
   const user = await requireSession();
@@ -79,6 +86,7 @@ export async function registrarPago(
       const [pago] = await tx
         .insert(pagosProveedor)
         .values({
+          id: businessEntityId("pago_proveedor"),
           empresaId: user.empresaId,
           cxpId: data.cxpId,
           cuentaFinancieraId: data.cuentaFinancieraId,

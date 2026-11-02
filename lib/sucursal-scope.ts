@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { SessionUser } from "@/lib/actions/session-helpers";
 import { getAccessContext } from "@/lib/server-access";
 import { getSucursalesActivas } from "@/lib/tenant-data";
+import { currentBusinessContext } from "./business-context";
 
 export const SUCURSAL_SCOPE_COOKIE = "arca:sucursal-scope";
 
@@ -94,9 +95,14 @@ const getSucursalScopeCached = cache(
   },
 );
 
-export function getSucursalScope(
+export async function getSucursalScope(
   user: SessionUser,
 ): Promise<SucursalScope> {
+  const context = currentBusinessContext();
+  if (context?.sucursalIds) {
+    const sucs = (await getSucursalesActivas(user.empresaId)).filter((row) => context.sucursalIds!.includes(row.id));
+    return { visible: sucs.length > 1, modo: "selected", sucursales: sucs, sucursalIds: sucs.map((row) => row.id), etiqueta: "Sucursales autorizadas" };
+  }
   return getSucursalScopeCached(
     user.id,
     user.empresaId,

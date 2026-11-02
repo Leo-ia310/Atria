@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock, FileText, HandCoins, WalletCards } from "lucide-react";
 import { and, count, eq, inArray, sum, type SQL } from "drizzle-orm";
+import {facturaTieneSaldo} from "@/lib/factura-settlement";
 import { db } from "@/lib/db";
 import { facturas, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -40,6 +41,8 @@ export default async function FacturasPage() {
   const credito = metricas(resumenRows, true);
   const totalCantidad = cobradas.cantidad + credito.cantidad;
   const totalMonto = cobradas.total + credito.total;
+  const [porCobrar]=await db.select({cantidad:count(facturas.id),total:sum(facturas.total)}).from(facturas).leftJoin(ventas,eq(ventas.id,facturas.ventaId)).where(and(...cond,eq(facturas.esCredito,false),facturaTieneSaldo()));
+  cobradas.cantidad-=Number(porCobrar?.cantidad??0);cobradas.total-=Number(porCobrar?.total??0);
 
   return (
     <div>
@@ -69,6 +72,7 @@ export default async function FacturasPage() {
         />
       </div>
 
+      {Number(porCobrar?.cantidad??0)>0&&<p className="mt-4 text-small">{porCobrar.cantidad} documentos de contado siguen por verificar o cobrar. <Link href="/cxc" className="underline">Ver cuentas por cobrar</Link></p>}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SubmoduloCard
           href="/facturas/cobradas"

@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { currentBusinessContext } from "../business-context";
 
 export type SessionUser = {
   id: string;
@@ -15,9 +15,13 @@ export type SessionUser = {
  * Garantiza que hay sesión activa. Redirige a /login si no.
  * Devuelve los datos del usuario tipados — usar en server components/actions.
  */
-const getAuthSession = cache(async () => auth());
+// The shared business services can run in an authenticated command context
+// without constructing the cookie-based NextAuth runtime.
+const getAuthSession = cache(async () => (await import("@/auth")).auth());
 
 export const requireSession = cache(async (): Promise<SessionUser> => {
+  const context = currentBusinessContext();
+  if (context) return context.user;
   const session = await getAuthSession();
   if (!session?.user?.id) {
     redirect("/login");

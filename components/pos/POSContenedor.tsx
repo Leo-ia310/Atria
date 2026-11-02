@@ -80,7 +80,7 @@ type CantidadEscaneoPendiente = {
   expiraEn: number;
 };
 
-type VentaExito = { id: string; numero: string };
+type VentaExito = { id: string; numero: string;pendienteVerificacion?:boolean };
 
 type POSContenedorViewProps = {
   cajaAbierta: boolean;
@@ -978,7 +978,7 @@ function posContenedorView({
             setCarrito([]);
             setClienteId("");
             setModalPago(false);
-            setVentaExito({ id: res.ventaId, numero: res.numero });
+            setVentaExito({ id: res.ventaId, numero: res.numero,pendienteVerificacion:res.pendienteVerificacion });
             onRefresh();
           }}
         />
@@ -988,7 +988,7 @@ function posContenedorView({
         <Modal
           abierto={true}
           onCerrar={() => setVentaExito(null)}
-          titulo="Venta completada"
+          titulo={ventaExito.pendienteVerificacion?"Venta guardada · Cobro pendiente":"Venta completada"}
           descripcion={`Factura ${ventaExito.numero} registrada correctamente.`}
           ancho="sm"
           footer={
@@ -1013,7 +1013,7 @@ function posContenedorView({
               <Check size={28} />
             </div>
             <p className="text-small text-[color:var(--color-text-muted)]">
-              La factura quedó guardada. Puedes imprimir una o dos copias.
+              {ventaExito.pendienteVerificacion?"La transferencia está pendiente de verificación. El importe queda por cobrar y no se registra como dinero recibido.":"La venta quedó guardada. Puedes imprimir una o dos copias."}
             </p>
           </div>
         </Modal>

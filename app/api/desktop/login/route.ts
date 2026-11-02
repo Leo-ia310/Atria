@@ -21,6 +21,9 @@ import { loginSchema } from "@/lib/validations/auth";
 import { rateLimit } from "@/lib/redis/rate-limit";
 import { firmarGrantCanonico } from "@/lib/desktop-grant";
 import { desktopBootstrap } from "@/lib/desktop-bootstrap";
+import { ensureDesktopSchema } from "@/lib/desktop-schema";
+import { desktopGrantSchema } from "@/lib/desktop-auth";
+import { desktopAccessFor } from "@/lib/desktop-access-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,10 +56,13 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
   const { email, password, empresaId } = parsed.data;
-  const deviceId =
+  const rawDeviceId =
     typeof (body as { deviceId?: unknown }).deviceId === "string"
       ? ((body as { deviceId: string }).deviceId || "desconocido")
       : "desconocido";
+  const device = desktopGrantSchema.shape.deviceId.safeParse(rawDeviceId);
+  if (!device.success) return Response.json({ ok: false, error: "Identificador de dispositivo inválido" }, { status: 400 });
+  const deviceId = device.data;
 
   const ip = obtenerIp(request);
   const [limEmail, limIp] = await Promise.all([
@@ -107,26 +113,26 @@ export async function POST(request: Request) {
   const [rolFilas, sucursalesAsignadas] = await Promise.all([
     user.rolId
       ? dbSuperAdmin((tx) =>
-          tx.select({ nombre: roles.nombre }).from(roles).where(eq(roles.id, user.rolId!)).limit(1),
+          tx.select({ nombre: roles.nombre }).from(roles).where(and(eq(roles.id, user.rolId!),eq(roles.empresaId,user.empresaId))).limit(1),
         )
       : Promise.resolve([] as { nombre: string }[]),
     dbSuperAdmin((tx) =>
       tx
-        .select({ id: sucursales.id, nombre: sucursales.nombre })
+        .select({ id: sucursales.id, nombre: sucursales.nombre, activa: sucursales.activa, eliminadoEn: sucursales.eliminadoEn })
         .from(usuarioSucursales)
         .innerJoin(sucursales, eq(usuarioSucursales.sucursalId, sucursales.id))
-        .where(eq(usuarioSucursales.usuarioId, user.id)),
+        .where(and(eq(usuarioSucursales.usuarioId, user.id), eq(sucursales.empresaId, user.empresaId))),
     ),
   ]);
 
   const listaSucursales =
     sucursalesAsignadas.length > 0
-      ? sucursalesAsignadas
+      ? sucursalesAsignadas.filter((s)=>s.activa && !s.eliminadoEn).map(({id,nombre})=>({id,nombre}))
       : await dbSuperAdmin((tx) =>
           tx
             .select({ id: sucursales.id, nombre: sucursales.nombre })
             .from(sucursales)
-            .where(eq(sucursales.empresaId, user.empresaId)),
+            .where(and(eq(sucursales.empresaId, user.empresaId), eq(sucursales.activa, true), isNull(sucursales.eliminadoEn))),
         );
 
   await dbSuperAdmin((tx) =>
@@ -136,6 +142,19 @@ export async function POST(request: Request) {
   const rolNombre = rolFilas[0]?.nombre ?? null;
   const issuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + GRANT_TTL_MS).toISOString();
+  const access = await desktopAccessFor(user, deviceId, expiresAt, listaSucursales.map((s) => s.id));
+  await ensureDesktopSchema();
+  const enrolled = await dbSuperAdmin(async (tx) => {
+    const deviceRows = await tx.execute(sql`insert into desktop_devices(empresa_id,device_id) values(${user.empresaId}::uuid,${deviceId}::uuid)
+      on conflict(empresa_id,device_id) do update set name=desktop_devices.name where desktop_devices.revoked_at is null returning device_id`);
+    if (!deviceRows.length) return false;
+    const rows = await tx.execute(sql`insert into desktop_device_users(empresa_id,device_id,user_id,offline_access_valid_until)
+      values(${user.empresaId}::uuid,${deviceId}::uuid,${user.id}::uuid,${expiresAt}::timestamptz)
+      on conflict(empresa_id,device_id,user_id) do update set offline_access_valid_until=excluded.offline_access_valid_until
+      where desktop_device_users.revoked_at is null returning user_id`);
+    return rows.length > 0;
+  });
+  if (!enrolled) return Response.json({ ok: false, error: "El acceso de este dispositivo fue revocado" }, { status: 403 });
   const signature = firmarGrantCanonico(secret, {
     userId: user.id,
     empresaId: user.empresaId,
@@ -147,7 +166,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
-    bootstrap: await desktopBootstrap({ ...user, email: user.email, rolId: user.rolId }, listaSucursales.map((s) => s.id)),
+    bootstrap: await desktopBootstrap({ ...user, email: user.email, rolId: user.rolId }, listaSucursales.map((s) => s.id), { deviceId }),
     user: {
       id: user.id,
       empresaId: user.empresaId,
@@ -158,7 +177,8 @@ export async function POST(request: Request) {
     },
     sucursales: listaSucursales,
     roles: rolNombre ? [rolNombre] : [],
-    permissions: [],
+    permissions: access.permissions,
+    access,
     grant: { issuedAt, expiresAt, signature },
   });
 }

@@ -1,3 +1,4 @@
+import { rangoReporte, margenReporte } from "@/lib/reportes/core";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -7,7 +8,7 @@ import {
   Percent,
   ArrowRight,
 } from "lucide-react";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, isNull, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ventas, existencias, productos, almacenes } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -48,8 +49,8 @@ export default async function ReportesPage() {
   const pais = empresa?.pais ?? "NI";
   const sucursalIds = selectedSucursalIds(scope);
 
-  const hace30 = new Date();
-  hace30.setDate(hace30.getDate() - 30);
+  const range=rangoReporte(30,empresa?.zonaHoraria);
+  const fechaLocal=sql`(${ventas.fecha} AT TIME ZONE ${empresa?.zonaHoraria??"America/Managua"})::date`;
 
   const [ventasRow, inventarioRow] = await Promise.all([
     db
@@ -63,7 +64,7 @@ export default async function ReportesPage() {
         and(
           eq(ventas.empresaId, user.empresaId),
           eq(ventas.estado, "completada"),
-          gte(ventas.fecha, hace30),
+          sql`${fechaLocal} >= ${range.desde}`, sql`${fechaLocal} <= ${range.hasta}`,
           sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
         ),
       ),
@@ -77,7 +78,7 @@ export default async function ReportesPage() {
       .where(
         and(
           eq(existencias.empresaId, user.empresaId),
-          eq(almacenes.activo, true),
+          eq(almacenes.activo, true), eq(productos.activo,true), isNull(productos.eliminadoEn),
           sucursalIds ? inArray(almacenes.sucursalId, sucursalIds) : undefined,
         ),
       ),
@@ -87,8 +88,8 @@ export default async function ReportesPage() {
   const costoVentas = parseFloat(ventasRow[0]?.costo ?? "0");
   const numVentas = parseInt(ventasRow[0]?.count ?? "0", 10);
   const valorInventario = parseFloat(inventarioRow[0]?.valor ?? "0");
-  const margen = totalVentas - costoVentas;
-  const margenPct = totalVentas > 0 ? (margen / totalVentas) * 100 : 0;
+  const {margen,porcentaje:margenPct}=margenReporte(totalVentas,costoVentas);
+
 
   return (
     <div>
