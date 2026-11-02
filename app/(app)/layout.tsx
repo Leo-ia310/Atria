@@ -1,3 +1,5 @@
+import {readWebChanges} from "@/lib/web-changes";
+import {layoutNotificationItems} from "@/lib/layout-notification-items";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
@@ -39,7 +41,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireSession();
-  const [access, empresa, sucursalScope, headerStore, onboarding] = await Promise.all([
+  const [access, empresa, sucursalScope, headerStore, onboarding, changeBaseline] = await Promise.all([
     getAccessContext(user),
     getEmpresaMetadata(user.empresaId),
     getSucursalScope(user),
@@ -66,6 +68,7 @@ export default async function AppLayout({
         usuarioCreadoEn: usuarioRows[0]?.creadoEn ?? null,
       };
     }),
+    readWebChanges(user,null),
   ]);
   const pathname = headerStore.get("x-arca-pathname") ?? "";
   const moduloActual = moduloDesdeRuta(pathname);
@@ -84,6 +87,7 @@ export default async function AppLayout({
       <SessionProvider>
         <ToastProvider>
           <AppShell
+            initialChangeCursor={access.suscripcionBloqueada?undefined:changeBaseline.cursor}
             nombreEmpresa={nombreEmpresa}
             planNombre={planNombre}
             planActualId={access.plan.id}
@@ -136,39 +140,13 @@ export default async function AppLayout({
     puedeVerRrhh,
   );
 
-  const notificaciones: Notificacion[] = [];
-  if (nCxc > 0) {
-    notificaciones.push({
-      id: "cxc-vencidas",
-      titulo: `${nCxc} ${nCxc === 1 ? "cuenta vencida por cobrar" : "cuentas vencidas por cobrar"}`,
-      detalle: "Revisa los cobros pendientes",
-      href: "/cxc",
-      tono: "error",
-    });
-  }
-  if (nCxp > 0) {
-    notificaciones.push({
-      id: "cxp-vencidas",
-      titulo: `${nCxp} ${nCxp === 1 ? "cuenta vencida por pagar" : "cuentas vencidas por pagar"}`,
-      detalle: "Tienes pagos a proveedores vencidos",
-      href: "/cxp",
-      tono: "warning",
-    });
-  }
-  if (nSol > 0) {
-    notificaciones.push({
-      id: "solicitudes-pendientes",
-      titulo: `${nSol} ${nSol === 1 ? "solicitud pendiente" : "solicitudes pendientes"}`,
-      detalle: "Solicitudes de RRHH por resolver",
-      href: "/rrhh/solicitudes",
-      tono: "info",
-    });
-  }
+  const notificaciones=layoutNotificationItems({cxcVencidas:nCxc,cxpVencidas:nCxp,solicitudesPendientes:nSol});
 
   return (
     <SessionProvider>
       <ToastProvider>
         <AppShell
+          initialChangeCursor={access.suscripcionBloqueada?undefined:changeBaseline.cursor}
           nombreEmpresa={nombreEmpresa}
           planNombre={planNombre}
           planActualId={access.plan.id}

@@ -8,6 +8,8 @@ import { puedeAccederModulo } from "@/lib/access-control";
 import type { SessionUser } from "@/lib/actions/session-helpers";
 import { TASA_SEGURIDAD_SOCIAL } from "./rrhh";
 import type { PaisCodigo } from "./paises";
+import {loadNotificationBranches} from "./layout-notification-query";
+import {normalizarPoliticasNegocio,sumarDiasIso} from "./politicas-negocio";
 
 /** Initial offline catalog. Reads remain scoped to the authenticated company. */
 export async function desktopBootstrap(user: SessionUser, sucursalIds: string[], options?: { deviceId: string; cursor?: string; pendingKeys?: string[] }) {
@@ -175,6 +177,9 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       rrhh.colillas = await query("rrhh.colillas", sql`select c.id,c.nomina_id,c.nomina_detalle_id,c.snapshot from nomina_colillas c join empleados e on e.id=c.empleado_id where c.empresa_id=${user.empresaId}::uuid and e.empresa_id=${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id=any(${branches}))`);
     }
     const settings: Record<string,unknown[]> = {};
+    const [policyRow]=await tx.execute(sql`select valor from configuraciones where empresa_id=${user.empresaId}::uuid and clave='politicas_negocio' limit 1`);
+    const policy=normalizarPoliticasNegocio(policyRow?.valor),today=new Date().toISOString().slice(0,10);
+    settings.notificaciones=(await loadNotificationBranches(tx,user.empresaId,sucursalIds,sumarDiasIso(today,-policy.diasGraciaCobroCliente),sumarDiasIso(today,-policy.diasGraciaPagoProveedor),puedeAccederModulo(access,"cxc"),puedeAccederModulo(access,"cxp"),puedeAccederModulo(access,"rrhh")&&access.esAdminEmpresa,true)).map(row=>({...row,id:row.sucursalId??"unassigned",sucursal_id:row.sucursalId}));
     if(puedeAccederModulo(access,"tesoreria")) {
       settings.cuentas=await query("settings.cuentas",cuentasConSaldoContableQuery(user.empresaId,sucursalIds));
       settings.gastos_categorias=await query("settings.gastos_categorias",sql`select id,empresa_id,nombre,cuenta_contable_id,activa from categorias_gasto where empresa_id=${user.empresaId}::uuid`);

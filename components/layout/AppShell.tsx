@@ -1,5 +1,6 @@
 "use client";
 
+import {CloudChangesRefresh} from "./CloudChangesRefresh";
 import { useCallback, useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header, type SucursalScopeHeader } from "@/components/layout/Header";
@@ -10,6 +11,7 @@ import type { ModuloAcceso } from "@/lib/access-control";
 
 export function AppShell({
   children,
+  initialChangeCursor,
   banner,
   nombreEmpresa,
   planNombre,
@@ -27,6 +29,7 @@ export function AppShell({
   onboardingModulosVistos,
 }: {
   children: ReactNode;
+  initialChangeCursor?:string;
   banner?: ReactNode;
   nombreEmpresa: string;
   planNombre: string;
@@ -48,6 +51,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[color:var(--color-neutral)]">
+      {initialChangeCursor&&<CloudChangesRefresh initialCursor={initialChangeCursor}/>}
       <Sidebar
         nombreEmpresa={nombreEmpresa}
         planNombre={planNombre}

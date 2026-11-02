@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useId, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Modal({
@@ -21,6 +21,7 @@ export function Modal({
   footer?: ReactNode;
   ancho?: "sm" | "md" | "lg" | "xl";
 }) {
+  const titleId=useId();
   const onCerrarRef = useRef(onCerrar);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function Modal({
         onClick={onCerrar}
       />
       <div
+        role="dialog" aria-modal="true" aria-labelledby={titleId}
         className={cn(
           "arca-card relative max-h-[92vh] w-full overflow-hidden bg-[color:var(--color-surface)]",
           anchoClase,
@@ -66,7 +68,7 @@ export function Modal({
       >
         <div className="flex items-start justify-between gap-4 border-b border-[color:var(--color-border)] px-4 py-4 sm:px-5">
           <div>
-            <h2 className="text-base font-semibold text-[color:var(--color-text-primary)]">
+            <h2 id={titleId} className="text-base font-semibold text-[color:var(--color-text-primary)]">
               {titulo}
             </h2>
             {descripcion && (

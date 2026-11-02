@@ -321,6 +321,8 @@ try {
   await checkPendingTransfers({db,sql,op,sale,config,applyDesktopOperation,desktopBootstrap,user,device1,device2,branch,branch2,transferMethod,cardAccount});
   const createPeriod=config("crearPeriodo",[nextPeriod]);const periodCreated=await applyDesktopOperation(user,device1,[branch],createPeriod);assert.equal((await applyDesktopOperation(user,device1,[branch],createPeriod)).id,periodCreated.id);
   const [currentPeriod]=await db.execute(sql`select id from periodos_contables where empresa_id=${empresaId}::uuid and anio=${year} and mes=${month}`);
+  const {checkWebChangesNotifications}=await import("./check-web-changes-notifications.mjs");
+  await checkWebChangesNotifications({db,s,sql,user,branch,branch2,product,supplierId:supplier.entityId,customerId:customer.entityId,desktopBootstrap,device1});
   const closePeriod=config("cerrarPeriodo",[{periodoId:currentPeriod.id}]);await applyDesktopOperation(user,device1,[branch],closePeriod);await applyDesktopOperation(user,device1,[branch],closePeriod);
   const [closedPeriod]=await db.execute(sql`select estado,cerrado_en from periodos_contables where id=${currentPeriod.id}::uuid`);assert.equal(closedPeriod.estado,"cerrado");assert.ok(closedPeriod.cerrado_en);
   const reopenPeriod=config("reabrirPeriodo",[{periodoId:currentPeriod.id}]);await applyDesktopOperation(user,device1,[branch],reopenPeriod);await applyDesktopOperation(user,device1,[branch],reopenPeriod);
