@@ -20,6 +20,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   experimental: {
+    // Limit build-time memory pressure on Windows and small CI runners.
+    webpackMemoryOptimizations: true,
+    cpus: 2,
     serverActions: {
       bodySizeLimit: "5mb",
     },
