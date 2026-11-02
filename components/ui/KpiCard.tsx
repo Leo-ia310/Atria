@@ -18,7 +18,7 @@ export function KpiCard({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="arca-card p-5">
+    <div className="arca-card min-w-0 p-5">
       <div className="flex items-start justify-between gap-3">
         <span className="text-label">{label}</span>
         {Icon && (
@@ -27,8 +27,8 @@ export function KpiCard({
           </div>
         )}
       </div>
-      <div className="mt-3 flex items-baseline gap-2">
-        <div className="text-2xl text-[color:var(--color-text-primary)]">{value}</div>
+      <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-2">
+        <div className="min-w-0 break-words text-xl xl:text-2xl text-[color:var(--color-text-primary)]">{value}</div>
         {delta && (
           <span
             className={cn(

@@ -56,8 +56,8 @@ export default async function ReporteRentabilidadPage() {
             sucursalIds ? inArray(ventas.sucursalId, sucursalIds) : undefined,
           ),
         )
-        .groupBy(periodoExpr)
-        .orderBy(periodoExpr),
+        .groupBy(sql`1`)
+        .orderBy(sql`1`),
   );
 
   const chartData = procesarRentabilidadReporte(datos);

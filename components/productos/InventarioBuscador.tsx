@@ -1,5 +1,6 @@
 "use client";
 
+import {FiltrosInventario,emptyInventoryRanges,matchesInventoryRanges} from "./FiltrosInventario";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Barcode, Package, Search, X } from "lucide-react";
@@ -39,26 +40,28 @@ export function InventarioBuscador({
   filas: FilaInventario[];
   pais: PaisCodigo;
 }) {
+  const [ranges,setRanges]=useState(emptyInventoryRanges);
   const [query, setQuery] = useState("");
   const [modoBarras, setModoBarras] = useState(false);
 
   const filtradas = useMemo(() => {
     const q = normalizar(query);
-    if (!q) return filas;
+    const available=filas.filter(f=>matchesInventoryRanges(Number(f.precio),f.existencia,ranges));
+    if (!q) return available;
     if (modoBarras) {
       const raw = query.trim();
-      return filas.filter((f) => f.codigoBarras && contieneTexto(f.codigoBarras, raw));
+      return available.filter((f) => f.codigoBarras && contieneTexto(f.codigoBarras, raw));
     }
-    return filas.filter(
+    return available.filter(
       (f) =>
         contieneTexto(normalizar(f.sku), q) ||
         contieneTexto(normalizar(f.nombre), q) ||
         contieneTexto(normalizar(f.categoria), q),
     );
-  }, [filas, query, modoBarras]);
+  }, [filas, query, modoBarras,ranges]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3"><FiltrosInventario value={ranges} onChange={setRanges}/>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search
