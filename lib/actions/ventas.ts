@@ -28,6 +28,7 @@ import {
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { preparePosPayment, manualPaymentKind, saleSettlement } from "@/lib/pos-payment";
 import { pendingFiscalDocument } from "@/lib/fiscal-document";
+import { posMoney, posSaleAmounts } from "@/lib/pos-money";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion, validarLimitePlan } from "@/lib/server-access";
 import { registrarVenta } from "@/lib/contabilidad/motor-asientos";
@@ -84,20 +85,12 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     }
   }
 
-  const subtotal = dinero(
-    ...data.items.map((i) => dinero(i.cantidad * i.precioUnitario - i.descuento)),
-  );
-  const impuestoTotal = dinero(...data.items.map((i) => i.impuesto));
-  const descuentoTotal = dinero(
-    ...data.items.map((i) => i.descuento),
-    data.descuentoGlobal,
-  );
-  const total = dinero(subtotal + impuestoTotal - data.descuentoGlobal);
+  const amounts = posSaleAmounts(data.items,data.descuentoGlobal);
+  const {subtotal,impuesto:impuestoTotal,descuentoTotal,total}=amounts;
   const costoTotal = dinero(
     ...data.items.map((i) => dinero(i.cantidad * i.costoUnitario)),
   );
 
-  const totalPagos = dinero(...data.pagos.map((p) => p.monto));
   let settlement:ReturnType<typeof saleSettlement>;
   try {settlement=saleSettlement(total,data.esCredito,data.pagos.map((payment,index)=>({...payment,paymentStatus:paymentEvidence.get(index)?.paymentStatus})));}
   catch(error){return {ok:false,error:error instanceof Error?error.message:"Pagos inválidos."};}
@@ -106,12 +99,6 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     if(!data.clienteId)return {ok:false,error:"Selecciona un cliente para registrar la transferencia pendiente."};
     const [customer]=await dbConEmpresa(user.empresaId,(tx)=>tx.select({id:clientes.id}).from(clientes).where(and(eq(clientes.id,data.clienteId!),eq(clientes.empresaId,user.empresaId),eq(clientes.activo,true),isNull(clientes.eliminadoEn))).limit(1));
     if(!customer)return {ok:false,error:"Cliente no autorizado o inactivo."};
-  }
-  if (!data.esCredito && Math.abs(totalPagos - total) > 0.01) {
-    return {
-      ok: false,
-      error: `Los pagos (${totalPagos}) no cubren el total (${total})`,
-    };
   }
 
   let diasCreditoVenta = data.esCredito ? data.diasCredito : 0;
@@ -265,7 +252,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     }
   }
   for (const item of data.items) {
-    const subtotalLinea = dinero(item.cantidad * item.precioUnitario - item.descuento);
+    const subtotalLinea = posMoney(item.cantidad * item.precioUnitario - item.descuento);
     const tasa = tasaImpuestoPorProducto.get(item.productoId) ?? 0;
     const impuestoEsperado = dinero(subtotalLinea * tasa);
     if (Math.abs(dinero(item.impuesto) - impuestoEsperado) > 0.01) {
@@ -339,12 +326,12 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
           descuento: aDecimalStr(it.descuento),
           impuesto: aDecimalStr(it.impuesto),
           costoUnitario: aDecimalStr(it.costoUnitario),
-          subtotal: aDecimalStr(dinero(it.cantidad * it.precioUnitario - it.descuento)),
+          subtotal: aDecimalStr(posMoney(it.cantidad * it.precioUnitario - it.descuento)),
         })),
       );
 
       const lineasFiscales: SnapshotImpuestoVentaLinea[] = data.items.map((it, index) => {
-        const subtotalLinea = dinero(it.cantidad * it.precioUnitario - it.descuento);
+        const subtotalLinea = posMoney(it.cantidad * it.precioUnitario - it.descuento);
           return {
             lineaReferencia: `item:${index + 1}:${it.productoId}`,
             productoFiscalCodigo: fiscalPorProducto.get(it.productoId) ?? "GENERAL_TAXABLE",
@@ -499,7 +486,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
       ventaId: resultado.id,
       fecha: fechaContable,
       numero: resultado.numero,
-      subtotal,
+      subtotal: amounts.ingresoNeto,
       impuesto: impuestoTotal,
       total,
       costoTotal,
@@ -583,7 +570,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
             precioUnitario: it.precioUnitario,
             descuento: it.descuento,
             impuesto: it.impuesto,
-            subtotal: dinero(it.cantidad * it.precioUnitario - it.descuento),
+            subtotal: posMoney(it.cantidad * it.precioUnitario - it.descuento),
           };
         }),
         pagos: data.pagos.map((p,index) => ({

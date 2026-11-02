@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { posMoney } from "./pos-money";
 
 /** Evidence for manual payments, shared by Desktop and its Cloud adapter. */
 export const manualPaymentEvidenceSchema = z.object({
@@ -48,10 +49,10 @@ export function preparePosPayment(code:string,raw:unknown): ConfirmedPaymentEvid
 
 /** Receivables are not money received; both runtimes use the same allocation. */
 export function saleSettlement(total:number,esCredito:boolean,payments:Array<{monto:number;paymentStatus?:string}>){
-  const money=(value:number)=>Math.round(value*100)/100;
+  const money=posMoney;
   if(esCredito&&payments.length)throw new Error("Una venta al crédito no puede incluir pagos confirmados.");
   const pending=money(payments.filter((payment)=>payment.paymentStatus==="pending_verification").reduce((sum,payment)=>sum+payment.monto,0));
   const confirmed=money(payments.filter((payment)=>payment.paymentStatus!=="pending_verification").reduce((sum,payment)=>sum+payment.monto,0));
-  if(!esCredito&&Math.abs(money(pending+confirmed)-money(total))>0.01)throw new Error("El total de pagos y transferencias pendientes debe coincidir con el total de la venta.");
+  if(!esCredito&&Math.round(money(pending+confirmed)*100)!==Math.round(money(total)*100))throw new Error("El total de pagos y transferencias pendientes debe coincidir con el total de la venta.");
   return {pending,confirmed,receivable:esCredito?money(total):pending};
 }

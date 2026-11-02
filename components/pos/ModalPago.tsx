@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import type { ManualPaymentEvidence } from "@/lib/pos-payment";
+import { posMoney as dineroPos } from "@/lib/pos-money";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,10 +13,6 @@ import { referenciaTarjeta, type ResultadoTarjeta } from "@/components/pos/PagoT
 import { cn, formatearMoneda } from "@/lib/utils";
 import type { PaisCodigo } from "@/lib/paises";
 import type { ClientePOS, FormaPagoPOS, ItemCarrito } from "@/components/pos/POSContenedor";
-
-function dineroPos(valor: number): number {
-  return Math.round(valor * 100) / 100;
-}
 
 function fila({ label, valor }: { label: string; valor: string }) {
   return (
@@ -151,7 +148,7 @@ export function ModalPago({
         }
       }
       const sumaTotal = pagos.reduce((a, p) => a + p.monto, 0);
-      if (Math.abs(dineroPos(sumaTotal) - totalCobro) > 0.01) {setErrorPago("La suma de pagos debe coincidir con el total.");return;}
+      if (Math.round(dineroPos(sumaTotal)*100) !== Math.round(totalCobro*100)) {setErrorPago("La suma de pagos debe coincidir con el total.");return;}
       void enviar({ pagos, esCredito: false });
     } else {
       if (!cliente || !cliente.tieneCredito || !credito) return;

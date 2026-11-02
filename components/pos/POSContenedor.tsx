@@ -1,4 +1,5 @@
 "use client";
+import { posLineAmounts, posSaleAmounts } from "@/lib/pos-money";
 
 import {
   useState,
@@ -258,15 +259,7 @@ function useCarritoPOS({
     }
   }
 
-  const subtotal = carrito.reduce(
-    (acc, item) => acc + item.cantidad * item.producto.precio - item.descuento,
-    0,
-  );
-  const impuesto = carrito.reduce(
-    (acc, item) =>
-      acc + (item.cantidad * item.producto.precio - item.descuento) * item.producto.impuestoTasa,
-    0,
-  );
+  const {subtotal,impuesto,total}=posSaleAmounts(carrito.map(item=>({cantidad:item.cantidad,precioUnitario:item.producto.precio,...posLineAmounts({cantidad:item.cantidad,precioUnitario:item.producto.precio,descuento:item.descuento,tasa:item.producto.impuestoTasa})})));
 
   return {
     carrito,
@@ -278,7 +271,7 @@ function useCarritoPOS({
     vaciarCarrito,
     subtotal,
     impuesto,
-    total: subtotal + impuesto,
+    total,
   };
 }
 
@@ -959,9 +952,7 @@ function posContenedorView({
                 cantidad: it.cantidad,
                 precioUnitario: it.producto.precio,
                 descuento: it.descuento,
-                impuesto:
-                  (it.cantidad * it.producto.precio - it.descuento) *
-                  it.producto.impuestoTasa,
+                impuesto: posLineAmounts({cantidad:it.cantidad,precioUnitario:it.producto.precio,descuento:it.descuento,tasa:it.producto.impuestoTasa}).impuesto,
                 costoUnitario: it.producto.costo,
               })),
               pagos: datos.pagos,
