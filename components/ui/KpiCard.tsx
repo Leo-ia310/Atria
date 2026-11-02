@@ -28,7 +28,7 @@ export function KpiCard({
         )}
       </div>
       <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-2">
-        <div className="min-w-0 break-words text-xl xl:text-2xl text-[color:var(--color-text-primary)]">{value}</div>
+        <div data-kpi-value title={value} style={{fontSize:value.length>16?"0.875rem":value.length>13?"1rem":undefined}} className="min-w-0 break-words text-xl xl:text-2xl text-[color:var(--color-text-primary)]">{value}</div>
         {delta && (
           <span
             className={cn(
