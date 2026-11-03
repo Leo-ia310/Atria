@@ -5,6 +5,8 @@ import { esApiDesktopSinCookie } from "../../lib/desktop-public-routes";
 test("desktop credentials and signed-grant endpoints do not require a web cookie", () => {
   assert.equal(esApiDesktopSinCookie("/api/desktop/login"), true);
   assert.equal(esApiDesktopSinCookie("/api/desktop/health"), true);
+  assert.equal(esApiDesktopSinCookie("/api/desktop/self-service"), true);
+  assert.equal(esApiDesktopSinCookie("/api/desktop/self-service/other"), false);
   assert.equal(esApiDesktopSinCookie("/api/sync"), true);
 });
 
