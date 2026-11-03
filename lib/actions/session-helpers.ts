@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { currentBusinessContext } from "../business-context";
+import {currentAuthenticatedUser} from "../authenticated-user-context";
 
 export type SessionUser = {
   id: string;
@@ -22,6 +23,7 @@ const getAuthSession = cache(async () => (await import("@/auth")).auth());
 export const requireSession = cache(async (): Promise<SessionUser> => {
   const context = currentBusinessContext();
   if (context) return context.user;
+  const authenticated=currentAuthenticatedUser();if(authenticated)return authenticated;
   const session = await getAuthSession();
   if (!session?.user?.id) {
     redirect("/login");

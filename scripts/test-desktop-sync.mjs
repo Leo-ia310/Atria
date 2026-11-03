@@ -322,6 +322,8 @@ try {
   const createPeriod=config("crearPeriodo",[nextPeriod]);const periodCreated=await applyDesktopOperation(user,device1,[branch],createPeriod);assert.equal((await applyDesktopOperation(user,device1,[branch],createPeriod)).id,periodCreated.id);
   const [currentPeriod]=await db.execute(sql`select id from periodos_contables where empresa_id=${empresaId}::uuid and anio=${year} and mes=${month}`);
   const {checkListFilters}=await import("./check-list-filters.mjs");
+  const {checkDesktopSelfService}=await import("./check-desktop-self-service.mjs");
+  await checkDesktopSelfService({db,s,user,branch});
   await checkListFilters({db,s,sql,user,branch,branch2});
   const {checkWebChangesNotifications}=await import("./check-web-changes-notifications.mjs");
   await checkWebChangesNotifications({db,s,sql,user,branch,branch2,product,supplierId:supplier.entityId,customerId:customer.entityId,desktopBootstrap,device1});

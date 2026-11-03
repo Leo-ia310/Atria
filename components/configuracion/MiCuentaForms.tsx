@@ -107,21 +107,21 @@ export function PasswordForm() {
       <CardHeader title="Cambiar contraseña" />
       <CardBody className="space-y-4">
         <Input
-          label="Contraseña actual"
+          label="Contraseña actual" name="actual" autoComplete="current-password"
           type="password"
           value={actual}
           onChange={(e) => setActual(e.target.value)}
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Nueva contraseña"
+            label="Nueva contraseña" name="nueva" autoComplete="new-password"
             type="password"
             value={nueva}
             onChange={(e) => setNueva(e.target.value)}
             hint="Mínimo 8 caracteres"
           />
           <Input
-            label="Confirmar nueva contraseña"
+            label="Confirmar nueva contraseña" name="confirmar" autoComplete="new-password"
             type="password"
             value={confirmar}
             onChange={(e) => setConfirmar(e.target.value)}

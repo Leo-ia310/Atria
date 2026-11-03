@@ -136,7 +136,7 @@ export function RegistroMovimientos({
                           "inline-flex items-center gap-1.5 font-medium",
                           entrada
                             ? "text-[color:var(--color-success)]"
-                            : "text-[color:var(--color-danger)]",
+                            : "text-[color:var(--color-error)]",
                         )}
                       >
                         {entrada ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
@@ -148,7 +148,7 @@ export function RegistroMovimientos({
                         "px-4 py-2.5 text-right font-semibold",
                         entrada
                           ? "text-[color:var(--color-success)]"
-                          : "text-[color:var(--color-danger)]",
+                          : "text-[color:var(--color-error)]",
                       )}
                     >
                       {entrada ? "+" : "−"}

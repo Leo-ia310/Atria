@@ -16,7 +16,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
   const access = await getAccessContext(user);
   if (access.suscripcionBloqueada) throw new Error("La suscripcion no permite descargar datos.");
   const branches = sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(sucursalIds)}::jsonb)::uuid)`;
-  const scopeHash = desktopScopeHash([16,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
+  const scopeHash = desktopScopeHash([17,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
   const cursorScope = { empresaId: user.empresaId, userId: user.id, deviceId: options?.deviceId ?? "", scopeHash };
   const previous = options?.cursor ? readDesktopCursor(options.cursor, cursorScope) : null;
   return dbSuperAdmin(async (tx) => {
@@ -89,8 +89,9 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       where v.empresa_id = ${user.empresaId}::uuid and v.sucursal_id = any(${branches})`) : [];
     const movimientos_inventario = puedeAccederModulo(access, "inventario") || puedeAccederModulo(access, "pos")
       ? await query("movimientos_inventario", sql`select m.id, m.empresa_id, m.producto_id, m.almacen_id, m.tipo,
-        m.cantidad, m.costo_unitario, m.referencia_tabla, m.referencia_id, m.usuario_id, m.creado_en
+        m.cantidad, m.costo_unitario, m.referencia_tabla, m.referencia_id, m.usuario_id, m.creado_en, m.notas, u.nombre as usuario_nombre
         from movimientos_inventario m join almacenes a on a.id = m.almacen_id
+        left join usuarios u on u.id=m.usuario_id and u.empresa_id=m.empresa_id
         where m.empresa_id = ${user.empresaId}::uuid and a.empresa_id = ${user.empresaId}::uuid
         and a.sucursal_id = any(${branches})`) : [];
     const inventario_almacenes = puedeAccederModulo(access, "inventario") || puedeAccederModulo(access, "pos")
