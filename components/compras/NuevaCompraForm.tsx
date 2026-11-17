@@ -1,5 +1,6 @@
 "use client";
 
+import { useWebAttempt } from "@/lib/use-web-attempt";
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, Search, X } from "lucide-react";
@@ -132,35 +133,42 @@ export function NuevaCompraForm({
   const impuesto = lineas.reduce((acc, l) => acc + l.impuesto, 0);
   const total = subtotal + impuesto;
 
+  const submitPurchase = useWebAttempt(procesarCompra,'compra');
+
   async function enviar() {
     if (lineas.length === 0) {
       mostrar("warning", "Agrega al menos un producto");
       return;
     }
     setEnviando(true);
-    const res = await procesarCompra({
-      proveedorId,
-      almacenId,
-      numeroFactura,
-      fecha,
-      esCredito,
-      diasCredito: esCredito ? diasCredito : 0,
-      cuentaFinancieraId: esCredito ? "" : cuentaFinId,
-      items: lineas.map((l) => ({
-        productoId: l.productoId,
-        cantidad: l.cantidad,
-        costoUnitario: l.costoUnitario,
-        impuesto: l.impuesto,
-      })),
-    });
-    setEnviando(false);
-    if (!res.ok) {
-      mostrar("error", res.error);
-      return;
+    try {
+      const res = await submitPurchase({
+        proveedorId,
+        almacenId,
+        numeroFactura,
+        fecha,
+        esCredito,
+        diasCredito: esCredito ? diasCredito : 0,
+        cuentaFinancieraId: esCredito ? "" : cuentaFinId,
+        items: lineas.map((l) => ({
+          productoId: l.productoId,
+          cantidad: l.cantidad,
+          costoUnitario: l.costoUnitario,
+          impuesto: l.impuesto,
+        })),
+      });
+      if (!res.ok) {
+        mostrar("error", res.error);
+        return;
+      }
+      mostrar("success", "Compra registrada");
+      router.push("/compras");
+      router.refresh();
+    } catch (error) {
+      mostrar("error", error instanceof Error ? error.message : "No se pudo confirmar la compra. Reintenta con los mismos datos.");
+    } finally {
+      setEnviando(false);
     }
-    mostrar("success", "Compra registrada");
-    router.push("/compras");
-    router.refresh();
   }
 
   return (

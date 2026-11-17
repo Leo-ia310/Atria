@@ -1,11 +1,14 @@
+import { cashSession,cashEntry } from "../cash-service";
+import { currentBusinessContext } from "../business-context";
 import { businessEntityId } from "../business-context";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { gastos, gastosRecurrentes } from "@/lib/db/schema";
 import { registrarGasto } from "@/lib/contabilidad/motor-asientos";
 import { aDecimalStr, dinero, type TX } from "@/lib/contabilidad/helpers";
 
 export type DatosGasto = {
+  sesionCajaId?:string;
   empresaId: string;
   usuarioId: string;
   sucursalId?: string | null;
@@ -73,6 +76,15 @@ export async function registrarGastoEnTransaccion(tx: TX, data: DatosGasto): Pro
     tx,
   );
   await tx.update(gastos).set({ asientoId }).where(eq(gastos.id, gasto.id));
+  if(data.sesionCajaId){
+    const user=currentBusinessContext()?.user;
+    if(!user || user.empresaId!==data.empresaId)throw new Error("No se puede vincular el gasto sin sesión autenticada.");
+    const turn=await cashSession(user,data.sesionCajaId);
+    const [account]=await tx.execute(sql`select tipo,sucursal_id from cuentas_financieras where empresa_id=${data.empresaId}::uuid and id=${data.cuentaFinancieraId}::uuid and activa=true`);
+    if(!account || account.tipo!=="caja" || turn.sucursal_id!==data.sucursalId || account.sucursal_id && account.sucursal_id!==turn.sucursal_id)throw new Error("El gasto debe pagarse desde una cuenta de caja de la misma sucursal.");
+    if(turn.estado!=="abierta" && currentBusinessContext()?.identity?.type!=="gasto")throw new Error("El turno ya fue cerrado.");
+    await cashEntry(user,turn,"gasto",gasto.id,-total,{referencia:data.referencia??null});
+  }
   return gasto.id;
 }
 

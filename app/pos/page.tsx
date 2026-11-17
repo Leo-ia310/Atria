@@ -136,7 +136,7 @@ export default async function POSPage() {
         eq(cajas.sucursalId, sucursalOperativa.id),
       ),
     )
-    .limit(1);
+    ;
 
   // Cajas activas de la sucursal para poder abrir sesión desde el POS.
   const cajasPromise = db
@@ -178,6 +178,7 @@ export default async function POSPage() {
       almacenId={almacenOperativo.id}
       nombreUsuario={user.nombre}
       hayCajaAbierta={!!sesionAbierta}
+      cashSessions={sesionRows.map(row=>({id:row.id,nombre:row.cajaNombre}))}
       cajas={cajasSucursal.map((c) => ({
         value: c.id,
         label: `${c.codigo} — ${c.nombre}`,

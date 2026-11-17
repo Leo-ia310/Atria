@@ -67,7 +67,7 @@ export default async function CajaPage() {
         sucursalIds ? inArray(cajas.sucursalId, sucursalIds) : undefined,
       ),
     )
-    .limit(1);
+    ;
 
   const historialPromise = db
     .select({
@@ -113,6 +113,7 @@ export default async function CajaPage() {
 
   return (
     <div className="space-y-6">
+      {sesionRows.length>0&&<nav className="flex flex-wrap gap-3">{sesionRows.map(row=><Link key={row.id} href={`/caja/${row.id}`} className="arca-btn arca-btn-secondary">Usar {row.cajaNombre}</Link>)}</nav>}
       <PageHeader
         title="Sesion de caja"
         subtitle={`Control de apertura y cierre de caja${scope.visible ? ` - ${scope.etiqueta}` : ""}`}

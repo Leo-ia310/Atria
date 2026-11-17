@@ -2,6 +2,7 @@
 
 import { businessEntityId } from "@/lib/business-context";
 
+import { executeWebAttempt } from "@/lib/web-operation-attempt";
 import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { and, desc, eq, inArray, isNull, like, ne } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
@@ -693,6 +694,7 @@ async function registrarEntradaInventarioPorLectorBusiness(
 
 export async function registrarCompraRapidaInventarioPorLector(
   input: unknown,
+  attemptKey?: string,
 ): Promise<ResultadoCompraRapidaLector> {
   const user = await requireSession();
   const acceso = await validarAccion(user, {
@@ -704,7 +706,19 @@ export async function registrarCompraRapidaInventarioPorLector(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
   }
-  const data = parsed.data;
+  if (attemptKey === undefined) return registrarCompraRapidaBusiness(parsed.data, user);
+  return executeBusinessAction(user, async () => {
+    const permission = await validarAccion(user, { modulo: "compras", permisos: "compras.crear" });
+    if (!permission.ok) return permission;
+    return executeWebAttempt(user, "compra_lector", attemptKey, parsed.data,
+      () => registrarCompraRapidaBusiness(parsed.data, user));
+  });
+}
+
+async function registrarCompraRapidaBusiness(
+  data: ReturnType<typeof compraRapidaInventarioLectorSchema.parse>,
+  user: Awaited<ReturnType<typeof requireSession>>,
+): Promise<ResultadoCompraRapidaLector> {
   const codigoBarras = data.codigoBarras.trim();
 
   try {

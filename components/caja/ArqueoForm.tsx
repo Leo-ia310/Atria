@@ -1,5 +1,6 @@
 "use client";
 
+import {CASH_CLOSE_NOTICE} from "../../lib/cash-core";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -53,6 +54,8 @@ function ArqueoFormInner({
   }
 
   return (
+    <>
+    <p className="text-small">{CASH_CLOSE_NOTICE}</p>
     <Card>
       <CardHeader title="Arqueo y cierre de caja" />
       <CardBody className="space-y-5">
@@ -106,5 +109,6 @@ function ArqueoFormInner({
         </div>
       </CardBody>
     </Card>
+    </>
   );
 }

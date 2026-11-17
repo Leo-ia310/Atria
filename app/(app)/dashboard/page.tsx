@@ -1,3 +1,4 @@
+import {loadCommercialAdjustments} from '@/lib/reportes/commercial-adjustments-server';
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -112,15 +113,16 @@ export default async function DashboardPage({
               .where(
                 and(
                   eq(cuentasPorCobrar.empresaId, user.empresaId),
-                  eq(cuentasPorCobrar.estado, "pendiente"),
+                  sql`${cuentasPorCobrar.saldo} > 0`,
                   filtroSucursalVenta,
                 ),
               ),
           ]);
 
+        const notes=await loadCommercialAdjustments(user.empresaId,sucursalIds,inicioMesLocal,hoyLocal);
         return {
-          ventasHoy: parseFloat(ventasHoyRes[0]?.total ?? "0"),
-          ventasMes: parseFloat(ventasMesRes[0]?.total ?? "0"),
+          ventasHoy: parseFloat(ventasHoyRes[0]?.total ?? "0")-notes.filter(n=>n.fecha===hoyLocal).reduce((a,n)=>a+Number(n.total),0),
+          ventasMes: parseFloat(ventasMesRes[0]?.total ?? "0")-notes.reduce((a,n)=>a+Number(n.total),0),
           productosCount: productosRes[0]?.n ?? 0,
           cxcPendiente: parseFloat(cxcRes[0]?.saldo ?? "0"),
         };

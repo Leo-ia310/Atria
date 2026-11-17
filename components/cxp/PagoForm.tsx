@@ -1,5 +1,6 @@
 "use client";
 
+import {TurnoEfectivoSelector} from "../caja/TurnoEfectivoSelector";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -25,6 +26,7 @@ export function PagoForm({
   pais: PaisCodigo;
   cuentasFinancieras: Opcion[];
 }) {
+  const [sesionCajaId,setSesionCajaId]=useState("");
   const router = useRouter();
   const { mostrar } = useToast();
   const [enviando, setEnviando] = useState(false);
@@ -49,6 +51,7 @@ export function PagoForm({
     }
     setEnviando(true);
     const res = await registrarPago({
+      sesionCajaId:sesionCajaId||undefined,
       cxpId,
       cuentaFinancieraId,
       fecha,
@@ -81,6 +84,7 @@ export function PagoForm({
     <Card>
       <CardHeader title="Registrar pago" />
       <CardBody className="space-y-4">
+        <TurnoEfectivoSelector value={sesionCajaId} onChange={setSesionCajaId}/>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Fecha"

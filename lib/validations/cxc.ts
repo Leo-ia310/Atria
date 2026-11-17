@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const registrarAbonoSchema = z.object({
+  sesionCajaId:z.string().uuid().optional(),
   cxcId: z.string().uuid(),
   formaPagoId: z.string().uuid("Selecciona una forma de pago"),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),

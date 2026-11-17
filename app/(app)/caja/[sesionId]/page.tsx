@@ -1,3 +1,5 @@
+import {CashSessionControls} from "@/components/caja/CashSessionControls";
+import {estadoTurnoCaja} from "@/lib/actions/caja-integrity";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
@@ -76,12 +78,14 @@ export default async function SesionDetallePage({
 
   if (!sesion) notFound();
 
+  const cashState=await estadoTurnoCaja(sesionId);
+  if(!cashState.ok)notFound();
   const montoInicial = dinero(sesion.montoInicial);
   const totalVentasContado = dinero(stats?.totalContado ?? 0);
   const montoEsperado =
     sesion.estado === "cerrada" && sesion.montoFinalEsperado
       ? dinero(sesion.montoFinalEsperado)
-      : dinero(montoInicial + totalVentasContado);
+      : cashState.totals.esperado;
 
   const diferencia = sesion.diferencia ? dinero(sesion.diferencia) : null;
   const montoReal = sesion.montoFinalReal ? dinero(sesion.montoFinalReal) : null;
@@ -160,6 +164,8 @@ export default async function SesionDetallePage({
         </Card>
       )}
 
+      <CashSessionControls sessionId={sesionId} open={estaAbierta}
+        entries={cashState.movimientos} reviews={cashState.revisiones}/>
       {/* Formulario de cierre */}
       {estaAbierta && (
         <ArqueoForm sesionId={sesionId} montoEsperado={montoEsperado} pais={pais} />

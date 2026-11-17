@@ -1,4 +1,5 @@
 "use client";
+import { useWebAttempt } from "@/lib/use-web-attempt";
 import { posLineAmounts, posSaleAmounts } from "@/lib/pos-money";
 
 import {
@@ -84,6 +85,10 @@ type CantidadEscaneoPendiente = {
 type VentaExito = { id: string; numero: string;pendienteVerificacion?:boolean };
 
 type POSContenedorViewProps = {
+  cashSessions?:Array<{id:string;nombre:string}>;
+  sesionCajaId?:string;
+  onSessionChange?:(id:string)=>void;
+  submitSale: (input: unknown) => ReturnType<typeof procesarVenta>;
   cajaAbierta: boolean;
   setModalCaja: (modalCaja: boolean) => void;
   sucursalNombre: string;
@@ -326,6 +331,7 @@ export function POSContenedor({
   formasPago,
   hayCajaAbierta,
   cajas,
+  cashSessions,
 }: {
   pais: PaisCodigo;
   sucursalId: string;
@@ -336,8 +342,11 @@ export function POSContenedor({
   clientes: ClientePOS[];
   formasPago: FormaPagoPOS[];
   hayCajaAbierta: boolean;
+  cashSessions?:Array<{id:string;nombre:string}>;
   cajas: { value: string; label: string }[];
 }) {
+  const [sesionCajaId,setSesionCajaId]=useState(cashSessions?.length===1?cashSessions[0].id:"");
+  useEffect(()=>{if(!sesionCajaId && cashSessions?.length===1)setSesionCajaId(cashSessions[0].id);},[cashSessions,sesionCajaId]);
   const router = useRouter();
   const { mostrar } = useToast();
   const [busqueda, setBusqueda] = useState("");
@@ -600,7 +609,10 @@ export function POSContenedor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventaExito]);
 
+  const submitSale = useWebAttempt(procesarVenta,'venta');
   return posContenedorView({
+    cashSessions,sesionCajaId,onSessionChange:setSesionCajaId,
+    submitSale,
     cajaAbierta,
     setModalCaja,
     sucursalNombre,
@@ -648,6 +660,8 @@ export function POSContenedor({
 }
 
 function posContenedorView({
+  cashSessions,sesionCajaId,onSessionChange,
+  submitSale,
   cajaAbierta,
   setModalCaja,
   sucursalNombre,
@@ -709,6 +723,11 @@ function posContenedorView({
         </div>
       )}
 
+      {cashSessions&&cashSessions.length>0&&<label className="flex items-center gap-2 px-4 py-1 text-small">Caja física
+        <select className="arca-input" value={sesionCajaId??""} disabled={carrito.length>0||procesando} onChange={e=>onSessionChange?.(e.target.value)}>
+          <option value="">Selecciona el turno</option>{cashSessions.map(row=><option key={row.id} value={row.id}>{row.nombre}</option>)}
+        </select>
+      </label>}
       {/* Header POS */}
       <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-4">
@@ -943,34 +962,40 @@ function posContenedorView({
           onCerrar={() => setModalPago(false)}
           onConfirmar={async (datos) => {
             setProcesando(true);
-            const res = await procesarVenta({
-              sucursalId,
-              almacenId,
-              clienteId: cliente?.id ?? "",
-              items: carrito.map((it) => ({
-                productoId: it.producto.id,
-                cantidad: it.cantidad,
-                precioUnitario: it.producto.precio,
-                descuento: it.descuento,
-                impuesto: posLineAmounts({cantidad:it.cantidad,precioUnitario:it.producto.precio,descuento:it.descuento,tasa:it.producto.impuestoTasa}).impuesto,
-                costoUnitario: it.producto.costo,
-              })),
-              pagos: datos.pagos,
-              descuentoGlobal: 0,
-              esCredito: datos.esCredito,
-              diasCredito: datos.esCredito ? (cliente?.diasCredito ?? 30) : 0,
-            });
-            setProcesando(false);
-            if (!res.ok) {
-              mostrar("error", res.error);
-              return;
+            try {
+              const res = await submitSale({
+                sesionCajaId:sesionCajaId||undefined,
+                sucursalId,
+                almacenId,
+                clienteId: cliente?.id ?? "",
+                items: carrito.map((it) => ({
+                  productoId: it.producto.id,
+                  cantidad: it.cantidad,
+                  precioUnitario: it.producto.precio,
+                  descuento: it.descuento,
+                  impuesto: posLineAmounts({cantidad:it.cantidad,precioUnitario:it.producto.precio,descuento:it.descuento,tasa:it.producto.impuestoTasa}).impuesto,
+                  costoUnitario: it.producto.costo,
+                })),
+                pagos: datos.pagos,
+                descuentoGlobal: 0,
+                esCredito: datos.esCredito,
+                diasCredito: datos.esCredito ? (cliente?.diasCredito ?? 30) : 0,
+              });
+              if (!res.ok) {
+                mostrar("error", res.error);
+                return;
+              }
+              mostrar("success", `Venta ${res.numero} procesada`);
+              setCarrito([]);
+              setClienteId("");
+              setModalPago(false);
+              setVentaExito({ id: res.ventaId, numero: res.numero,pendienteVerificacion:res.pendienteVerificacion });
+              onRefresh();
+            } catch (error) {
+              mostrar("error", error instanceof Error ? error.message : "No se pudo confirmar la venta. Reintenta con los mismos datos.");
+            } finally {
+              setProcesando(false);
             }
-            mostrar("success", `Venta ${res.numero} procesada`);
-            setCarrito([]);
-            setClienteId("");
-            setModalPago(false);
-            setVentaExito({ id: res.ventaId, numero: res.numero,pendienteVerificacion:res.pendienteVerificacion });
-            onRefresh();
           }}
         />
       )}

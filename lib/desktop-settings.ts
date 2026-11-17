@@ -1,3 +1,4 @@
+import { revisarIncidenciaCaja } from "./actions/caja-integrity";
 import * as supplierActions from "./actions/proveedores";
 import { and,eq,sql } from "drizzle-orm";
 import {clientes} from "./db/schema";
@@ -32,6 +33,7 @@ export async function executeDesktopSettings(tx:Tx,user:SessionUser,branches:str
     if(!rows.length)throw new DesktopSettingsRejected("Cuenta financiera no autorizada para este dispositivo.");
   }
   switch(action) {
+    case "revisarIncidenciaCaja": return revisarIncidenciaCaja(args[0]);
     case "crearProveedor":return supplierActions.crearProveedor(input());
     case "actualizarProveedor":await owned("proveedores",id());return supplierActions.actualizarProveedor(id(),args[1]);
     case "crearProducto":return productActions.crearProducto(input());

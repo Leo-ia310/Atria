@@ -1,3 +1,5 @@
+import {loadCommercialAdjustments} from '@/lib/reportes/commercial-adjustments-server';
+import {adjustedDays,adjustedProducts} from '@/lib/reportes/commercial-adjustments';
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ventas, ventaDetalle, productos } from "@/lib/db/schema";
@@ -70,10 +72,10 @@ export default async function ReporteVentasPage() {
     )
     .groupBy(productos.id, productos.nombre, productos.sku)
     .orderBy(sql`SUM(${ventaDetalle.subtotal}) DESC`)
-    .limit(10);
+;
 
   const scopeKey = sucursalIds ? [...sucursalIds].sort().join(",") : "all";
-  const { ventasUlt30, topProductos } = await cacheModulo(
+  const { ventasUlt30, topProductos: grossProducts } = await cacheModulo(
     user.empresaId,
     MODULOS.REPORTES,
     `ventas:${scopeKey}`,
@@ -86,15 +88,18 @@ export default async function ReporteVentasPage() {
       return { ventasUlt30, topProductos };
     },
   );
-  const dataDiaria = ventasUlt30.map((d) => ({
+  const notes=await loadCommercialAdjustments(user.empresaId,sucursalIds,hace30Local,range.hasta);
+  const netDays=adjustedDays(ventasUlt30,notes),netProducts=adjustedProducts(grossProducts.map(p=>({productoId:p.id,nombre:p.nombre,sku:p.sku,cantidad:Number(p.cantidad),total:Number(p.monto)})),notes);
+  const topProductos=netProducts.map(p=>({id:p.productoId,nombre:p.nombre,sku:p.sku,cantidad:String(p.cantidad),monto:String(p.total)}));
+  const dataDiaria = netDays.map((d) => ({
     label: new Date(`${d.fecha}T12:00:00`).toLocaleDateString("es", {
       day: "2-digit",
       month: "short",
     }),
-    total: parseFloat(d.total),
+    total: Number(d.total),
   }));
 
-  const totalMes = ventasUlt30.reduce((a, v) => a + parseFloat(v.total), 0);
+  const totalMes = netDays.reduce((a, v) => a + v.total, 0);
   const cantVentas = ventasUlt30.reduce((a, v) => a + parseInt(v.count, 10), 0);
   const ticketPromedio = cantVentas > 0 ? totalMes / cantVentas : 0;
 
@@ -108,7 +113,7 @@ export default async function ReporteVentasPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
-          label="Ventas 30 días"
+          label="Ventas netas 30 días"
           value={formatearMoneda(totalMes, pais)}
           icon={TrendingUp}
         />

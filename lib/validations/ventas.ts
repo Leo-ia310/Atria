@@ -19,6 +19,7 @@ export const ventaPagoSchema = manualPaymentEvidenceSchema.extend({
 
 export const procesarVentaSchema = z.object({
   sucursalId: z.string().uuid(),
+  sesionCajaId: z.string().uuid().optional(),
   almacenId: z.string().uuid(),
   clienteId: z.string().uuid().optional().or(z.literal("")),
   items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto"),

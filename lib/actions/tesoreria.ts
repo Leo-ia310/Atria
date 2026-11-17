@@ -1,4 +1,5 @@
 "use server";
+import { cashSession } from "../cash-service";
 
 import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
 import { invalidarModulos } from "@/lib/redis/cache";
@@ -98,13 +99,18 @@ async function crearGastoBusiness(
   const data = parsed.data;
   const scope = await getSucursalScope(user);
   const sucursalIds = selectedSucursalIds(scope);
-  const sucursalId =
+  let sucursalId =
     sucursalIds?.length === 1
       ? sucursalIds[0]
       : scope.sucursalIds.length === 1
         ? scope.sucursalIds[0]
         : null;
 
+  if(data.sesionCajaId){
+    const turn=await cashSession(user,data.sesionCajaId);
+    if(sucursalIds && !sucursalIds.includes(turn.sucursal_id))return {ok:false,error:"Turno fuera de la sucursal seleccionada."};
+    sucursalId=turn.sucursal_id;
+  }
   // Verify ownership before entering transaction (prevents cross-tenant FK injection)
   const [categoria] = await dbConEmpresa(user.empresaId, (tx) =>
     tx
@@ -149,6 +155,7 @@ async function crearGastoBusiness(
       }
 
       return registrarGastoEnTransaccion(tx, {
+        sesionCajaId:data.sesionCajaId,
         empresaId: user.empresaId,
         usuarioId: user.id,
         sucursalId,

@@ -21,6 +21,11 @@ export async function checkTwoDesktopDevices({db,s,sql,user,branch,warehouse,met
   const server=createServer(async(req,res)=>{
     try {
       const pathname=new URL(req.url,"http://127.0.0.1").pathname;
+      if(pathname==="/qa/cash"&&req.method==="GET"){
+        const rows=await db.execute(sql`select s.id,s.monto_final_esperado,s.monto_final_real,s.diferencia
+          from sesiones_caja s join cajas c on c.id=s.caja_id where s.empresa_id=${user.empresaId}::uuid and c.sucursal_id=${branch}::uuid`);
+        res.setHeader("content-type","application/json");res.end(JSON.stringify([...rows]));return;
+      }
       if(pathname==="/qa/accounting"&&req.method==="GET") {
         const {saldosPorCuenta,calcularBalanceGeneral,calcularEstadoResultados}=await import("../lib/contabilidad/queries.ts");
         const saldos=await saldosPorCuenta(user.empresaId,undefined,[branch]);

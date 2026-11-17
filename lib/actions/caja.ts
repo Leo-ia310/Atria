@@ -1,17 +1,20 @@
 "use server";
 
-import { businessEntityId, businessEventDate } from "@/lib/business-context";
+import { businessEntityId, businessEventDate, currentBusinessContext } from "@/lib/business-context";
 
 import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
-import { and, eq, isNull, sum } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
-import { cajas, sesionesCaja, sucursales, ventas } from "@/lib/db/schema";
+import { cajas, sesionesCaja, sucursales, cajaRevisiones } from "@/lib/db/schema";
 import { crearCajaSchema, abrirSesionSchema, cerrarSesionSchema } from "@/lib/validations/caja";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import { aDecimalStr, dinero } from "@/lib/contabilidad/helpers";
 
-type Resultado = { ok: true } | { ok: false; error: string };
+import { cashEntry, cashSession, cashTotals } from "../cash-service";
+import { CASH_CLOSE_NOTICE } from "../cash-core";
+
+type Resultado = { ok: true; revisionPendiente?: boolean; aviso?: string } | { ok: false; error: string };
 
 export async function crearCaja(input: unknown): Promise<Resultado> {
   return executeBusinessAction(await requireSession(), () => crearCajaBusiness(input));
@@ -95,13 +98,18 @@ async function abrirSesionBusiness(
 
   const [caja] = await dbConEmpresa(user.empresaId, (tx) =>
     tx
-      .select({ id: cajas.id, nombre: cajas.nombre })
+      .select({ id: cajas.id, nombre: cajas.nombre, sucursalId: cajas.sucursalId })
       .from(cajas)
-      .where(and(eq(cajas.id, data.cajaId), eq(cajas.empresaId, user.empresaId)))
+      .where(and(eq(cajas.id, data.cajaId), eq(cajas.empresaId, user.empresaId),eq(cajas.activa,true)))
       .limit(1),
   );
   if (!caja) return { ok: false, error: "Caja no encontrada" };
 
+  const context=currentBusinessContext();
+  if(context?.sucursalIds && !context.sucursalIds.includes(caja.sucursalId))return {ok:false,error:"Sucursal no autorizada."};
+  const assigned=await dbConEmpresa(user.empresaId,tx=>tx.execute(sql`select u.sucursal_id from usuario_sucursales u join sucursales s on s.id=u.sucursal_id where u.usuario_id=${user.id}::uuid and s.empresa_id=${user.empresaId}::uuid`));
+  if(assigned.length && !assigned.some(row=>row.sucursal_id===caja.sucursalId))return {ok:false,error:"Sucursal no autorizada."};
+  await dbConEmpresa(user.empresaId,tx=>tx.execute(sql`select id from cajas where id=${caja.id}::uuid and empresa_id=${user.empresaId}::uuid for update`));
   const [sesionAbierta] = await dbConEmpresa(user.empresaId, (tx) =>
     tx
       .select({ id: sesionesCaja.id })
@@ -115,7 +123,10 @@ async function abrirSesionBusiness(
       .limit(1),
   );
   if (sesionAbierta) {
-    return { ok: false, error: `La caja "${caja.nombre}" ya tiene una sesión abierta` };
+    await cashSession(user,sesionAbierta.id);
+    const offlineId=businessEntityId("sesion_caja");
+    if (offlineId && offlineId!==sesionAbierta.id) return {ok:false,error:"La caja tiene otro turno abierto. Sincroniza y revisa la apertura offline."};
+    return {ok:true,sesionId:sesionAbierta.id};
   }
 
   const [sesion] = await dbConEmpresa(user.empresaId, (tx) =>
@@ -133,6 +144,7 @@ async function abrirSesionBusiness(
       .returning({ id: sesionesCaja.id }),
   );
 
+  await cashEntry(user,await cashSession(user,sesion.id),"apertura",sesion.id,0,{fondoInicial:data.montoInicial});
   revalidatePath("/caja");
   return { ok: true, sesionId: sesion.id };
 }
@@ -151,62 +163,34 @@ async function cerrarSesionBusiness(input: unknown): Promise<Resultado> {
   }
   const data = parsed.data;
 
-  const [sesion] = await dbConEmpresa(user.empresaId, (tx) =>
-    tx
-      .select({
-        id: sesionesCaja.id,
-        estado: sesionesCaja.estado,
-        montoInicial: sesionesCaja.montoInicial,
-      })
-      .from(sesionesCaja)
-      .where(
-        and(
-          eq(sesionesCaja.id, data.sesionId),
-          eq(sesionesCaja.empresaId, user.empresaId),
-        ),
-      )
-      .limit(1),
-  );
-
-  if (!sesion) return { ok: false, error: "Sesión no encontrada" };
-  if (sesion.estado === "cerrada") return { ok: false, error: "La sesión ya está cerrada" };
-
-  // Sum cash sales (esCredito=false, not voided) linked to this session
-  // TODO: refine once POS tracks per-payment-method when it's built
-  const [resumen] = await dbConEmpresa(user.empresaId, (tx) =>
-    tx
-      .select({ totalContado: sum(ventas.total) })
-      .from(ventas)
-      .where(
-        and(
-          eq(ventas.sesionCajaId, data.sesionId),
-          eq(ventas.esCredito, false),
-          isNull(ventas.anuladoEn),
-        ),
-      ),
-  );
-
-  const totalVentasContado = dinero(resumen?.totalContado ?? 0);
-  const montoInicial = dinero(sesion.montoInicial);
-  const montoFinalEsperado = dinero(montoInicial + totalVentasContado);
-  const montoFinalReal = dinero(data.montoFinalReal);
-  const diferencia = dinero(montoFinalReal - montoFinalEsperado);
-
-  await dbConEmpresa(user.empresaId, (tx) =>
-    tx
-      .update(sesionesCaja)
-      .set({
-        estado: "cerrada",
-        montoFinalEsperado: aDecimalStr(montoFinalEsperado),
-        montoFinalReal: aDecimalStr(montoFinalReal),
-        diferencia: aDecimalStr(diferencia),
-        cerradaEn: businessEventDate(),
-        notas: data.notas || null,
-      })
-      .where(eq(sesionesCaja.id, data.sesionId)),
-  );
+  const sesion=await cashSession(user,data.sesionId);
+  if(sesion.estado==="cerrada") {
+    if(Number(sesion.monto_final_real)===data.montoFinalReal)return {ok:true,aviso:CASH_CLOSE_NOTICE};
+    const repeated=await dbConEmpresa(user.empresaId,tx=>tx.execute(sql`select id from caja_movimientos
+      where empresa_id=${user.empresaId}::uuid and sesion_id=${sesion.id}::uuid and tipo='cierre_reintento'
+        and usuario_id=${user.id}::uuid and detalle->>'declarado'=${String(data.montoFinalReal)}
+        and detalle->>'notas'=${data.notas??""} limit 1`));
+    if(repeated.length)return {ok:true,revisionPendiente:true,aviso:"El conteo alternativo ya fue registrado para revisión."};
+    await cashEntry(user,sesion,"cierre_reintento",currentBusinessContext()?.operationId??data.attemptId??crypto.randomUUID(),0,
+      {declarado:data.montoFinalReal,notas:data.notas??""},"cierre_reintento");
+    return {ok:true,revisionPendiente:true,aviso:"El cierre original se conservó. El conteo alternativo requiere revisión."};
+  }
+  const totals=await cashTotals(user,sesion);
+  const diferencia=dinero(data.montoFinalReal-totals.esperado);
+  await dbConEmpresa(user.empresaId,async tx=>{
+    await tx.update(sesionesCaja).set({
+      estado:"cerrada",montoFinalEsperado:aDecimalStr(totals.esperado),montoFinalReal:aDecimalStr(data.montoFinalReal),
+      diferencia:aDecimalStr(diferencia),cerradaEn:businessEventDate(),notas:data.notas||null,
+    }).where(and(eq(sesionesCaja.id,sesion.id),eq(sesionesCaja.empresaId,user.empresaId),eq(sesionesCaja.estado,"abierta")));
+    const esperadoLocal=currentBusinessContext()?.identity?.type==="sesion_caja" ? data.esperadoLocal : undefined;
+    const entry=await cashEntry(user,sesion,"cierre",sesion.id,0,{declarado:data.montoFinalReal,esperado:totals.esperado,esperadoLocal:esperadoLocal??null,diferencia,aviso:CASH_CLOSE_NOTICE});
+    if(esperadoLocal!==undefined && dinero(esperadoLocal)!==totals.esperado)await tx.insert(cajaRevisiones).values({
+      empresaId:user.empresaId,sucursalId:sesion.sucursal_id,sesionId:sesion.id,movimientoId:entry.id,
+      motivo:"El efectivo esperado offline difiere de los movimientos recibidos por Cloud. Se conservan ambos cálculos y el conteo declarado.",
+    });
+  });
 
   revalidatePath("/caja");
   revalidatePath(`/caja/${data.sesionId}`);
-  return { ok: true };
+  return { ok: true, aviso:CASH_CLOSE_NOTICE };
 }

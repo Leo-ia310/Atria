@@ -1,0 +1,81 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {executeDocuments}=require('../lib/document-service.ts');
+const {executeCommercial}=require('../lib/commercial-service.ts');
+const {documentCommandSchema,defaultDocumentDesign,documentDesignSchema}=require('../lib/document-design.ts');
+export async function checkDocumentTemplates({db,s,sql,user,branch,branch2,product,day,device1,device2}){
+  assert.equal(new URL(process.env.ARCA_TEST_DATABASE_URL).hostname,'127.0.0.1');
+  const tables=['documento_eventos','documento_emisiones','documento_plantilla_versiones','documento_plantillas'];
+  for(const table of tables){const [r]=await db.execute(sql.raw(`select count(*)::int n from ${table}`));assert.equal(r.n,0);}
+  await db.execute(sql.raw('drop table '+tables.join(',')));
+  const migration=await readFile(new URL('../lib/db/migrations/0030_document_templates.sql',import.meta.url),'utf8');
+  await db.transaction(tx=>tx.execute(sql.raw(migration)));await db.transaction(tx=>tx.execute(sql.raw(migration)));
+  for(const p of await db.select().from(s.permisos).where(sql`modulo='documentos'`))await db.insert(s.rolPermisos).values({rolId:user.rolId,permisoId:p.id}).onConflictDoNothing();
+  const c=data=>documentCommandSchema.parse({requestId:randomUUID(),sucursalId:branch,...data});
+  const run=(data,device=device1)=>executeDocuments(user,c(data),device,[branch]);
+  const ok=r=>{assert.equal(r.ok,true,JSON.stringify(r));return r;};
+  const effects=async()=>[...await db.execute(sql`select (select count(*) from ventas) ventas,(select count(*) from facturas) facturas,(select count(*) from asientos_contables) asientos,(select count(*) from caja_movimientos) caja,(select count(*) from movimientos_inventario) movimientos,(select count(*) from cuentas_por_cobrar) cxc,(select sum(cantidad) from existencias) stock`)];
+  const before=await effects();
+  const {reciboDesdeSnapshot}=require('../lib/facturas.ts');const legacy={numero:'HISTORICO-QA',fecha:day,items:[],pagos:[],total:10};const bytes=JSON.stringify(legacy);const reference=reciboDesdeSnapshot({snapshot:legacy,pais:'NI',impuestoNombre:'IVA',empresa:{nombre:'Nombre actual',idFiscalNombre:'RUC',identificacionFiscal:'RUC-NUEVO'}});assert.equal(reference.historicalContextMissing,true);assert.equal(reference.empresa.identificacionFiscal,'');assert.equal(JSON.stringify(legacy),bytes);
+
+  assert.equal(documentDesignSchema.safeParse({header:'Autorizado por DGI'}).success,false);
+  assert.equal(documentDesignSchema.safeParse({html:'<script>alert(1)</script>'}).success,false);
+  assert.equal(documentDesignSchema.safeParse({font:'url(https://evil.invalid)'}).success,false);
+  assert.equal(documentDesignSchema.safeParse({columns:['producto']}).success,false);
+  assert.equal(documentDesignSchema.safeParse({accent:'#ffffff'}).success,false,'customization cannot hide required labels on white paper');
+  const logo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+k0msAAAAASUVORK5CYII=';
+  const create=c({action:'createTemplate',name:'Diseño QA',design:{...defaultDocumentDesign,logoData:logo}});
+  const first=ok(await executeDocuments(user,create,device1,[branch]));assert.deepEqual(ok(await executeDocuments(user,create,device1,[branch])),first);
+  const template=first.template;
+  const q=ok(await executeCommercial(user,{action:'create',kind:'cotizacion',requestId:randomUUID(),sucursalId:branch,draft:{sucursalId:branch,fecha:day,items:[{productoId:product,cantidad:1,precioUnitario:10,tasa:0,descuento:0}]}})).document;
+  const issue=c({action:'issue',sourceKind:'cotizacion',sourceId:q.id,sourceVersion:1,templateId:template.id,templateVersion:1});
+  const emitted=await Promise.all([executeDocuments(user,issue,device1,[branch]),executeDocuments(user,{...issue,requestId:randomUUID()},device2,[branch])]);emitted.forEach(ok);assert.equal(emitted[0].issue.id,emitted[1].issue.id);
+  const original=emitted[0].issue;assert.equal(original.numero,q.numero);assert.equal(original.design.logoData,logo);
+  const saved=ok(await run({action:'saveTemplate',id:template.id,name:'Diseño QA nuevo',expectedVersion:1,design:{...defaultDocumentDesign,fontSize:18,format:'termico80',logoData:null}})).template;assert.equal(saved.version,2);
+  assert.equal((await run({action:'saveTemplate',id:template.id,name:'Obsoleto',expectedVersion:1,design:defaultDocumentDesign})).ok,false);
+  const reprint=ok(await run({action:'print',id:original.id})).issue;assert.deepEqual(reprint.design,original.design);assert.deepEqual(reprint.snapshot,original.snapshot);
+  assert.equal(ok(await run({action:'duplicateTemplate',id:template.id})).template.version,1);
+  const copy=ok(await run({...issue,requestId:randomUUID(),ejemplar:'duplicado'})).issue;assert.equal(copy.numero,original.numero);assert.notEqual(copy.id,original.id);
+  const v2=ok(await run({...issue,requestId:randomUUID(),templateVersion:2})).issue;assert.equal(v2.numero,original.numero);assert.equal(v2.design.fontSize,18);
+  assert.equal((await executeDocuments(user,c({action:'read',id:original.id,sucursalId:branch2}),device1,[branch2])).ok,false);
+  assert.equal((await run({action:'createTemplate',name:'SVG falso',design:{...defaultDocumentDesign,logoData:'data:image/png;base64,PHN2Zz48c2NyaXB0Lz48L3N2Zz4='}})).ok,false);
+  await assert.rejects(db.execute(sql`update documento_emisiones set snapshot='{}' where id=${original.id}::uuid`),/inmutable/);
+  await assert.rejects(db.execute(sql`update documento_plantilla_versiones set design='{}' where plantilla_id=${template.id}::uuid`),/inmutable/);
+  // Revoking source access must also deny cached-result recovery, not just first emission.
+  const [sourcePermission]=await db.select().from(s.permisos).where(sql`clave='cotizacion.ver'`);
+  await db.execute(sql`delete from rol_permisos where rol_id=${user.rolId}::uuid and permiso_id=${sourcePermission.id}::uuid`);
+  assert.equal((await run({action:'read',id:original.id})).ok,false);
+  assert.equal((await run({action:'recover',attemptId:issue.requestId})).ok,false);
+  await db.insert(s.rolPermisos).values({rolId:user.rolId,permisoId:sourcePermission.id});
+  await db.execute(sql`insert into permisos(clave,modulo) values('ventas.ver','ventas') on conflict(clave) do nothing`);
+  const [viewPermission]=await db.select().from(s.permisos).where(sql`clave='ventas.ver'`);await db.insert(s.rolPermisos).values({rolId:user.rolId,permisoId:viewPermission.id}).onConflictDoNothing();
+  const [invoice]=await db.execute(sql`select f.id,f.venta_id,f.numero,f.snapshot from facturas f join ventas v on v.id=f.venta_id where f.empresa_id=${user.empresaId}::uuid and v.sucursal_id=${branch}::uuid limit 1`);
+  assert.ok(invoice?.snapshot?.documentContext,'new Core sales capture an internal context atomically');
+  const [originalInvoice]=await db.execute(sql`select snapshot from facturas where id=${invoice.id}::uuid`);
+  const internal=ok(await run({action:'issue',sourceKind:'factura',sourceId:invoice.id,sourceVersion:1})).issue;
+  const fromSale=ok(await run({action:'issue',sourceKind:'venta',sourceId:invoice.venta_id,sourceVersion:1})).issue;
+  assert.equal(fromSale.id,internal.id,'explicit sale alias canonicalizes to one invoice artifact');
+  assert.equal(internal.snapshot.kind,'comprobante_interno');assert.equal(internal.snapshot.snapshot.documental.fiscal,false);
+  assert.equal(internal.numero,invoice.numero);
+  const frozenIssuer=internal.snapshot.snapshot.issuer;
+  await db.execute(sql`update empresas set nombre_comercial='Nuevo nombre futuro QA' where id=${user.empresaId}::uuid`);
+  assert.deepEqual(ok(await run({action:'print',id:internal.id})).issue.snapshot.snapshot.issuer,frozenIssuer);
+  assert.deepEqual((await db.execute(sql`select snapshot from facturas where id=${invoice.id}::uuid`))[0],originalInvoice);
+  await db.execute(sql`update empresas set nombre_comercial=null where id=${user.empresaId}::uuid`);
+  await db.execute(sql`create function qa_document_failure() returns trigger language plpgsql as $$ begin if NEW.accion='createTemplate' then raise exception 'qa document late failure'; end if; return NEW; end $$`);
+  await db.execute(sql`create trigger qa_document_failure before insert on documento_eventos for each row execute function qa_document_failure()`);
+  const [beforeTemplates]=await db.execute(sql`select count(*) n from documento_plantillas`);
+  assert.equal((await run({action:'createTemplate',name:'Revertida QA',design:defaultDocumentDesign})).ok,false);
+  assert.deepEqual((await db.execute(sql`select count(*) n from documento_plantillas`))[0],beforeTemplates);
+  await db.execute(sql`drop trigger qa_document_failure on documento_eventos`);await db.execute(sql`drop function qa_document_failure()`);
+  // Pure reads must finish while another command owns the existing POS company lock.
+  let entered,release;const ready=new Promise(r=>entered=r),gate=new Promise(r=>release=r);
+  const writer=db.transaction(async tx=>{await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`arca-business:${user.empresaId}`},0))`);entered();await gate;});
+  await ready;let timeout;
+  try{await Promise.race([Promise.all([run({action:'templates'}).then(ok),executeCommercial(user,{action:'list',kind:'cotizacion',requestId:randomUUID(),sucursalId:branch}).then(ok)]),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Read unexpectedly waits for POS company lock')),5000);})]);}finally{clearTimeout(timeout);release();await writer;}
+  assert.deepEqual(await effects(),before,'designing, emitting and printing offers has no financial effects');
+  console.log(JSON.stringify({internalInvoiceFrozenContext:true,internalInvoiceAliasIdempotent:true,internalInvoiceNoHistoricalRewrite:true,documentRecoveredSourcePermission:true,documentLateAuditRollback:true,documentTemplateMigration:true,documentTemplateVersionImmutable:true,documentFrozenReprint:true,documentOriginalDuplicateSameNumber:true,documentConcurrentIssueIdempotent:true,documentPermissionsBranchScope:true,documentNoHtmlOrFiscalClaims:true,documentLogoRasterBounded:true,documentReadDoesNotBlockPos:true,documentNoFinancialEffects:true}));
+}

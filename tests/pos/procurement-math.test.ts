@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {offerAmounts,supplierOfferSchema} from '../../lib/procurement-core';
+const id='11111111-1111-4111-8111-111111111111';
+const offer=()=>supplierOfferSchema.parse({moneda:'USD',tipoCambio:36.62,fechaCambio:'2026-11-16',fuenteCambio:'Referencia manual QA',vigenteHasta:'2099-01-01',plazoDias:3,garantia:'30 días',referencia:'Original QA',flete:0.11,tasaFlete:0.15,items:[{rfqLineId:id,cantidad:3,precioUnitario:1.2345,descuento:0.05,tasa:0.15}]});
+test('comparador conserva descuento, IVA, flete y tipo de cambio con centavos conciliados',()=>{const input=offer(),r=offerAmounts(input,'NIO');assert.equal(r.originalBase,3.76);assert.equal(r.originalTax,0.57);assert.equal(r.total,Math.round((r.base+r.tax)*100)/100);assert.equal(r.items.reduce((a,l)=>a+l.functionalBase,0),r.base);assert.equal(r.items.reduce((a,l)=>a+l.functionalTax,0),r.tax);assert.equal(r.functionalCurrency,'NIO');});
+test('rechaza tipos de cambio sin evidencia, descuentos excesivos y números inseguros',()=>{assert.throws(()=>offerAmounts({...offer(),fuenteCambio:''},'NIO'));assert.throws(()=>offerAmounts({...offer(),moneda:'NIO',tipoCambio:2},'NIO'));assert.throws(()=>offerAmounts({...offer(),items:[{...offer().items[0],descuento:100}]},'NIO'));assert.throws(()=>offerAmounts({...offer(),tipoCambio:1e6,items:[{...offer().items[0],precioUnitario:1e9,cantidad:1e7}]},'NIO'));});

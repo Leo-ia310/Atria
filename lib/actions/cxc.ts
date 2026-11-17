@@ -12,7 +12,9 @@ import {
   ventas,
 } from "@/lib/db/schema";
 import { registrarAbonoSchema } from "@/lib/validations/cxc";
-import { businessEntityId } from "@/lib/business-context";
+import { cashSession,cashEntry } from "../cash-service";
+import { isCashPayment } from "../cash-core";
+import { businessEntityId,currentBusinessContext } from "@/lib/business-context";
 import { requireSession } from "@/lib/actions/session-helpers";
 import { validarAccion } from "@/lib/server-access";
 import { registrarAbonoCliente } from "@/lib/contabilidad/motor-asientos";
@@ -42,7 +44,7 @@ async function registrarAbonoBusiness(
   // Validate forma de pago ownership before entering the transaction
   const [fp] = await dbConEmpresa(user.empresaId, (tx) =>
     tx
-      .select({ cuentaFinancieraId: formasPago.cuentaFinancieraId, nombre: formasPago.nombre })
+      .select({ cuentaFinancieraId: formasPago.cuentaFinancieraId, nombre: formasPago.nombre, codigo:formasPago.codigo })
       .from(formasPago)
       .where(and(eq(formasPago.id, data.formaPagoId), eq(formasPago.empresaId, user.empresaId)))
       .limit(1),
@@ -144,6 +146,12 @@ async function registrarAbonoBusiness(
         .set({ asientoId })
         .where(eq(abonosCliente.id, abono.id));
 
+      if(data.sesionCajaId && isCashPayment("legacy",fp.codigo)){
+        const turn=await cashSession(user,data.sesionCajaId);
+        if(turn.sucursal_id!==cxc.sucursalId)throw new Error("El turno no corresponde a la sucursal del cobro.");
+        if(turn.estado!=="abierta" && currentBusinessContext()?.identity?.type!=="abono_cliente")throw new Error("El turno ya fue cerrado.");
+        await cashEntry(user,turn,"abono_cliente",abono.id,monto,{cxcId:data.cxcId});
+      }
       return abono.id;
     });
 

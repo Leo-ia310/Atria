@@ -5,6 +5,9 @@ export type ModuloAcceso =
   | "pos"
   | "caja"
   | "ventas"
+  | "documentos"
+  | "cotizaciones"
+  | "proformas"
   | "menu-virtual"
   | "pedidos-cocina"
   | "restaurante-dashboard"
@@ -25,6 +28,7 @@ export type ModuloAcceso =
   | "restaurante-plan"
   | "inventario"
   | "clientes"
+  | "abastecimiento"
   | "compras"
   | "facturas"
   | "cxc"
@@ -57,6 +61,9 @@ type ReglaAcceso = {
 
 export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
   dashboard: { siempre: true },
+  documentos:{permisos:["documento.ver"],cualquierFeature:["facturacion","cotizaciones"]},
+  cotizaciones: {permisos:["cotizacion.ver"],features:["cotizaciones"]},
+  proformas: {permisos:["proforma.ver"],features:["cotizaciones"]},
   "mi-cuenta": { siempre: true },
   pos: { permisos: ["ventas.crear"], features: ["pos"] },
   caja: { permisos: ["ventas.crear"], features: ["pos"] },
@@ -140,9 +147,10 @@ export const REGLAS_ACCESO: Record<ModuloAcceso, ReglaAcceso> = {
     cualquierFeature: ["inventario_basico", "inventario_avanzado"],
   },
   clientes: { permisos: ["ventas.ver", "ventas.crear"], features: ["facturacion"] },
+  abastecimiento:{permisos:["rfq.ver","cxp.ver"],features:["gestion_proveedores"]},
   compras: { permisos: ["compras.crear"], features: ["gestion_proveedores"] },
   cxp: { permisos: ["compras.crear"], features: ["gestion_proveedores"] },
-  cxc: { permisos: ["ventas.ver", "ventas.crear"], features: ["cuentas_por_cobrar"] },
+  cxc: { permisos: ["ventas.ver", "ventas.crear", "cxc.ver"], features: ["cuentas_por_cobrar"] },
   contabilidad: { permisos: ["contabilidad.ver"], features: ["contabilidad"] },
   tesoreria: {
     permisos: ["tesoreria.ver"],
@@ -274,6 +282,7 @@ export function moduloDesdeRuta(pathname: string): ModuloAcceso | null {
   }
   if (base === "inventario") return "inventario";
   if (base === "clientes") return "clientes";
+  if (base === "compras" && pathname.split("/")[2] === "abastecimiento") return "abastecimiento";
   if (base === "compras") return "compras";
   if (base === "facturas") return "facturas";
   if (base === "cxc") return "cxc";

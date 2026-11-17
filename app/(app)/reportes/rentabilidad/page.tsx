@@ -1,3 +1,5 @@
+import {loadCommercialAdjustments} from '@/lib/reportes/commercial-adjustments-server';
+import {adjustedMonths} from '@/lib/reportes/commercial-adjustments';
 import { inicioDoceMeses, rangoReporte, procesarRentabilidadReporte, margenReporte } from "@/lib/reportes/core";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
@@ -60,7 +62,7 @@ export default async function ReporteRentabilidadPage() {
         .orderBy(sql`1`),
   );
 
-  const chartData = procesarRentabilidadReporte(datos);
+  const chartData = procesarRentabilidadReporte(adjustedMonths(datos,await loadCommercialAdjustments(user.empresaId,sucursalIds,desde,range.hasta)));
 
   const totalIngresos = chartData.reduce((a, d) => a + d.ingresos, 0);
   const totalCostos = chartData.reduce((a, d) => a + d.costos, 0);
@@ -71,7 +73,7 @@ export default async function ReporteRentabilidadPage() {
     <div>
       <PageHeader
         title="Rentabilidad"
-        subtitle={`Ingresos vs costo de ventas — últimos 12 meses${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
+        subtitle={`Ventas netas de notas internas vs costo — últimos 12 meses${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BotonExportarExcel recurso="reportes-rentabilidad" />

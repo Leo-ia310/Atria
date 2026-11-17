@@ -1,3 +1,5 @@
+import {loadCommercialAdjustments} from '../reportes/commercial-adjustments-server';
+import {adjustedMonths,adjustedProducts} from '../reportes/commercial-adjustments';
 import "server-only";
 import { facturaTieneSaldo } from "@/lib/factura-settlement";
 import { rangoReporte, inicioDoceMeses, margenReporte } from "@/lib/reportes/core";
@@ -1262,10 +1264,11 @@ export const RECURSOS: Record<string, RecursoExport> = {
         )
         .groupBy(periodoExpr)
         .orderBy(periodoExpr);
-      return rows.map((d) => {
+      const net=adjustedMonths(rows.map(r=>({...r,cantVentas:0})),await loadCommercialAdjustments(ctx.user.empresaId,ctx.sucursalIds,desde,range.hasta));
+      return net.map((d) => {
         const [anio, mes] = d.periodo.split("-");
-        const ingresos = parseFloat(d.ingresos);
-        const costos = parseFloat(d.costos);
+        const ingresos = Number(d.ingresos);
+        const costos = Number(d.costos);
         const {margen}=margenReporte(ingresos,costos);
         return {
           periodo: `${MESES_ES[parseInt(mes, 10) - 1]} ${anio}`,
@@ -1294,6 +1297,7 @@ export const RECURSOS: Record<string, RecursoExport> = {
 
       const rows = await db
         .select({
+          productoId:productos.id,
           nombre: productos.nombre,
           sku: productos.sku,
           cantidad: sql<string>`SUM(${ventaDetalle.cantidad})`,
@@ -1313,11 +1317,12 @@ export const RECURSOS: Record<string, RecursoExport> = {
         .groupBy(productos.id, productos.nombre, productos.sku)
         .orderBy(sql`SUM(${ventaDetalle.subtotal}) DESC`)
         .limit(TOPE);
-      return rows.map((r) => ({
+      const net=adjustedProducts(rows.map(r=>({...r,cantidad:Number(r.cantidad),total:Number(r.monto)})),await loadCommercialAdjustments(ctx.user.empresaId,ctx.sucursalIds,range.desde,range.hasta));
+      return net.map((r) => ({
         nombre: r.nombre,
         sku: r.sku,
         cantidad: r.cantidad,
-        monto: r.monto,
+        monto: r.total,
       }));
     },
   },

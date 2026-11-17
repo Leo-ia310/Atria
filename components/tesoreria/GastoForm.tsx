@@ -1,5 +1,6 @@
 "use client";
 
+import {TurnoEfectivoSelector} from "../caja/TurnoEfectivoSelector";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -25,6 +26,7 @@ export function GastoForm({
   cuentas: Opcion[];
   tasaImpuesto: number;
 }) {
+  const [sesionCajaId,setSesionCajaId]=useState("");
   const router = useRouter();
   const { mostrar } = useToast();
   const [enviando, setEnviando] = useState(false);
@@ -53,6 +55,7 @@ export function GastoForm({
     }
     setEnviando(true);
     const res = await crearGasto({
+      sesionCajaId:sesionCajaId||undefined,
       categoriaId,
       cuentaFinancieraId,
       fecha,
@@ -77,6 +80,7 @@ export function GastoForm({
       <Card>
         <CardHeader title="Datos del gasto" />
         <CardBody className="space-y-4">
+        <TurnoEfectivoSelector value={sesionCajaId} onChange={setSesionCajaId}/>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Fecha"

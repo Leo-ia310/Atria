@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+
 
 // Cabeceras estaticas aplicadas a toda respuesta. La CSP completa se genera en
 // middleware.ts porque necesita un nonce nuevo por request para los scripts del
@@ -18,14 +18,24 @@ const securityHeaders = [
   },
 ];
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   experimental: {
+    // The native SWC worker faults on this Windows/Node 26 toolchain; pin WASM for Windows builds.
+    useWasmBinary: process.platform === "win32",
     // Limit build-time memory pressure on Windows and small CI runners.
     webpackMemoryOptimizations: true,
+    webpackBuildWorker: true,
     cpus: 2,
     serverActions: {
       bodySizeLimit: "5mb",
     },
+  },
+  webpack(config, { dev }) {
+    // Bounded-disk build hosts must not accumulate Webpack's persistent cache.
+    // This changes build acceleration only, not application/data caching.
+    if (!dev) config.cache = false;
+    return config;
   },
   images: {
     // Solo optimizamos imágenes de hosts conocidos. `hostname: "**"` convertía

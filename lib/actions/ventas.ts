@@ -2,8 +2,12 @@
 
 import { businessEntityId, businessChildId, businessEventDate } from "@/lib/business-context";
 
+import { saleCashSession, cashEntry } from "../cash-service";
+import { isCashPayment } from "../cash-core";
+import type { z } from "zod";
+import { executeWebAttempt } from "@/lib/web-operation-attempt";
 import { executeBusinessAction, revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
-import { and, eq, desc, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { dbConEmpresa } from "@/lib/db";
 import {
   ventas,
@@ -15,8 +19,6 @@ import {
   formasPago as formasPagoTable,
   clientes,
   empresas,
-  sesionesCaja,
-  cajas,
   almacenes,
   productos,
   impuestos,
@@ -27,6 +29,7 @@ import {
 } from "@/lib/db/schema";
 import { procesarVentaSchema } from "@/lib/validations/ventas";
 import { preparePosPayment, manualPaymentKind, saleSettlement } from "@/lib/pos-payment";
+import {captureInternalDocument} from "@/lib/internal-document";
 import { pendingFiscalDocument } from "@/lib/fiscal-document";
 import { posMoney, posSaleAmounts } from "@/lib/pos-money";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -43,33 +46,37 @@ type Resultado =
   | { ok: true; ventaId: string; numero: string; asientoId: string;pendienteVerificacion?:boolean }
   | { ok: false; error: string };
 
-export async function procesarVenta(input: unknown): Promise<Resultado> {
-  return executeBusinessAction(await requireSession(), () => procesarVentaBusiness(input));
+export async function procesarVenta(input: unknown, attemptKey?: string): Promise<Resultado> {
+  const user = await requireSession();
+  return executeBusinessAction(user, async () => {
+    const acceso = await validarAccion(user, { modulo: "pos", permisos: "ventas.crear" });
+    if (!acceso.ok) return acceso;
+    const parsed = procesarVentaSchema.safeParse(input);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+    return executeWebAttempt(user, "venta", attemptKey, parsed.data,
+      () => procesarVentaBusiness(parsed.data, user, acceso.access));
+  });
 }
 
-async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
-  const user = await requireSession();
-  const acceso = await validarAccion(user, { modulo: "pos", permisos: "ventas.crear" });
-  if (!acceso.ok) return acceso;
-  const parsed = procesarVentaSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
+async function procesarVentaBusiness(
+  data: z.output<typeof procesarVentaSchema>,
+  user: Awaited<ReturnType<typeof requireSession>>,
+  access: Extract<Awaited<ReturnType<typeof validarAccion>>, { ok: true }>["access"],
+): Promise<Resultado> {
   const [limiteTransacciones, limiteFacturas] = await Promise.all([
     validarLimitePlan(
-      acceso.access,
+      access,
       user.empresaId,
       "transacciones_mes",
     ),
     validarLimitePlan(
-      acceso.access,
+      access,
       user.empresaId,
       "facturas_mes",
     ),
   ]);
   if (!limiteTransacciones.ok) return limiteTransacciones;
   if (!limiteFacturas.ok) return limiteFacturas;
-  const data = parsed.data;
   if (data.esCredito && data.pagos.length) return {ok:false,error:"Una venta al crédito no puede incluir pagos confirmados."};
   const paymentEvidence = new Map<number, ReturnType<typeof preparePosPayment>>();
   const transferIds = new Map<number,string>();
@@ -139,7 +146,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     const clienteId = data.clienteId;
     const [clientePedido] = await dbConEmpresa(user.empresaId, (tx) =>
       tx
-        .select({ nombre: clientes.nombre })
+        .select({ nombre: clientes.nombre,identificacion:clientes.identificacionFiscal })
         .from(clientes)
         .where(and(eq(clientes.id, clienteId), eq(clientes.empresaId, user.empresaId)))
         .limit(1),
@@ -170,7 +177,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
   }
 
   const productoIds = [...new Set(data.items.map((item) => item.productoId))];
-  const [productosVenta, stockRows, sesionesAbiertas, empresaRows] = await dbConEmpresa(
+  const [productosVenta, stockRows, empresaRows] = await dbConEmpresa(
     user.empresaId,
     (tx) =>
       Promise.all([
@@ -205,19 +212,6 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
               inArray(existencias.productoId, productoIds),
             ),
           ),
-        tx
-          .select({ id: sesionesCaja.id, usuarioId: sesionesCaja.usuarioId })
-          .from(sesionesCaja)
-          .innerJoin(cajas, eq(cajas.id, sesionesCaja.cajaId))
-          .where(
-            and(
-              eq(sesionesCaja.empresaId, user.empresaId),
-              eq(sesionesCaja.estado, "abierta"),
-              eq(cajas.empresaId, user.empresaId),
-              eq(cajas.sucursalId, data.sucursalId),
-            ),
-          )
-          .orderBy(desc(sesionesCaja.abiertaEn)),
         tx
           .select({ tipoEmpresa: empresas.tipoEmpresa, zonaHoraria: empresas.zonaHoraria })
           .from(empresas)
@@ -263,18 +257,8 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     }
   }
 
-  const sesionCajaId =
-    sesionesAbiertas.find((s) => s.usuarioId === user.id)?.id ??
-    sesionesAbiertas[0]?.id ??
-    null;
-
-  // Sin caja abierta no se registran ventas ni se genera factura.
-  if (!sesionCajaId) {
-    return {
-      ok: false,
-      error: "No hay una caja abierta. Abre una caja para registrar ventas.",
-    };
-  }
+  const cashTurn=await saleCashSession(user,data.sucursalId,data.sesionCajaId);
+  const sesionCajaId=cashTurn.id;
 
   try {
     const fechaVenta = businessEventDate();
@@ -461,7 +445,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
       tx
         .select({
           id: formasPagoTable.id,
-          nombre: formasPagoTable.nombre,
+          nombre: formasPagoTable.nombre, codigo: formasPagoTable.codigo,
           cuentaFinancieraId: formasPagoTable.cuentaFinancieraId,
         })
         .from(formasPagoTable)
@@ -528,11 +512,12 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
       const mapaProd = new Map(prods.map((p) => [p.id, p]));
 
       let clienteNombre = "Consumidor final";
+      let clienteIdentificacion:string|null=null;
       if (data.clienteId) {
         const clienteId = data.clienteId;
         const [c] = await dbConEmpresa(user.empresaId, (tx) =>
           tx
-            .select({ nombre: clientes.nombre })
+            .select({ nombre: clientes.nombre,identificacion:clientes.identificacionFiscal })
             .from(clientes)
             .where(
               and(
@@ -542,7 +527,7 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
             )
             .limit(1),
         );
-        if (c) clienteNombre = c.nombre;
+        if (c){clienteNombre = c.nombre;clienteIdentificacion=c.identificacion;}
       }
 
       const nombresFormas = [
@@ -559,11 +544,14 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
         zonaHoraria,
         esCredito: data.esCredito,
         cliente: clienteNombre,
-        ...(businessEntityId("venta") ? pendingFiscalDocument() : {}),
+        clienteIdentificacion,
+        ...pendingFiscalDocument(),
+        documentContext: await captureInternalDocument(data.sucursalId),
         cajero: user.nombre,
         items: data.items.map((it) => {
           const p = mapaProd.get(it.productoId);
           return {
+            productoId:it.productoId,
             nombre: p?.nombre ?? "Producto",
             sku: p?.sku ?? "",
             cantidad: it.cantidad,
@@ -621,6 +609,13 @@ async function procesarVentaBusiness(input: unknown): Promise<Resultado> {
     } catch (errFactura) {
       throw errFactura;
     }
+
+    const cashAmount = data.pagos.reduce((sum,payment,index)=>{
+      const name=formaPagos.find(method=>method.id===payment.formaPagoId);
+      const evidence=paymentEvidence.get(index);
+      return sum+(isCashPayment(evidence?.paymentSource ?? "legacy", name?.codigo ?? "") ? payment.monto : 0);
+    },0);
+    await cashEntry(user,cashTurn,"venta",resultado.id,cashAmount,{numero:resultado.numero});
 
     revalidatePath("/ventas");
     revalidatePath("/facturas");

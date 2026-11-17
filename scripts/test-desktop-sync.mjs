@@ -37,6 +37,9 @@ try {
     import("../lib/db/index.ts"),import("../lib/db/schema.ts"),import("drizzle-orm"),import("../lib/desktop-schema.ts"),import("../lib/desktop-operations.ts"),import("../lib/desktop-bootstrap.ts"),import("../lib/pricing.ts"),import("../lib/paises.ts")]);
   database=db;
   disconnect=disconnectIsolatedTestDatabase;
+  // Validate the new additive SQL migration itself, exclusively against this temporary cluster.
+  const cashMigration=await fs.readFile(new URL("../lib/db/migrations/0028_cash_integrity.sql",import.meta.url),"utf8");
+  await db.transaction(async tx=>{for(const statement of cashMigration.split("--> statement-breakpoint"))if(statement.trim())await tx.execute(sql.raw(statement));});
   await ensureDesktopSchema();
   const empresaId=randomUUID(),userId=randomUUID(),roleId=randomUUID(),branch=randomUUID(),warehouse=randomUUID(),product=randomUUID(),cash=randomUUID(),method=randomUUID(),account=randomUUID(),plan=randomUUID();
   const device1=randomUUID(),device2=randomUUID();
@@ -61,6 +64,16 @@ try {
   const op=(type,payload={},operation="create",entityId=randomUUID())=>({id:randomUUID(),idempotencyKey:randomUUID(),entityType:type,entityId,operation,payload,empresaId,sucursalId:branch,usuarioId:userId,dependsOn:[]});
   const open=op("sesion_caja",{cajaId:cash,fondoInicial:0});
   await applyDesktopOperation(user,device1,[branch],open);
+  if(process.argv.includes("--commercial-only")) {
+    const branch2=randomUUID();await db.insert(s.sucursales).values({id:branch2,empresaId,codigo:"OTHER",nombre:"Otra sucursal QA"});
+    const {checkCommercial}=await import("./check-commercial.mjs");
+    await checkCommercial({db,s,sql,user,branch,branch2,warehouse,product,method,day,op,applyDesktopOperation,device1,device2});
+    const {checkDocumentTemplates}=await import("./check-document-templates.mjs");
+    await checkDocumentTemplates({db,s,sql,user,branch,branch2,product,day,device1,device2});
+    const {checkReceivables}=await import('./check-receivables.mjs');
+    await checkReceivables({db,s,sql,user,branch,branch2,warehouse,product,method,day,device1,device2});
+    const {checkProcurement}=await import('./check-procurement.mjs');await checkProcurement({db,s,sql,user,branch,branch2,warehouse,product,day,device1,device2});
+  } else {
   const before=await desktopBootstrap(user,[branch],{deviceId:device1});
   assert.ok(before.serverCursor);
   const sale=(quantity)=>op("venta",{sucursalId:branch,almacenId:warehouse,fecha:new Date().toISOString(),esCredito:false,lines:[{productoId:product,cantidad:quantity,precioUnitario:10,costoUnitario:4,impuesto:0,descuento:0}],payments:[{formaPagoId:method,monto:quantity*10}]});
@@ -319,6 +332,12 @@ try {
   console.log(JSON.stringify({manualCardWebCore:"passed",manualCardPushIdempotency:"passed",manualPaymentEvidencePull:"passed",mixedPayments:"passed",unverifiedCardAndGatewayRollback:"passed",internalReceiptNotFiscalAcceptance:"passed"}));
   const {checkPendingTransfers}=await import("./check-pending-transfers.mjs");
   await checkPendingTransfers({db,sql,op,sale,config,applyDesktopOperation,desktopBootstrap,user,device1,device2,branch,branch2,transferMethod,cardAccount});
+  const {checkWebAttempts}=await import("./check-web-operation-attempts.mjs");
+  await checkWebAttempts({db,user,branch,branch2,warehouse,product,method,supplierId:supplier.entityId,day,foreignWarehouse:randomUUID()});
+  const {checkCashIntegrity}=await import("./check-cash-integrity.mjs");
+  await checkCashIntegrity({db,s,sql,user,branch,warehouse,product,method,cardMethod,account,day,op,applyDesktopOperation,device1,device2,customerId:customer.entityId,supplierId:supplier.entityId});
+  const {checkStep6Integrity}=await import('./check-step6-integrity.mjs');
+  await checkStep6Integrity({db,s,sql,user,branch,device:device1,operation:sale1});
   const createPeriod=config("crearPeriodo",[nextPeriod]);const periodCreated=await applyDesktopOperation(user,device1,[branch],createPeriod);assert.equal((await applyDesktopOperation(user,device1,[branch],createPeriod)).id,periodCreated.id);
   const [currentPeriod]=await db.execute(sql`select id from periodos_contables where empresa_id=${empresaId}::uuid and anio=${year} and mes=${month}`);
   const {checkListFilters}=await import("./check-list-filters.mjs");
@@ -343,6 +362,13 @@ try {
   await checkPosRounding({db,s,sql,user,branch,warehouse,method,cardMethod});
   const {checkDesktopInventory}=await import("./check-desktop-inventory.mjs");
   await checkDesktopInventory({db,s,sql,user,branch,branch2,warehouse,product,supplierId:supplier.entityId,customerId:customer.entityId,config,applyDesktopOperation,desktopBootstrap,device1});
+  const {checkCommercial}=await import("./check-commercial.mjs");
+  await checkCommercial({db,s,sql,user,branch,branch2,warehouse,product,method,day,op,applyDesktopOperation,device1,device2});
+    const {checkDocumentTemplates}=await import("./check-document-templates.mjs");
+    await checkDocumentTemplates({db,s,sql,user,branch,branch2,product,day,device1,device2});
+    const {checkReceivables}=await import('./check-receivables.mjs');
+    await checkReceivables({db,s,sql,user,branch,branch2,warehouse,product,method,day,device1,device2});
+    const {checkProcurement}=await import('./check-procurement.mjs');await checkProcurement({db,s,sql,user,branch,branch2,warehouse,product,day,device1,device2});
   const beforeFailure=await db.execute(sql`select (select count(*)::int from ventas where empresa_id=${empresaId}::uuid) as sales,(select count(*)::int from pagos_venta p join ventas v on v.id=p.venta_id where v.empresa_id=${empresaId}::uuid) as payments,(select sum(cantidad)::text from existencias where empresa_id=${empresaId}::uuid) as stock`);
   await db.execute(sql`update periodos_contables set estado='cerrado' where empresa_id=${empresaId}::uuid`);
   await assert.rejects(applyDesktopOperation(user,device1,[branch],sale(1)),/venta|período|periodo/i);
@@ -352,6 +378,7 @@ try {
   await assert.rejects(applyDesktopOperation(user,device1,[branch],config("crearGastoTesoreria",[expenseInput])),/período|periodo/i);
   assert.deepEqual([...await db.execute(sql`select (select count(*)::int from gastos where empresa_id=${empresaId}::uuid) as expenses,(select count(*)::int from gastos_recurrentes where empresa_id=${empresaId}::uuid) as recurring`)],[...expenseCounts],"El fallo contable revierte gasto y recurrencia juntos");
   console.log(JSON.stringify({multiDeviceSales:"passed",inventoryDelta:-5,duplicatePush:"passed",duplicatePayments:"prevented",creditSale:"passed",collectionIdempotency:"passed",supplierPaymentIdempotency:"passed",hrEmployeeAndAttendance:"passed",hrRequests:"passed",hrPayrollVariables:"passed",hrVerificationIdempotency:"passed",hrPayrollPayment:"passed",hrBranchScope:"passed",hrDerivedDeltas:"passed",deltaPull:"passed",emptyDelta:"passed",tenantBranchChecks:"passed",customerIdempotency:"passed",versionConflict:"passed",thousandOperations:"passed",lateCommitCursor:"passed",rollbackAfterSaleInsert:"passed",isolatedDatabase:directory},null,2));
+  }
 } catch(error){console.error(error);if(logs.length)console.error(logs.slice(-4).join("\n"));process.exitCode=1;}
 finally {
   if(disconnect)await disconnect();

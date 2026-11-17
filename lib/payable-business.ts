@@ -1,0 +1,161 @@
+import { revalidateBusinessPath as revalidatePath } from "@/lib/business-action";
+import { invalidarModulos } from "@/lib/redis/cache";
+import { MODULOS } from "@/lib/redis/keys";
+import { and, eq } from "drizzle-orm";
+import { dbConEmpresa } from "@/lib/db";
+import {
+  cuentasPorPagar,
+  pagosProveedor,
+  cuentasFinancieras,
+  compras,
+} from "@/lib/db/schema";
+import { registrarPagoSchema } from "@/lib/validations/cxp";
+import { cashSession, cashEntry } from "./cash-service";
+import {
+  businessEntityId,
+  currentBusinessContext,
+} from "@/lib/business-context";
+import { requireSession } from "@/lib/actions/session-helpers";
+import { registrarPagoProveedor } from "@/lib/contabilidad/motor-asientos";
+import { dinero, aDecimalStr } from "@/lib/contabilidad/helpers";
+
+export async function registrarPagoBusiness(
+  input: unknown,
+  user: Awaited<ReturnType<typeof requireSession>>,
+): Promise<{ ok: true; pagoId: string } | { ok: false; error: string }> {
+  const parsed = registrarPagoSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
+    };
+  }
+  const data = parsed.data;
+
+  // Validate cuenta financiera ownership before entering transaction
+  const [cuenta] = await dbConEmpresa(user.empresaId, (tx) =>
+    tx
+      .select({ id: cuentasFinancieras.id, tipo: cuentasFinancieras.tipo })
+      .from(cuentasFinancieras)
+      .where(
+        and(
+          eq(cuentasFinancieras.id, data.cuentaFinancieraId),
+          eq(cuentasFinancieras.empresaId, user.empresaId),
+        ),
+      )
+      .limit(1),
+  );
+  if (!cuenta) return { ok: false, error: "Cuenta financiera no encontrada" };
+
+  try {
+    const pagoId = await dbConEmpresa(user.empresaId, async (tx) => {
+      const [cxp] = await tx
+        .select({
+          id: cuentasPorPagar.id,
+          saldo: cuentasPorPagar.saldo,
+          estado: cuentasPorPagar.estado,
+          sucursalId: compras.sucursalId,
+        })
+        .from(cuentasPorPagar)
+        .leftJoin(compras, eq(compras.id, cuentasPorPagar.compraId))
+        .where(
+          and(
+            eq(cuentasPorPagar.id, data.cxpId),
+            eq(cuentasPorPagar.empresaId, user.empresaId),
+          ),
+        )
+        .for("update", { of: cuentasPorPagar })
+        .limit(1);
+
+      if (!cxp) throw new Error("Cuenta por pagar no encontrada");
+      if (cxp.estado === "pagada")
+        throw new Error("Esta cuenta ya está saldada");
+
+      const saldoActual = dinero(cxp.saldo);
+      const monto = dinero(data.monto);
+      if (monto > saldoActual + 0.0001) {
+        throw new Error(
+          `El pago (${monto.toFixed(2)}) supera el saldo pendiente (${saldoActual.toFixed(2)})`,
+        );
+      }
+
+      const nuevoSaldo = dinero(saldoActual - monto);
+      const nuevoEstado =
+        nuevoSaldo <= 0.0001
+          ? "pagada"
+          : cxp.estado === "vencida"
+            ? "vencida"
+            : "parcial";
+
+      const fecha = new Date(data.fecha + "T12:00:00Z");
+
+      const [pago] = await tx
+        .insert(pagosProveedor)
+        .values({
+          id: businessEntityId("pago_proveedor"),
+          empresaId: user.empresaId,
+          cxpId: data.cxpId,
+          cuentaFinancieraId: data.cuentaFinancieraId,
+          fecha: data.fecha,
+          monto: aDecimalStr(monto),
+          referencia: data.referencia || null,
+          notas: data.notas || null,
+          usuarioId: user.id,
+        })
+        .returning({ id: pagosProveedor.id });
+
+      await tx
+        .update(cuentasPorPagar)
+        .set({
+          saldo: aDecimalStr(nuevoSaldo <= 0.0001 ? 0 : nuevoSaldo),
+          estado: nuevoEstado,
+        })
+        .where(eq(cuentasPorPagar.id, data.cxpId));
+
+      const asientoId = await registrarPagoProveedor(
+        {
+          empresaId: user.empresaId,
+          usuarioId: user.id,
+          pagoId: pago.id,
+          cxpId: data.cxpId,
+          fecha,
+          monto,
+          cuentaFinancieraId: data.cuentaFinancieraId,
+          sucursalId: cxp.sucursalId,
+          referencia: data.referencia || undefined,
+        },
+        tx,
+      );
+
+      await tx
+        .update(pagosProveedor)
+        .set({ asientoId })
+        .where(eq(pagosProveedor.id, pago.id));
+
+      if (data.sesionCajaId && cuenta.tipo === "caja") {
+        const turn = await cashSession(user, data.sesionCajaId);
+        if (turn.sucursal_id !== cxp.sucursalId)
+          throw new Error("El turno no corresponde a la sucursal del pago.");
+        if (
+          turn.estado !== "abierta" &&
+          currentBusinessContext()?.identity?.type !== "pago_proveedor"
+        )
+          throw new Error("El turno ya fue cerrado.");
+        await cashEntry(user, turn, "pago_proveedor", pago.id, -monto, {
+          cxpId: data.cxpId,
+        });
+      }
+      return pago.id;
+    });
+
+    revalidatePath("/cxp");
+    revalidatePath(`/cxp/${data.cxpId}`);
+    await invalidarModulos(user.empresaId, [MODULOS.CONTABILIDAD]);
+    return { ok: true, pagoId };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Error al registrar pago",
+    };
+  }
+}

@@ -63,7 +63,7 @@ export function validarBalance(partidas: PartidaAsiento[]): void {
  * Inserta un asiento completo. Llamar desde dentro de una transacción.
  * Retorna el asientoId creado.
  */
-async function crearAsiento(
+export async function crearAsiento(
   tx: TX,
   opciones: {
     empresaId: string;
@@ -251,6 +251,8 @@ export type RegistrarCompraInput = {
   total: number;
   esCredito: boolean;
   cuentaFinancieraId?: string;
+  /** Server-owned invoice allocation: already-received accruals or goods in transit. */
+  baseDebits?: Array<{cuentaId:string;monto:number}>;
 };
 
 export async function registrarCompra(input: RegistrarCompraInput): Promise<string> {
@@ -260,7 +262,7 @@ export async function registrarCompra(input: RegistrarCompraInput): Promise<stri
     ]);
 
     const ref = input.numeroFactura ?? input.compraId.slice(0, 8);
-    const partidas: PartidaAsiento[] = [
+    const partidas: PartidaAsiento[] = input.baseDebits?input.baseDebits.filter(p=>p.monto!==0).map(p=>({cuentaId:p.cuentaId,debe:Math.max(0,p.monto),haber:Math.max(0,-p.monto),descripcion:`Compra ${ref}`})):[
       {
         cuentaId: cuentas.INVENTARIO,
         descripcion: `Compra ${ref}`,
@@ -268,6 +270,12 @@ export async function registrarCompra(input: RegistrarCompraInput): Promise<stri
         haber: 0,
       },
     ];
+    if(input.baseDebits){
+      if(Math.abs(dinero(...input.baseDebits.map(p=>p.monto))-input.subtotal)>0.0001)throw new Error('La asignación contable de la factura no concilia.');
+      const ids=[...new Set(input.baseDebits.map(p=>p.cuentaId))];
+      const valid=await tx.select({id:catalogoCuentas.id}).from(catalogoCuentas).where(and(eq(catalogoCuentas.empresaId,input.empresaId),eq(catalogoCuentas.activa,true),eq(catalogoCuentas.esDetalle,true)));
+      if(ids.some(id=>!valid.some(a=>a.id===id)))throw new Error('Cuenta de factura no autorizada o inactiva.');
+    }
 
     if (input.impuesto > 0) {
       partidas.push({

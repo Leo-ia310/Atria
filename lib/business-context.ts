@@ -8,6 +8,8 @@ export type BusinessContext = {
   invalidations: Set<string>;
   /** Only the authenticated sync adapter may supply offline identities. */
   identity?: { type: string; id: string };
+  deviceId?: string;
+  operationId?: string;
   localIds?: Record<string, string[]>;
   sucursalIds?: string[];
   eventDate?: Date;

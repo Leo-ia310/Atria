@@ -21,10 +21,15 @@ export function reciboDesdeSnapshot({
     ? (snapshot.pagos as Record<string, unknown>[])
     : [];
 
+  const context=snapshot.documentContext as {schemaVersion?:number;pais?:PaisCodigo;moneda?:string;issuer?:{nombre:string;nombreComercial?:string|null;ruc?:string|null;direccion?:string|null;telefono?:string|null}}|undefined;
+  const frozen=context?.schemaVersion===1?context.issuer:undefined;
+  const originalEmpresa=frozen?{...empresa,nombre:frozen.nombreComercial||frozen.nombre,identificacionFiscal:frozen.ruc??'',direccion:frozen.direccion,telefono:frozen.telefono}:{...empresa,identificacionFiscal:''};
   return {
     documentType: snapshot.documentType === "internal_receipt" ? "internal_receipt" : undefined,
-    pais,
-    empresa,
+    pais:context?.schemaVersion===1&&context.pais?context.pais:pais,
+    moneda:context?.schemaVersion===1?context.moneda:undefined,
+    empresa:originalEmpresa,
+    historicalContextMissing:!frozen,
     numero: String(snapshot.numero ?? ""),
     fecha: String(snapshot.fecha ?? new Date().toISOString()),
     zonaHoraria:

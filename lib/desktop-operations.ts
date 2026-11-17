@@ -1,3 +1,7 @@
+import { CashSessionError } from "./cash-service";
+import {bindDesktopReceipt} from './desktop-receipt-core';
+import {recoverDesktopReceipt,receiptPolicy} from './desktop-receipts';
+import { registrarMovimientoCaja } from "./actions/caja-integrity";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -21,7 +25,7 @@ import { manualPaymentEvidenceSchema, preparePosPayment } from "./pos-payment";
 export const desktopOperationSchema = z.object({ id: z.string().uuid(), idempotencyKey: z.string().min(1).max(200),
   entityType: z.string().max(80), entityId: z.string().uuid(), operation: z.enum(["create","update","command","delete"]),
   payload: z.record(z.unknown()), empresaId: z.string().optional().nullable(), sucursalId: z.string().optional().nullable(),
-  usuarioId: z.string().optional().nullable(), dependsOn: z.array(z.string().uuid()).max(300).default([]) });
+  usuarioId: z.string().optional().nullable(), dependsOn: z.array(z.string().uuid()).max(10000).default([]) });
 export type DesktopOperation = z.infer<typeof desktopOperationSchema>;
 export class DesktopOperationError extends Error {
   constructor(message: string, readonly code = "BUSINESS_RULE", readonly retryable = false) { super(message); }
@@ -109,11 +113,12 @@ async function dispatch(tx: Tx, user: SessionUser, op: DesktopOperation, branche
       if (!product) throw new DesktopOperationError("El producto aún no está disponible.", "DEPENDENCY_PENDING", true);
       return registrarEntradaInventarioPorLector({ productoId: id, almacenId, codigoBarras: product.codigo_barras ?? "", cantidad: p.cantidad, precioBase: product.precio_base, costoPromedio: product.costo_promedio });
     }
+    case "caja_movimiento": return registrarMovimientoCaja({...p,id:op.entityId});
     case "sesion_caja": {
       if (op.operation === "update") {
         const rows = await tx.execute(sql`select c.sucursal_id from sesiones_caja s join cajas c on c.id=s.caja_id where s.id=${op.entityId}::uuid and s.empresa_id=${user.empresaId}::uuid`);
         if (!rows.length || !branches.includes(String(rows[0].sucursal_id))) throw new DesktopOperationError("La sesión de caja no está disponible.", "CASH_DENIED");
-        return cerrarSesion({ sesionId: op.entityId, montoFinalReal: p.totalDeclarado, notas: p.notas ?? "" });
+        return cerrarSesion({ sesionId: op.entityId, montoFinalReal: p.totalDeclarado, esperadoLocal:p.esperadoEfectivo, notas: p.notas ?? "" });
       }
       const cajaId = uuid.parse(p.cajaId);
       const rows = await tx.execute(sql`select sucursal_id from cajas where id=${cajaId}::uuid and empresa_id=${user.empresaId}::uuid and activa=true`);
@@ -133,7 +138,7 @@ async function dispatch(tx: Tx, user: SessionUser, op: DesktopOperation, branche
       const esCredito = typeof p.esCredito === "boolean" ? p.esCredito : payments.length === 0;
       if (esCredito && payments.length) throw new DesktopOperationError("Una venta al crédito no puede incluir pagos confirmados.","PAYMENT_VERIFICATION_REQUIRED");
       // Sale stock and accounting share the web transaction. No absolute-stock writes.
-      return procesarVenta({ sucursalId: branch, almacenId, clienteId: p.clienteId ?? "", items: lines, pagos: payments.map((item) => ({ ...item, referencia: item.referencia ?? "" })), esCredito, diasCredito: p.diasCredito ?? 0, notas: p.notas ?? "" });
+      return procesarVenta({ sesionCajaId: p.sesionCajaId ? uuid.parse(p.sesionCajaId) : undefined, sucursalId: branch, almacenId, clienteId: p.clienteId ?? "", items: lines, pagos: payments.map((item) => ({ ...item, referencia: item.referencia ?? "" })), esCredito, diasCredito: p.diasCredito ?? 0, notas: p.notas ?? "" });
     }
     case "compra": {
       const lines = z.array(z.object({ productoId: uuid, cantidad: z.number().positive(), costoUnitario: z.number().nonnegative() })).min(1).max(200).parse(p.lines);
@@ -145,7 +150,7 @@ async function dispatch(tx: Tx, user: SessionUser, op: DesktopOperation, branche
     case "gasto": {
       const category = await tx.execute(sql`select id from categorias_gasto where empresa_id=${user.empresaId}::uuid and activa=true and nombre=${text(p.categoria)}`);
       if (category.length !== 1) throw new DesktopOperationError("Selecciona una categoría de gasto del servidor.", "CATEGORY_CONFLICT");
-      return crearGasto({ categoriaId: category[0].id, cuentaFinancieraId: p.cuentaId, fecha: text(p.fecha).slice(0,10), descripcion: p.descripcion, subtotal: p.monto, impuesto: 0 });
+      return crearGasto({sesionCajaId:p.sesionCajaId?uuid.parse(p.sesionCajaId):undefined, categoriaId: category[0].id, cuentaFinancieraId: p.cuentaId, fecha: text(p.fecha).slice(0,10), descripcion: p.descripcion, subtotal: p.monto, impuesto: 0 });
     }
     case "abono_cliente": {
       const [method] = await tx.execute(sql`select codigo from formas_pago where id=${uuid.parse(p.formaPagoId)}::uuid and empresa_id=${user.empresaId}::uuid and activa=true`);
@@ -166,10 +171,14 @@ export async function applyDesktopOperation(user: SessionUser, deviceId: string,
   const invalidations = new Set<string>();
   const result = await dbConEmpresa(user.empresaId, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`arca-business:${user.empresaId}`},0))`);
-    const [existing] = await tx.execute(sql`select request_hash,device_id,user_id,result from desktop_operations where empresa_id=${user.empresaId}::uuid and idempotency_key=${op.idempotencyKey}`);
+    if(op.empresaId&&op.empresaId!==user.empresaId||op.usuarioId&&op.usuarioId!==user.id)throw new DesktopOperationError('Contexto de operación inválido.','TENANT_MISMATCH');
+    const branch=text(op.sucursalId)||text(op.payload.sucursalId);
+    if(branch&&!branches.includes(branch))throw new DesktopOperationError('Sucursal no autorizada.','BRANCH_DENIED');
+    const [existing] = await tx.execute(sql`select * from desktop_operations where empresa_id=${user.empresaId}::uuid and idempotency_key=${op.idempotencyKey}`);
     if (existing) {
-      if (existing.request_hash !== requestHash || existing.device_id !== deviceId || existing.user_id !== user.id) throw new DesktopOperationError("La clave de idempotencia ya corresponde a otra operación.", "IDEMPOTENCY_CONFLICT");
-      return existing.result;
+      if (existing.request_hash !== requestHash || existing.device_id !== deviceId || existing.user_id !== user.id || existing.operation_id!==op.id) throw new DesktopOperationError("La clave de idempotencia ya corresponde a otra operación.", "IDEMPOTENCY_CONFLICT");
+      try{return await recoverDesktopReceipt(tx,user,deviceId,branches,existing as unknown as import('./desktop-receipts').StoredReceipt,op.operation);}
+      catch(error){throw new DesktopOperationError(error instanceof Error?error.message:'Recibo no autorizado.','RECEIPT_ACCESS_DENIED');}
     }
     if (op.dependsOn.length) {
       const dependencies = await tx.execute(sql`select distinct operation_id from desktop_operations where empresa_id=${user.empresaId}::uuid and operation_id=any(ARRAY(select jsonb_array_elements_text(${JSON.stringify(op.dependsOn)}::jsonb)))`);
@@ -180,12 +189,17 @@ export async function applyDesktopOperation(user: SessionUser, deviceId: string,
     const eventDate = typeof eventValue === "string" ? new Date(z.string().datetime().parse(eventValue)) : undefined;
     if (eventDate && eventDate.getTime() > Date.now() + 60000) throw new DesktopOperationError("La fecha del equipo está adelantada. Revisa el reloj y la operación.", "CLOCK_CONFLICT");
     const effects = { stockPairs: [] as Array<{productoId:string;almacenId:string}> };
-    const value = await inBusinessContext({ user, tx, invalidations, localIds, eventDate, effects, identity: { type: op.entityType, id: op.entityId }, sucursalIds: text(op.sucursalId) ? [text(op.sucursalId)] : branches }, () => dispatch(tx,user,op,branches));
+    const value = await inBusinessContext({ user, tx, invalidations, deviceId, operationId: op.id, localIds, eventDate, effects, identity: { type: op.entityType, id: op.entityId }, sucursalIds: text(op.sucursalId) ? [text(op.sucursalId)] : branches }, async () => {
+      try { return await dispatch(tx,user,op,branches); }
+      catch(error){ if(error instanceof CashSessionError)throw new DesktopOperationError(error.message,"CASH_REVIEW_REQUIRED");throw error; }
+    });
     if (!value.ok) throw new DesktopOperationError(value.error ?? "La operación no cumple las reglas actuales de ARCA.");
+    const bound=bindDesktopReceipt(value,{empresaId:user.empresaId,userId:user.id,deviceId,operationId:op.id,idempotencyKey:op.idempotencyKey,entityType:op.entityType,entityId:op.entityId,operation:op.operation,requestHash},branch||null,receiptPolicy(op.entityType,op.payload) as Record<string,unknown>);
+    const confirmed=await recoverDesktopReceipt(tx,user,deviceId,branches,{empresa_id:user.empresaId,user_id:user.id,device_id:deviceId,operation_id:op.id,idempotency_key:op.idempotencyKey,entity_type:op.entityType,entity_id:op.entityId,request_hash:requestHash,result:bound},op.operation);
     await tx.execute(sql`insert into desktop_operations(empresa_id,idempotency_key,operation_id,device_id,user_id,entity_type,entity_id,request_hash,result,stock_pairs)
-      values(${user.empresaId}::uuid,${op.idempotencyKey},${op.id},${deviceId}::uuid,${user.id}::uuid,${op.entityType},${op.entityId}::uuid,${requestHash},${JSON.stringify(value)}::jsonb,${JSON.stringify(effects.stockPairs)}::jsonb)`);
+      values(${user.empresaId}::uuid,${op.idempotencyKey},${op.id},${deviceId}::uuid,${user.id}::uuid,${op.entityType},${op.entityId}::uuid,${requestHash},${JSON.stringify(confirmed)}::jsonb,${JSON.stringify(effects.stockPairs)}::jsonb)`);
     await tx.execute(sql`update desktop_devices set last_sync_at=now() where empresa_id=${user.empresaId}::uuid and device_id=${deviceId}::uuid`);
-    return value;
+    return confirmed;
   });
   flushBusinessInvalidations(invalidations);
   return result;

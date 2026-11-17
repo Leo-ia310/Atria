@@ -13,6 +13,7 @@
 
 import {
   pgTable,
+  foreignKey,
   uuid,
   text,
   timestamp,
@@ -1261,6 +1262,7 @@ export const ordenesCompra = pgTable(
   },
   (t) => [
     unique("oc_empresa_numero_uq").on(t.empresaId, t.numero),
+    uniqueIndex("abast_oc_tenant_uq").on(t.empresaId,t.id),
     index("oc_empresa_idx").on(t.empresaId),
   ],
 );
@@ -1283,7 +1285,7 @@ export const ordenCompraDetalle = pgTable(
     impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull().default("0"),
     subtotal: numeric("subtotal", { precision: 18, scale: 4 }).notNull(),
   },
-  (t) => [index("oc_detalle_orden_idx").on(t.ordenId)],
+  (t) => [index("oc_detalle_orden_idx").on(t.ordenId),uniqueIndex("abast_oc_line_parent_uq").on(t.ordenId,t.id)],
 );
 
 export const compras = pgTable(
@@ -1302,6 +1304,7 @@ export const compras = pgTable(
       .references(() => proveedores.id),
     ordenId: uuid("orden_id").references(() => ordenesCompra.id),
     numeroFactura: text("numero_factura"),
+    flujo:text('flujo').notNull().default('simultanea'),
     fecha: date("fecha").notNull(),
     estado: compraEstadoEnum("estado").notNull().default("recibida"),
     esCredito: boolean("es_credito").notNull().default(false),
@@ -1481,6 +1484,7 @@ export const sesionesCaja = pgTable(
     notas: text("notas"),
   },
   (t) => [
+    uniqueIndex("sesiones_caja_abierta_uq").on(t.empresaId,t.cajaId).where(sql`${t.estado}='abierta'`),
     index("sesiones_empresa_idx").on(t.empresaId),
     index("sesiones_caja_idx").on(t.cajaId),
     index("sesiones_empresa_estado_caja_idx").on(
@@ -2692,6 +2696,9 @@ export const notasCredito = pgTable(
     numero: text("numero").notNull(),
     fecha: date("fecha").notNull(),
     motivo: text("motivo").notNull(),
+    sucursalId:uuid('sucursal_id').references(()=>sucursales.id),
+    snapshot:jsonb('snapshot'),
+    tipo:text('tipo'),
     subtotal: numeric("subtotal", { precision: 18, scale: 4 }).notNull(),
     impuesto: numeric("impuesto", { precision: 18, scale: 4 }).notNull().default("0"),
     total: numeric("total", { precision: 18, scale: 4 }).notNull(),
@@ -2712,6 +2719,11 @@ export const notaCreditoDetalle = pgTable(
     notaId: uuid("nota_id")
       .notNull()
       .references(() => notasCredito.id, { onDelete: "cascade" }),
+    ventaDetalleId:uuid('venta_detalle_id').references(()=>ventaDetalle.id),
+    impuesto:numeric('impuesto',{precision:18,scale:4}),
+    total:numeric('total',{precision:18,scale:4}),
+    costo:numeric('costo',{precision:18,scale:4}),
+    reingresada:boolean('reingresada'),
     productoId: uuid("producto_id")
       .notNull()
       .references(() => productos.id),
@@ -2843,6 +2855,7 @@ export const cotizaciones = pgTable(
 export const cotizacionDetalle = pgTable(
   "cotizacion_detalle",
   {
+    revisionOferta:integer('revision_oferta'),
     id: uuid("id").primaryKey().defaultRandom(),
     cotizacionId: uuid("cotizacion_id")
       .notNull()
@@ -2858,6 +2871,34 @@ export const cotizacionDetalle = pgTable(
   },
   (t) => [index("cotizacion_detalle_cot_idx").on(t.cotizacionId)],
 );
+
+// Commercial offers. Immutable snapshots/events are protected by migration 0029 triggers.
+export const perfilesDocumentales=pgTable('perfiles_documentales',{
+  empresaId:uuid('empresa_id').primaryKey().references(()=>empresas.id),perfil:text('perfil').notNull().default('configuracion_pendiente'),ruc:text('ruc'),
+  fiscalHabilitado:boolean('fiscal_habilitado').notNull().default(false),actualizadoEn:timestamp('actualizado_en',{withTimezone:true}).notNull().defaultNow(),actualizadoPor:uuid('actualizado_por').references(()=>usuarios.id),
+});
+export const comercialOrigenes=pgTable('comercial_origenes',{
+  id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),
+  cotizacionId:uuid('cotizacion_id').unique().references(()=>cotizaciones.id),version:integer('version').notNull().default(1),estado:text('estado').notNull(),ventaId:uuid('venta_id').references(()=>ventas.id),
+  creadoPor:uuid('creado_por').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),actualizadoEn:timestamp('actualizado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique('comercial_origenes_empresa_id_id_key').on(t.empresaId,t.id),index('comercial_scope_idx').on(t.empresaId,t.sucursalId,t.actualizadoEn)]);
+export const comercialRevisiones=pgTable('comercial_revisiones',{
+  empresaId:uuid('empresa_id').notNull(),origenId:uuid('origen_id').notNull(),version:integer('version').notNull(),snapshot:jsonb('snapshot').notNull(),
+  creadoPor:uuid('creado_por').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[primaryKey({columns:[t.empresaId,t.origenId,t.version]})]);
+export const proformas=pgTable('proformas',{
+  id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull(),origenId:uuid('origen_id').notNull(),numero:text('numero').notNull(),creadoPor:uuid('creado_por').notNull().references(()=>usuarios.id),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique('proformas_empresa_id_numero_key').on(t.empresaId,t.numero),unique('proformas_empresa_id_origen_id_key').on(t.empresaId,t.origenId)]);
+export const comercialConversiones=pgTable('comercial_conversiones',{
+  empresaId:uuid('empresa_id').notNull(),origenId:uuid('origen_id').notNull(),revision:integer('revision').notNull(),ventaId:uuid('venta_id').notNull().references(()=>ventas.id),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),requestId:uuid('request_id').notNull(),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[primaryKey({columns:[t.empresaId,t.origenId,t.revision]}),unique('comercial_conversiones_empresa_id_origen_id_key').on(t.empresaId,t.origenId)]);
+export const comercialIntentos=pgTable('comercial_intentos',{
+  empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),requestId:uuid('request_id').notNull(),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),clase:text('clase').notNull(),hash:text('hash').notNull(),resultado:jsonb('resultado').notNull(),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[primaryKey({columns:[t.empresaId,t.usuarioId,t.requestId]})]);
+export const comercialEventos=pgTable('comercial_eventos',{
+  id:uuid('id').primaryKey().defaultRandom(),empresaId:uuid('empresa_id').notNull(),origenId:uuid('origen_id').notNull(),version:integer('version').notNull(),documentoId:uuid('documento_id').notNull(),clase:text('clase').notNull(),accion:text('accion').notNull(),
+  usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),correlationId:uuid('correlation_id').notNull(),motivo:text('motivo'),evidencia:text('evidencia'),datos:jsonb('datos').notNull().default({}),resultado:text('resultado').notNull().default('confirmado'),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[index('comercial_eventos_origen_idx').on(t.empresaId,t.origenId,t.creadoEn)]);
 
 /* =========================================================
  * MÓDULO 5 — FACTURACIÓN FISCAL
@@ -3762,3 +3803,86 @@ export type JurisdiccionFiscal = typeof jurisdiccionesFiscales.$inferSelect;
 export type CodigoProductoFiscal = typeof codigosProductoFiscal.$inferSelect;
 export type ReglaImpuestoFiscal = typeof reglasImpuestoFiscal.$inferSelect;
 export type SnapshotImpuestoFiscal = typeof snapshotsImpuestoFiscal.$inferSelect;
+
+/** Receipts for authenticated Web submissions, separate from Desktop's queue. */
+export const webOperationAttempts = pgTable("web_operation_attempts", {
+  empresaId: uuid("empresa_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  kind: text("kind").notNull(),
+  attemptKey: uuid("attempt_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  result: jsonb("result").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.empresaId, t.userId, t.kind, t.attemptKey] })]);
+
+
+// Append-only cash custody records. Closed session totals remain immutable.
+export const cajaMovimientos = pgTable("caja_movimientos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  empresaId: uuid("empresa_id").notNull(),
+  sucursalId: uuid("sucursal_id").notNull(),
+  sesionId: uuid("sesion_id").notNull(),
+  tipo: text("tipo").notNull(),
+  origenTipo: text("origen_tipo").notNull(),
+  origenId: uuid("origen_id").notNull(),
+  monto: numeric("monto", {precision:18,scale:4}).notNull(),
+  usuarioId: uuid("usuario_id").notNull(),
+  deviceId: uuid("device_id"),
+  ocurridoEn: timestamp("ocurrido_en",{withTimezone:true}).notNull(),
+  registradoEn: timestamp("registrado_en",{withTimezone:true}).notNull().defaultNow(),
+  detalle: jsonb("detalle").notNull().default({}),
+}, t => [
+  unique("caja_movimiento_origen_uq").on(t.empresaId,t.origenTipo,t.origenId),
+  index("caja_movimientos_sesion_idx").on(t.empresaId,t.sesionId),
+]);
+
+export const cajaRevisiones = pgTable("caja_revisiones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  empresaId: uuid("empresa_id").notNull(),
+  sucursalId: uuid("sucursal_id").notNull(),
+  sesionId: uuid("sesion_id").notNull(),
+  movimientoId: uuid("movimiento_id").notNull(),
+  motivo: text("motivo").notNull(),
+  resueltaEn: timestamp("resuelta_en",{withTimezone:true}),
+  resueltaPor: uuid("resuelta_por"),
+  resolucion: text("resolucion"),
+}, t=>[unique("caja_revision_movimiento_uq").on(t.empresaId,t.movimientoId)]);
+
+// Versioned declarative document layouts; SQL 0030 enforces immutable versions/emissions.
+export const documentoPlantillas=pgTable('documento_plantillas',{
+ id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),nombre:text('nombre').notNull(),version:integer('version').notNull().default(1),creadoPor:uuid('creado_por').notNull().references(()=>usuarios.id),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique('documento_plantillas_empresa_id_id_key').on(t.empresaId,t.id)]);
+export const documentoPlantillaVersiones=pgTable('documento_plantilla_versiones',{
+ empresaId:uuid('empresa_id').notNull(),plantillaId:uuid('plantilla_id').notNull(),version:integer('version').notNull(),design:jsonb('design').notNull(),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[primaryKey({columns:[t.empresaId,t.plantillaId,t.version]})]);
+export const documentoEmisiones=pgTable('documento_emisiones',{
+ id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),origenTipo:text('origen_tipo').notNull(),origenId:uuid('origen_id').notNull(),origenVersion:integer('origen_version').notNull(),origenEstado:text('origen_estado').notNull(),numero:text('numero').notNull(),plantillaId:uuid('plantilla_id'),plantillaVersion:integer('plantilla_version').notNull().default(0),ejemplar:text('ejemplar').notNull(),snapshot:jsonb('snapshot').notNull(),design:jsonb('design').notNull(),fiscal:boolean('fiscal').notNull().default(false),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique('documento_emisiones_empresa_id_id_key').on(t.empresaId,t.id)]);
+export const documentoEventos=pgTable('documento_eventos',{
+ id:uuid('id').primaryKey().defaultRandom(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),documentoId:uuid('documento_id'),plantillaId:uuid('plantilla_id'),version:integer('version').notNull(),accion:text('accion').notNull(),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),correlationId:uuid('correlation_id').notNull(),datos:jsonb('datos').notNull().default({}),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+});
+
+export const cxcConfiguracion=pgTable('cxc_configuracion',{
+ empresaId:uuid('empresa_id').primaryKey().references(()=>empresas.id),cuentaPasivoId:uuid('cuenta_pasivo_id').notNull().references(()=>catalogoCuentas.id),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),actualizadoEn:timestamp('actualizado_en',{withTimezone:true}).notNull().defaultNow(),
+});
+export const cxcCreditos=pgTable('cxc_creditos',{
+ id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),clienteId:uuid('cliente_id').notNull().references(()=>clientes.id),tipo:text('tipo').notNull(),origenId:uuid('origen_id').notNull(),numero:text('numero').notNull(),moneda:text('moneda').notNull(),monto:numeric('monto',{precision:18,scale:4}).notNull(),saldo:numeric('saldo',{precision:18,scale:4}).notNull(),cuentaPasivoId:uuid('cuenta_pasivo_id').notNull().references(()=>catalogoCuentas.id),fecha:date('fecha').notNull(),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),asientoId:uuid('asiento_id').notNull().references(()=>asientosContables.id),
+},t=>[unique('cxc_creditos_empresa_id_tipo_origen_id_key').on(t.empresaId,t.tipo,t.origenId),unique('cxc_creditos_empresa_id_numero_key').on(t.empresaId,t.numero),index('cxc_creditos_scope_idx').on(t.empresaId,t.sucursalId,t.clienteId)]);
+export const cxcEventos=pgTable('cxc_eventos',{
+ id:uuid('id').primaryKey(),empresaId:uuid('empresa_id').notNull().references(()=>empresas.id),sucursalId:uuid('sucursal_id').notNull().references(()=>sucursales.id),clienteId:uuid('cliente_id').references(()=>clientes.id),tipo:text('tipo').notNull(),numero:text('numero').notNull(),creditoId:uuid('credito_id').references(()=>cxcCreditos.id),cxcId:uuid('cxc_id').references(()=>cuentasPorCobrar.id),notaId:uuid('nota_id').references(()=>notasCredito.id),fecha:date('fecha').notNull(),monto:numeric('monto',{precision:18,scale:4}).notNull(),referencia:text('referencia'),motivo:text('motivo').notNull(),usuarioId:uuid('usuario_id').notNull().references(()=>usuarios.id),deviceId:uuid('device_id'),correlationId:uuid('correlation_id').notNull(),asientoId:uuid('asiento_id').notNull().references(()=>asientosContables.id),snapshot:jsonb('snapshot').notNull(),datos:jsonb('datos').notNull().default({}),creadoEn:timestamp('creado_en',{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique('cxc_eventos_empresa_id_correlation_id_key').on(t.empresaId,t.correlationId),index('cxc_eventos_scope_idx').on(t.empresaId,t.sucursalId,t.clienteId,t.fecha)]);
+
+// Procurement projections; immutable constraints and tenant policies: migration 0032.
+export const abastConfig=pgTable("abast_config",{empresaId:uuid("empresa_id").primaryKey().references(()=>empresas.id),policy:text("policy").notNull(),grniAccountId:uuid("grni_account_id").references(()=>catalogoCuentas.id),transitAccountId:uuid("transit_account_id").references(()=>catalogoCuentas.id),claimAccountId:uuid("claim_account_id").references(()=>catalogoCuentas.id),varianceAccountId:uuid("variance_account_id").references(()=>catalogoCuentas.id),version:integer("version").notNull(),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),actualizadoEn:timestamp("actualizado_en",{withTimezone:true}).notNull().defaultNow()});
+export const abastRfq=pgTable("abast_rfq",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull().references(()=>empresas.id),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),numero:text("numero").notNull(),estado:text("estado").notNull().default("abierta"),version:integer("version").notNull().default(1),snapshot:jsonb("snapshot").notNull(),selectedOfferId:uuid("selected_offer_id"),selectedRevision:integer("selected_revision"),selectionReason:text("selection_reason"),approved:boolean("approved").notNull().default(false),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.empresaId,t.numero)]);
+export const abastEnvios=pgTable("abast_envios",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),rfqId:uuid("rfq_id").notNull(),proveedorId:uuid("proveedor_id").notNull().references(()=>proveedores.id),medio:text("medio").notNull(),evidencia:text("evidencia").notNull(),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),correlationId:uuid("correlation_id").notNull(),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[foreignKey({columns:[t.empresaId,t.rfqId],foreignColumns:[abastRfq.empresaId,abastRfq.id]})]);
+export const abastOfertas=pgTable("abast_ofertas",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),rfqId:uuid("rfq_id").notNull(),proveedorId:uuid("proveedor_id").notNull().references(()=>proveedores.id),revision:integer("revision").notNull().default(1),estado:text("estado").notNull().default("registrada")},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.empresaId,t.rfqId,t.proveedorId),foreignKey({columns:[t.empresaId,t.rfqId],foreignColumns:[abastRfq.empresaId,abastRfq.id]})]);
+export const abastOfertaRevisiones=pgTable("abast_oferta_revisiones",{empresaId:uuid("empresa_id").notNull(),ofertaId:uuid("oferta_id").notNull(),revision:integer("revision").notNull(),snapshot:jsonb("snapshot").notNull(),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[primaryKey({columns:[t.empresaId,t.ofertaId,t.revision]}),foreignKey({columns:[t.empresaId,t.ofertaId],foreignColumns:[abastOfertas.empresaId,abastOfertas.id]})]);
+export const abastOc=pgTable("abast_oc",{id:uuid("id").primaryKey().references(()=>ordenesCompra.id),empresaId:uuid("empresa_id").notNull(),rfqId:uuid("rfq_id").notNull(),ofertaId:uuid("oferta_id").notNull(),revision:integer("revision").notNull(),version:integer("version").notNull().default(1),aprobada:boolean("aprobada").notNull().default(false),snapshot:jsonb("snapshot").notNull()},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.empresaId,t.rfqId),foreignKey({columns:[t.empresaId,t.id],foreignColumns:[ordenesCompra.empresaId,ordenesCompra.id]}),foreignKey({columns:[t.empresaId,t.ofertaId,t.revision],foreignColumns:[abastOfertaRevisiones.empresaId,abastOfertaRevisiones.ofertaId,abastOfertaRevisiones.revision]})]);
+export const abastRecepciones=pgTable("abast_recepciones",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),ordenId:uuid("orden_id").notNull(),almacenId:uuid("almacen_id").notNull().references(()=>almacenes.id),numero:text("numero").notNull(),fecha:date("fecha").notNull(),snapshot:jsonb("snapshot").notNull(),accountingStatus:text("accounting_status").notNull(),accountingReason:text("accounting_reason"),asientoId:uuid("asiento_id").references(()=>asientosContables.id),accountingMeta:jsonb("accounting_meta").notNull().default({}),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.empresaId,t.numero),foreignKey({columns:[t.empresaId,t.ordenId],foreignColumns:[abastOc.empresaId,abastOc.id]})]);
+export const abastRecepcionDetalle=pgTable("abast_recepcion_detalle",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),recepcionId:uuid("recepcion_id").notNull(),ordenId:uuid("orden_id").notNull(),ocLineId:uuid("oc_line_id").notNull(),aceptada:numeric("aceptada",{precision:18,scale:4}).notNull(),rechazada:numeric("rechazada",{precision:18,scale:4}).notNull(),devuelta:numeric("devuelta",{precision:18,scale:4}).notNull().default("0"),base:numeric("base",{precision:18,scale:4}).notNull(),impuesto:numeric("impuesto",{precision:18,scale:4}).notNull(),grniQty:numeric("grni_qty",{precision:18,scale:4}).notNull().default("0"),grniBase:numeric("grni_base",{precision:18,scale:4}).notNull().default("0")},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.recepcionId,t.ocLineId),foreignKey({columns:[t.empresaId,t.recepcionId],foreignColumns:[abastRecepciones.empresaId,abastRecepciones.id]}),foreignKey({columns:[t.ordenId,t.ocLineId],foreignColumns:[ordenCompraDetalle.ordenId,ordenCompraDetalle.id]})]);
+export const abastFacturas=pgTable("abast_facturas",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),ordenId:uuid("orden_id").notNull(),proveedorId:uuid("proveedor_id").notNull().references(()=>proveedores.id),compraId:uuid("compra_id").notNull().references(()=>compras.id),cxpId:uuid("cxp_id").notNull().references(()=>cuentasPorPagar.id),docKey:text("doc_key").notNull(),numero:text("numero").notNull(),serie:text("serie").notNull(),fecha:date("fecha").notNull(),vencimiento:date("vencimiento").notNull(),moneda:text("moneda").notNull(),tipoCambio:numeric("tipo_cambio",{precision:18,scale:6}).notNull(),functionalCurrency:text("functional_currency").notNull(),snapshot:jsonb("snapshot").notNull(),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.empresaId,t.proveedorId,t.docKey),foreignKey({columns:[t.empresaId,t.ordenId],foreignColumns:[abastOc.empresaId,abastOc.id]})]);
+export const abastFacturaDetalle=pgTable("abast_factura_detalle",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),facturaId:uuid("factura_id").notNull(),ordenId:uuid("orden_id").notNull(),ocLineId:uuid("oc_line_id").notNull(),cantidad:numeric("cantidad",{precision:18,scale:4}).notNull(),base:numeric("base",{precision:18,scale:4}).notNull(),impuesto:numeric("impuesto",{precision:18,scale:4}).notNull(),transitAccountId:uuid("transit_account_id").references(()=>catalogoCuentas.id)},(t)=>[unique().on(t.empresaId,t.id),unique().on(t.facturaId,t.ocLineId),foreignKey({columns:[t.empresaId,t.facturaId],foreignColumns:[abastFacturas.empresaId,abastFacturas.id]}),foreignKey({columns:[t.ordenId,t.ocLineId],foreignColumns:[ordenCompraDetalle.ordenId,ordenCompraDetalle.id]})]);
+export const abastAsignaciones=pgTable("abast_asignaciones",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),recepcionLineId:uuid("recepcion_line_id").notNull(),facturaLineId:uuid("factura_line_id").notNull(),cantidad:numeric("cantidad",{precision:18,scale:4}).notNull(),invoiceBase:numeric("invoice_base",{precision:18,scale:4}).notNull(),receiptBase:numeric("receipt_base",{precision:18,scale:4}).notNull(),grniQty:numeric("grni_qty",{precision:18,scale:4}).notNull().default("0"),grniBase:numeric("grni_base",{precision:18,scale:4}).notNull().default("0")},(t)=>[unique().on(t.recepcionLineId,t.facturaLineId),foreignKey({columns:[t.empresaId,t.recepcionLineId],foreignColumns:[abastRecepcionDetalle.empresaId,abastRecepcionDetalle.id]}),foreignKey({columns:[t.empresaId,t.facturaLineId],foreignColumns:[abastFacturaDetalle.empresaId,abastFacturaDetalle.id]})]);
+export const abastDevoluciones=pgTable("abast_devoluciones",{id:uuid("id").primaryKey(),empresaId:uuid("empresa_id").notNull(),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),recepcionId:uuid("recepcion_id").notNull(),numero:text("numero").notNull(),fecha:date("fecha").notNull(),snapshot:jsonb("snapshot").notNull(),accountingStatus:text("accounting_status").notNull(),accountingReason:text("accounting_reason"),asientoId:uuid("asiento_id").references(()=>asientosContables.id),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()},(t)=>[unique().on(t.empresaId,t.id),foreignKey({columns:[t.empresaId,t.recepcionId],foreignColumns:[abastRecepciones.empresaId,abastRecepciones.id]})]);
+export const abastEventos=pgTable("abast_eventos",{id:uuid("id").primaryKey().defaultRandom(),empresaId:uuid("empresa_id").notNull().references(()=>empresas.id),sucursalId:uuid("sucursal_id").notNull().references(()=>sucursales.id),entityId:uuid("entity_id").notNull(),accion:text("accion").notNull(),revision:integer("revision"),datos:jsonb("datos").notNull(),usuarioId:uuid("usuario_id").notNull().references(()=>usuarios.id),deviceId:uuid("device_id"),correlationId:uuid("correlation_id").notNull(),creadoEn:timestamp("creado_en",{withTimezone:true}).notNull().defaultNow()});

@@ -19,6 +19,8 @@ export type ReciboPago = {
 export type ReciboData = {
   documentType?: "internal_receipt";
   pais: PaisCodigo;
+  moneda?:string;
+  historicalContextMissing?:boolean;
   empresa: {
     nombre: string;
     idFiscalNombre: string;
@@ -48,8 +50,10 @@ export type ReciboData = {
  */
 export function Recibo({ data }: { data: ReciboData }) {
   const { empresa, pais } = data;
+  const money=(value:number)=>data.historicalContextMissing?value.toLocaleString("es-NI",{minimumFractionDigits:2,maximumFractionDigits:2}):data.moneda?new Intl.NumberFormat("es-NI",{style:"currency",currency:data.moneda}).format(value):formatearMoneda(value,pais);
   return (
     <div className="arca-documento-claro mx-auto w-[340px] max-w-full rounded-lg border border-[color:var(--color-border)] bg-white p-5 text-[13px] leading-snug text-[color:var(--color-text-primary)] shadow-sm">
+      {data.historicalContextMissing&&<p className="mb-2 text-center text-[10px]">Reproducción de referencia. Emisor y moneda históricos no acreditados; no se reconstruyen RUC ni autorización fiscal. El nombre comercial mostrado corresponde a la configuración actual.</p>}
       {/* Encabezado empresa */}
       <div className="text-center">
         <div className="text-[15px] font-bold uppercase tracking-tight">
@@ -100,11 +104,11 @@ export function Recibo({ data }: { data: ReciboData }) {
               <td className="py-1 pr-2">
                 <div className="font-medium">{it.nombre}</div>
                 <div className="text-[11px] text-[color:var(--color-text-muted)]">
-                  {it.cantidad} × {formatearMoneda(it.precioUnitario, pais)}
+                  {it.cantidad} × {money(it.precioUnitario)}
                 </div>
               </td>
               <td className="py-1 text-right font-medium">
-                {formatearMoneda(it.subtotal, pais)}
+                {money(it.subtotal)}
               </td>
             </tr>
           ))}
@@ -115,16 +119,16 @@ export function Recibo({ data }: { data: ReciboData }) {
 
       {/* Totales */}
       <div className="space-y-0.5 text-[12px]">
-        <Linea izq="Subtotal" der={formatearMoneda(data.subtotal, pais)} />
+        <Linea izq="Subtotal" der={money(data.subtotal)} />
         {data.descuento > 0 && (
-          <Linea izq="Descuento" der={`- ${formatearMoneda(data.descuento, pais)}`} />
+          <Linea izq="Descuento" der={`- ${money(data.descuento)}`} />
         )}
-        <Linea izq={data.impuestoNombre} der={formatearMoneda(data.impuesto, pais)} />
+        <Linea izq={data.impuestoNombre} der={money(data.impuesto)} />
       </div>
       <div className="mt-2 flex items-center justify-between border-t border-[color:var(--color-text-primary)] pt-2">
         <span className="text-[14px] font-bold">TOTAL</span>
         <span className="text-[16px] font-bold text-[color:var(--color-primary)]">
-          {formatearMoneda(data.total, pais)}
+          {money(data.total)}
         </span>
       </div>
 
@@ -136,7 +140,7 @@ export function Recibo({ data }: { data: ReciboData }) {
               <Linea
                 key={`${p.formaPago}:${p.referencia ?? ""}:${p.monto}`}
                 izq={p.formaPago + (p.referencia ? ` (${p.referencia})` : "")}
-                der={formatearMoneda(p.monto, pais)}
+                der={money(p.monto)}
               />
             ))}
           </div>

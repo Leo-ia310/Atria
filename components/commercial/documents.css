@@ -1,0 +1,17 @@
+.arca-document-editor { display:grid; gap:16px; min-width:0; }
+.arca-document-editor h1 { font-size:26px; font-weight:700; }
+.arca-document-editor h2 { font-size:20px; font-weight:600; }
+.arca-document-editor label { display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.arca-document-editor input:not([type=checkbox]):not([type=color]),
+.arca-document-editor select,.arca-document-editor textarea {
+  color:inherit; background-color:transparent; border:1px solid #8b7ca455;
+  padding:8px; border-radius:6px; max-width:100%;
+}
+.arca-document-editor select option { background:#fff; color:#171323; }
+.arca-document-editor textarea { width:100%; min-height:64px; }
+.arca-document-editor button { color:inherit; background:transparent; padding:8px 12px; border:1px solid #8b7ca455; border-radius:6px; }
+.arca-document-editor button:disabled { opacity:.5; cursor:not-allowed; }
+.arca-document-editor table { width:100%; border-collapse:collapse; }
+.arca-document-editor th,.arca-document-editor td { padding:8px; text-align:left; overflow-wrap:anywhere; border-bottom:1px solid #8b7ca433; }
+.arca-document-editor fieldset { padding:12px; border:1px solid #8b7ca455; border-radius:8px; }
+.arca-document-editor [role=alert] { color:#e15555; overflow-wrap:anywhere; }

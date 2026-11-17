@@ -12,7 +12,9 @@ export const abrirSesionSchema = z.object({
 });
 
 export const cerrarSesionSchema = z.object({
+  attemptId:z.string().uuid().optional(),
   sesionId: z.string().uuid(),
   montoFinalReal: z.coerce.number().min(0, "El monto no puede ser negativo"),
+  esperadoLocal: z.coerce.number().finite().optional(),
   notas: z.string().max(300).optional().or(z.literal("")),
 });

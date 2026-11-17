@@ -8,7 +8,7 @@ export function ensureDesktopSchema(): Promise<void> {
   ready = dbSuperAdmin(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('arca-desktop-schema-v7',0))`);
     await tx.execute(sql`CREATE TABLE IF NOT EXISTS desktop_schema_versions(version integer PRIMARY KEY, installed_at timestamptz NOT NULL DEFAULT now())`);
-    const installed = await tx.execute(sql`select version from desktop_schema_versions where version=10`);
+    const installed = await tx.execute(sql`select version from desktop_schema_versions where version=11`);
     if (installed.length) return;
     await tx.execute(sql`CREATE TABLE IF NOT EXISTS transferencias_pendientes(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),empresa_id uuid NOT NULL REFERENCES empresas(id),sucursal_id uuid NOT NULL REFERENCES sucursales(id),venta_id uuid NOT NULL REFERENCES ventas(id),forma_pago_id uuid NOT NULL REFERENCES formas_pago(id),monto numeric(18,4) NOT NULL CHECK(monto>0),referencia text NOT NULL,status text NOT NULL DEFAULT 'pending_verification',version integer NOT NULL DEFAULT 0,cuenta_financiera_id uuid REFERENCES cuentas_financieras(id),bank_reference text,resolution_reason text,abono_id uuid REFERENCES abonos_cliente(id),resolved_by uuid REFERENCES usuarios(id),resolved_at timestamptz,created_at timestamptz NOT NULL DEFAULT now())`);
     await tx.execute(sql`CREATE INDEX IF NOT EXISTS pending_transfers_scope_idx ON transferencias_pendientes(empresa_id,sucursal_id,status)`);
@@ -123,20 +123,20 @@ export function ensureDesktopSchema(): Promise<void> {
         RETURN NULL;
       END $fn$`);
     // The allowlist is constant, never a client table name.
-    for (const table of ["transferencias_pendientes","usuarios","roles","rol_permisos","configuraciones","secuencias_fiscales","tipos_documento","empresas","sucursales","cajas","almacenes","impuestos","formas_pago","productos","clientes","proveedores","ventas","venta_detalle","pagos_venta","movimientos_inventario","existencias","compras","compra_detalle","sesiones_caja","cuentas_financieras","categorias_gasto","gastos_recurrentes","gastos","facturas","cuentas_por_cobrar","cuentas_por_pagar","catalogo_cuentas","periodos_contables","asientos_contables","asiento_partidas","empleados","asistencias","nominas","nomina_detalles","nomina_colillas","tipos_ingreso","tipos_deduccion","feriados","nomina_ingresos","nomina_deducciones","solicitudes_rrhh"]) {
+    for (const table of ["caja_movimientos","caja_revisiones","transferencias_pendientes","usuarios","roles","rol_permisos","configuraciones","secuencias_fiscales","tipos_documento","empresas","sucursales","cajas","almacenes","impuestos","formas_pago","productos","clientes","proveedores","ventas","venta_detalle","pagos_venta","movimientos_inventario","existencias","compras","compra_detalle","sesiones_caja","cuentas_financieras","categorias_gasto","gastos_recurrentes","gastos","facturas","cuentas_por_cobrar","cuentas_por_pagar","catalogo_cuentas","periodos_contables","asientos_contables","asiento_partidas","empleados","asistencias","nominas","nomina_detalles","nomina_colillas","tipos_ingreso","tipos_deduccion","feriados","nomina_ingresos","nomina_deducciones","solicitudes_rrhh"]) {
       // Child rows without empresa_id obtain their tenant through the parent function below.
       await tx.execute(sql.raw(`DROP TRIGGER IF EXISTS arca_desktop_change ON "${table}"`));
       await tx.execute(sql.raw(`CREATE TRIGGER arca_desktop_change AFTER INSERT OR UPDATE OR DELETE ON "${table}" FOR EACH ROW EXECUTE FUNCTION arca_desktop_track_change()`));
     }
-    for (const table of ["transferencias_pendientes","desktop_devices","desktop_device_users","desktop_operations","desktop_change_log"]) {
+    for (const table of ["caja_movimientos","caja_revisiones","transferencias_pendientes","desktop_devices","desktop_device_users","desktop_operations","desktop_change_log"]) {
       await tx.execute(sql.raw(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`));
       await tx.execute(sql.raw(`DROP POLICY IF EXISTS desktop_tenant_scope ON ${table}`));
       await tx.execute(sql.raw(`CREATE POLICY desktop_tenant_scope ON ${table} USING (
         empresa_id=nullif(current_setting('app.empresa_id',true),'')::uuid OR current_setting('app.bypass_rls',true)='true'
       ) WITH CHECK (empresa_id=nullif(current_setting('app.empresa_id',true),'')::uuid OR current_setting('app.bypass_rls',true)='true')`));
     }
-    await tx.execute(sql`UPDATE facturas SET snapshot=snapshot || '{"fiscal_status":"pending_submission","fiscal_provider_status":"not_configured","official_fiscal_id":null}'::jsonb WHERE snapshot->>'documentType'='internal_receipt' AND snapshot->>'fiscal_status' IS NULL`);
-    await tx.execute(sql`INSERT INTO desktop_schema_versions(version) VALUES(10)`);
+    // Historical snapshots are immutable. Any backfill needs an independent preview and approval.
+    await tx.execute(sql`INSERT INTO desktop_schema_versions(version) VALUES(11)`);
   }).catch((error: unknown) => { ready = null; throw error; });
   return ready;
 }

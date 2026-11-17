@@ -8,6 +8,13 @@ class RejectedAction extends Error {
   constructor(readonly result: unknown) { super("Business action rejected"); }
 }
 
+/** Read-only services join the tenant context without serializing POS writes. */
+export async function executeBusinessRead<T extends {ok:boolean}>(user:SessionUser,action:()=>Promise<T>):Promise<T>{
+  const active=currentBusinessContext();
+  if(active){if(active.user.id!==user.id||active.user.empresaId!==user.empresaId)throw new Error('Contexto de lectura inválido.');return action();}
+  return dbConEmpresa(user.empresaId,tx=>inBusinessContext({user,tx,invalidations:new Set()},action));
+}
+
 /** One transaction for the existing service, its payments, stock and accounting. */
 export async function executeBusinessAction<T extends { ok: boolean }>(user: SessionUser, action: () => Promise<T>): Promise<T> {
   const active = currentBusinessContext();

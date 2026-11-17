@@ -191,6 +191,7 @@ export default async function CxCPage({
         subtitle={`${filas.length} deudas activas${scope.visible ? ` · ${scope.etiqueta}` : ""}`}
         actions={<BotonExportarExcel recurso="cxc" params={{ clienteId }} />}
       />
+      <Link className="arca-btn arca-btn-secondary" href="/cxc/avanzada">Anticipos, recibos y estados de cuenta</Link>
 
       {filas.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

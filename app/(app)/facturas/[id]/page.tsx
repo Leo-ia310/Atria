@@ -1,7 +1,11 @@
+import {WebReceivables} from '@/components/commercial/WebReceivables';
 import Link from "next/link";
+import {WebInvoiceDocument} from "@/components/commercial/WebInvoiceDocument";
+import {requireModulo} from "@/lib/server-access";
+import {getSucursalScope} from "@/lib/sucursal-scope";
 import { notFound } from "next/navigation";
 import { BookOpen, Receipt } from "lucide-react";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or,sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { asientosContables, facturas, ventas } from "@/lib/db/schema";
 import { requireSession } from "@/lib/actions/session-helpers";
@@ -18,6 +22,8 @@ export default async function FacturaDetallePage({
   params: Promise<{ id: string }>;
 }) {
   const [{ id }, user] = await Promise.all([params, requireSession()]);
+  await requireModulo(user,"facturas");
+  const scope=await getSucursalScope(user);
   const [factura] = await db
     .select({
       id: facturas.id,
@@ -42,10 +48,14 @@ export default async function FacturaDetallePage({
       id: ventas.id,
       numero: ventas.numero,
       asientoId: ventas.asientoId,
+      sucursalId:ventas.sucursalId,
     })
     .from(ventas)
     .where(and(eq(ventas.id, factura.ventaId), eq(ventas.empresaId, user.empresaId)))
     .limit(1);
+  if(!venta||!scope.sucursales.some(b=>b.id===venta.sucursalId))notFound();
+  const [branchAccess]=await db.execute(sql`select (not exists(select 1 from usuario_sucursales us join sucursales s on s.id=us.sucursal_id where us.usuario_id=${user.id}::uuid and s.empresa_id=${user.empresaId}::uuid) or exists(select 1 from usuario_sucursales us join sucursales s on s.id=us.sucursal_id where us.usuario_id=${user.id}::uuid and s.empresa_id=${user.empresaId}::uuid and s.id=${venta.sucursalId}::uuid)) as allowed`);
+  if(!branchAccess?.allowed)notFound();
   const [asiento] = venta
     ? await db
         .select({ id: asientosContables.id, numero: asientosContables.numero })
@@ -85,7 +95,7 @@ export default async function FacturaDetallePage({
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title={`Factura ${factura.numero}`}
+        title={`${(factura.snapshot as Record<string,unknown>).documentType==='internal_receipt'?'Comprobante interno':'Documento histórico'} ${factura.numero}`}
         subtitle={`${factura.cliente ?? "Consumidor final"} - ${recibo.empresa.nombre}`}
       />
       <Card className="mb-4 print:hidden">
@@ -104,6 +114,8 @@ export default async function FacturaDetallePage({
         </CardBody>
       </Card>
       <FacturaDetalleVista data={recibo} />
+      <WebReceivables contextId={`${user.empresaId}:${user.id}`} branches={[{id:venta.sucursalId,nombre:"Sucursal de la venta"}]} saleId={venta.id}/>
+      <WebInvoiceDocument contextId={`${user.empresaId}:${user.id}`} branch={venta.sucursalId} id={factura.id}/>
     </div>
   );
 }

@@ -1,4 +1,6 @@
+import {commercialAdjustmentQuery} from './reportes/commercial-adjustments-server';
 import { cuentasConSaldoContableQuery } from "./tesoreria/saldos";
+import {recoverDesktopReceipt,type StoredReceipt} from './desktop-receipts';
 import { eq, sql, type SQL } from "drizzle-orm";
 import { desktopScopeHash, readDesktopCursor, signDesktopCursor, type DesktopCursorState } from "./desktop-cursor";
 import { dbSuperAdmin } from "@/lib/db";
@@ -16,15 +18,17 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
   const access = await getAccessContext(user);
   if (access.suscripcionBloqueada) throw new Error("La suscripcion no permite descargar datos.");
   const branches = sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(sucursalIds)}::jsonb)::uuid)`;
-  const scopeHash = desktopScopeHash([17,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
+  const scopeHash = desktopScopeHash([19,sucursalIds.slice().sort(), user.rolId, access.permisos.slice().sort(), access.esAdminEmpresa, access.plan, access.suscripcionBloqueada]);
   const cursorScope = { empresaId: user.empresaId, userId: user.id, deviceId: options?.deviceId ?? "", scopeHash };
   const previous = options?.cursor ? readDesktopCursor(options.cursor, cursorScope) : null;
   return dbSuperAdmin(async (tx) => {
     const [snapshot] = await tx.execute(sql`select pg_current_snapshot()::text as value`);
     const until = previous?.until ?? String(snapshot.value);
-    const receipts = options?.pendingKeys?.length ? [...await tx.execute(sql`select operation_id,result,stock_pairs from desktop_operations
+    const receiptRows = options?.pendingKeys?.length ? [...await tx.execute(sql`select * from desktop_operations
       where empresa_id=${user.empresaId}::uuid and user_id=${user.id}::uuid and device_id=${options.deviceId}::uuid
       and idempotency_key=any(ARRAY(select jsonb_array_elements_text(${JSON.stringify(options.pendingKeys)}::jsonb)))`)] : [];
+    const receipts:Array<Record<string,unknown>>=[];
+    for(const row of receiptRows){try{receipts.push({...row,result:await recoverDesktopReceipt(tx,user,options!.deviceId,sucursalIds,row as unknown as StoredReceipt)});}catch{ /* Revoked or incomplete receipt stays pending on its original device. */ }}
     const logRows = previous ? [...await tx.execute(sql`select seq::text,entity_type,entity_id,deleted from desktop_change_log
       where empresa_id=${user.empresaId}::uuid and seq > ${previous.after}::bigint
       and change_tx >= ${previous.snapshot.split(":")[0]}::xid8
@@ -152,11 +156,18 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       c.empresa_id, d.compra_id, d.producto_id, d.cantidad, d.costo_unitario, d.subtotal
       from compra_detalle d join compras c on c.id = d.compra_id join almacenes a on a.id = c.almacen_id
       where c.empresa_id = ${user.empresaId}::uuid and coalesce(c.sucursal_id, a.sucursal_id) = any(${branches})`) : [];
-    const sesiones_caja = puedeAccederModulo(access, "caja") ? await query("sesiones_caja", sql`select s.id,
+    const sesiones_caja = (puedeAccederModulo(access, "caja") || puedeAccederModulo(access, "pos")) ? await query("sesiones_caja", sql`select s.id,
       s.empresa_id, c.sucursal_id, s.caja_id, s.usuario_id, s.estado, s.monto_inicial as fondo_inicial,
-      s.monto_final_real as total_declarado, s.diferencia, s.abierta_en as apertura_en,
+      s.monto_final_esperado as esperado_cierre, s.monto_final_real as total_declarado, s.diferencia, s.abierta_en as apertura_en,
       s.cerrada_en as cierre_en, s.notas from sesiones_caja s join cajas c on c.id = s.caja_id
       where s.empresa_id = ${user.empresaId}::uuid and c.sucursal_id = any(${branches})`) : [];
+    const caja_movimientos=(puedeAccederModulo(access,"caja")||puedeAccederModulo(access,"pos"))?await query("caja_movimientos",sql`
+      select id,empresa_id,sucursal_id,sesion_id,tipo,origen_tipo,origen_id,monto,usuario_id,device_id,
+        ocurrido_en,registrado_en,detalle::text as detalle_json from caja_movimientos
+      where empresa_id=${user.empresaId}::uuid and sucursal_id=any(${branches})`):[];
+    const caja_revisiones=(puedeAccederModulo(access,"caja")||puedeAccederModulo(access,"pos"))?await query("caja_revisiones",sql`
+      select id,empresa_id,sucursal_id,sesion_id,movimiento_id,motivo,resuelta_en,resuelta_por,resolucion
+      from caja_revisiones where empresa_id=${user.empresaId}::uuid and sucursal_id=any(${branches})`):[];
     const cuentas_financieras = puedeAccederModulo(access, "tesoreria") ? await query("cuentas_financieras", cuentasConSaldoContableQuery(user.empresaId,sucursalIds)) : [];
     const gastos = puedeAccederModulo(access, "tesoreria") ? await query("gastos", sql`select g.id, g.empresa_id,
       coalesce(g.sucursal_id::text, '') as sucursal_id, coalesce(g.cuenta_financiera_id::text, '') as cuenta_id,
@@ -178,6 +189,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
       rrhh.colillas = await query("rrhh.colillas", sql`select c.id,c.nomina_id,c.nomina_detalle_id,c.snapshot from nomina_colillas c join empleados e on e.id=c.empleado_id where c.empresa_id=${user.empresaId}::uuid and e.empresa_id=${user.empresaId}::uuid and (e.sucursal_id is null or e.sucursal_id=any(${branches}))`);
     }
     const settings: Record<string,unknown[]> = {};
+    if(puedeAccederModulo(access,'ventas')||puedeAccederModulo(access,'reportes'))settings.ajustes_comerciales=await query('settings.ajustes_comerciales',commercialAdjustmentQuery(user.empresaId,sucursalIds));
     const [policyRow]=await tx.execute(sql`select valor from configuraciones where empresa_id=${user.empresaId}::uuid and clave='politicas_negocio' limit 1`);
     const policy=normalizarPoliticasNegocio(policyRow?.valor),today=new Date().toISOString().slice(0,10);
     settings.notificaciones=(await loadNotificationBranches(tx,user.empresaId,sucursalIds,sumarDiasIso(today,-policy.diasGraciaCobroCliente),sumarDiasIso(today,-policy.diasGraciaPagoProveedor),puedeAccederModulo(access,"cxc"),puedeAccederModulo(access,"cxp"),puedeAccederModulo(access,"rrhh")&&access.esAdminEmpresa,true)).map(row=>({...row,id:row.sucursalId??"unassigned",sucursal_id:row.sucursalId}));
@@ -218,7 +230,7 @@ export async function desktopBootstrap(user: SessionUser, sucursalIds: string[],
     const tombstones = page.filter((row) => !returned.has(`${String(row.entity_type)}:${String(row.entity_id)}`)).map((row) => ({ table: String(row.entity_type), id: String(row.entity_id), version: String(row.seq) }));
     return { empresaId: user.empresaId, delta: Boolean(previous), serverCursor: options ? signDesktopCursor(state, cursorScope) : null, hasMore, tombstones, versions,
       confirmedOperations: receipts.map((row) => ({ id:String(row.operation_id), result:row.result })),
-      empresa_config: empresa && (!previous || changes.empresa_config?.includes(user.empresaId)) ? [empresa] : [], sucursales, cajas, rrhh, settings, compras, compra_detalle, sesiones_caja, cuentas_financieras, gastos,
+      empresa_config: empresa && (!previous || changes.empresa_config?.includes(user.empresaId)) ? [empresa] : [], sucursales, cajas, rrhh, settings, compras, compra_detalle, sesiones_caja, caja_movimientos,caja_revisiones, cuentas_financieras, gastos,
       productos, clientes, impuestos, formas_pago, proveedores, ventas, venta_detalle, pagos_venta, movimientos_inventario, inventario_base, inventario_almacenes,transferencias_pendientes,
       facturas, cuentas_por_cobrar, cuentas_por_pagar, catalogo_cuentas, periodos_contables, asientos_contables, asiento_partidas };
   }, { isolationLevel: "repeatable read" });

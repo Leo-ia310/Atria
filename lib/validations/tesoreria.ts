@@ -16,6 +16,7 @@ export const crearCategoriaGastoSchema = z.object({
 });
 
 export const crearGastoSchema = z.object({
+  sesionCajaId:z.string().uuid().optional(),
   categoriaId: z.string().uuid("Selecciona una categoría"),
   cuentaFinancieraId: z.string().uuid("Selecciona cuenta de pago"),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),

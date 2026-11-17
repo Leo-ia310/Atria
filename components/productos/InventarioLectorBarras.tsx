@@ -1,5 +1,6 @@
 "use client";
 
+import { useWebAttempt } from "@/lib/use-web-attempt";
 import { useEffect, useMemo, useReducer, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Barcode, PackagePlus, Plus, TriangleAlert } from "lucide-react";
@@ -153,27 +154,33 @@ export function InventarioLectorBarras({
     dispatchLector({ type: "cerrarEntrada" });
   }
 
+  const submitQuickPurchase = useWebAttempt(registrarCompraRapidaInventarioPorLector,'compra_lector');
+
   function submitEntrada() {
     if (!entrada || !almacen) return;
     startTransition(async () => {
-      const res = await registrarCompraRapidaInventarioPorLector({
-        productoId: entrada.producto.id,
-        almacenId: almacen.id,
-        proveedorId,
-        codigoBarras: entrada.codigo,
-        cantidad,
-        costoUnitario,
-      });
-      if (!res.ok) {
-        mostrar("error", res.error);
-        return;
+      try {
+        const res = await submitQuickPurchase({
+          productoId: entrada.producto.id,
+          almacenId: almacen.id,
+          proveedorId,
+          codigoBarras: entrada.codigo,
+          cantidad,
+          costoUnitario,
+        });
+        if (!res.ok) {
+          mostrar("error", res.error);
+          return;
+        }
+        mostrar(
+          "success",
+          `${entrada.producto.nombre}: existencia ${res.existencia.toFixed(2)}`,
+        );
+        cerrarEntrada();
+        router.refresh();
+      } catch (error) {
+        mostrar("error", error instanceof Error ? error.message : "No se pudo confirmar la compra. Reintenta con los mismos datos.");
       }
-      mostrar(
-        "success",
-        `${entrada.producto.nombre}: existencia ${res.existencia.toFixed(2)}`,
-      );
-      cerrarEntrada();
-      router.refresh();
     });
   }
 
