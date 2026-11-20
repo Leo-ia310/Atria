@@ -1,4 +1,28 @@
-.arca-document-editor { display:grid; gap:16px; min-width:0; }
+.arca-document-editor { display:grid; gap:20px; min-width:0; color:var(--color-text-primary); font-size:14px; line-height:1.5; }
+.arca-document-editor > p { color:var(--color-text-secondary); }
+.arca-document-editor > div:has(> input), .arca-document-editor > div:has(> select), .arca-document-editor > div:has(> label) { padding:16px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); align-items:end; }
+.arca-document-editor form { display:grid; gap:16px; padding:20px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); }
+.arca-document-editor form { grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); }
+.arca-document-editor form > :is(h2,p,fieldset,table,div,section,button) { grid-column:1/-1; }
+.arca-document-editor form > label { display:flex; flex-direction:column; align-items:stretch; gap:6px; }
+.arca-document-editor form > label > :is(input:not([type=checkbox]):not([type=color]),select,textarea) { width:100%; }
+.arca-document-editor form > label:has(> input[type=checkbox]) { flex-direction:row; align-items:center; }
+.arca-document-editor form > button { justify-self:start; }
+.arca-document-editor .arca-commercial-empty { padding:32px 16px!important; text-align:center; color:var(--color-text-muted); }
+.arca-document-editor input:not([type=checkbox]):not([type=color]), .arca-document-editor select, .arca-document-editor textarea { min-height:40px; background:var(--color-surface)!important; color:var(--color-text-primary)!important; border-color:var(--color-border)!important; border-radius:8px!important; }
+.arca-document-editor input:focus-visible, .arca-document-editor select:focus-visible, .arca-document-editor textarea:focus-visible, .arca-document-editor button:focus-visible { outline:2px solid var(--color-tertiary); outline-offset:2px; }
+.arca-document-editor button { min-height:40px; font-weight:500; background:var(--color-surface)!important; color:var(--color-text-primary)!important; border-color:var(--color-border)!important; border-radius:8px!important; cursor:pointer; }
+.arca-document-editor button:hover:not(:disabled) { background:var(--color-surface-2)!important; }
+.arca-document-editor button[type=submit], .arca-document-editor button.arca-btn-primary { background:var(--color-primary)!important; color:var(--color-text-on-primary)!important; border-color:var(--color-primary)!important; }
+.arca-document-editor button[type=submit]:hover:not(:disabled), .arca-document-editor button.arca-btn-primary:hover:not(:disabled) { background:var(--color-primary-hover)!important; }
+.arca-document-editor > table { background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; }
+.arca-document-editor thead { background:var(--color-surface-2); color:var(--color-text-secondary); font-size:12px; }
+.arca-document-editor tbody tr:hover { background:var(--color-surface-2); }
+.arca-document-editor th,.arca-document-editor td { padding:12px 16px!important; border-color:var(--color-border)!important; }
+.arca-document-editor [role=alert] { padding:12px 16px; border:1px solid var(--color-error); border-radius:8px; background:var(--color-error-bg); color:var(--color-error)!important; }
+.arca-document-editor [role=status] { padding:12px 16px; border-radius:8px; background:var(--color-info-bg); color:var(--color-info); }
+.arca-document-editor label { font-weight:500; color:var(--color-text-secondary); }
+@media (max-width:767px) { .arca-document-editor > table { display:block; overflow-x:auto; } .arca-document-editor form { padding:16px; } .arca-document-editor > div { min-width:0; } }
 .arca-document-editor h1 { font-size:26px; font-weight:700; }
 .arca-document-editor h2 { font-size:20px; font-weight:600; }
 .arca-document-editor label { display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; }
@@ -7,7 +31,7 @@
   color:inherit; background-color:transparent; border:1px solid #8b7ca455;
   padding:8px; border-radius:6px; max-width:100%;
 }
-.arca-document-editor select option { background:#fff; color:#171323; }
+.arca-document-editor select option { background:var(--color-surface); color:var(--color-text-primary); }
 .arca-document-editor textarea { width:100%; min-height:64px; }
 .arca-document-editor button { color:inherit; background:transparent; padding:8px 12px; border:1px solid #8b7ca455; border-radius:6px; }
 .arca-document-editor button:disabled { opacity:.5; cursor:not-allowed; }

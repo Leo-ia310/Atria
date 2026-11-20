@@ -430,6 +430,7 @@ export function CommercialWorkspace({
         </button>
         <button
           disabled={busy || !can("crear")}
+          className="arca-btn arca-btn-primary"
           style={style}
           onClick={() => {
             setDraft(blank(branch));
@@ -479,6 +480,11 @@ export function CommercialWorkspace({
           </tr>
         </thead>
         <tbody>
+          {!busy && !error && documents.length === 0 && (
+            <tr><td colSpan={6} className="arca-commercial-empty">
+              {kind === "cotizacion" ? "No hay cotizaciones para esta búsqueda." : "No hay proformas para esta búsqueda."}
+            </td></tr>
+          )}
           {documents.map((d) => (
             <tr key={d.id}>
               <td>{d.numero}</td>
@@ -521,7 +527,7 @@ export function CommercialWorkspace({
       </div>
       {draft && (
         <form
-          style={{ ...style, display: "grid", gap: 12 }}
+          style={{ display: "grid", gap: 12 }}
           onSubmit={(e) => {
             e.preventDefault();
             void (async () => {

@@ -207,6 +207,7 @@ export function DocumentDesigner({
         <button
           style={style}
           disabled={disabled}
+          className="arca-btn arca-btn-primary"
           onClick={() => {
             setEdit({
               name: "Nueva plantilla",
@@ -227,6 +228,9 @@ export function DocumentDesigner({
           </tr>
         </thead>
         <tbody>
+          {!durable.busy && !durable.error && templates.length === 0 && (
+            <tr><td colSpan={3} className="arca-commercial-empty">Aún no hay plantillas. Crea la primera con el diseño de tu negocio.</td></tr>
+          )}
           {templates.map((t) => (
             <tr key={t.id}>
               <td>{t.name}</td>
@@ -275,7 +279,7 @@ export function DocumentDesigner({
             design: edit.design,
           });
         }}
-        style={{ ...style, display: "grid", gap: 12 }}
+        style={{ display: "grid", gap: 12 }}
       >
         <label>
           Nombre{" "}

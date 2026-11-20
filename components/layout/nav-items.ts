@@ -54,14 +54,19 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, modulo: "dashboard" },
       { href: "/pos", label: "POS", icon: ShoppingCart, modulo: "pos" },
       { href: "/caja", label: "Caja", icon: Store, modulo: "caja" },
-      { href:"/documentos",label:"Documentos internos",icon:FileText,modulo:"documentos" },
-      { href:"/compras/abastecimiento",label:"Abastecimiento",icon:Truck,modulo:"abastecimiento" },
-      { href: "/cotizaciones", label:"Cotizaciones",icon:FileText,modulo:"cotizaciones" },
-      { href: "/proformas", label:"Proformas",icon:FileText,modulo:"proformas" },
       { href: "/ventas", label: "Ventas", icon: Receipt, modulo: "ventas" },
       { href: "/inventario", label: "Inventario", icon: Package, modulo: "inventario" },
       { href: "/clientes", label: "Clientes", icon: Users, modulo: "clientes" },
       { href: "/compras", label: "Compras", icon: Truck, modulo: "compras" },
+    ],
+  },
+  {
+    titulo: "Comercial",
+    items: [
+      { href:"/documentos",label:"Documentos internos",icon:FileText,modulo:"documentos" },
+      { href:"/compras/abastecimiento",label:"Abastecimiento",icon:Truck,modulo:"abastecimiento" },
+      { href: "/cotizaciones", label:"Cotizaciones",icon:FileText,modulo:"cotizaciones" },
+      { href: "/proformas", label:"Proformas",icon:FileText,modulo:"proformas" },
     ],
   },
   {
@@ -111,6 +116,10 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const COMMAND_ITEMS: CommandItem[] = [
+  { label: "Documentos internos", href: "/documentos", grupo: "Comercial", modulo: "documentos", keywords: "plantillas diseño impresión" },
+  { label: "Abastecimiento", href: "/compras/abastecimiento", grupo: "Comercial", modulo: "abastecimiento", keywords: "proveedores ofertas órdenes recepciones" },
+  { label: "Cotizaciones", href: "/cotizaciones", grupo: "Comercial", modulo: "cotizaciones" },
+  { label: "Proformas", href: "/proformas", grupo: "Comercial", modulo: "proformas" },
   { label: "Dashboard", href: "/dashboard", grupo: "Operativo", modulo: "dashboard" },
   { label: "Punto de Venta (POS)", href: "/pos", grupo: "Operativo", modulo: "pos", keywords: "caja cobrar vender" },
   { label: "Caja / Sesiones", href: "/caja", grupo: "Operativo", modulo: "caja", keywords: "arqueo apertura cierre" },
