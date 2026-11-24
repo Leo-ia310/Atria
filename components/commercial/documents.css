@@ -39,3 +39,21 @@
 .arca-document-editor th,.arca-document-editor td { padding:8px; text-align:left; overflow-wrap:anywhere; border-bottom:1px solid #8b7ca433; }
 .arca-document-editor fieldset { padding:12px; border:1px solid #8b7ca455; border-radius:8px; }
 .arca-document-editor [role=alert] { color:#e15555; overflow-wrap:anywhere; }
+
+/* Commercial editor: readable sections, aligned line inputs and compact actions. */
+.arca-document-editor .arca-commercial-form { grid-template-columns:repeat(4,minmax(0,1fr)); border-top:3px solid var(--color-primary); box-shadow:0 4px 16px #00000008; }
+.arca-commercial-form > h2 { margin:0; }
+.arca-commercial-form > p { margin:0; color:var(--color-text-muted); }
+.arca-commercial-form > select { grid-column:1/-1; }
+.arca-commercial-form > label:has(textarea) { grid-column:1/-1; }
+.arca-commercial-form textarea { min-height:88px; resize:vertical; }
+.arca-document-editor .arca-commercial-line { display:grid; grid-template-columns:minmax(150px,2fr) repeat(4,minmax(100px,1fr)) auto; align-items:end; gap:12px; padding:16px; background:var(--color-surface-2); border:1px solid var(--color-border); border-radius:10px; }
+.arca-commercial-line > span { align-self:center; font-weight:600; }
+.arca-document-editor .arca-commercial-line label { display:flex; flex-direction:column; align-items:stretch; gap:6px; font-size:12px; }
+.arca-commercial-line input { width:100%; }
+.arca-document-editor .arca-commercial-total { grid-column:1/-1; text-align:right; padding:16px 0; border-top:1px solid var(--color-border); font-size:22px; }
+.arca-document-editor .arca-draft-banner { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 16px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:10px; }
+.arca-draft-banner > span { flex:1; }
+@media(max-width:1100px){ .arca-document-editor .arca-commercial-line { grid-template-columns:repeat(4,minmax(0,1fr)); } .arca-commercial-line > span { grid-column:1/-1; } }
+@media(max-width:767px){ .arca-document-editor .arca-commercial-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .arca-document-editor .arca-commercial-line { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:420px){ .arca-document-editor .arca-commercial-form { grid-template-columns:1fr; } }

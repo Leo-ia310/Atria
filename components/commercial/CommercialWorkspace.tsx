@@ -1,4 +1,5 @@
 "use client";
+import {posOfferKey} from "../../lib/pos-offer-draft";
 import {inputMessage,documentEventDate,documentEventLabel} from '../../lib/document-display';
 import './documents.css';
 import {DocumentPrintControls} from './DocumentPrintControls';
@@ -6,6 +7,7 @@ import type {DocumentTransport} from './DocumentDesigner';
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   commercialCommandSchema,
+  commercialDraftSchema,
   commercialAmounts,
   commercialStates,
   type CommercialCommand,
@@ -20,6 +22,7 @@ import {
 } from "../../lib/commercial-pdf";
 
 type Props = {
+  profileOnly?: boolean;
   documentSend?:DocumentTransport;
   contextId?: string;
   kind: CommercialKind;
@@ -78,6 +81,7 @@ const blank = (branch: string): CommercialDraft => ({
   items: [],
 });
 export function CommercialWorkspace({
+  profileOnly = false,
   kind,
   branches,
   send,
@@ -99,6 +103,35 @@ export function CommercialWorkspace({
   const [cached, setCached] = useState(false),
     [pendingNonce, setPendingNonce] = useState<string | null>(null);
   const pendingKey = `arca:commercial-attempt:${contextId}:${kind}:${branch}`;
+  const localDraftKey = `arca:commercial-draft:${contextId}:${kind}:${branch}`;
+  const importedOfferKey=useRef<string|null>(null);
+  const [localDraftAvailable,setLocalDraftAvailable]=useState(false);
+  const [draftNotice,setDraftNotice]=useState("");
+  useEffect(()=>{try{const raw=localStorage.getItem(localDraftKey);const saved=raw?JSON.parse(raw):null;
+    if(saved?.expiresAt>Date.now())setLocalDraftAvailable(true);
+    else {localStorage.removeItem(localDraftKey);setLocalDraftAvailable(false);}
+  }catch{setLocalDraftAvailable(false);}},[localDraftKey]);
+  useEffect(()=>{if(!draft||draft.sucursalId!==branch)return;
+    try {const raw=localStorage.getItem(localDraftKey);const previous=raw?JSON.parse(raw):null;
+      const expiresAt=previous?.expiresAt>Date.now()?previous.expiresAt:Date.now()+86400000;
+      localStorage.setItem(localDraftKey,JSON.stringify({expiresAt,draft,editing,documentId:editing?selected?.id:null,version:draftVersion,editAction}));
+      if(importedOfferKey.current===posOfferKey(contextId,kind)){localStorage.removeItem(importedOfferKey.current);importedOfferKey.current=null;}
+      setLocalDraftAvailable(true);setDraftNotice("Borrador guardado en este equipo durante 24 horas. Aún no se ha enviado.");
+    }catch{setDraftNotice("No se pudo guardar el borrador en este equipo. Guarda el documento antes de salir.");}
+  },[draft,editing,selected?.id,draftVersion,editAction,localDraftKey,branch]);
+  const discardLocalDraft=()=>{localStorage.removeItem(localDraftKey);setLocalDraftAvailable(false);setDraftNotice("");};
+  const resumeLocalDraft=()=>{try{
+    const saved=JSON.parse(localStorage.getItem(localDraftKey)||"null");
+    if(!saved||saved.expiresAt<=Date.now()){discardLocalDraft();return;}
+    // An unfinished form may contain no lines yet; validate all completed values on save.
+    const candidate=saved.draft;
+    if(!candidate||candidate.sucursalId!==branch||!Array.isArray(candidate.items))throw Error("Borrador local inválido.");
+    commercialDraftSchema.parse({...candidate,items:candidate.items.length?candidate.items:[{productoId:"00000000-0000-4000-8000-000000000000",cantidad:1,precioUnitario:0,descuento:0,tasa:0}]});
+    const original=saved.editing?documents.find(d=>d.id===saved.documentId):null;
+    if(saved.editing&&(!original||original.version!==saved.version))throw Error("El documento cambió. Abre su versión actual antes de editar; el borrador local se conserva.");
+    setSelected(original??null);setEditing(!!saved.editing);setDraftVersion(saved.version);setEditAction(saved.editAction==="revise"?"revise":"edit");setDraft(candidate);
+  }catch(e){setError(e instanceof Error?e.message:"No se pudo recuperar el borrador.");}};
+
   useEffect(() => {
     setPendingNonce(localStorage.getItem(pendingKey));
   }, [pendingKey]);
@@ -196,6 +229,23 @@ export function CommercialWorkspace({
     setWarehouse("");setCashSession("");
     setMethod("");
   }, [branch, kind]);
+  useEffect(()=>{
+    if(profileOnly||draft||!options||busy)return;
+    try{
+      const key=posOfferKey(contextId,kind),raw=localStorage.getItem(key);
+      if(!raw)return;
+      const transfer=JSON.parse(raw);
+      if(transfer.expiresAt<=Date.now()){localStorage.removeItem(key);return;}
+      const incoming=commercialDraftSchema.parse(transfer.draft);
+      if(!branches.some(b=>b.id===incoming.sucursalId))throw Error("No tienes acceso a la sucursal del carrito.");
+      if(branch!==incoming.sucursalId){setBranch(incoming.sucursalId);return;}
+      if(!options.permissions.includes(`${kind}.crear`))throw Error("No tienes permiso para crear este documento. El carrito se conserva.");
+      if(pendingNonce||retry)throw Error("Recupera el intento pendiente antes de usar los productos del POS.");
+      const previous=localStorage.getItem(localDraftKey);
+      if(previous&&JSON.parse(previous).expiresAt>Date.now())throw Error("Tienes otro borrador local. Continúalo o descártalo para abrir los productos pendientes del POS.");
+      importedOfferKey.current=key;setSelected(null);setEditing(false);setDraftVersion(undefined);setDraft(incoming);setError("");
+    }catch(e){setError(e instanceof Error?e.message:"No se pudo abrir el carrito como documento.");}
+  },[profileOnly,contextId,kind,branch,options,draft,busy,pendingNonce,retry,localDraftAvailable,localDraftKey]);
   const perform = async (c: CommercialCommand) => {
     if (inFlight.current) return null;
     if (
@@ -377,12 +427,12 @@ export function CommercialWorkspace({
       aria-label={kind === "cotizacion" ? "Cotizaciones" : "Proformas"}
       style={{ display: "grid", gap: 16 }}
     >
+      {!profileOnly && <>
       <h1 style={{ fontSize: 26, fontWeight: 700 }}>
         {kind === "cotizacion" ? "Cotizaciones" : "Proformas"}
       </h1>
       <p>
-        Ofertas comerciales. No generan ventas, inventario, caja ni
-        contabilidad. Aceptación y conversión requieren conexión.
+        {kind === "cotizacion" ? "Prepara ofertas para tus clientes y da seguimiento a su aceptación." : "Prepara documentos preliminares con las condiciones e importes acordados."}
       </p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <label>
@@ -441,6 +491,7 @@ export function CommercialWorkspace({
           Crear {kind}
         </button>
       </div>
+      {localDraftAvailable && !draft && <div className="arca-draft-banner"><span>Tienes un borrador local sin terminar (disponible 24 horas).</span><button disabled={busy || !!pendingNonce || !!retry} onClick={resumeLocalDraft}>Continuar borrador</button><button disabled={busy} onClick={discardLocalDraft}>Descartar</button></div>}
       {cached && (
         <p role="status">
           Consulta de datos descargados. Pueden estar desactualizados; editar,
@@ -469,65 +520,10 @@ export function CommercialWorkspace({
         </button>
       )}
       {busy && <p role="status">Guardando…</p>}
-      <table>
-        <thead>
-          <tr>
-            {["Número", "Cliente", "Versión", "Estado", "Total", ""].map(
-              (h) => (
-                <th key={h}>{h}</th>
-              ),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {!busy && !error && documents.length === 0 && (
-            <tr><td colSpan={6} className="arca-commercial-empty">
-              {kind === "cotizacion" ? "No hay cotizaciones para esta búsqueda." : "No hay proformas para esta búsqueda."}
-            </td></tr>
-          )}
-          {documents.map((d) => (
-            <tr key={d.id}>
-              <td>{d.numero}</td>
-              <td>{d.snapshot.cliente?.nombre || "Genérica"}</td>
-              <td>{d.version}</td>
-              <td>{d.estado}</td>
-              <td>
-                {d.snapshot.moneda} {d.snapshot.amounts.total.toFixed(2)}
-              </td>
-              <td>
-                <button
-                  style={style}
-                  onClick={() => {
-                    setSelected(d);
-                    setDraft(null);
-                    setPdf(null);
-                    setRevision(null);
-                  }}
-                >
-                  Ver detalle
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div>
-        <button
-          disabled={!offset || busy}
-          onClick={() => setOffset(Math.max(0, offset - 50))}
-        >
-          Anterior
-        </button>{" "}
-        <button
-          disabled={documents.length < 50 || busy}
-          onClick={() => setOffset(offset + 50)}
-        >
-          Siguiente
-        </button>
-      </div>
       {draft && (
         <form
-          style={{ display: "grid", gap: 12 }}
+          className="arca-commercial-form"
+          style={{ display: "grid", gap: 20 }}
           onSubmit={(e) => {
             e.preventDefault();
             void (async () => {
@@ -535,14 +531,15 @@ export function CommercialWorkspace({
                 draft,
                 expectedVersion: editing ? draftVersion : undefined,
               });
-              if (r) setDraft(null);
+              if (r) {discardLocalDraft();setDraft(null);}
             })();
           }}
         >
-          <h2>{editing ? "Guardar nueva revisión" : "Nuevo documento"}</h2>
+          <h2>{editing ? "Editar documento" : kind === "cotizacion" ? "Nueva cotización" : "Nueva proforma"}</h2>
           <p>
-            La proforma derivada y su cotización comparten revisión y estado.
+            Completa los datos y agrega los productos. Este documento no registra una venta.
           </p>
+          {draftNotice && <p role="status">{draftNotice}</p>}
           <label>
             Cliente opcional{" "}
             <select
@@ -623,7 +620,7 @@ export function CommercialWorkspace({
           {draft.items.map((line, index) => (
             <div
               key={index}
-              style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+              className="arca-commercial-line"
             >
               <span>
                 {options?.products.find((p) => p.id === line.productoId)
@@ -636,7 +633,7 @@ export function CommercialWorkspace({
                   {labels[field]}
                   <input
                     aria-label={`${field} ${index + 1}`}
-                    style={{ ...style, width: 110 }}
+                    style={style}
                     type="number"
                     step="0.0001"
                     min="0"
@@ -685,20 +682,77 @@ export function CommercialWorkspace({
               />
             </label>
           ))}
-          <strong>
+          <strong className="arca-commercial-total">
             Total: {totals?.total.toFixed(2) ?? "Revisa importes"}
           </strong>
           <button
+            type="submit" className="arca-btn-primary"
             style={style}
             disabled={busy || !draft.items.length || !!retry}
           >
             Guardar borrador
           </button>
           <button type="button" onClick={() => setDraft(null)}>
-            Cancelar edición
+            Continuar después
           </button>
         </form>
       )}
+      <table>
+        <thead>
+          <tr>
+            {["Número", "Cliente", "Versión", "Estado", "Total", ""].map(
+              (h) => (
+                <th key={h}>{h}</th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {!busy && !error && documents.length === 0 && (
+            <tr><td colSpan={6} className="arca-commercial-empty">
+              {kind === "cotizacion" ? "No hay cotizaciones para esta búsqueda." : "No hay proformas para esta búsqueda."}
+            </td></tr>
+          )}
+          {documents.map((d) => (
+            <tr key={d.id}>
+              <td>{d.numero}</td>
+              <td>{d.snapshot.cliente?.nombre || "Genérica"}</td>
+              <td>{d.version}</td>
+              <td>{d.estado}</td>
+              <td>
+                {d.snapshot.moneda} {d.snapshot.amounts.total.toFixed(2)}
+              </td>
+              <td>
+                <button
+                  style={style}
+                  onClick={() => {
+                    setSelected(d);
+                    setDraft(null);
+                    setPdf(null);
+                    setRevision(null);
+                  }}
+                >
+                  Ver detalle
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div>
+        <button
+          disabled={!offset || busy}
+          onClick={() => setOffset(Math.max(0, offset - 50))}
+        >
+          Anterior
+        </button>{" "}
+        <button
+          disabled={documents.length < 50 || busy}
+          onClick={() => setOffset(offset + 50)}
+        >
+          Siguiente
+        </button>
+      </div>
       {selected && !draft && (
         <article style={{ ...style, display: "grid", gap: 12 }}>
           <h2>
@@ -946,9 +1000,12 @@ export function CommercialWorkspace({
           ))}
         </article>
       )}
-      {options?.permissions.includes("documental.configurar") && (
+      </>}
+      {profileOnly && <><h1>Perfil documental</h1><p>Configura la identificación de tu negocio. Los documentos históricos conservan sus datos originales.</p>{error && <p role="alert">{error}</p>}{options && !options.permissions.includes("documental.configurar") && <p role="alert">No tienes permiso para configurar el perfil documental.</p>}</>}
+      {profileOnly && options?.permissions.includes("documental.configurar") && (
         <fieldset>
-          <legend>Perfil documental (emisión fiscal deshabilitada)</legend>
+          <legend>Perfil del negocio</legend>
+          <label>Sucursal<select value={branch} onChange={e=>setBranch(e.target.value)}>{branches.map(b=><option key={b.id} value={b.id}>{b.nombre}</option>)}</select></label>
           <select value={profile} onChange={(e) => setProfile(e.target.value)}>
             {["no_registrado", "configuracion_pendiente", "registrado"].map(
               (p) => (

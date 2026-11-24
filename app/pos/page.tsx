@@ -172,6 +172,8 @@ export default async function POSPage() {
 
   return (
     <POSContenedor
+      commercialCurrency={empresa?.moneda ?? "NIO"}
+      commercialContextId={`${user.empresaId}:${user.id}`}
       pais={empresa?.pais ?? "NI"}
       sucursalId={sucursalOperativa.id}
       sucursalNombre={sucursalOperativa.nombre}

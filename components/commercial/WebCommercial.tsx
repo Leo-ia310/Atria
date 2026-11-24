@@ -21,9 +21,11 @@ const send = async (c: CommercialCommand): Promise<CommercialResult> => {
 };
 export function WebCommercial({
   kind,
+  profileOnly=false,
   branches,
   contextId,
 }: {
+  profileOnly?:boolean;
   contextId: string;
   kind: CommercialKind;
   branches: Array<{ id: string; nombre: string }>;
@@ -31,6 +33,7 @@ export function WebCommercial({
   return (
     <CommercialWorkspace
       key={contextId+kind}
+      profileOnly={profileOnly}
       contextId={contextId}
       kind={kind}
       branches={branches}

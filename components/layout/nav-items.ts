@@ -63,8 +63,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     titulo: "Comercial",
     items: [
-      { href:"/documentos",label:"Documentos internos",icon:FileText,modulo:"documentos" },
-      { href:"/compras/abastecimiento",label:"Abastecimiento",icon:Truck,modulo:"abastecimiento" },
       { href: "/cotizaciones", label:"Cotizaciones",icon:FileText,modulo:"cotizaciones" },
       { href: "/proformas", label:"Proformas",icon:FileText,modulo:"proformas" },
     ],
@@ -116,8 +114,7 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const COMMAND_ITEMS: CommandItem[] = [
-  { label: "Documentos internos", href: "/documentos", grupo: "Comercial", modulo: "documentos", keywords: "plantillas diseño impresión" },
-  { label: "Abastecimiento", href: "/compras/abastecimiento", grupo: "Comercial", modulo: "abastecimiento", keywords: "proveedores ofertas órdenes recepciones" },
+  { label: "Documentos internos", href: "/documentos", grupo: "Configuración", modulo: "documentos", keywords: "plantillas diseño impresión" },
   { label: "Cotizaciones", href: "/cotizaciones", grupo: "Comercial", modulo: "cotizaciones" },
   { label: "Proformas", href: "/proformas", grupo: "Comercial", modulo: "proformas" },
   { label: "Dashboard", href: "/dashboard", grupo: "Operativo", modulo: "dashboard" },

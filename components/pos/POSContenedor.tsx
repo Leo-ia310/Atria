@@ -1,4 +1,5 @@
 "use client";
+import {posOfferDraft,stagePosOffer} from "@/lib/pos-offer-draft";
 import { useWebAttempt } from "@/lib/use-web-attempt";
 import { posLineAmounts, posSaleAmounts } from "@/lib/pos-money";
 
@@ -85,6 +86,7 @@ type CantidadEscaneoPendiente = {
 type VentaExito = { id: string; numero: string;pendienteVerificacion?:boolean };
 
 type POSContenedorViewProps = {
+  createOffer?: (kind:"cotizacion"|"proforma")=>void;
   cashSessions?:Array<{id:string;nombre:string}>;
   sesionCajaId?:string;
   onSessionChange?:(id:string)=>void;
@@ -321,6 +323,8 @@ function prioridadClickable(a: { producto: ProductoPOS; index: number }, b: { pr
 }
 
 export function POSContenedor({
+  commercialContextId,
+  commercialCurrency="NIO",
   pais,
   sucursalId,
   sucursalNombre,
@@ -333,6 +337,8 @@ export function POSContenedor({
   cajas,
   cashSessions,
 }: {
+  commercialContextId?:string;
+  commercialCurrency?:string;
   pais: PaisCodigo;
   sucursalId: string;
   sucursalNombre: string;
@@ -610,7 +616,16 @@ export function POSContenedor({
   }, [ventaExito]);
 
   const submitSale = useWebAttempt(procesarVenta,'venta');
+  const createOffer = commercialContextId ? (kind:"cotizacion"|"proforma")=>{
+    if(procesando||modalPago||!carrito.length)return;
+    try {
+      const offer=posOfferDraft(sucursalId,cliente?.esConsumidorFinal?null:clienteId||null,carrito,commercialCurrency);
+      stagePosOffer(localStorage,commercialContextId,kind,offer);
+      router.push(kind==="cotizacion"?"/cotizaciones":"/proformas");
+    }catch(e){mostrar("error",e instanceof Error?e.message:"No se pudieron llevar los productos al formulario.");}
+  }:undefined;
   return posContenedorView({
+    createOffer,
     cashSessions,sesionCajaId,onSessionChange:setSesionCajaId,
     submitSale,
     cajaAbierta,
@@ -660,6 +675,7 @@ export function POSContenedor({
 }
 
 function posContenedorView({
+  createOffer,
   cashSessions,sesionCajaId,onSessionChange,
   submitSale,
   cajaAbierta,
@@ -723,11 +739,6 @@ function posContenedorView({
         </div>
       )}
 
-      {cashSessions&&cashSessions.length>0&&<label className="flex items-center gap-2 px-4 py-1 text-small">Caja física
-        <select className="arca-input" value={sesionCajaId??""} disabled={carrito.length>0||procesando} onChange={e=>onSessionChange?.(e.target.value)}>
-          <option value="">Selecciona el turno</option>{cashSessions.map(row=><option key={row.id} value={row.id}>{row.nombre}</option>)}
-        </select>
-      </label>}
       {/* Header POS */}
       <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-4">
@@ -891,6 +902,10 @@ function posContenedorView({
                 Buscar <span className="float-right text-[11px] text-[color:var(--color-text-muted)]">F2</span>
               </button>
             </div>
+            {createOffer && <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" className="arca-btn arca-btn-secondary text-small" disabled={!carrito.length||procesando||modalPago} onClick={()=>createOffer("cotizacion")}>Crear cotización</button>
+              <button type="button" className="arca-btn arca-btn-secondary text-small" disabled={!carrito.length||procesando||modalPago} onClick={()=>createOffer("proforma")}>Crear proforma</button>
+            </div>}
             <Button onClick={intentarCobrar} disabled={carrito.length === 0 || procesando} className="mt-3 w-full" size="lg">
               Cobrar {formatearMoneda(total, pais)} <span className="ml-auto text-xs opacity-70">F12</span>
             </Button>

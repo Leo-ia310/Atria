@@ -14,6 +14,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 
 const MODULOS = [
+  { href: "/documentos", icon: Receipt, titulo: "Documentos internos", descripcion: "Diseño de comprobantes y plantillas" },
+  { href: "/configuracion/perfil-documental", icon: Receipt, titulo: "Perfil documental", descripcion: "Identificación y perfil del negocio" },
   { href: "/configuracion/empresa", icon: BriefcaseBusiness, titulo: "Empresa", descripcion: "Giro del negocio y datos generales" },
   { href: "/configuracion/sucursales", icon: Building2, titulo: "Sucursales", descripcion: "Puntos de operación de tu negocio" },
   { href: "/configuracion/usuarios", icon: Users, titulo: "Usuarios", descripcion: "Equipo con acceso al sistema" },
