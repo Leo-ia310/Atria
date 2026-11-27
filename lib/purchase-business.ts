@@ -1,3 +1,4 @@
+import {safeErrorMessage} from "@/lib/database-error";
 import { normalizeSupplierDocument } from "./supplier-document-identity";
 import { fechaMediodiaUTC } from "@/lib/dates";
 
@@ -233,7 +234,7 @@ export async function procesarCompraBusiness(
     return { ok: true, compraId: compraResult.id, asientoId };
   } catch (err) {
     console.error("[procesarCompra]", err);
-    const msg = err instanceof Error ? err.message : "Error";
+    const msg = safeErrorMessage(err,"No se pudo guardar la operación. Reintenta el mismo intento.");
     return { ok: false, error: `No pudimos procesar la compra: ${msg}` };
   }
 }

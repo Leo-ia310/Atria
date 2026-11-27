@@ -1,4 +1,5 @@
 "use client";
+import {CashSessionChoice} from "./CashSessionChoice";
 import {posOfferDraft,stagePosOffer} from "@/lib/pos-offer-draft";
 import { useWebAttempt } from "@/lib/use-web-attempt";
 import { posLineAmounts, posSaleAmounts } from "@/lib/pos-money";
@@ -10,6 +11,7 @@ import {
   useCallback,
   useReducer,
   useRef,
+  type ReactNode,
   type Dispatch,
   type RefObject,
   type SetStateAction,
@@ -86,6 +88,7 @@ type CantidadEscaneoPendiente = {
 type VentaExito = { id: string; numero: string;pendienteVerificacion?:boolean };
 
 type POSContenedorViewProps = {
+  cashSessionPicker?:ReactNode;
   createOffer?: (kind:"cotizacion"|"proforma")=>void;
   cashSessions?:Array<{id:string;nombre:string}>;
   sesionCajaId?:string;
@@ -351,6 +354,7 @@ export function POSContenedor({
   cashSessions?:Array<{id:string;nombre:string}>;
   cajas: { value: string; label: string }[];
 }) {
+  const [cashSessionPickerOpen,setCashSessionPickerOpen]=useState(false);
   const [sesionCajaId,setSesionCajaId]=useState(cashSessions?.length===1?cashSessions[0].id:"");
   useEffect(()=>{if(!sesionCajaId && cashSessions?.length===1)setSesionCajaId(cashSessions[0].id);},[cashSessions,sesionCajaId]);
   const router = useRouter();
@@ -398,11 +402,11 @@ export function POSContenedor({
 
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
-      if (e.key === "F2" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+      if (e.key === "F2" && !modalPago && !cashSessionPickerOpen && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
         buscadorRef.current?.focus();
       }
-      if (e.key === "F4" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+      if (e.key === "F4" && !modalPago && !cashSessionPickerOpen && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
         setSelectorClienteAbierto(true);
       }
@@ -410,15 +414,15 @@ export function POSContenedor({
         e.preventDefault();
         setModalCaja(true);
       }
-      if (e.key === "F8" && carrito.length > 0 && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+      if (e.key === "F8" && carrito.length > 0 && !modalPago && !cashSessionPickerOpen && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
         vaciarCarrito();
       }
-      if (e.key === "F10" && !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto) {
+      if (e.key === "F10" && !modalPago && !cashSessionPickerOpen && !modalCaja && !ventaExito && !selectorClienteAbierto) {
         e.preventDefault();
         router.push("/dashboard");
       }
-      if (e.key === "F12" && carrito.length > 0 && !modalPago && !selectorClienteAbierto) {
+      if (e.key === "F12" && carrito.length > 0 && !modalPago && !cashSessionPickerOpen && !selectorClienteAbierto) {
         e.preventDefault();
         intentarCobrar();
       }
@@ -426,7 +430,7 @@ export function POSContenedor({
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carrito.length, modalPago, modalCaja, ventaExito, cajaAbierta, selectorClienteAbierto, router]);
+  }, [carrito.length, cashSessionPickerOpen, modalPago, modalCaja, ventaExito, cajaAbierta, selectorClienteAbierto, router]);
 
   useEffect(() => {
     if (modalPago || modalCaja || ventaExito || selectorClienteAbierto) {
@@ -489,6 +493,7 @@ export function POSContenedor({
       setModalCaja(true);
       return;
     }
+    if(cashSessions && cashSessions.length>1 && !cashSessions.some(row=>row.id===sesionCajaId)){setCashSessionPickerOpen(true);return;}
     setModalPago(true);
   }
 
@@ -558,7 +563,7 @@ export function POSContenedor({
   }
 
   useBarcodeScanner({
-    enabled: !modalPago && !modalCaja && !ventaExito && !selectorClienteAbierto,
+    enabled: !modalPago && !cashSessionPickerOpen && !modalCaja && !ventaExito && !selectorClienteAbierto,
     maxInterKeyDelayMs: 150,
     onScan: (codigo) => agregarCodigoBarrasAlCarrito(codigo, { avisarSiNoExiste: true }),
   });
@@ -625,6 +630,7 @@ export function POSContenedor({
     }catch(e){mostrar("error",e instanceof Error?e.message:"No se pudieron llevar los productos al formulario.");}
   }:undefined;
   return posContenedorView({
+    cashSessionPicker:<Modal abierto={cashSessionPickerOpen} onCerrar={()=>setCashSessionPickerOpen(false)} titulo="Caja de cobro" descripcion="Elige el turno abierto que vas a utilizar. No se abrirá una sesión nueva."><CashSessionChoice sessions={cashSessions??[]} onPick={id=>{setSesionCajaId(id);setCashSessionPickerOpen(false);setModalPago(true);}}/></Modal>,
     createOffer,
     cashSessions,sesionCajaId,onSessionChange:setSesionCajaId,
     submitSale,
@@ -675,6 +681,7 @@ export function POSContenedor({
 }
 
 function posContenedorView({
+  cashSessionPicker,
   createOffer,
   cashSessions,sesionCajaId,onSessionChange,
   submitSale,
@@ -724,6 +731,7 @@ function posContenedorView({
 }: POSContenedorViewProps) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-neutral)] lg:h-[100dvh] lg:overflow-hidden">
+      {cashSessionPicker}
       {/* Aviso de entorno de prueba (sin caja abierta) */}
       {!cajaAbierta && (
         <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-[color:var(--color-warning)]/15 px-4 py-1.5 text-center text-[12px] font-medium text-[color:var(--color-warning)]">

@@ -1,4 +1,6 @@
 "use server";
+import {safeErrorMessage} from "@/lib/database-error";
+
 
 import { businessEntityId, businessChildId, businessEventDate } from "@/lib/business-context";
 
@@ -634,7 +636,7 @@ async function procesarVentaBusiness(
     return { ok: true, ventaId: resultado.id, numero: resultado.numero, asientoId,pendienteVerificacion:settlement.pending>0 };
   } catch (err) {
     console.error("[procesarVenta]", err);
-    const msg = err instanceof Error ? err.message : "Error desconocido";
+    const msg = safeErrorMessage(err,"No se pudo guardar la operación. Reintenta el mismo intento.");
     return { ok: false, error: `No pudimos procesar la venta: ${msg}` };
   }
 }

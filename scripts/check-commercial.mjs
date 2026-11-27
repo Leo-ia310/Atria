@@ -83,7 +83,7 @@ export async function checkCommercial({
     db.execute(
       sql`insert into perfiles_documentales(empresa_id,perfil,ruc) values(${user.empresaId}::uuid,'registrado',null)`,
     ),
-    /check constraint/,
+    (error) => { const cause=error.cause??error; return cause.code==="23514" && (cause.constraint_name??cause.constraint)==="perfiles_documentales_check"; },
   );
   // Reapplication must be safe. Grants exist only in this synthetic role.
   await db.transaction((tx) => tx.execute(sql.raw(migration)));
@@ -483,7 +483,7 @@ export async function checkCommercial({
     db.execute(
       sql`update comercial_revisiones set snapshot='{}' where origen_id=${q.origenId}::uuid`,
     ),
-    /inmutable/,
+    (error)=>{const cause=error.cause??error;return cause.code==="P0001" && /inmutable/.test(cause.message);},
   );
   // Explicit original turn, using existing cash architecture unchanged.
   const box = randomUUID();

@@ -1,3 +1,4 @@
+import {safeErrorMessage,databaseErrorCode} from "./database-error";
 import { z } from "zod";
 export function inputMessage(
   error: unknown,
@@ -14,13 +15,12 @@ export function inputMessage(
   }
   if (
     error instanceof Error &&
-    "code" in error &&
-    typeof error.code === "string"
+    (("code" in error && typeof error.code === "string") || databaseErrorCode(error))
   )
-    return ["42P01", "42703"].includes(error.code)
+    return ["42P01", "42703"].includes(databaseErrorCode(error) ?? "")
       ? "ARCA Cloud necesita actualizar su esquema de datos. Contacta al administrador."
       : fallback;
-  return error instanceof Error ? error.message : fallback;
+  return safeErrorMessage(error,fallback);
 }
 export function documentEventLabel(value: string) {
   const key = value.replace(/^documento\./, "");

@@ -42,8 +42,8 @@ export async function checkDocumentTemplates({db,s,sql,user,branch,branch2,produ
   const v2=ok(await run({...issue,requestId:randomUUID(),templateVersion:2})).issue;assert.equal(v2.numero,original.numero);assert.equal(v2.design.fontSize,18);
   assert.equal((await executeDocuments(user,c({action:'read',id:original.id,sucursalId:branch2}),device1,[branch2])).ok,false);
   assert.equal((await run({action:'createTemplate',name:'SVG falso',design:{...defaultDocumentDesign,logoData:'data:image/png;base64,PHN2Zz48c2NyaXB0Lz48L3N2Zz4='}})).ok,false);
-  await assert.rejects(db.execute(sql`update documento_emisiones set snapshot='{}' where id=${original.id}::uuid`),/inmutable/);
-  await assert.rejects(db.execute(sql`update documento_plantilla_versiones set design='{}' where plantilla_id=${template.id}::uuid`),/inmutable/);
+  await assert.rejects(db.execute(sql`update documento_emisiones set snapshot='{}' where id=${original.id}::uuid`),(error)=>{const cause=error.cause??error;return cause.code==="P0001" && /inmutable/.test(cause.message);});
+  await assert.rejects(db.execute(sql`update documento_plantilla_versiones set design='{}' where plantilla_id=${template.id}::uuid`),(error)=>{const cause=error.cause??error;return cause.code==="P0001" && /inmutable/.test(cause.message);});
   // Revoking source access must also deny cached-result recovery, not just first emission.
   const [sourcePermission]=await db.select().from(s.permisos).where(sql`clave='cotizacion.ver'`);
   await db.execute(sql`delete from rol_permisos where rol_id=${user.rolId}::uuid and permiso_id=${sourcePermission.id}::uuid`);

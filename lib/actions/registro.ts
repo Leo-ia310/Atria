@@ -1,4 +1,5 @@
 "use server";
+import {databaseErrorCode} from "@/lib/database-error";
 
 import bcrypt from "bcryptjs";
 import { eq, sql } from "drizzle-orm";
@@ -150,17 +151,17 @@ type ResultadoRegistro =
   | { ok: false; error: string };
 
 function mensajeRegistroError(err: unknown): string {
-  const error = err as { code?: string; constraint_name?: string; message?: string } | undefined;
-  if (error?.code === "42703") {
+  const code = databaseErrorCode(err);
+  if (code === "42703") {
     return "La base de datos necesita actualizarse antes de crear cuentas.";
   }
-  if (error?.code === "23505") {
+  if (code === "23505") {
     return "Ya existe información registrada con esos datos. Revisa el correo o el negocio.";
   }
-  if (error?.code === "23502") {
+  if (code === "23502") {
     return "Falta un dato obligatorio para crear la cuenta.";
   }
-  if (error?.code === "23503") {
+  if (code === "23503") {
     return "Falta una configuración base para crear cuentas.";
   }
   return "No pudimos crear tu cuenta. Intenta de nuevo.";

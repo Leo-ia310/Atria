@@ -25,8 +25,9 @@ const nextConfig = {
     useWasmBinary: process.platform === "win32",
     // Limit build-time memory pressure on Windows and small CI runners.
     webpackMemoryOptimizations: true,
-    webpackBuildWorker: true,
-    cpus: 2,
+    // Keep the checked WASM binding in-process on Windows; avoid the faulting native worker path.
+    webpackBuildWorker: process.platform !== "win32",
+    cpus: process.platform === "win32" ? 1 : 2,
     serverActions: {
       bodySizeLimit: "5mb",
     },
