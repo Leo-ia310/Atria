@@ -22,8 +22,8 @@ const day = z
   );
 export const commercialDraftSchema = z
   .object({
-    sucursalId: z.string().uuid(),
-    clienteId: z.string().uuid().nullable().default(null),
+    sucursalId: z.guid(),
+    clienteId: z.guid().nullable().default(null),
     fecha: day,
     vigenteHasta: day.nullable().default(null),
     moneda: z.enum(["NIO", "USD"]).default("NIO"),
@@ -34,7 +34,7 @@ export const commercialDraftSchema = z
       .array(
         z
           .object({
-            productoId: z.string().uuid(),
+            productoId: z.guid(),
             cantidad: z.coerce.number().finite().positive().max(1e6),
             precioUnitario: z.coerce.number().finite().min(0).max(1e9),
             descuento: z.coerce.number().finite().min(0).max(1e9).default(0),
@@ -94,9 +94,9 @@ export function commercialAmounts(draft: CommercialDraft) {
   return { items, amounts: posSaleAmounts(items) };
 }
 const base = {
-  requestId: z.string().uuid(),
+  requestId: z.guid(),
   kind: z.enum(documentKinds),
-  id: z.string().uuid().optional(),
+  id: z.guid().optional(),
   expectedVersion: z.number().int().positive().optional(),
 };
 export const commercialCommandSchema = z
@@ -118,7 +118,7 @@ export const commercialCommandSchema = z
       "print",
       "profile",
     ]),
-    attemptId: z.string().uuid().optional(),
+    attemptId: z.guid().optional(),
     documentVersion: z.number().int().positive().optional(),
     draft: commercialDraftSchema.optional(),
     state: z.enum(commercialStates).optional(),
@@ -126,18 +126,18 @@ export const commercialCommandSchema = z
     evidence: text(1000),
     query: text(100),
     filter: z.enum(commercialStates).optional(),
-    sucursalId: z.string().uuid(),
+    sucursalId: z.guid(),
     offset: z.number().int().min(0).max(100000).default(0),
     settlement: z
       .object({
-        sesionCajaId: z.string().uuid().optional(),
-        almacenId: z.string().uuid(),
+        sesionCajaId: z.guid().optional(),
+        almacenId: z.guid(),
         esCredito: z.boolean(),
         diasCredito: z.number().int().min(0).max(365),
         pagos: z
           .array(
             z.object({
-              formaPagoId: z.string().uuid(),
+              formaPagoId: z.guid(),
               monto: z.number().finite().positive(),
               referencia: z.string().max(300).optional(),
               paymentSource: z

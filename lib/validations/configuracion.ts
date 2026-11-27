@@ -7,7 +7,7 @@ export const crearUsuarioSchema = z.object({
     .string()
     .min(8, "Mínimo 8 caracteres")
     .max(72, "Máximo 72 caracteres"),
-  rolId: z.string().uuid("Selecciona un rol"),
+  rolId: z.guid("Selecciona un rol"),
   activo: z.boolean().default(true),
 });
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
@@ -35,7 +35,7 @@ export const actualizarUsuarioSchema = z.object({
       z.string().min(8, "Minimo 8 caracteres").max(72, "Maximo 72 caracteres"),
     ])
     .optional(),
-  rolId: z.string().uuid("Selecciona un rol"),
+  rolId: z.guid("Selecciona un rol"),
   activo: z.boolean().default(true),
 });
 export type ActualizarUsuarioInput = z.infer<typeof actualizarUsuarioSchema>;
@@ -50,7 +50,7 @@ export const formaPagoSchema = z.object({
     .regex(/^[A-Z0-9_]+$/, "Solo letras, números y guion bajo"),
   nombre: z.string().trim().min(2, "Nombre requerido").max(60),
   requiereReferencia: z.boolean().default(false),
-  cuentaFinancieraId: z.string().uuid().optional().or(z.literal("")),
+  cuentaFinancieraId: z.guid().optional().or(z.literal("")),
 });
 export type FormaPagoInput = z.infer<typeof formaPagoSchema>;
 
@@ -137,7 +137,7 @@ export type CambiarPasswordInput = z.infer<typeof cambiarPasswordSchema>;
 export const rolSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre requerido").max(60),
   descripcion: z.string().trim().max(200).optional().or(z.literal("")),
-  permisoIds: z.array(z.string().uuid()).default([]),
+  permisoIds: z.array(z.guid()).default([]),
 });
 export type RolInput = z.infer<typeof rolSchema>;
 

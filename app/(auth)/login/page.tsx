@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
@@ -31,7 +33,7 @@ function LoginForm() {
     setValue,
     watch,
     formState: { errors },
-  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+  } = useForm<z.input<typeof loginSchema>, unknown, z.output<typeof loginSchema>>({ resolver: zodResolver(loginSchema) });
   const emailActual = watch("email");
   const passwordActual = watch("password");
   const empresaSeleccionada = watch("empresaId");

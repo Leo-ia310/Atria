@@ -10,10 +10,10 @@ export class DesktopRrhhRejected extends Error {}
 export async function executeDesktopRrhh(tx: Tx, user: SessionUser, branches: string[], payload: Record<string,unknown>) {
   const action = z.string().parse(payload.action);
   const args = z.array(z.unknown()).max(3).parse(payload.args);
-  const id = () => z.string().uuid().parse(args[0]);
-  const input = () => z.record(z.unknown()).parse(args[0]);
+  const id = () => z.guid().parse(args[0]);
+  const input = () => z.record(z.string(), z.unknown()).parse(args[0]);
   async function employee(employeeId: unknown) {
-    const rows = await tx.execute(sql`select sucursal_id from empleados where id=${z.string().uuid().parse(employeeId)}::uuid and empresa_id=${user.empresaId}::uuid and eliminado_en is null`);
+    const rows = await tx.execute(sql`select sucursal_id from empleados where id=${z.guid().parse(employeeId)}::uuid and empresa_id=${user.empresaId}::uuid and eliminado_en is null`);
     if (!rows.length || rows[0].sucursal_id && !branches.includes(String(rows[0].sucursal_id))) throw new DesktopRrhhRejected("Empleado no disponible para este dispositivo.");
   }
   async function payroll(nominaId: string) {
@@ -22,7 +22,7 @@ export async function executeDesktopRrhh(tx: Tx, user: SessionUser, branches: st
     if (!rows.length || denied.length) throw new DesktopRrhhRejected("Nómina no disponible para este dispositivo.");
   }
   async function detail(detailId: unknown) {
-    const rows = await tx.execute(sql`select nomina_id from nomina_detalles where id=${z.string().uuid().parse(detailId)}::uuid and empresa_id=${user.empresaId}::uuid`);
+    const rows = await tx.execute(sql`select nomina_id from nomina_detalles where id=${z.guid().parse(detailId)}::uuid and empresa_id=${user.empresaId}::uuid`);
     if (!rows.length) throw new DesktopRrhhRejected("Detalle de nómina no disponible.");
     await payroll(String(rows[0].nomina_id));
   }
@@ -37,10 +37,10 @@ export async function executeDesktopRrhh(tx: Tx, user: SessionUser, branches: st
     case "actualizarFeriado": case "eliminarFeriado": {
       const rows=await tx.execute(sql`select id from feriados where id=${id()}::uuid and empresa_id=${user.empresaId}::uuid`);
       if(!rows.length)throw new DesktopRrhhRejected("Feriado no disponible para esta empresa.");
-      return action==="actualizarFeriado"?actions.actualizarFeriado(id(),z.record(z.unknown()).parse(args[1])):actions.eliminarFeriado(id());
+      return action==="actualizarFeriado"?actions.actualizarFeriado(id(),z.record(z.string(), z.unknown()).parse(args[1])):actions.eliminarFeriado(id());
     }
     case "crearEmpleado": case "actualizarEmpleado": {
-      const values = z.record(z.unknown()).parse(action==="crearEmpleado" ? args[0] : args[1]);
+      const values = z.record(z.string(), z.unknown()).parse(action==="crearEmpleado" ? args[0] : args[1]);
       if (values.sucursalId && !branches.includes(String(values.sucursalId))) throw new DesktopRrhhRejected("Sucursal no autorizada.");
       if(action==="actualizarEmpleado") { await employee(id()); return actions.actualizarEmpleado(id(),values); }
       return actions.crearEmpleado(values);
@@ -61,7 +61,7 @@ export async function executeDesktopRrhh(tx: Tx, user: SessionUser, branches: st
     case "verificarNomina": await payroll(id()); return actions.verificarNomina(id());
     case "eliminarNominaBorrador": await payroll(id()); return actions.eliminarNominaBorrador(id());
     case "pagarDetalleNomina": await detail(id()); return actions.pagarDetalleNomina(id(),z.boolean().parse(args[1]));
-    case "finalizarPagoNomina": await payroll(id()); return actions.finalizarPagoNomina(id(),z.string().uuid().parse(args[1]));
+    case "finalizarPagoNomina": await payroll(id()); return actions.finalizarPagoNomina(id(),z.guid().parse(args[1]));
     case "crearTipoIngreso": return actions.crearTipoIngreso(input());
     case "crearTipoDeduccion": return actions.crearTipoDeduccion(input());
     case "agregarIngresoVariable": await detail(input().nominaDetalleId); return actions.agregarIngresoVariable(input());

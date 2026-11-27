@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -32,7 +34,7 @@ export function CrearSucursalButton({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CrearSucursalInput>({
+  } = useForm<z.input<typeof crearSucursalSchema>, unknown, z.output<typeof crearSucursalSchema>>({
     resolver: zodResolver(crearSucursalSchema),
     defaultValues: {
       codigo: "",

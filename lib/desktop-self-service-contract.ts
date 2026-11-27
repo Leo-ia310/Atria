@@ -2,7 +2,7 @@ import { z } from "zod";
 export const selfServiceSchema = z
   .object({
     action: z.enum(["read", "profile", "password", "support"]),
-    input: z.record(z.unknown()).optional(),
+    input: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 export type SelfServiceCommand = z.infer<typeof selfServiceSchema>;

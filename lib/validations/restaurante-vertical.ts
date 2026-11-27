@@ -10,13 +10,13 @@ const textoLibre = (max: number) =>
     .or(z.literal(""));
 
 export const restauranteAreaSchema = z.object({
-  sucursalId: z.string().uuid(),
+  sucursalId: z.guid(),
   nombre: z.string().trim().min(2, "Nombre requerido").max(80),
 });
 
 export const restauranteMesaSchema = z.object({
-  sucursalId: z.string().uuid(),
-  areaId: z.string().uuid().optional().or(z.literal("")),
+  sucursalId: z.guid(),
+  areaId: z.guid().optional().or(z.literal("")),
   nombre: z.string().trim().min(1, "Mesa requerida").max(40),
   capacidad: z.coerce.number().int().min(1).max(50),
   forma: z.enum(["redonda", "cuadrada", "rectangular", "barra"]).default("rectangular"),
@@ -25,8 +25,8 @@ export const restauranteMesaSchema = z.object({
 });
 
 export const restauranteMesaLayoutSchema = z.object({
-  mesaId: z.string().uuid(),
-  areaId: z.string().uuid().optional().or(z.literal("")),
+  mesaId: z.guid(),
+  areaId: z.guid().optional().or(z.literal("")),
   posX: z.coerce.number().min(0).max(1),
   posY: z.coerce.number().min(0).max(1),
   ancho: z.coerce.number().min(0.06).max(0.6),
@@ -37,7 +37,7 @@ export const restauranteMesaLayoutSchema = z.object({
 });
 
 export const restauranteMesaEstadoSchema = z.object({
-  mesaId: z.string().uuid(),
+  mesaId: z.guid(),
   estado: z.enum([
     "disponible",
     "ocupada",
@@ -51,9 +51,9 @@ export const restauranteMesaEstadoSchema = z.object({
 });
 
 export const restauranteProductoSchema = z.object({
-  productoId: z.string().uuid(),
+  productoId: z.guid(),
   tipo: z.enum(["insumo", "producto_directo", "preparacion", "platillo", "combo"]),
-  estacionId: z.string().uuid().optional().or(z.literal("")),
+  estacionId: z.guid().optional().or(z.literal("")),
   disponibleQr: z.coerce.boolean().default(true),
   consumeInventario: z.coerce.boolean().default(true),
   tiempoPreparacionMin: z.coerce.number().int().min(0).max(360).default(0),
@@ -62,18 +62,18 @@ export const restauranteProductoSchema = z.object({
 });
 
 export const restauranteRecetaSchema = z.object({
-  productoId: z.string().uuid(),
+  productoId: z.guid(),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   tipo: z.enum(["preparacion", "platillo", "combo"]).default("platillo"),
   rendimientoCantidad: z.coerce.number().positive("Rendimiento debe ser positivo"),
-  rendimientoUnidadId: z.string().uuid().optional().or(z.literal("")),
+  rendimientoUnidadId: z.guid().optional().or(z.literal("")),
   precioVenta: z.coerce.number().min(0).default(0),
 });
 
 export const restauranteRecetaIngredienteSchema = z.object({
-  recetaId: z.string().uuid(),
-  ingredienteProductoId: z.string().uuid(),
-  unidadId: z.string().uuid().optional().or(z.literal("")),
+  recetaId: z.guid(),
+  ingredienteProductoId: z.guid(),
+  unidadId: z.guid().optional().or(z.literal("")),
   cantidad: z.coerce.number().positive("Cantidad debe ser positiva"),
   costoUnitario: z.coerce.number().min(0).default(0),
   mermaPct: z.coerce.number().min(0).max(100).default(0),
@@ -81,10 +81,10 @@ export const restauranteRecetaIngredienteSchema = z.object({
 });
 
 export const restauranteMermaSchema = z.object({
-  sucursalId: z.string().uuid(),
-  almacenId: z.string().uuid(),
-  productoId: z.string().uuid(),
-  unidadId: z.string().uuid().optional().or(z.literal("")),
+  sucursalId: z.guid(),
+  almacenId: z.guid(),
+  productoId: z.guid(),
+  unidadId: z.guid().optional().or(z.literal("")),
   cantidad: z.coerce.number().positive("Cantidad debe ser positiva"),
   costoUnitario: z.coerce.number().min(0).default(0),
   motivo: z.enum([
@@ -100,8 +100,8 @@ export const restauranteMermaSchema = z.object({
 });
 
 export const restauranteOrdenSchema = z.object({
-  sucursalId: z.string().uuid(),
-  mesaId: z.string().uuid().optional().or(z.literal("")),
+  sucursalId: z.guid(),
+  mesaId: z.guid().optional().or(z.literal("")),
   canal: z
     .enum([
       "salon",
@@ -118,8 +118,8 @@ export const restauranteOrdenSchema = z.object({
 });
 
 export const restauranteOrdenItemSchema = z.object({
-  ordenId: z.string().uuid(),
-  productoId: z.string().uuid(),
+  ordenId: z.guid(),
+  productoId: z.guid(),
   cantidad: z.coerce.number().positive("Cantidad debe ser positiva").max(100),
   precioUnitario: z.coerce.number().min(0),
   descuento: z.coerce.number().min(0).default(0),
@@ -129,21 +129,21 @@ export const restauranteOrdenItemSchema = z.object({
 });
 
 export const restauranteEnviarComandaSchema = z.object({
-  ordenId: z.string().uuid(),
+  ordenId: z.guid(),
 });
 
 export const restauranteSolicitarCuentaSchema = z.object({
-  ordenId: z.string().uuid(),
+  ordenId: z.guid(),
 });
 
 export const restauranteMoverMesaOrdenSchema = z.object({
-  ordenId: z.string().uuid(),
-  mesaId: z.string().uuid("Selecciona una mesa"),
+  ordenId: z.guid(),
+  mesaId: z.guid("Selecciona una mesa"),
 });
 
 export const restauranteCobroOrdenSchema = z.object({
-  ordenId: z.string().uuid(),
-  formaPagoId: z.string().uuid("Selecciona una forma de pago"),
+  ordenId: z.guid(),
+  formaPagoId: z.guid("Selecciona una forma de pago"),
   referencia: textoLibre(120),
   propina: z.coerce.number().min(0).max(1000000).default(0),
   montoRecibido: z.coerce.number().min(0).max(1000000).optional(),
@@ -151,17 +151,17 @@ export const restauranteCobroOrdenSchema = z.object({
 });
 
 export const restauranteMesaLimpiaSchema = z.object({
-  mesaId: z.string().uuid(),
+  mesaId: z.guid(),
 });
 
 export const restauranteComandaEstadoSchema = z.object({
-  comandaId: z.string().uuid(),
+  comandaId: z.guid(),
   estado: z.enum(["recibida", "preparando", "lista", "entregada", "cancelada"]),
 });
 
 export const restauranteReservacionSchema = z.object({
-  sucursalId: z.string().uuid(),
-  mesaId: z.string().uuid().optional().or(z.literal("")),
+  sucursalId: z.guid(),
+  mesaId: z.guid().optional().or(z.literal("")),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   telefono: textoLibre(50),
   email: z.string().trim().email("Correo no valido").optional().or(z.literal("")),
@@ -173,7 +173,7 @@ export const restauranteReservacionSchema = z.object({
 });
 
 export const restauranteEsperaSchema = z.object({
-  sucursalId: z.string().uuid(),
+  sucursalId: z.guid(),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   telefono: textoLibre(50),
   personas: z.coerce.number().int().min(1).max(80),
@@ -218,8 +218,8 @@ export const restaurantePromocionSchema = z.object({
   descripcion: textoLibre(300),
   tipo: z.enum(["porcentaje", "monto", "precio_fijo", "dos_por_uno"]),
   valor: z.coerce.number().min(0).default(0),
-  productoId: z.string().uuid().optional().or(z.literal("")),
-  categoriaId: z.string().uuid().optional().or(z.literal("")),
+  productoId: z.guid().optional().or(z.literal("")),
+  categoriaId: z.guid().optional().or(z.literal("")),
   diasSemana: z.array(z.coerce.number().int().min(0).max(6)).default([]),
   horaInicio: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
   horaFin: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),

@@ -16,7 +16,7 @@ export const documentEnvelopeSchema = z
       direccion: z.string().nullable(),
       email: z.string().nullable(),
       telefono: z.string().nullable(),
-      sucursalId: z.string().uuid(),
+      sucursalId: z.guid(),
     }),
     comprador: z
       .object({ nombre: z.string(), identificacion: z.string().nullable() })
@@ -41,13 +41,13 @@ export const documentEnvelopeSchema = z
       .min(1),
     total: z.number().min(0),
     anulado: z.boolean(),
-    reimpresionDe: z.string().uuid().nullable(),
+    reimpresionDe: z.guid().nullable(),
     autorizacion: z
       .object({
         identificador: z.string(),
         mecanismo: z.string(),
         pie: z.string(),
-        evidenciaId: z.string().uuid(),
+        evidenciaId: z.guid(),
       })
       .nullable(),
     branding: z.object({

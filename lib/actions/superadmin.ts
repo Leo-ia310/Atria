@@ -38,7 +38,7 @@ const crearGastoSchema = z.object({
 });
 
 const activarSchema = z.object({
-  empresaId: z.string().uuid(),
+  empresaId: z.guid(),
   planId: z.enum(["pro", "enterprise"]),
   ciclo: z.enum(["mensual", "anual"]),
   monto: z.coerce.number().positive().max(1_000_000),
@@ -51,7 +51,7 @@ const activarSchema = z.object({
 });
 
 const accionEmpresaSchema = z.object({
-  empresaId: z.string().uuid(),
+  empresaId: z.guid(),
   motivo: z.string().trim().max(600).optional(),
   confirmarEmpresa: z.string().trim(),
   confirmarAccion: z.string().trim(),

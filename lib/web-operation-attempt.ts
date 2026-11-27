@@ -25,7 +25,7 @@ export async function executeWebAttempt<T extends { ok: boolean }>(
   execute: () => Promise<T>,
 ): Promise<T | Failure> {
   if (key === undefined) return execute();
-  const parsed = z.string().uuid().safeParse(key);
+  const parsed = z.guid().safeParse(key);
   if (!parsed.success) return { ok: false, error: "Clave de intento invalida." };
 
   const context = currentBusinessContext();

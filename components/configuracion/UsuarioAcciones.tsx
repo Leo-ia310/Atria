@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -43,7 +45,7 @@ export function UsuarioAcciones({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ActualizarUsuarioInput>({
+  } = useForm<z.input<typeof actualizarUsuarioSchema>, unknown, z.output<typeof actualizarUsuarioSchema>>({
     resolver: zodResolver(actualizarUsuarioSchema),
     defaultValues: {
       nombre: usuario.nombre,

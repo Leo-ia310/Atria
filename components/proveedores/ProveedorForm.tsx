@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -26,7 +28,7 @@ export function ProveedorForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ProveedorInput>({
+  } = useForm<z.input<typeof proveedorSchema>, unknown, z.output<typeof proveedorSchema>>({
     resolver: zodResolver(proveedorSchema),
     defaultValues: {
       razonSocial: defaults?.razonSocial ?? "",

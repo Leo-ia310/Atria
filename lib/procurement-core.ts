@@ -2,7 +2,7 @@ import { z } from "zod";
 import { posMoney } from "./pos-money";
 import { allocateCents, remainingPortion } from "./receivable-core";
 export { remainingPortion };
-const id = z.string().uuid(),
+const id = z.guid(),
   qty = z
     .number()
     .positive()

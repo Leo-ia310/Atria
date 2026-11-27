@@ -5,7 +5,7 @@ import {requireSession} from './session-helpers';
 import {executeBusinessAction} from '../business-action';
 import {dbConEmpresa} from '../db';
 import {validarAccion} from '../server-access';
-const schema=z.object({kind:z.enum(['venta','compra','compra_lector']),key:z.string().uuid(),discard:z.boolean().optional()});
+const schema=z.object({kind:z.enum(['venta','compra','compra_lector']),key:z.guid(),discard:z.boolean().optional()});
 export async function recoverWebAttempt(input:unknown){
   const value=schema.parse(input),user=await requireSession();
   return executeBusinessAction(user,async()=>{

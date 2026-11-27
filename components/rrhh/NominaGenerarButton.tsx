@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -39,7 +41,7 @@ export function NominaGenerarButton() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<NominaGenerarInput>({
+  } = useForm<z.input<typeof nominaGenerarSchema>, unknown, z.output<typeof nominaGenerarSchema>>({
     resolver: zodResolver(nominaGenerarSchema),
     defaultValues: {
       descripcion: `Nómina ${DESCRIPCION_NOMINA_FORMATTER.format(new Date())}`,

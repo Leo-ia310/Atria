@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -43,7 +45,7 @@ export function CrearCuentaForm({ monedaDefault }: { monedaDefault: string }) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CuentaFinancieraInput>({
+  } = useForm<z.input<typeof cuentaFinancieraSchema>, unknown, z.output<typeof cuentaFinancieraSchema>>({
     resolver: zodResolver(cuentaFinancieraSchema),
     defaultValues: {
       tipo: "caja",

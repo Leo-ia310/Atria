@@ -6,5 +6,5 @@ export const crearPeriodoSchema = z.object({
 });
 
 export const periodoIdSchema = z.object({
-  periodoId: z.string().uuid(),
+  periodoId: z.guid(),
 });

@@ -7,18 +7,18 @@ export const crearCuentaFinancieraSchema = z.object({
   numeroCuenta: z.string().max(50).optional().or(z.literal("")),
   moneda: z.enum(["HNL", "NIO", "GTQ", "CRC", "USD", "MXN"]),
   saldoInicial: z.coerce.number().min(0).default(0),
-  cuentaContableId: z.string().uuid().optional().or(z.literal("")),
+  cuentaContableId: z.guid().optional().or(z.literal("")),
 });
 
 export const crearCategoriaGastoSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido").max(100),
-  cuentaContableId: z.string().uuid("Cuenta contable requerida"),
+  cuentaContableId: z.guid("Cuenta contable requerida"),
 });
 
 export const crearGastoSchema = z.object({
-  sesionCajaId:z.string().uuid().optional(),
-  categoriaId: z.string().uuid("Selecciona una categoría"),
-  cuentaFinancieraId: z.string().uuid("Selecciona cuenta de pago"),
+  sesionCajaId:z.guid().optional(),
+  categoriaId: z.guid("Selecciona una categoría"),
+  cuentaFinancieraId: z.guid("Selecciona cuenta de pago"),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
   descripcion: z.string().min(1, "Descripción requerida").max(300),
   referencia: z.string().max(100).optional().or(z.literal("")),
@@ -28,9 +28,9 @@ export const crearGastoSchema = z.object({
 });
 
 export const actualizarGastoRecurrenteSchema = z.object({
-  id: z.string().uuid(),
-  categoriaId: z.string().uuid("Selecciona una categoría"),
-  cuentaFinancieraId: z.string().uuid("Selecciona cuenta de pago"),
+  id: z.guid(),
+  categoriaId: z.guid("Selecciona una categoría"),
+  cuentaFinancieraId: z.guid("Selecciona cuenta de pago"),
   descripcion: z.string().min(1, "Descripción requerida").max(300),
   referencia: z.string().max(100).optional().or(z.literal("")),
   subtotal: z.coerce.number().positive("El monto debe ser mayor a cero"),

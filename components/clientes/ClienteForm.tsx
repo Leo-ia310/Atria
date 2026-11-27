@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -26,7 +28,7 @@ export function ClienteForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ClienteInput>({
+  } = useForm<z.input<typeof clienteSchema>, unknown, z.output<typeof clienteSchema>>({
     resolver: zodResolver(clienteSchema),
     defaultValues: {
       nombre: defaults?.nombre ?? "",

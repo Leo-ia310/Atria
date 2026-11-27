@@ -7,8 +7,8 @@ import { firmarGrantCanonico } from "./desktop-grant";
 import { ensureDesktopSchema } from "./desktop-schema";
 import type { SessionUser } from "./actions/session-helpers";
 
-export const desktopGrantSchema = z.object({ userId: z.string().uuid(), empresaId: z.string().uuid(), deviceId: z.string().uuid(),
-  sucursalIds: z.array(z.string().uuid()).max(1000), issuedAt: z.string().datetime(), expiresAt: z.string().datetime(), signature: z.string().regex(/^[a-f0-9]{64}$/) });
+export const desktopGrantSchema = z.object({ userId: z.guid(), empresaId: z.guid(), deviceId: z.guid(),
+  sucursalIds: z.array(z.guid()).max(1000), issuedAt: z.string().datetime(), expiresAt: z.string().datetime(), signature: z.string().regex(/^[a-f0-9]{64}$/) });
 export type DesktopGrant = z.infer<typeof desktopGrantSchema>;
 export class DesktopAuthError extends Error { readonly status = 401; }
 

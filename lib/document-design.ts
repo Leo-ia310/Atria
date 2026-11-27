@@ -115,13 +115,13 @@ export const documentCommandSchema = z
       "print",
       "recover",
     ]),
-    requestId: z.string().uuid(),
-    sucursalId: z.string().uuid(),
-    id: z.string().uuid().optional(),
+    requestId: z.guid(),
+    sucursalId: z.guid(),
+    id: z.guid().optional(),
     name: z.string().trim().min(1).max(120).optional(),
     design: documentDesignSchema.optional(),
     expectedVersion: z.number().int().positive().optional(),
-    templateId: z.string().uuid().optional(),
+    templateId: z.guid().optional(),
     templateVersion: z.number().int().positive().optional(),
     sourceKind: z
       .enum([
@@ -134,10 +134,10 @@ export const documentCommandSchema = z
         "estado_cuenta",
       ])
       .optional(),
-    sourceId: z.string().uuid().optional(),
+    sourceId: z.guid().optional(),
     sourceVersion: z.number().int().positive().optional(),
     ejemplar: z.enum(["original", "duplicado"]).default("original"),
-    attemptId: z.string().uuid().optional(),
+    attemptId: z.guid().optional(),
   })
   .strict();
 export type DocumentCommand = z.infer<typeof documentCommandSchema>;

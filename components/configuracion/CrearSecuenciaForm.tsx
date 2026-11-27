@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -26,7 +28,7 @@ export function CrearSecuenciaForm({ idFiscalNombre }: { idFiscalNombre: string 
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<SecuenciaFiscalInput>({
+  } = useForm<z.input<typeof secuenciaFiscalSchema>, unknown, z.output<typeof secuenciaFiscalSchema>>({
     resolver: zodResolver(secuenciaFiscalSchema),
     defaultValues: {
       tipoNombre: "Factura",

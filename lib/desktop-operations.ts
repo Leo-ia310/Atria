@@ -22,15 +22,15 @@ import { executeDesktopRrhh, DesktopRrhhRejected } from "./desktop-rrhh";
 import { executeDesktopSettings, DesktopSettingsRejected } from "./desktop-settings";
 import { manualPaymentEvidenceSchema, preparePosPayment } from "./pos-payment";
 
-export const desktopOperationSchema = z.object({ id: z.string().uuid(), idempotencyKey: z.string().min(1).max(200),
-  entityType: z.string().max(80), entityId: z.string().uuid(), operation: z.enum(["create","update","command","delete"]),
-  payload: z.record(z.unknown()), empresaId: z.string().optional().nullable(), sucursalId: z.string().optional().nullable(),
-  usuarioId: z.string().optional().nullable(), dependsOn: z.array(z.string().uuid()).max(10000).default([]) });
+export const desktopOperationSchema = z.object({ id: z.guid(), idempotencyKey: z.string().min(1).max(200),
+  entityType: z.string().max(80), entityId: z.guid(), operation: z.enum(["create","update","command","delete"]),
+  payload: z.record(z.string(), z.unknown()), empresaId: z.string().optional().nullable(), sucursalId: z.string().optional().nullable(),
+  usuarioId: z.string().optional().nullable(), dependsOn: z.array(z.guid()).max(10000).default([]) });
 export type DesktopOperation = z.infer<typeof desktopOperationSchema>;
 export class DesktopOperationError extends Error {
   constructor(message: string, readonly code = "BUSINESS_RULE", readonly retryable = false) { super(message); }
 }
-const uuid = z.string().uuid();
+const uuid = z.guid();
 const text = (v: unknown) => typeof v === "string" ? v : "";
 const number = (v: unknown) => z.coerce.number().finite().parse(v);
 const money = (v: number) => Math.round(v * 100) / 100;
@@ -184,7 +184,7 @@ export async function applyDesktopOperation(user: SessionUser, deviceId: string,
       const dependencies = await tx.execute(sql`select distinct operation_id from desktop_operations where empresa_id=${user.empresaId}::uuid and operation_id=any(ARRAY(select jsonb_array_elements_text(${JSON.stringify(op.dependsOn)}::jsonb)))`);
       if (dependencies.length !== new Set(op.dependsOn).size) throw new DesktopOperationError("Esperando operaciones previas.", "DEPENDENCY_PENDING", true);
     }
-    const localIds = z.record(z.array(z.string().uuid()).max(1000)).optional().parse(op.payload.localIds);
+    const localIds = z.record(z.string(), z.array(z.guid()).max(1000)).optional().parse(op.payload.localIds);
     const eventValue = op.payload.fecha ?? op.payload.aperturaEn ?? op.payload.cierreEn;
     const eventDate = typeof eventValue === "string" ? new Date(z.string().datetime().parse(eventValue)) : undefined;
     if (eventDate && eventDate.getTime() > Date.now() + 60000) throw new DesktopOperationError("La fecha del equipo está adelantada. Revisa el reloj y la operación.", "CLOCK_CONFLICT");

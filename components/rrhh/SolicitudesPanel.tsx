@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -68,7 +70,7 @@ export function SolicitudesPanel({
     reset,
     watch,
     formState: { errors },
-  } = useForm<SolicitudInput>({
+  } = useForm<z.input<typeof solicitudSchema>, unknown, z.output<typeof solicitudSchema>>({
     resolver: zodResolver(solicitudSchema),
     defaultValues: {
       empleadoId: empleados[0]?.value ?? "",

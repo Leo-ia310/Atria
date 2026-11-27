@@ -34,8 +34,8 @@ export const menuVirtualSchema = z.object({
 });
 
 export const menuVirtualAjustesSchema = z.object({
-  menuId: z.string().uuid(),
-  sucursalId: z.string().uuid().optional().or(z.literal("")),
+  menuId: z.guid(),
+  sucursalId: z.guid().optional().or(z.literal("")),
   cantidadMesas: z.coerce.number().int().min(0).max(200).default(0),
   nombre: z.string().trim().min(2).max(120),
   slug: z
@@ -61,15 +61,15 @@ export const menuVirtualAjustesSchema = z.object({
 });
 
 export const menuSeccionSchema = z.object({
-  menuId: z.string().uuid(),
+  menuId: z.guid(),
   nombre: z.string().trim().min(2, "Nombre requerido").max(80),
   descripcion: textoOpcional,
 });
 
 export const menuPlatilloSchema = z.object({
-  menuId: z.string().uuid(),
-  productoId: z.string().uuid().optional().or(z.literal("")),
-  seccionId: z.string().uuid().optional().or(z.literal("")),
+  menuId: z.guid(),
+  productoId: z.guid().optional().or(z.literal("")),
+  seccionId: z.guid().optional().or(z.literal("")),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   descripcion: textoOpcional,
   precio: z.coerce.number().positive("Precio debe ser mayor que cero"),
@@ -81,15 +81,15 @@ export const menuPlatilloSchema = z.object({
 });
 
 export const menuPlatilloDesdeProductoSchema = z.object({
-  menuId: z.string().uuid(),
-  productoId: z.string().uuid("Selecciona un producto"),
-  seccionId: z.string().uuid().optional().or(z.literal("")),
+  menuId: z.guid(),
+  productoId: z.guid("Selecciona un producto"),
+  seccionId: z.guid().optional().or(z.literal("")),
   destacado: z.coerce.boolean().default(false),
 });
 
 export const menuPromocionSchema = z.object({
-  menuId: z.string().uuid(),
-  platilloId: z.string().uuid().optional().or(z.literal("")),
+  menuId: z.guid(),
+  platilloId: z.guid().optional().or(z.literal("")),
   nombre: z.string().trim().min(2, "Nombre requerido").max(120),
   descripcion: textoOpcional,
   tipo: z.enum(["porcentaje", "monto", "precio_fijo"]),
@@ -102,7 +102,7 @@ export const menuPromocionSchema = z.object({
 });
 
 export const pedidoCocinaEstadoSchema = z.object({
-  pedidoId: z.string().uuid(),
+  pedidoId: z.guid(),
   estado: z.enum(["nuevo", "en_preparacion", "listo", "entregado", "cancelado"]),
 });
 
@@ -122,7 +122,7 @@ export const pedidoMenuPublicoSchema = z.object({
   items: z
     .array(
       z.object({
-        platilloId: z.string().uuid(),
+        platilloId: z.guid(),
         cantidad: z.coerce.number().int().min(1).max(50),
       }),
     )

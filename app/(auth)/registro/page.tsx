@@ -92,7 +92,7 @@ const PASOS = [
 ];
 
 function erroresDesdeIssues<T extends string>(
-  issues: { path: (string | number)[]; message: string }[],
+  issues: { path: PropertyKey[]; message: string }[],
 ): Partial<Record<T, string>> {
   const resultado: Partial<Record<T, string>> = {};
   for (const issue of issues) {

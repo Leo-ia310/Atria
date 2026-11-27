@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const resolveTransferSchema=z.object({id:z.string().uuid(),expectedVersion:z.number().int().nonnegative(),decision:z.enum(["verify","reject"]),bankReference:z.string().trim().max(180).default(""),bankReceiptConfirmed:z.boolean().default(false),reason:z.string().trim().max(500).default("")}).superRefine((value,ctx)=>{
+export const resolveTransferSchema=z.object({id:z.guid(),expectedVersion:z.number().int().nonnegative(),decision:z.enum(["verify","reject"]),bankReference:z.string().trim().max(180).default(""),bankReceiptConfirmed:z.boolean().default(false),reason:z.string().trim().max(500).default("")}).superRefine((value,ctx)=>{
   if(value.decision==="verify"&&(!value.bankReceiptConfirmed||!value.bankReference))ctx.addIssue({code:z.ZodIssueCode.custom,message:"Confirma el abono real en el banco e ingresa su referencia."});
   if(value.decision==="reject"&&!value.reason)ctx.addIssue({code:z.ZodIssueCode.custom,message:"Indica el motivo del rechazo."});
 });

@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -27,11 +29,11 @@ export default function RecuperarPage() {
   const [enviando, setEnviando] = useState(false);
   const [reenviado, setReenviado] = useState(false);
 
-  const formSolicitar = useForm<RecuperarSolicitarInput>({
+  const formSolicitar = useForm<z.input<typeof recuperarSolicitarSchema>, unknown, z.output<typeof recuperarSolicitarSchema>>({
     resolver: zodResolver(recuperarSolicitarSchema),
   });
 
-  const formCanjear = useForm<RecuperarCanjearInput>({
+  const formCanjear = useForm<z.input<typeof recuperarCanjearSchema>, unknown, z.output<typeof recuperarCanjearSchema>>({
     resolver: zodResolver(recuperarCanjearSchema),
     defaultValues: { email: "", codigo: "", password: "", confirmarPassword: "" },
   });

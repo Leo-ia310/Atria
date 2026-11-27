@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -28,7 +30,7 @@ export function ConfiguracionNegocioForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ConfiguracionNegocioInput>({
+  } = useForm<z.input<typeof configuracionNegocioSchema>, unknown, z.output<typeof configuracionNegocioSchema>>({
     resolver: zodResolver(configuracionNegocioSchema),
     defaultValues: defaults,
   });

@@ -107,7 +107,7 @@ export const empleadoSchema = z
 export type EmpleadoInput = z.infer<typeof empleadoSchema>;
 
 export const asistenciaSchema = z.object({
-  empleadoId: z.string().uuid("Empleado inválido"),
+  empleadoId: z.guid("Empleado inválido"),
   fecha: z.string().min(8, "Fecha requerida"),
   estado: z.enum([
     "presente",
@@ -128,7 +128,7 @@ export type AsistenciaInput = z.infer<typeof asistenciaSchema>;
 
 export const solicitudSchema = z
   .object({
-    empleadoId: z.string().uuid("Empleado inválido"),
+    empleadoId: z.guid("Empleado inválido"),
     tipo: z.enum(["vacaciones", "permiso", "incapacidad", "adelanto", "constancia", "otro"]),
     fechaInicio: opt(20),
     fechaFin: opt(20),
@@ -218,8 +218,8 @@ export const tipoDeduccionSchema = z.object({
 export type TipoDeduccionInput = z.infer<typeof tipoDeduccionSchema>;
 
 export const deduccionVariableSchema = z.object({
-  nominaDetalleId: z.string().uuid("Empleado inválido"),
-  tipoDeduccionId: z.string().uuid("Selecciona un tipo de deducción"),
+  nominaDetalleId: z.guid("Empleado inválido"),
+  tipoDeduccionId: z.guid("Selecciona un tipo de deducción"),
   monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
   semana: z.enum(["semana_1", "semana_2", "periodo"]).default("periodo"),
   nota: z.string().trim().max(200).optional().or(z.literal("")),
@@ -232,8 +232,8 @@ export const tipoIngresoSchema = z.object({
 export type TipoIngresoInput = z.infer<typeof tipoIngresoSchema>;
 
 export const ingresoVariableSchema = z.object({
-  nominaDetalleId: z.string().uuid("Empleado invalido"),
-  tipoIngresoId: z.string().uuid("Selecciona un tipo de ingreso"),
+  nominaDetalleId: z.guid("Empleado invalido"),
+  tipoIngresoId: z.guid("Selecciona un tipo de ingreso"),
   monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
   semana: z.enum(["semana_1", "semana_2", "periodo"]).default("periodo"),
   nota: z.string().trim().max(200).optional().or(z.literal("")),
@@ -242,7 +242,7 @@ export type IngresoVariableInput = z.infer<typeof ingresoVariableSchema>;
 
 export const candidatoSchema = z
   .object({
-    vacanteId: z.string().uuid("Vacante inválida"),
+    vacanteId: z.guid("Vacante inválida"),
     nombres: z.string().trim().min(2, "Nombre requerido").max(120),
     apellidos: z.string().trim().min(2, "Apellido requerido").max(120),
     email: z

@@ -7,10 +7,10 @@ export const productoSchema = z
     nombre: z.string().min(2, "Mínimo 2 caracteres").max(200),
     descripcion: z.string().max(500).optional().or(z.literal("")),
     tipo: z.enum(["simple", "kit", "servicio", "combo"]).default("simple"),
-    categoriaId: z.string().uuid().optional().or(z.literal("")),
-    marcaId: z.string().uuid().optional().or(z.literal("")),
-    unidadBaseId: z.string().uuid().optional().or(z.literal("")),
-    impuestoId: z.string().uuid().optional().or(z.literal("")),
+    categoriaId: z.guid().optional().or(z.literal("")),
+    marcaId: z.guid().optional().or(z.literal("")),
+    unidadBaseId: z.guid().optional().or(z.literal("")),
+    impuestoId: z.guid().optional().or(z.literal("")),
     productoFiscalCodigo: z.string().trim().min(1).max(80).default("GENERAL_TAXABLE"),
     precioBase: z.coerce.number().min(0, "No puede ser negativo"),
     costoPromedio: z.coerce.number().min(0).default(0),
@@ -74,8 +74,8 @@ export const importarProductosSchema = z.object({
 });
 
 export const entradaInventarioLectorSchema = z.object({
-  productoId: z.string().uuid("Producto invalido"),
-  almacenId: z.string().uuid("Almacen invalido"),
+  productoId: z.guid("Producto invalido"),
+  almacenId: z.guid("Almacen invalido"),
   codigoBarras: z.string().trim().max(80),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor que cero"),
   fechaVencimiento: z
@@ -88,9 +88,9 @@ export const entradaInventarioLectorSchema = z.object({
 });
 
 export const compraRapidaInventarioLectorSchema = z.object({
-  productoId: z.string().uuid("Producto invalido"),
-  almacenId: z.string().uuid("Almacen invalido"),
-  proveedorId: z.string().uuid("Proveedor invalido"),
+  productoId: z.guid("Producto invalido"),
+  almacenId: z.guid("Almacen invalido"),
+  proveedorId: z.guid("Proveedor invalido"),
   codigoBarras: z.string().trim().min(1, "Codigo de barras requerido").max(80),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor que cero"),
   costoUnitario: z.coerce.number().min(0, "El costo no puede ser negativo"),

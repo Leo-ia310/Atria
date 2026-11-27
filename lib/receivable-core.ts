@@ -19,15 +19,15 @@ export const receivableCommandSchema = z
       "creditNote",
       "recover",
     ]),
-    requestId: z.string().uuid(),
-    sucursalId: z.string().uuid(),
-    id: z.string().uuid().optional(),
-    clienteId: z.string().uuid().optional(),
-    ventaId: z.string().uuid().optional(),
-    cuentaPasivoId: z.string().uuid().optional(),
-    formaPagoId: z.string().uuid().optional(),
-    sesionCajaId: z.string().uuid().optional(),
-    cxcId: z.string().uuid().optional(),
+    requestId: z.guid(),
+    sucursalId: z.guid(),
+    id: z.guid().optional(),
+    clienteId: z.guid().optional(),
+    ventaId: z.guid().optional(),
+    cuentaPasivoId: z.guid().optional(),
+    formaPagoId: z.guid().optional(),
+    sesionCajaId: z.guid().optional(),
+    cxcId: z.guid().optional(),
     monto: amount.optional(),
     referencia: z.string().trim().max(300).default(""),
     motivo: z.string().trim().max(2000).default(""),
@@ -37,7 +37,7 @@ export const receivableCommandSchema = z
     lines: z
       .array(
         z.object({
-          lineId: z.string().uuid(),
+          lineId: z.guid(),
           cantidad: z.number().positive().max(1e7).refine(q=>Number(q.toFixed(4))===q,'Usa cantidades con hasta cuatro decimales.'),
           reingresar: z.boolean(),
         }),
@@ -46,7 +46,7 @@ export const receivableCommandSchema = z
       .max(500)
       .optional(),
     cancel: z.boolean().default(false),
-    attemptId: z.string().uuid().optional(),
+    attemptId: z.guid().optional(),
   })
   .strict();
 export type ReceivableCommand = z.infer<typeof receivableCommandSchema>;

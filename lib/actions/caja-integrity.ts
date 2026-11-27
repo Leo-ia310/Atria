@@ -10,10 +10,10 @@ import { dbConEmpresa } from "../db";
 import { cashSession, cashEntry, cashTotals } from "../cash-service";
 
 const movementSchema=z.object({
-  id:z.string().uuid(),sesionId:z.string().uuid(),
+  id:z.guid(),sesionId:z.guid(),
   tipo:z.enum(["entrada","salida","retiro","devolucion"]),
   monto:z.coerce.number().finite().positive().max(999999999),
-  motivo:z.string().trim().min(3).max(300),ventaId:z.string().uuid().optional(),
+  motivo:z.string().trim().min(3).max(300),ventaId:z.guid().optional(),
 });
 export async function registrarMovimientoCaja(input:unknown) {
   const user=await requireSession();
@@ -61,7 +61,7 @@ export async function estadoTurnoCaja(sesionId:string) {
   return executeBusinessAction(user,async()=>{
     const access=await validarAccion(user,{modulo:"caja",permisos:"ventas.crear"});
     if(!access.ok)return access;
-    const session=await cashSession(user,z.string().uuid().parse(sesionId));
+    const session=await cashSession(user,z.guid().parse(sesionId));
     const totals=await cashTotals(user,session);
     const [movimientos,revisiones]=await dbConEmpresa(user.empresaId,async tx=>Promise.all([
       tx.execute(sql`select * from caja_movimientos where empresa_id=${user.empresaId}::uuid and sesion_id=${session.id}::uuid order by registrado_en,id limit 300`),
@@ -75,7 +75,7 @@ export async function revisarIncidenciaCaja(input:unknown) {
   return executeBusinessAction(user,async()=>{
     const access=await validarAccion(user,{modulo:"caja",soloAdmin:true});
     if(!access.ok)return access;
-    const value=z.object({id:z.string().uuid(),resolucion:z.string().trim().min(5).max(1000)}).parse(input);
+    const value=z.object({id:z.guid(),resolucion:z.string().trim().min(5).max(1000)}).parse(input);
     const [review]=await dbConEmpresa(user.empresaId,tx=>tx.execute(sql`select * from caja_revisiones where id=${value.id}::uuid and empresa_id=${user.empresaId}::uuid for update`));
     if(!review)return {ok:false as const,error:"Incidencia no disponible."};
     await cashSession(user,String(review.sesion_id));

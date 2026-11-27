@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -58,7 +60,7 @@ export function EmpleadoForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<EmpleadoInput>({
+  } = useForm<z.input<typeof empleadoSchema>, unknown, z.output<typeof empleadoSchema>>({
     resolver: zodResolver(empleadoSchema),
     defaultValues: {
       nombres: defaults?.nombres ?? "",

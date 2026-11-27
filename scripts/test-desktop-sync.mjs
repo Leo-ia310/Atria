@@ -28,11 +28,8 @@ try {
   Object.assign(process.env,{ARCA_TEST_DATABASE_URL:url,DATABASE_URL:url,DATABASE_POOL_URL:url,DIRECT_URL:url,
     NODE_ENV:"test",AUTH_SECRET:"arca-isolated-desktop-test-secret-only",UPSTASH_REDIS_REST_URL:"",UPSTASH_REDIS_REST_TOKEN:"",RESEND_API_KEY:""});
   console.log("PostgreSQL aislado iniciado. Creando esquema desde los modelos reales.");
-  await new Promise((resolve,reject)=>{
-    const child=spawn(process.execPath,["node_modules/drizzle-kit/bin.cjs","push","--config=tests/desktop/drizzle-test.config.ts","--force"],{env:process.env,windowsHide:true});
-    let output="";child.stdout.on("data",(chunk)=>{output+=chunk});child.stderr.on("data",(chunk)=>{output+=chunk});
-    child.on("error",reject);child.on("close",(code,signal)=>code===0?resolve():reject(new Error(`No se pudo crear el esquema aislado (exit ${code}, signal ${signal}): ${output.slice(-3000)}`)));
-  });
+  const {createIsolatedSchema}=await import("./create-isolated-schema.mjs");
+  await createIsolatedSchema(url);
   const [{db,disconnectIsolatedTestDatabase},s,{sql},{ensureDesktopSchema},{applyDesktopOperation},{desktopBootstrap},{getPlan},{CATALOGO_CUENTAS_BASE,CUENTAS_CLAVE}]=await Promise.all([
     import("../lib/db/index.ts"),import("../lib/db/schema.ts"),import("drizzle-orm"),import("../lib/desktop-schema.ts"),import("../lib/desktop-operations.ts"),import("../lib/desktop-bootstrap.ts"),import("../lib/pricing.ts"),import("../lib/paises.ts")]);
   database=db;

@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -78,7 +80,7 @@ export function ProductoForm({
     watch,
     setValue,
     formState: { errors },
-  } = useForm<ProductoInput>({
+  } = useForm<z.input<typeof productoSchema>, unknown, z.output<typeof productoSchema>>({
     resolver: zodResolver(productoSchema),
     defaultValues: valoresInicialesProducto(defaults),
   });
